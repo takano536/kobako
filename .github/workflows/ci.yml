@@ -1,0 +1,203 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kobako-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm test:unit
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # CI-only credentials; these are not production secrets.
+      DATABASE_URL: postgresql://ci_kobako:ci_kobako_password@localhost:5432/kobako_dev
+      TEST_DATABASE_URL: postgresql://ci_kobako:ci_kobako_password@localhost:5432/kobako_test
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.24
+        env:
+          POSTGRES_USER: ci_kobako
+          POSTGRES_PASSWORD: ci_kobako_password
+          POSTGRES_DB: kobako_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_kobako -d kobako_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Create isolated test database
+        run: PGPASSWORD=ci_kobako_password psql -h localhost -U ci_kobako -d kobako_dev -c 'CREATE DATABASE kobako_test'
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://ci_kobako:ci_kobako_password@localhost:5432/kobako_e2e
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.24
+        env:
+          POSTGRES_USER: ci_kobako
+          POSTGRES_PASSWORD: ci_kobako_password
+          POSTGRES_DB: kobako_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_kobako -d kobako_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm db:migrate
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build web image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: web
+          tags: kobako-web:local
+          load: true
+      - name: Build migration image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: migrate
+          tags: kobako-migrate:local
+          load: true
+      - name: Build worker image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: worker
+          tags: kobako-worker:local
+          load: true
+      - name: Create CI compose environment
+        run: |
+          cat > .env <<'EOF'
+          # Fixed CI-only values; not production secrets.
+          POSTGRES_USER=kobako_ci
+          POSTGRES_PASSWORD=kobako_ci_password
+          POSTGRES_DB=kobako
+          COMPOSE_DATABASE_URL=postgresql://kobako_ci:kobako_ci_password@postgres:5432/kobako
+          EOF
+      - name: Start Compose stack and verify health
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:3000/api/health/db >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 36 ]; then
+              echo 'Compose health checks did not become ready' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test "$(docker compose ps -aq migrate | xargs docker inspect -f '{{.State.ExitCode}}')" = 0
+          curl --fail http://127.0.0.1:3000/api/health
+          curl --fail http://127.0.0.1:3000/api/health/db
+      - name: Wait for idle worker and web services
+        run: |
+          sleep 30
+          running_services="$(docker compose ps --status running --services)"
+          for service in web worker; do
+            if ! printf '%s\n' "$running_services" | grep -qx "$service"; then
+              echo "Expected $service to remain running; got:" >&2
+              printf '%s\n' "$running_services" >&2
+              exit 1
+            fi
+          done
+      - name: Stop services and verify graceful shutdown
+        run: |
+          docker compose stop -t 20
+          web_container_id="$(docker compose ps -aq web)"
+          worker_container_id="$(docker compose ps -aq worker)"
+          test -n "$web_container_id"
+          test -n "$worker_container_id"
+          web_exit_code="$(docker inspect -f '{{.State.ExitCode}}' "$web_container_id")"
+          worker_exit_code="$(docker inspect -f '{{.State.ExitCode}}' "$worker_container_id")"
+          echo "web exit code: $web_exit_code"
+          echo "worker exit code: $worker_exit_code"
+          # Next standalone closes HTTP before its conventional SIGTERM exit 143; 137 is a timeout/SIGKILL.
+          if [ "$web_exit_code" = 137 ]; then
+            echo 'web was SIGKILLed or timed out' >&2
+            exit 1
+          fi
+          if [ "$web_exit_code" != 0 ] && [ "$web_exit_code" != 143 ]; then
+            echo "unexpected web exit code: $web_exit_code" >&2
+            exit 1
+          fi
+          test "$worker_exit_code" = 0
+      - name: Dump Compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Remove Compose stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
