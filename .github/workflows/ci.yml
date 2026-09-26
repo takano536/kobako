@@ -163,9 +163,28 @@ jobs:
           test "$(docker compose ps -aq migrate | xargs docker inspect -f '{{.State.ExitCode}}')" = 0
           curl --fail http://127.0.0.1:3000/api/health
           curl --fail http://127.0.0.1:3000/api/health/db
+      - name: Wait for idle worker and web services
+        run: |
+          sleep 30
+          running_services="$(docker compose ps --status running --services)"
+          for service in web worker; do
+            if ! printf '%s\n' "$running_services" | grep -qx "$service"; then
+              echo "Expected $service to remain running; got:" >&2
+              printf '%s\n' "$running_services" >&2
+              exit 1
+            fi
+          done
+      - name: Stop services and verify graceful shutdown
+        run: |
+          docker compose stop web worker
+          for service in web worker; do
+            container_id="$(docker compose ps -aq "$service")"
+            test -n "$container_id"
+            test "$(docker inspect -f '{{.State.ExitCode}}' "$container_id")" = 0
+          done
       - name: Dump Compose logs on failure
         if: failure()
         run: docker compose logs --no-color
-      - name: Stop Compose stack
+      - name: Remove Compose stack
         if: always()
         run: docker compose down --volumes --remove-orphans
