@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "types": ["node", "vitest/globals"]

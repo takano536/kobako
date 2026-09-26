@@ -5,4 +5,51 @@ export {
   type DatabaseClient,
 } from './client.js';
 export { databaseEnvSchema, getDatabaseUrl, redactDatabaseUrl, type DatabaseEnv } from './env.js';
+export {
+  DEFAULT_CATEGORY_SEEDS,
+  DEFAULT_HOUSEHOLD_ID,
+  DEFAULT_HOUSEHOLD_SLUG,
+  calculateDifference,
+  createTransaction,
+  deleteTransaction,
+  getCategory,
+  getExpenseCategoryTotals,
+  getHousehold,
+  getMonthlyTotals,
+  getTransaction,
+  initializeDefaultLedger,
+  listCategories,
+  listTransactions,
+  updateTransaction,
+  type ExpenseCategoryTotal,
+  type ListedTransaction,
+  type MonthlyTotals,
+  type TransactionFilters,
+} from './ledger.js';
+export {
+  MAX_SUPPORTED_YEAR,
+  MIN_SUPPORTED_YEAR,
+  currentTokyoDate,
+  currentTokyoMonth,
+  isValidMonth,
+  monthRange,
+  parseMonth,
+  shiftMonth,
+  type MonthRange,
+} from './month.js';
 export { type NewSystemHealthcheck, systemHealthchecks } from './schema.js';
+export {
+  AMOUNT_LIMIT,
+  MEMO_MAX_LENGTH,
+  amountSchema,
+  categoryIdSchema,
+  flattenTransactionError,
+  isCalendarDate,
+  memoSchema,
+  normalizeAmountInput,
+  occurredOnSchema,
+  transactionInputFromFormData,
+  transactionInputSchema,
+  transactionTypeSchema,
+  type TransactionInput,
+} from './validation.js';
