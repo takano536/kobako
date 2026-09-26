@@ -14,10 +14,6 @@
       "types": "./dist/env.d.ts",
       "import": "./dist/env.js"
     },
-    "./health": {
-      "types": "./dist/health.d.ts",
-      "import": "./dist/health.js"
-    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"

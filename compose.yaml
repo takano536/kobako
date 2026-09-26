@@ -22,7 +22,7 @@ services:
       target: migrate
     image: kobako-migrate:local
     environment:
-      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
     init: true
     depends_on:
       postgres:
@@ -35,7 +35,7 @@ services:
       target: web
     image: kobako-web:local
     environment:
-      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
       NODE_ENV: production
     init: true
     depends_on:
@@ -62,7 +62,7 @@ services:
       target: worker
     image: kobako-worker:local
     environment:
-      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
       NODE_ENV: production
     depends_on:
       migrate:

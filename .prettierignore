@@ -5,5 +5,6 @@ coverage
 playwright-report
 test-results
 .tmp
+apps/web/next-env.d.ts
 packages/db/drizzle
 pnpm-lock.yaml

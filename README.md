@@ -21,15 +21,17 @@ corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env
 # .env の DATABASE_URL をローカル PostgreSQL に合わせる
+set -a; . ./.env; set +a
 pnpm db:migrate
 pnpm dev
 ```
 
 `http://localhost:3000` にアクセスすると `kobako` が表示されます。`pnpm dev` は web 開発サーバーを起動します。DB が起動していると `/api/health/db` も `{"status":"ok"}` を返します。
 
-worker は別ターミナルで起動します。
+worker は別ターミナルで起動します。別ターミナルでも `.env` を読み込んでから起動してください。
 
 ```sh
+set -a; . ./.env; set +a
 pnpm --filter @kobako/worker dev
 # 停止: Ctrl-C（SIGINT）
 ```
@@ -42,7 +44,7 @@ worker は起動時に DB を確認した後、ジョブを実行せずシグナ
 
 ```sh
 cp .env.example .env
-# Compose 内の DB URL は COMPOSE_DATABASE_URL を設定しない場合に内部 hostname を使う
+# Compose 内の DB URL は COMPOSE_DATABASE_URL を設定しない場合に POSTGRES_* から構成する
 docker compose up --build
 ```
 
@@ -71,8 +73,8 @@ docker compose ps
 
 - `DATABASE_URL`: web、worker、migration が使う PostgreSQL URL（サーバーコードで遅延検証）
 - `TEST_DATABASE_URL`: integration test 専用 URL。`DATABASE_URL` と異なる DB を指定
-- `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`: Compose の開発用 PostgreSQL 初期値
-- `COMPOSE_DATABASE_URL`: Compose ネットワーク内から PostgreSQL へ接続する URL。未設定時は開発用既定値を使う
+- `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`: Compose の開発用 PostgreSQL のユーザー、パスワード、DB 名
+- `COMPOSE_DATABASE_URL`: Compose ネットワーク内から PostgreSQL へ接続する URL。未設定時は `POSTGRES_*` の値から開発用既定 URL を構成する。接続情報に URL 予約文字を含める場合は、percent-encoding 済みの URL を設定する
 
 認証、アップロード、AI 用の未実装設定や秘密情報はこの段階では追加していません。
 
