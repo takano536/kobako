@@ -28,13 +28,15 @@ RUN pnpm --filter @kobako/worker deploy --prod /out/worker
 FROM runtime AS web
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV KOBAKO_STANDALONE_SERVER=/app/apps/web/server.js
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=node:node /app/apps/web/server.mjs ./apps/web/server.mjs
 USER node
 EXPOSE 3000
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "apps/web/server.mjs"]
 
 FROM runtime AS migrate
 COPY --from=build --chown=node:node /out/db ./

@@ -12,7 +12,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node apps/web/.next/standalone/apps/web/server.js',
+    command: 'node apps/web/server.mjs',
     url: 'http://127.0.0.1:3000/api/health',
     timeout: 120_000,
   },
