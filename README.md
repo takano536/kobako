@@ -21,20 +21,20 @@ corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env
 # .env の DATABASE_URL をローカル PostgreSQL に合わせる
-set -a; . ./.env; set +a
 pnpm db:migrate
 pnpm dev
 ```
 
 `http://localhost:3000` にアクセスすると `kobako` が表示されます。`pnpm dev` は web 開発サーバーを起動します。DB が起動していると `/api/health/db` も `{"status":"ok"}` を返します。
 
-worker は別ターミナルで起動します。別ターミナルでも `.env` を読み込んでから起動してください。
+worker は別ターミナルで起動します。
 
 ```sh
-set -a; . ./.env; set +a
-pnpm --filter @kobako/worker dev
+pnpm worker:dev
 # 停止: Ctrl-C（SIGINT）
 ```
+
+ルートの環境変数を必要とする pnpm script は、Node.js 24 の env-file API（`--env-file-if-exists` または web dev launcher の `process.loadEnvFile`）でリポジトリルートの `.env` を自動的に読み込みます。`.env` がない場合も、外部から環境変数を指定して実行できます。外部環境変数と `.env` に同じキーがある場合は、明示的に指定した外部環境変数が優先されます。シェルで `.env` を source する必要はありません。
 
 worker は起動時に DB を確認した後、ジョブを実行せずシグナルを待機します。`SIGTERM`/`SIGINT` で接続を閉じて終了します。
 
@@ -84,7 +84,7 @@ schema は DB 接続確認だけを目的とする `system_healthchecks` テー�
 
 ```sh
 pnpm db:generate                 # schema 変更時に SQL を生成
-DATABASE_URL=... pnpm db:migrate # 空の DB を含む対象 DB に適用
+pnpm db:migrate                  # 空の DB を含む対象 DB に適用
 ```
 
 migration runner は Drizzle ORM の `migrate` を利用します。開発用 DB と test DB は必ず分けてください。
@@ -96,11 +96,13 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test:unit
-TEST_DATABASE_URL=... DATABASE_URL=... pnpm test:integration
+pnpm test:integration
 pnpm build
 pnpm exec playwright install chromium
-DATABASE_URL=... pnpm test:e2e
+pnpm test:e2e
 ```
+
+`db:generate`、`db:migrate`、`test:integration`、`test:e2e` もルートの `.env` を自動的に読み込みます。`.env` を使わずに実行する場合は、Fish と Bash のどちらでも使える `env` コマンドなどで `DATABASE_URL` と `TEST_DATABASE_URL` を外部から指定してください。
 
 E2E は `pnpm build` 後の production standalone server を Playwright の `webServer` から起動します。E2E 用 DB へ先に `pnpm db:migrate` を適用してください。integration test は `TEST_DATABASE_URL` がない場合、または `DATABASE_URL` と同じ場合に失敗します。
 
