@@ -20,6 +20,22 @@ interface DatabaseIdentity {
   systemIdentifier: string;
 }
 
+export type ReferenceSqlFactory = (
+  connectionString: string,
+  options: {
+    connect_timeout: number;
+    idle_timeout: number;
+    max: number;
+  },
+) => Sql;
+
+const defaultReferenceSqlFactory: ReferenceSqlFactory = (connectionString, options) =>
+  postgres(connectionString, options);
+
+class SameDatabaseError extends Error {}
+
+const DATABASE_IDENTITY_ERROR = 'could not verify DATABASE_URL database identity';
+
 function normalizeHost(hostname: string): { host: string; isLoopback: boolean } {
   const host = hostname
     .toLowerCase()
@@ -96,9 +112,13 @@ export function assertSafeTestDatabaseTarget(
     throw new Error('TEST_DATABASE_URL must use a test-designated database name');
   }
 
-  const databaseUrl = environment.DATABASE_URL?.trim();
-  if (databaseUrl) {
-    const developmentTarget = parseDatabaseTarget(databaseUrl, 'DATABASE_URL');
+  const databaseUrl = environment.DATABASE_URL;
+  if (databaseUrl !== undefined) {
+    const normalizedDatabaseUrl = databaseUrl.trim();
+    if (!normalizedDatabaseUrl) {
+      throw new Error('DATABASE_URL must be a non-empty PostgreSQL URL when provided');
+    }
+    const developmentTarget = parseDatabaseTarget(normalizedDatabaseUrl, 'DATABASE_URL');
     if (sameDatabaseTarget(target, developmentTarget)) {
       throw new Error('TEST_DATABASE_URL must be different from DATABASE_URL');
     }
@@ -124,6 +144,7 @@ export async function verifySafeTestDatabaseConnection(
   testSql: Sql,
   target: DatabaseTarget,
   databaseUrl?: string,
+  referenceSqlFactory: ReferenceSqlFactory = defaultReferenceSqlFactory,
 ): Promise<void> {
   let testIdentity: DatabaseIdentity;
   try {
@@ -135,37 +156,44 @@ export async function verifySafeTestDatabaseConnection(
     throw new Error('TEST_DATABASE_URL connected to an unexpected database');
   }
 
-  if (!databaseUrl) {
+  const referenceUrl = databaseUrl?.trim();
+  if (databaseUrl !== undefined && !referenceUrl) {
+    throw new Error(DATABASE_IDENTITY_ERROR);
+  }
+  if (!referenceUrl) {
     return;
   }
 
-  const referenceSql = postgres(databaseUrl, {
-    connect_timeout: 3,
-    idle_timeout: 5,
-    max: 1,
-  });
+  let referenceSql: Sql | undefined;
+  let failure: Error | undefined;
   try {
-    try {
-      await referenceSql`select 1`;
-    } catch {
-      // DATABASE_URL may intentionally be unavailable in a local test run. The
-      // pure URL guard above still rejects equal targets before this point.
-      return;
-    }
+    referenceSql = referenceSqlFactory(referenceUrl, {
+      connect_timeout: 3,
+      idle_timeout: 5,
+      max: 1,
+    });
+    await referenceSql`select 1`;
 
-    let referenceIdentity: DatabaseIdentity;
-    try {
-      referenceIdentity = await readDatabaseIdentity(referenceSql);
-    } catch {
-      throw new Error('could not verify DATABASE_URL database identity');
-    }
+    const referenceIdentity = await readDatabaseIdentity(referenceSql);
     if (
       testIdentity.database === referenceIdentity.database &&
       testIdentity.systemIdentifier === referenceIdentity.systemIdentifier
     ) {
-      throw new Error('TEST_DATABASE_URL resolved to the same database as DATABASE_URL');
+      throw new SameDatabaseError(
+        'TEST_DATABASE_URL resolved to the same database as DATABASE_URL',
+      );
     }
+  } catch (error) {
+    failure = error instanceof SameDatabaseError ? error : new Error(DATABASE_IDENTITY_ERROR);
   } finally {
-    await referenceSql.end({ timeout: 5 });
+    try {
+      await referenceSql?.end({ timeout: 5 });
+    } catch {
+      failure = new Error(DATABASE_IDENTITY_ERROR);
+    }
+  }
+
+  if (failure) {
+    throw failure;
   }
 }

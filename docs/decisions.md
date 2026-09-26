@@ -42,11 +42,11 @@ worker は今すぐ job を処理しませんが、web request と将来の Impo
 
 ## Integration test の DB 安全性
 
-integration test は `TEST_DATABASE_URL` を必須とし、`NODE_ENV=production` または非 loopback host を拒否します。対象 database name は `test`/`tests` token を含む test-designated 名に限定し、`DATABASE_URL` とは host alias（`localhost`/`127.0.0.1`/`::1`）、既定 port 5432、database name を正規化した identity が一致しないことを確認します。schema の drop と各テストの truncate の直前には test 接続で `current_database()` と PostgreSQL system identifier を取得し、`DATABASE_URL` が到達可能なら同じ `(system_identifier, current_database())` でないことも検証します。`DATABASE_URL` が到達不能な場合だけ後者の比較を省略します。これにより beforeEach の reset はテスト失敗後も独立して再実行できます。`pg_control_system()` の system identifier query は実行権限を要求し、環境によって superuser/`pg_monitor` 相当が必要です。PostgreSQL 18 の検証 image では非 superuser role の query を確認し、権限を revoke した場合は `could not verify TEST_DATABASE_URL database identity` で fail closed しました。
+integration test は `TEST_DATABASE_URL` を必須とし、`NODE_ENV=production` または非 loopback host を拒否します。対象 database name は `test`/`tests` token を含む test-designated 名に限定し、`DATABASE_URL` とは host alias（`localhost`/`127.0.0.1`/`::1`）、既定 port 5432、database name を正規化した identity が一致しないことを確認します。schema の drop と各テストの truncate の直前には test 接続で `current_database()` と PostgreSQL system identifier を取得します。`DATABASE_URL` が設定されている場合は接続・identity query も成功しなければならず、到達不能、query failure、permission denied、identity 欠落など検証不能な状態では generic error で fail closed します。正常に検証できた場合だけ同じ `(system_identifier, current_database())` でないことを確認します。これにより beforeEach の reset は test DB identity が確認された後だけ実行されます。`pg_control_system()` の system identifier query は実行権限を要求し、環境によって superuser/`pg_monitor` 相当が必要です。PostgreSQL 18 の検証 image では非 superuser role の query を確認し、権限を revoke した場合は `could not verify DATABASE_URL database identity` で fail closed します。
 
 ## E2E データベースの安全性
 
-`apps/web/e2e/ledger.spec.ts` は schema/table を truncate しません。各実行で UUID から `e2e:<UUID>:<test>` の marker を生成し、9000〜9997 年の run-specific な候補月と翌月が default household 内で空であることを DB で確認してから、画面操作の日付に使います。候補が埋まっている場合は既存行を削除せず別候補を探し、空きがなければ失敗します。後処理の DELETE は default household・同じ遠未来範囲・現在 run の marker prefix に限定し、クラッシュした別 run の残骸や同じ年の利用者データを年だけで削除しません。
+`apps/web/e2e/ledger.spec.ts` は schema/table を truncate しません。各実行で UUID から `e2e:<UUID>:<test>` の marker を生成し、9000〜9997 年の run-specific な候補月と翌月が default household 内で空であることを DB で確認してから、画面操作の日付に使います。候補が埋まっている場合は既存行を削除せず別候補を探し、空きがなければ失敗します。E2E は `TEST_DATABASE_URL` に専用の test DB を指定し、起動時と後処理 DELETE の直前に `assertSafeTestDatabaseTarget` と `verifySafeTestDatabaseConnection` を通します。後処理の DELETE は default household・同じ遠未来範囲・現在 run の marker prefix に限定し、guard が成功しない場合は実行しません。クラッシュした別 run の残骸や同じ年の利用者データを年だけで削除しません。
 
 ## Renovate
 

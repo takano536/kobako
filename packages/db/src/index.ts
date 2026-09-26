@@ -39,6 +39,15 @@ export {
 } from './month.js';
 export { type NewSystemHealthcheck, systemHealthchecks } from './schema.js';
 export {
+  assertSafeTestDatabaseTarget,
+  parseDatabaseTarget,
+  sameDatabaseTarget,
+  verifySafeTestDatabaseConnection,
+  type DatabaseTarget,
+  type ReferenceSqlFactory,
+  type SafeTestDatabaseTarget,
+} from './database-safety.js';
+export {
   AMOUNT_LIMIT,
   MEMO_MAX_LENGTH,
   amountSchema,

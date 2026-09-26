@@ -115,7 +115,9 @@ pnpm test:e2e
 
 `db:generate`、`db:migrate`、`test:integration`、`test:e2e` もルートの `.env` を自動的に読み込みます。`.env` を使わずに実行する場合は、Fish と Bash のどちらでも使える `env` コマンドなどで `DATABASE_URL` と `TEST_DATABASE_URL` を外部から指定してください。
 
-E2E は `pnpm build` 後の production standalone server を Playwright の `webServer` から起動します。E2E 用 DB へ先に `pnpm db:migrate` を適用してください。integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-designated database（名前に `test` または `tests` の token を含む）だけを許可します。`DATABASE_URL` と host alias（`localhost`/`127.0.0.1`/`::1`）、port（既定値 5432）、database name が同じ場合も失敗します。schema の drop/truncate 前には接続先の `current_database()` と PostgreSQL の system identifier を確認し、到達可能な `DATABASE_URL` と同じ DB でないことを検証します。system identifier query の `pg_control_system()` は実行権限が必要です（環境によって superuser または `pg_monitor` 相当を要求する場合があります）。権限不足なら integration test は破壊的 SQL を実行せず fail closed します。PostgreSQL 18 の検証 image では、明示的な非 superuser role でも関数実行権限がある限り query は通り、権限を revoke すると fail closed になります。
+E2E は `pnpm build` 後の production standalone server を Playwright の `webServer` から起動します。E2E 用の専用 DB を `TEST_DATABASE_URL` に指定し、先に `DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate` を実行してください。Playwright の web server も `TEST_DATABASE_URL` を使います。`DATABASE_URL` を別の reference DB として設定する場合は、到達可能で、test DB と異なる DB にしてください。未設定なら reference DB の比較は行わず、test DB 自体の identity を検証します。
+
+integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-designated database（名前に `test` または `tests` の token を含む）だけを許可します。`DATABASE_URL` と host alias（`localhost`/`127.0.0.1`/`::1`）、port（既定値 5432）、database name が同じ場合も失敗します。schema の drop/truncate 前には接続先の `current_database()` と PostgreSQL の system identifier を確認し、`DATABASE_URL` が設定されている場合は接続・identity 検証まで成功しなければ、同じ DB かどうかにかかわらず破壊的 SQL を実行せず fail closed します。system identifier query の `pg_control_system()` は実行権限が必要です（環境によって superuser または `pg_monitor` 相当を要求する場合があります）。権限不足なら integration test は破壊的 SQL を実行せず fail closed します。PostgreSQL 18 の検証 image では、明示的な非 superuser role でも関数実行権限がある限り query は通り、権限を revoke すると fail closed になります。
 
 **E2E は専用の DB で実行してください。** `apps/web/e2e/ledger.spec.ts` は schema/table を truncate せず、各実行で `e2e:<UUID>:<test>` 形式の run-unique marker をメモへ付け、対象 household のその marker の行だけを後処理で削除します。テスト月は run UUID から 9000〜9997 年の範囲で選び、対象月と翌月が household 内で空であることを DB で確認してから使います。空きがなければ既存データを削除せず、明確に失敗します。クラッシュした実行の残骸も marker が一致しない限り削除しません。
 
@@ -151,8 +153,8 @@ Dockerfile                # web/migrate/worker multi-stage image
 
 `.env.example` は開発専用のサンプルです。実際の秘密情報を commit しないでください。
 
-- `DATABASE_URL`: web、worker、migration が使う PostgreSQL URL（サーバーコードで遅延検証）
-- `TEST_DATABASE_URL`: integration test 専用 URL。loopback host の test-designated database（名前に `test` または `tests` の token を含む）を指定し、`DATABASE_URL` と host alias・port・database name が異なる必要があります。`NODE_ENV=production` では integration test の破壊的 reset は拒否されます
+- `DATABASE_URL`: web、worker、migration が使う PostgreSQL URL（サーバーコードで遅延検証）。integration test の `TEST_DATABASE_URL` と併用する場合は、到達可能な reference DB として test DB と異なる接続先にします。E2E では未設定でも実行できます。
+- `TEST_DATABASE_URL`: integration test と E2E の専用 URL。loopback host の test-designated database（名前に `test` または `tests` の token を含む）を指定し、`DATABASE_URL` と host alias・port・database name が異なる必要があります。`NODE_ENV=production` では integration test の破壊的 reset は拒否されます。E2E の web server と後処理はこの URL の DB を使います。
 - `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`: Compose の開発用 PostgreSQL のユーザー、パスワード、DB 名
 - `COMPOSE_DATABASE_URL`: Compose ネットワーク内から PostgreSQL へ接続する URL。未設定時は `POSTGRES_*` の値から開発用既定 URL を構成する。接続情報に URL 予約文字を含める場合は、percent-encoding 済みの URL を設定する
 
@@ -167,6 +169,6 @@ Dockerfile                # web/migrate/worker multi-stage image
 - **`DATABASE_URL` エラー**: PostgreSQL URL（`postgresql://` または `postgres://`）を指定し、開発 DB と test DB を分けてください。
 - **`/api/health` は OK だが `/api/health/db` が 503**: PostgreSQL の起動、port、認証情報、migration、URL の hostname を確認してください。health response は内部エラーを返しません。サーバーログには secret を含まない接続先だけが出ます。
 - **Compose の接続先エラー**: コンテナ内の DB hostname は `postgres` です。`.env` に `DATABASE_URL=...@localhost` を置く場合は、Compose 用に `COMPOSE_DATABASE_URL=...@postgres` を指定してください。
-- **integration test が拒否される**: `TEST_DATABASE_URL` を設定し、`kobako_test` のように名前に区切られた `test`/`tests` token を含む loopback DB を指定してください。`DATABASE_URL` と localhost/127.0.0.1/::1、port 5432（既定値）、database name が同じ場合や、`NODE_ENV=production` の場合は安全のため拒否されます。
+- **integration test / E2E が拒否される**: `TEST_DATABASE_URL` を設定し、`kobako_test` のように名前に区切られた `test`/`tests` token を含む loopback DB を指定してください。`DATABASE_URL` を設定する場合は到達可能な別 DB を指定し、同じ DB、localhost/127.0.0.1/::1 の host alias、port 5432（既定値）、database name が同じ場合や、`NODE_ENV=production` の場合は安全のため拒否されます。
 - **Chromium がない**: `pnpm exec playwright install chromium`（CI は `--with-deps`）を実行してください。
 - **Docker がない**: Docker Compose の確認はできませんが、ローカル PostgreSQL を用意すれば Node.js 側の migration、health、test、build は実行できます。

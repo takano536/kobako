@@ -60,7 +60,12 @@ describe('PostgreSQL migrations and ledger', () => {
   });
 
   beforeEach(async () => {
-    await verifySafeTestDatabaseConnection(client.sql, testDatabaseTarget, developmentUrl);
+    try {
+      await verifySafeTestDatabaseConnection(client.sql, testDatabaseTarget, developmentUrl);
+    } catch (error) {
+      await client.close();
+      throw error;
+    }
     await client.sql`
       truncate table "transactions", "categories", "households", "system_healthchecks"
       restart identity cascade

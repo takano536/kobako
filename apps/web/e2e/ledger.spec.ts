@@ -3,11 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import {
   DEFAULT_HOUSEHOLD_ID,
+  assertSafeTestDatabaseTarget,
   createDatabaseClient,
-  getDatabaseUrl,
   initializeDefaultLedger,
   monthRange,
   shiftMonth,
+  verifySafeTestDatabaseConnection,
   type DatabaseClient,
 } from '@kobako/db';
 
@@ -91,11 +92,23 @@ async function deleteRunTransactions(client: DatabaseClient): Promise<void> {
 }
 
 test.beforeAll(async () => {
-  databaseClient = createDatabaseClient(getDatabaseUrl());
-  await initializeDefaultLedger(databaseClient.db);
-  [month, nextMonth] = await chooseEmptyMonthPair(databaseClient);
-  monthLabel = labelForMonth(month);
-  nextMonthLabel = labelForMonth(nextMonth);
+  const safeTestDatabase = assertSafeTestDatabaseTarget();
+  databaseClient = createDatabaseClient(safeTestDatabase.url);
+  try {
+    await verifySafeTestDatabaseConnection(
+      databaseClient.sql,
+      safeTestDatabase.target,
+      process.env.DATABASE_URL,
+    );
+    await initializeDefaultLedger(databaseClient.db);
+    [month, nextMonth] = await chooseEmptyMonthPair(databaseClient);
+    monthLabel = labelForMonth(month);
+    nextMonthLabel = labelForMonth(nextMonth);
+  } catch (error) {
+    await databaseClient.close();
+    databaseClient = undefined;
+    throw error;
+  }
 });
 
 test.afterAll(async () => {
@@ -103,6 +116,12 @@ test.afterAll(async () => {
     return;
   }
   try {
+    const safeTestDatabase = assertSafeTestDatabaseTarget();
+    await verifySafeTestDatabaseConnection(
+      databaseClient.sql,
+      safeTestDatabase.target,
+      process.env.DATABASE_URL,
+    );
     await deleteRunTransactions(databaseClient);
   } finally {
     await databaseClient.close();
