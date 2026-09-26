@@ -18,6 +18,8 @@ async function runWorker(): Promise<void> {
       database: redactDatabaseUrl(connectionString),
     });
 
+    // Keep one ref'd handle alive until pg-boss lands; this does no work or polling.
+    const keepAlive = setInterval(() => undefined, 2 ** 31 - 1);
     let resolveShutdown: (() => void) | undefined;
     const shutdownRequested = new Promise<void>((resolve) => {
       resolveShutdown = resolve;
@@ -34,7 +36,11 @@ async function runWorker(): Promise<void> {
 
     process.once('SIGTERM', handleSignal);
     process.once('SIGINT', handleSignal);
-    await shutdownRequested;
+    try {
+      await shutdownRequested;
+    } finally {
+      clearInterval(keepAlive);
+    }
 
     await client.close();
     console.log('[worker] shutdown complete');
