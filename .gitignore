@@ -1,1 +1,12 @@
 .tmp/
+node_modules/
+.next/
+dist/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+coverage/
+*.tsbuildinfo
+.DS_Store

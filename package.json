@@ -1,0 +1,37 @@
+{
+  "name": "kobako",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "kobako development foundation",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @kobako/db build && exec node apps/web/scripts/dev.mjs dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "pnpm --filter @kobako/db build && pnpm --filter @kobako/db typecheck && pnpm --filter @kobako/web typecheck && pnpm --filter @kobako/worker typecheck",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "pnpm --filter @kobako/db build && exec node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
+    "build": "pnpm --filter @kobako/db build && pnpm --filter @kobako/web build && pnpm --filter @kobako/worker build",
+    "test:e2e": "exec node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
+    "db:generate": "cd packages/db && exec node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs generate --config drizzle.config.ts",
+    "db:migrate": "pnpm --filter @kobako/db build && exec node --env-file-if-exists=.env packages/db/dist/migrate.js",
+    "worker:dev": "exec node --env-file-if-exists=.env --import tsx apps/worker/src/index.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.2"
+  }
+}
