@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+coverage
+playwright-report
+test-results
+.tmp
+packages/db/drizzle
+pnpm-lock.yaml

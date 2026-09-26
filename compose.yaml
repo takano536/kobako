@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kobako_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kobako_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-kobako}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - kobako-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    image: kobako-migrate:local
+    environment:
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  web:
+    build:
+      context: .
+      target: web
+    image: kobako-web:local
+    environment:
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+      NODE_ENV: production
+    init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - '127.0.0.1:3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  worker:
+    build:
+      context: .
+      target: worker
+    image: kobako-worker:local
+    environment:
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://kobako_dev:kobako_dev_password@postgres:5432/kobako}
+      NODE_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    init: true
+
+volumes:
+  kobako-postgres:
