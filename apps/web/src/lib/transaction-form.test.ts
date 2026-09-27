@@ -4,7 +4,7 @@ import {
   isAmountText,
   isAmountTextWhileEditing,
   normalizeAmountInput,
-} from '@kobako/db/validation';
+} from '../../../../packages/db/src/validation.js';
 
 describe('amount input format', () => {
   it('accepts normal, zero, negative, and comma-grouped integers', () => {
