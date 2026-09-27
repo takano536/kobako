@@ -67,28 +67,28 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
-  const filterSummary = `${monthLabel(month)}・${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべての種別'}・${categoryName ?? 'すべてのカテゴリ'}`;
+  const filterSummary = `${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべての種別'}・${categoryName ?? 'すべてのカテゴリ'}`;
   const groupedRows = groupTransactionsByDate(rows);
 
   return (
     <div className="content-stack transactions-page">
       <section className="page-heading" aria-labelledby="transactions-title">
-        <h1 id="transactions-title">取引</h1>
+        <h1 id="transactions-title">
+          取引 <span className="heading-count">{rows.length}件</span>
+        </h1>
         <Link className="heading-add-link" href={newTransactionHref(month)}>
           ＋ 取引を追加
         </Link>
       </section>
 
       <section className="filter-section" aria-labelledby="filter-title">
-        <div className="filter-summary-row">
+        <div className="filter-month-row" aria-label="月を移動">
           {month > `${MIN_SUPPORTED_YEAR}-01` ? (
             <Link href={listHref(shiftMonth(month, -1), type, categoryId)}>‹ 前月</Link>
           ) : (
             <span aria-hidden="true" />
           )}
-          <p className="filter-summary" id="filter-title">
-            {filterSummary}
-          </p>
+          <p className="filter-month">{monthLabel(month)}</p>
           {month < `${MAX_SUPPORTED_YEAR}-12` ? (
             <Link href={listHref(shiftMonth(month, 1), type, categoryId)}>翌月 ›</Link>
           ) : (
@@ -96,7 +96,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           )}
         </div>
         <details className="filter-details">
-          <summary>条件を変更する</summary>
+          <summary>
+            <span className="filter-summary" id="filter-title">
+              {filterSummary}
+            </span>
+            <span className="filter-summary-action">条件を変更する</span>
+          </summary>
           <form className="filter-form" method="get">
             <label>
               月
@@ -128,15 +133,11 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         </details>
       </section>
 
-      <section className="notebook-section" aria-labelledby="list-title">
-        <div className="section-heading">
-          <h2 id="list-title">取引一覧</h2>
-          <span className="result-count">{rows.length}件</span>
-        </div>
+      <section className="notebook-section" aria-labelledby="transactions-title">
         {rows.length === 0 ? (
           <div className="empty-state">
             <EmptyLedgerMotif />
-            <h3>{hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}</h3>
+            <h2>{hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}</h2>
             <p>
               {hasFilter
                 ? '条件を変えるか、条件をクリアしてください。'
@@ -153,7 +154,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             )}
           </div>
         ) : (
-          <ul className="transaction-list transaction-list-full" aria-labelledby="list-title">
+          <ul className="transaction-list transaction-list-full" aria-label="取引">
             {groupedRows.flatMap((group) =>
               group.transactions.map((transaction, index) => (
                 <TransactionRow

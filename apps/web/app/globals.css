@@ -695,50 +695,81 @@ p {
   padding: 0.1rem 0 0.35rem;
   border-block: 1px solid #e7e3da;
 }
-.filter-summary-row {
+.filter-month-row {
   display: grid;
   align-items: center;
   gap: 1rem;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 }
 
-.filter-summary-row > :first-child {
+.filter-month-row > :first-child {
   justify-self: start;
 }
 
-.filter-summary-row > :last-child {
+.filter-month-row > :last-child {
   justify-self: end;
 }
 
-.filter-summary-row a {
+.filter-month-row a {
   color: #24563f;
   font-size: 0.88rem;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.filter-summary-row a:hover {
+.filter-month-row a:hover {
   text-decoration: underline;
   text-underline-offset: 0.22rem;
 }
 
-.filter-summary {
+.filter-month {
   margin: 0;
   padding: 0.95rem 0;
-  color: #242521;
+  color: #6d6e67;
   font-size: 0.92rem;
   font-weight: 700;
   text-align: center;
 }
 
-.filter-details summary {
-  width: fit-content;
+.filter-details > summary {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
   min-height: 2.75rem;
   padding: 0.55rem 0;
   color: #24563f;
   cursor: pointer;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style-position: outside;
   font-size: 0.88rem;
   font-weight: 700;
+}
+
+.filter-details > summary::-webkit-details-marker {
+  color: #2f6b52;
+}
+
+.filter-summary {
+  min-width: 0;
+  color: #242521;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: left;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.filter-summary-action {
+  white-space: nowrap;
+}
+
+.heading-count {
+  margin-left: 0.35rem;
+  color: #6d6e67;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .filter-form {
@@ -1079,17 +1110,25 @@ p {
     flex-basis: 3.8rem;
   }
 
-  .filter-summary-row {
+  .filter-month-row {
     gap: 0.5rem;
-    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .filter-summary-row a {
+  .filter-month-row a {
     font-size: 0.8rem;
   }
 
-  .filter-summary {
+  .filter-month {
     font-size: 0.86rem;
+  }
+
+  .filter-details > summary {
+    gap: 0.5rem;
+  }
+
+  .filter-summary,
+  .filter-summary-action {
+    font-size: 0.82rem;
   }
 
   .secondary-summary-item {

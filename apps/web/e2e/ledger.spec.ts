@@ -232,12 +232,12 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
   const page = await context.newPage();
   try {
     await page.goto(`/transactions?month=${month}`);
-    await expect(page.getByText(`${monthLabel}・すべての種別・すべてのカテゴリ`)).toBeVisible();
+    await expect(page.getByText('すべての種別・すべてのカテゴリ')).toBeVisible();
     await page.getByText('条件を変更する', { exact: true }).click();
     await page.getByRole('combobox', { name: '種別' }).selectOption('income');
     await page.getByRole('button', { name: '適用' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
-    await expect(page.getByText(`${monthLabel}・収入・すべてのカテゴリ`)).toBeVisible();
+    await expect(page.getByText('収入・すべてのカテゴリ')).toBeVisible();
     await expect(page.getByRole('link', { name: /収入.*円/ })).toBeVisible();
   } finally {
     await context.close();
