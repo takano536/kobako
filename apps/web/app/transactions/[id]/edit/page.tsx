@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { listCategories, getTransaction } from '@kobako/db';
+import { getTransaction, listCategories } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { parseInt4Id } from '../../../../src/lib/ids';
@@ -34,10 +34,10 @@ export default async function EditTransactionPage({ params }: { params: Promise<
 
   const action = updateTransactionAction.bind(null, idText);
   return (
-    <div className="content-stack content-narrow">
+    <div className="content-stack content-narrow form-page">
       <section className="page-heading" aria-labelledby="edit-transaction-title">
         <div>
-          <p className="eyebrow">取引</p>
+          <p className="eyebrow">取引をしまう</p>
           <h1 id="edit-transaction-title">取引を編集</h1>
         </div>
         <Link
@@ -47,7 +47,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
           一覧へ戻る
         </Link>
       </section>
-      <section className="panel">
+      <section className="form-surface" aria-label="取引の入力">
         <TransactionForm
           action={action}
           categories={categories}
@@ -61,9 +61,10 @@ export default async function EditTransactionPage({ params }: { params: Promise<
           submitLabel="変更を保存"
         />
       </section>
-      <section className="panel danger-panel" aria-labelledby="delete-title">
+      <section className="delete-section" aria-labelledby="delete-title">
+        <p className="section-kicker">整理</p>
         <h2 id="delete-title">取引を削除</h2>
-        <p>間違えて登録した取引を削除できます。削除した内容は元に戻せません。</p>
+        <p>必要なときだけ、登録を取り消せます。</p>
         <DeleteTransactionForm transactionId={transaction.id} />
       </section>
     </div>

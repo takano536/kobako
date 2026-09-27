@@ -31,17 +31,17 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   const backHref = `/transactions?month=${encodeURIComponent(targetMonth)}`;
 
   return (
-    <div className="content-stack content-narrow">
+    <div className="content-stack content-narrow form-page">
       <section className="page-heading" aria-labelledby="new-transaction-title">
         <div>
-          <p className="eyebrow">取引</p>
+          <p className="eyebrow">取引をしまう</p>
           <h1 id="new-transaction-title">新規登録</h1>
         </div>
         <Link className="text-link" href={backHref}>
           取引一覧へ戻る
         </Link>
       </section>
-      <section className="panel">
+      <section className="form-surface" aria-label="取引の入力">
         <TransactionForm
           action={createTransactionAction}
           categories={categories}

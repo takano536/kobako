@@ -137,7 +137,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await assertEmptyMonth(month);
   await page.goto(`/?month=${month}`);
   await expect(page.getByRole('heading', { name: monthLabel })).toBeVisible();
-  await expect(page.getByText('この月の取引はまだありません。')).toBeVisible();
+  await expect(page.getByText('まだ記録がありません')).toBeVisible();
 
   await page.getByRole('link', { name: '取引を登録', exact: true }).click();
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
@@ -150,14 +150,16 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('link', { name: /支出.*1,200円/ })).toBeVisible();
 
   await page.goto(`/?month=${month}`);
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('1,200円')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+  ).toBeVisible();
 });
 
 test('adds income and updates the difference, then edits and deletes a transaction', async ({
   page,
 }) => {
   await page.goto(`/transactions/new?month=${month}`);
-  await page.getByLabel('種別').selectOption('income');
+  await page.getByText('収入', { exact: true }).click();
   await page.getByLabel('金額（円）').fill('5,000');
   await page.getByLabel('日付').fill(`${month}-20`);
   await page.getByLabel('カテゴリ').selectOption({ label: '給与' });
@@ -165,18 +167,20 @@ test('adds income and updates the difference, then edits and deletes a transacti
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await page.goto(`/?month=${month}`);
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('5,000円')).toBeVisible();
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('1,200円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('5,000円')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+  ).toBeVisible();
   await expect(page.getByRole('group', { name: '収支差額' }).getByText('3,800円')).toBeVisible();
 
   await page.goto(`/transactions?month=${month}`);
-  await page.getByRole('link', { name: new RegExp(`${month}-10`) }).click();
+  await page.getByRole('link', { name: /10日/ }).click();
   await page.getByLabel('金額（円）').fill('2,000');
   await page.getByRole('button', { name: '変更を保存' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*2,000円/ })).toBeVisible();
 
-  await page.getByRole('link', { name: new RegExp(`${month}-10`) }).click();
+  await page.getByRole('link', { name: /10日/ }).click();
   await page.getByLabel('この取引を削除することを確認しました').check();
   await page.getByRole('button', { name: '削除する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -195,15 +199,15 @@ test('isolates months: a transaction in one month never appears in another', asy
 
   await page.goto(`/?month=${month}`);
   await expect(page.getByText('700円')).toHaveCount(0);
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('5,000円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('5,000円')).toBeVisible();
 
   await page.goto(`/transactions?month=${month}`);
   await expect(page.getByRole('link', { name: /700円/ })).toHaveCount(0);
 
   await page.goto(`/?month=${nextMonth}`);
   await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('700円')).toBeVisible();
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('0円')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'この月の支出' }).getByText('700円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('0円')).toBeVisible();
 
   await page.goto(`/transactions?month=${nextMonth}`);
   const rows = page.getByRole('list', { name: '取引' }).getByRole('listitem');
@@ -213,6 +217,24 @@ test('isolates months: a transaction in one month never appears in another', asy
   await page.goto(`/?month=${month}`);
   await page.getByRole('link', { name: '翌月 ›' }).click();
   await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
+});
+
+test('filters transactions with a native GET form when JavaScript is disabled', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    await page.goto(`/transactions?month=${month}`);
+    await page.getByText('条件を変更する', { exact: true }).click();
+    await page.getByRole('combobox', { name: '種別' }).selectOption('income');
+    await page.getByRole('button', { name: '適用' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
+    await expect(page.getByText(`${monthLabel}・収入・すべてのカテゴリ`)).toBeVisible();
+    await expect(page.getByRole('link', { name: /収入.*円/ })).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });
 
 test('shows a Japanese validation error and keeps the entered amount with aria-invalid', async ({
@@ -253,7 +275,7 @@ test('treats non-int4 transaction ids as not found', async ({ request }) => {
 
 test('health endpoints are available', async ({ page, request }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'kobako 家計簿 ホーム' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'kobako 家計ノート ホーム' })).toBeVisible();
 
   const health = await request.get('/api/health');
   expect(health.ok()).toBe(true);
