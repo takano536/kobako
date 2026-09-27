@@ -141,7 +141,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
 
   await page.getByRole('link', { name: '取引を登録', exact: true }).click();
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
-  await page.getByLabel('金額（円）').fill('1,200');
+  await page.getByLabel('金額').fill('1,200');
   await page.getByLabel('日付').fill(`${month}-10`);
   await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('expense'));
@@ -162,7 +162,7 @@ test('adds income and updates the difference, then edits and deletes a transacti
 }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByText('収入', { exact: true }).click();
-  await page.getByLabel('金額（円）').fill('5,000');
+  await page.getByLabel('金額').fill('5,000');
   await page.getByLabel('日付').fill(`${month}-20`);
   await page.getByLabel('カテゴリ').selectOption({ label: '給与' });
   await page.getByLabel('メモ（任意）').fill(markerFor('income'));
@@ -177,23 +177,78 @@ test('adds income and updates the difference, then edits and deletes a transacti
 
   await page.goto(`/transactions?month=${month}`);
   await page.getByRole('link', { name: /10日/ }).click();
-  await page.getByLabel('金額（円）').fill('2,000');
+  await page.getByLabel('金額').fill('2,000');
   await page.getByRole('button', { name: '変更を保存' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*2,000円/ })).toBeVisible();
 
   await page.getByRole('link', { name: /10日/ }).click();
-  await page.getByLabel('この取引を削除することを確認しました').check();
   await page.getByRole('button', { name: '削除する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*2,000円/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /収入.*5,000円/ })).toBeVisible();
 });
 
+test('preselects an unknown category when editing its transaction', async ({ page }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+
+  const categoryRows = await databaseClient.sql`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+      and name = '不明なカテゴリ'
+    limit 1
+  `;
+  let categoryId: number;
+  let createdCategory = false;
+  const existingCategoryId = categoryRows[0]?.id;
+  if (existingCategoryId !== undefined) {
+    categoryId = Number(existingCategoryId);
+  } else {
+    const insertedCategories = await databaseClient.sql`
+      insert into categories (household_id, type, name, sort_order)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'expense', '不明なカテゴリ', 95)
+      returning id
+    `;
+    categoryId = Number(insertedCategories[0]?.id);
+    createdCategory = true;
+  }
+  if (!Number.isInteger(categoryId)) {
+    throw new Error('unknown category fixture was not created');
+  }
+
+  const memo = markerFor('unknown-category-edit');
+  const insertedTransactions = await databaseClient.sql`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 450, ${`${month}-25`}, ${categoryId}, ${memo})
+    returning id
+  `;
+  const transactionId = Number(insertedTransactions[0]?.id);
+  if (!Number.isInteger(transactionId)) {
+    throw new Error('unknown category transaction fixture was not created');
+  }
+
+  try {
+    await page.goto(`/transactions/${transactionId}/edit`);
+    const categorySelect = page.getByLabel('カテゴリ');
+    await expect(categorySelect).toHaveValue(String(categoryId));
+    await expect(categorySelect.locator('option:checked')).toHaveText('不明なカテゴリ');
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(memo);
+  } finally {
+    await databaseClient.sql`delete from transactions where id = ${transactionId}`;
+    if (createdCategory) {
+      await databaseClient.sql`delete from categories where id = ${categoryId}`;
+    }
+  }
+});
+
 test('isolates months: a transaction in one month never appears in another', async ({ page }) => {
   await assertEmptyMonth(nextMonth);
   await page.goto(`/transactions/new?month=${nextMonth}`);
-  await page.getByLabel('金額（円）').fill('700');
+  await page.getByLabel('金額').fill('700');
   await page.getByLabel('日付').fill(`${nextMonth}-05`);
   await page.getByLabel('カテゴリ').selectOption({ label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
@@ -248,7 +303,7 @@ test('shows a Japanese validation error and keeps the entered amount with aria-i
   page,
 }) => {
   await page.goto('/transactions/new');
-  const amountField = page.getByLabel('金額（円）');
+  const amountField = page.getByLabel('金額');
   await amountField.fill('0');
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(
@@ -263,7 +318,7 @@ test('rejects an invalid amount server-side when JavaScript is disabled', async 
   const page = await context.newPage();
   try {
     await page.goto('/transactions/new');
-    await page.getByLabel('金額（円）').fill('0');
+    await page.getByLabel('金額').fill('0');
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(
       page.getByRole('alert').filter({ hasText: '入力内容を確認してください。' }),

@@ -47,7 +47,12 @@ function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <>
-      <button className="save-button" type="submit" disabled={pending} aria-busy={pending}>
+      <button
+        className="button button-primary save-button"
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+      >
         {pending ? '保存中…' : label}
       </button>
       <span className="sr-only" aria-live="polite">
@@ -166,7 +171,7 @@ export function TransactionForm({
       </fieldset>
 
       <div className="field amount-field">
-        <label htmlFor="transaction-amount">金額（円）</label>
+        <label htmlFor="transaction-amount">金額</label>
         <div className="amount-line">
           <span aria-hidden="true">¥</span>
           <input
@@ -262,7 +267,7 @@ export function TransactionForm({
           <textarea
             id="transaction-memo"
             name="memo"
-            rows={3}
+            rows={1}
             maxLength={MEMO_MAX_LENGTH}
             value={formValues.memo}
             onChange={(event) => updateValue('memo', event.currentTarget.value)}
@@ -291,28 +296,38 @@ export function TransactionForm({
 
 export interface DeleteTransactionFormProps {
   transactionId: number;
+  formId?: string;
 }
 
-export function DeleteTransactionForm({ transactionId }: DeleteTransactionFormProps) {
+export function DeleteTransactionForm({
+  transactionId,
+  formId = 'delete-transaction-form',
+}: DeleteTransactionFormProps) {
   const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(
     deleteTransactionAction,
     {},
   );
   return (
-    <form className="delete-form" action={formAction}>
-      <input type="hidden" name="id" value={transactionId} />
-      <label className="confirm-label">
-        <input type="checkbox" name="confirm" value="yes" required />
-        この取引を削除することを確認しました
-      </label>
-      <button className="button button-danger" type="submit" disabled={pending} aria-busy={pending}>
-        {pending ? '削除中…' : '削除する'}
-      </button>
-      {state.message ? (
-        <p className="field-error" role="alert">
-          <span aria-hidden="true">!</span> {state.message}
-        </p>
-      ) : null}
-    </form>
+    <>
+      <form id={formId} className="delete-form" action={formAction}>
+        <input type="hidden" name="id" value={transactionId} />
+      </form>
+      <div className="delete-action">
+        <button
+          className="button button-danger"
+          type="submit"
+          form={formId}
+          disabled={pending}
+          aria-busy={pending}
+        >
+          {pending ? '削除中…' : '削除する'}
+        </button>
+        {state.message ? (
+          <p className="field-error" role="alert">
+            <span aria-hidden="true">!</span> {state.message}
+          </p>
+        ) : null}
+      </div>
+    </>
   );
 }

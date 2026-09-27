@@ -45,22 +45,21 @@ export default async function EditTransactionPage({ params }: { params: Promise<
         </Link>
       </section>
       <section className="form-surface" aria-label="取引の入力">
-        <TransactionForm
-          action={action}
-          categories={categories}
-          initialValues={{
-            type: transaction.type,
-            amount: String(transaction.amount),
-            occurredOn: transaction.occurredOn,
-            categoryId: String(transaction.categoryId),
-            memo: transaction.memo,
-          }}
-          submitLabel="変更を保存"
-        />
-      </section>
-      <section className="delete-section" aria-labelledby="delete-title">
-        <h2 id="delete-title">取引を削除</h2>
-        <DeleteTransactionForm transactionId={transaction.id} />
+        <div className="edit-form-layout">
+          <TransactionForm
+            action={action}
+            categories={categories}
+            initialValues={{
+              type: transaction.type,
+              amount: String(transaction.amount),
+              occurredOn: transaction.occurredOn,
+              categoryId: String(transaction.categoryId),
+              memo: transaction.memo,
+            }}
+            submitLabel="変更を保存"
+          />
+          <DeleteTransactionForm transactionId={transaction.id} />
+        </div>
       </section>
     </div>
   );

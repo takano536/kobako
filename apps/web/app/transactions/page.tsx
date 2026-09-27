@@ -131,7 +131,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 ))}
               </select>
             </label>
-            <button type="submit">適用</button>
+            <button className="button button-primary" type="submit">
+              適用
+            </button>
           </form>
         </details>
       </section>
