@@ -12,7 +12,7 @@ import {
 
 import { EmptyLedgerMotif } from '../../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
-import { formatJapaneseDate, groupTransactionsByDate, monthLabel } from '../../src/lib/format';
+import { formatJapaneseDateShort, groupTransactionsByDate, monthLabel } from '../../src/lib/format';
 import { parseInt4Id } from '../../src/lib/ids';
 import { TransactionRow } from './transaction-row';
 
@@ -74,27 +74,32 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     <div className="content-stack transactions-page">
       <section className="page-heading" aria-labelledby="transactions-title">
         <h1 id="transactions-title">
-          取引 <span className="heading-count">{rows.length}件</span>
+          <span className="heading-title">取引</span>
+          <span className="heading-count">{rows.length}件</span>
         </h1>
-        <Link className="heading-add-link" href={newTransactionHref(month)}>
+        <Link className="add-link" href={newTransactionHref(month)}>
           ＋ 取引を追加
         </Link>
       </section>
 
-      <section className="filter-section" aria-labelledby="filter-title">
-        <div className="filter-month-row" aria-label="月を移動">
+      <section className="transaction-controls" aria-labelledby="filter-title">
+        <nav className="month-strip" aria-label="月を移動">
           {month > `${MIN_SUPPORTED_YEAR}-01` ? (
-            <Link href={listHref(shiftMonth(month, -1), type, categoryId)}>‹ 前月</Link>
+            <Link href={listHref(shiftMonth(month, -1), type, categoryId)} aria-label="‹ 前月">
+              <span aria-hidden="true">‹</span>
+            </Link>
           ) : (
             <span aria-hidden="true" />
           )}
-          <p className="filter-month">{monthLabel(month)}</p>
+          <span>{monthLabel(month)}</span>
           {month < `${MAX_SUPPORTED_YEAR}-12` ? (
-            <Link href={listHref(shiftMonth(month, 1), type, categoryId)}>翌月 ›</Link>
+            <Link href={listHref(shiftMonth(month, 1), type, categoryId)} aria-label="翌月 ›">
+              <span aria-hidden="true">›</span>
+            </Link>
           ) : (
             <span aria-hidden="true" />
           )}
-        </div>
+        </nav>
         <details className="filter-details">
           <summary>
             <span className="filter-summary" id="filter-title">
@@ -126,14 +131,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 ))}
               </select>
             </label>
-            <button className="button button-secondary" type="submit">
-              適用
-            </button>
+            <button type="submit">適用</button>
           </form>
         </details>
       </section>
 
-      <section className="notebook-section" aria-labelledby="transactions-title">
+      <section className="transaction-groups" aria-labelledby="transactions-title">
         {rows.length === 0 ? (
           <div className="empty-state">
             <EmptyLedgerMotif />
@@ -162,7 +165,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   transaction={transaction}
                   showMemo
                   showDate={false}
-                  dateHeading={index === 0 ? formatJapaneseDate(group.occurredOn) : undefined}
+                  dateHeading={index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined}
                 />
               )),
             )}

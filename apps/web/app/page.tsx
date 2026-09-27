@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 
 import {
   MAX_SUPPORTED_YEAR,
@@ -11,7 +12,7 @@ import {
   shiftMonth,
 } from '@kobako/db';
 
-import { CategoryIcon, EmptyLedgerMotif } from '../src/lib/category';
+import { CategoryDot, EmptyLedgerMotif } from '../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../src/lib/ledger-data';
 import { formatExpenseShare, formatYen, monthLabel } from '../src/lib/format';
 import { TransactionRow } from './transactions/transaction-row';
@@ -47,7 +48,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     <div className="content-stack overview-page">
       <nav className="month-nav" aria-label="月を移動">
         {month > `${MIN_SUPPORTED_YEAR}-01` ? (
-          <Link href={`/?month=${shiftMonth(month, -1)}`}>‹ 前月</Link>
+          <Link href={`/?month=${shiftMonth(month, -1)}`} aria-label="‹ 前月">
+            <span className="month-arrow" aria-hidden="true">
+              ‹
+            </span>
+            <span className="month-nav-label">前月</span>
+          </Link>
         ) : (
           <span aria-hidden="true" />
         )}
@@ -55,29 +61,30 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           {monthLabel(month)}
         </h1>
         {month < `${MAX_SUPPORTED_YEAR}-12` ? (
-          <Link href={`/?month=${shiftMonth(month, 1)}`}>翌月 ›</Link>
+          <Link href={`/?month=${shiftMonth(month, 1)}`} aria-label="翌月 ›">
+            <span className="month-nav-label">翌月</span>
+            <span className="month-arrow" aria-hidden="true">
+              ›
+            </span>
+          </Link>
         ) : (
           <span aria-hidden="true" />
         )}
       </nav>
 
-      <section className="expense-hero" role="group" aria-labelledby="expense-label">
-        <p className="hero-label" id="expense-label">
+      <section className="overview-lead" role="group" aria-labelledby="expense-label">
+        <h2 id="expense-label" className="eyebrow">
           この月の支出
-        </p>
-        <p className="hero-amount">{formatYen(totals.expense)}</p>
+        </h2>
+        <p className="lead-amount">{formatYen(totals.expense)}</p>
       </section>
 
-      <dl className="secondary-summary" aria-label={`${monthLabel(month)}の収入と差額`}>
-        <div className="secondary-summary-item" role="group" aria-labelledby="income-total-label">
+      <dl className="summary-inline" aria-label={`${monthLabel(month)}の収入と差額`}>
+        <div role="group" aria-labelledby="income-total-label">
           <dt id="income-total-label">収入</dt>
           <dd>{formatYen(totals.income)}</dd>
         </div>
-        <div
-          className="secondary-summary-item"
-          role="group"
-          aria-labelledby="difference-total-label"
-        >
+        <div role="group" aria-labelledby="difference-total-label">
           <dt id="difference-total-label">収支差額</dt>
           <dd>
             {differenceIsNegative ? <span className="sr-only">マイナス</span> : null}
@@ -87,10 +94,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </div>
       </dl>
 
-      <section className="notebook-section" aria-labelledby="breakdown-title">
+      <section className="section category-section" aria-labelledby="breakdown-title">
         <div className="section-heading">
           <h2 id="breakdown-title">カテゴリ別の支出</h2>
-          <Link href={`/transactions?month=${month}&type=expense`}>支出をすべて見る</Link>
+          <Link className="quiet-link" href={`/transactions?month=${month}&type=expense`}>
+            支出をすべて見る
+          </Link>
         </div>
         {categoryTotals.length === 0 ? (
           <p className="empty-inline">この月の支出はありません。</p>
@@ -101,21 +110,21 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                 ? Number((BigInt(category.total) * 10000n) / expenseTotal) / 100
                 : 0;
               return (
-                <li className="category-item" key={category.categoryId}>
-                  <div className="category-line">
-                    <span className="category-label">
-                      <CategoryIcon type="expense" name={category.categoryName} />
-                      <span>{category.categoryName}</span>
+                <li
+                  className="category-item"
+                  key={category.categoryId}
+                  style={{ '--category-width': `${Math.max(percentage, 0.8)}%` } as CSSProperties}
+                >
+                  <div className="category-row">
+                    <CategoryDot type="expense" name={category.categoryName} />
+                    <span className="category-name">{category.categoryName}</span>
+                    <span className="category-bar" aria-hidden="true">
+                      <span />
                     </span>
-                    <span className="category-amount">
-                      <strong>{formatYen(category.total)}</strong>
-                      <span className="category-share">
-                        {formatExpenseShare(category.total, totals.expense)}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="category-bar" aria-hidden="true">
-                    <span style={{ width: `${percentage}%` }} />
+                    <span className="category-amount">{formatYen(category.total)}</span>
+                    <small className="category-share">
+                      {formatExpenseShare(category.total, totals.expense)}
+                    </small>
                   </div>
                 </li>
               );
@@ -124,10 +133,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         )}
       </section>
 
-      <section className="notebook-section" aria-labelledby="latest-title">
+      <section className="section recent-section" aria-labelledby="latest-title">
         <div className="section-heading">
           <h2 id="latest-title">最近の取引</h2>
-          <Link href={`/transactions?month=${month}`}>取引一覧を見る</Link>
+          <Link className="quiet-link" href={`/transactions?month=${month}`}>
+            取引一覧を見る
+          </Link>
         </div>
         {latestTransactions.length === 0 ? (
           <div className="empty-state">
@@ -139,7 +150,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             </Link>
           </div>
         ) : (
-          <ul className="transaction-list" aria-label="最近の取引">
+          <ul className="recent-list" aria-label="最近の取引">
             {latestTransactions.map((transaction) => (
               <TransactionRow key={transaction.id} transaction={transaction} />
             ))}
@@ -147,14 +158,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         )}
       </section>
 
-      <section className="overview-add" aria-label="取引の追加">
-        <Link className="add-link" href={`/transactions/new?month=${month}`}>
-          <span className="add-link-icon" aria-hidden="true">
-            ＋
-          </span>
-          <span>取引を登録</span>
-        </Link>
-      </section>
+      <Link className="register-link" href={`/transactions/new?month=${month}`}>
+        <span className="register-symbol" aria-hidden="true">
+          ＋
+        </span>
+        <span>取引を登録</span>
+      </Link>
     </div>
   );
 }
