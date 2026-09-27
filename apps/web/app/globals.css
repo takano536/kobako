@@ -8,13 +8,19 @@
   --positive: #4f7867;
   --rule: #dfe1da;
   --bar: #dfe5dd;
+  --text-display: clamp(1.875rem, 8.4vw, 2.2rem);
+  --text-title: 1.375rem;
+  --text-heading: 1rem;
+  --text-body: 0.9375rem;
+  --text-small: 0.8125rem;
+  --text-brand: 1.4375rem;
   font-family:
     'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', system-ui,
     sans-serif;
   background: var(--paper);
   color: var(--ink);
   font-synthesis: none;
-  line-height: 1.45;
+  line-height: 1.5;
   text-rendering: optimizeLegibility;
 }
 
@@ -32,7 +38,7 @@ body {
 body {
   background: var(--paper);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 body,
@@ -100,18 +106,21 @@ h3 {
 }
 
 h1 {
-  font-size: 26px;
+  font-size: var(--text-title);
   font-weight: 600;
+  line-height: 1.15;
 }
 
 h2 {
-  font-size: 18px;
+  font-size: var(--text-heading);
   font-weight: 600;
+  line-height: 1.15;
 }
 
 h3 {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 500;
+  line-height: 1.45;
 }
 
 .app-shell {
@@ -139,7 +148,7 @@ h3 {
   align-items: center;
   gap: 6px;
   color: var(--ink);
-  font-size: 23px;
+  font-size: var(--text-brand);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-decoration: none;
@@ -180,7 +189,7 @@ h3 {
   align-items: center;
   justify-content: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-decoration: none;
 }
 
@@ -196,7 +205,7 @@ h3 {
 .site-nav .nav-add {
   width: 28px;
   color: var(--accent);
-  font-size: 28px;
+  font-size: var(--text-body);
   font-weight: 300;
   line-height: 1;
 }
@@ -250,9 +259,12 @@ h3 {
 }
 
 .month-nav .month-arrow {
-  font-size: 24px;
-  font-weight: 300;
+  display: inline-block;
+  font-size: var(--text-body);
+  font-weight: 500;
   line-height: 1;
+  transform: scale(1.2);
+  transform-origin: left center;
 }
 
 .month-nav .month-nav-label {
@@ -268,7 +280,7 @@ h3 {
   flex: 0 0 auto;
   min-width: 92px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 400;
   letter-spacing: 0.03em;
   text-align: center;
@@ -280,7 +292,7 @@ h3 {
 
 .overview-lead .eyebrow {
   color: var(--ink);
-  font-size: 17px;
+  font-size: var(--text-body);
   font-weight: 500;
   letter-spacing: -0.03em;
 }
@@ -289,11 +301,11 @@ h3 {
   display: block;
   margin-top: 3px;
   color: var(--ink);
-  font-size: clamp(1.9rem, 8.4vw, 2.2rem);
+  font-size: var(--text-display);
   font-variant-numeric: tabular-nums;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.055em;
-  line-height: 1.12;
+  line-height: 1.15;
 }
 
 .summary-inline {
@@ -303,7 +315,7 @@ h3 {
   gap: 22px;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 
 .summary-inline > div {
@@ -314,13 +326,13 @@ h3 {
 }
 
 .summary-inline dt {
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .summary-inline dd {
   margin: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
@@ -340,7 +352,7 @@ h3 {
 .quiet-link,
 .text-link {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-small);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
@@ -362,7 +374,7 @@ h3 {
 
 .category-row {
   display: grid;
-  grid-template-columns: 8px 7em minmax(12px, 1fr) 5.8em 3.2em;
+  grid-template-columns: 8px 8em minmax(12px, 1fr) 5.8em 3.2em;
   grid-template-rows: 44px;
   align-items: center;
   column-gap: 7px;
@@ -380,7 +392,7 @@ h3 {
 .category-name {
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -401,7 +413,7 @@ h3 {
 
 .category-amount {
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -409,7 +421,7 @@ h3 {
 
 .category-share {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -449,17 +461,17 @@ h3 {
 
 .recent-copy time {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 
 .recent-copy-text > span {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 
 .record-amount {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -480,13 +492,13 @@ h3 {
   justify-content: flex-end;
   margin-top: 15px;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-decoration: none;
 }
 
 .register-symbol {
   margin-right: 6px;
-  font-size: 17px;
+  font-size: var(--text-body);
 }
 
 .page-heading {
@@ -502,18 +514,12 @@ h3 {
   align-items: baseline;
   gap: 7px;
   min-width: 0;
-  font-size: 26px;
-  font-weight: 600;
   letter-spacing: -0.07em;
-}
-
-.heading-title {
-  font-weight: 600;
 }
 
 .heading-count {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 400;
   letter-spacing: 0;
   white-space: nowrap;
@@ -524,7 +530,7 @@ h3 {
   min-height: 40px;
   align-items: center;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-small);
   text-decoration: underline;
   text-underline-offset: 3px;
   white-space: nowrap;
@@ -546,7 +552,7 @@ h3 {
   min-height: 34px;
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 
 .month-strip a,
@@ -558,6 +564,15 @@ h3 {
   align-items: center;
   color: var(--muted);
   text-decoration: none;
+}
+
+.month-strip > a > span {
+  display: inline-block;
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1;
+  transform: scale(1.2);
+  transform-origin: left center;
 }
 
 .month-strip a:first-child,
@@ -618,13 +633,14 @@ h3 {
 .filter-summary-action {
   grid-row: 1;
   color: var(--accent);
+  font-size: var(--text-body);
   white-space: nowrap;
 }
 
 .filter-summary {
   grid-row: 2;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-small);
   white-space: nowrap;
 }
 
@@ -634,13 +650,14 @@ h3 {
   gap: 12px;
   align-items: end;
   padding: 5px 0 10px;
+  font-size: var(--text-body);
 }
 
 .filter-form label {
   display: grid;
   gap: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 
 .filter-form input,
@@ -652,6 +669,7 @@ h3 {
   border-bottom: 1px solid var(--rule);
   border-radius: 0;
   background: transparent;
+  font-size: var(--text-body);
   outline: 0;
 }
 
@@ -684,7 +702,7 @@ h3 {
   margin-top: 29px;
   padding-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small);
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -710,15 +728,15 @@ h3 {
 .transaction-category {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 
 .transaction-memo {
   display: -webkit-box;
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: var(--text-small);
+  line-height: 1.45;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -726,7 +744,7 @@ h3 {
 
 .row-affordance {
   color: var(--muted);
-  font-size: 17px;
+  font-size: var(--text-body);
   line-height: 1;
   text-align: right;
 }
@@ -753,7 +771,7 @@ h3 {
 .empty-state p {
   max-width: 30rem;
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--text-body);
 }
 
 .empty-motif {
@@ -779,6 +797,7 @@ h3 {
 .ledger-form {
   display: grid;
   gap: 0;
+  font-size: var(--text-body);
 }
 
 .ledger-form input,
@@ -812,7 +831,7 @@ h3 {
   margin-bottom: 4px;
   padding: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 
 .type-options {
@@ -829,7 +848,7 @@ h3 {
   padding: 2px 0 4px;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 
 .type-choice input {
@@ -854,8 +873,8 @@ h3 {
 
 .amount-field {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: 90px minmax(0, 1fr);
+  column-gap: 12px;
   min-height: 58px;
 }
 
@@ -875,7 +894,7 @@ h3 {
 
 .amount-line > span {
   color: var(--accent);
-  font-size: 17px;
+  font-size: var(--text-small);
   line-height: 1;
 }
 
@@ -883,10 +902,10 @@ h3 {
   min-height: 53px;
   padding: 0;
   border: 0;
-  font-size: 30px;
+  font-size: var(--text-display);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.15;
 }
 
 .amount-line input::placeholder {
@@ -902,8 +921,8 @@ h3 {
 
 .entry-detail-grid .field {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: 90px minmax(0, 1fr);
+  column-gap: 12px;
   min-height: 48px;
   border-bottom: 1px solid var(--rule);
 }
@@ -941,7 +960,7 @@ h3 {
   min-height: 15px;
   margin: 0;
   color: var(--negative);
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 
 .field-error:empty {
@@ -956,13 +975,13 @@ h3 {
 .form-message {
   margin: 0 0 10px;
   color: var(--negative);
-  font-size: 12px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 
 .optional-label {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-small);
   font-weight: 400;
 }
 
@@ -975,7 +994,7 @@ h3 {
   border-bottom: 2px solid var(--accent);
   background: transparent;
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-body);
   font-weight: 550;
 }
 
@@ -1015,8 +1034,8 @@ h3 {
 .delete-section > h2 {
   margin-bottom: 8px;
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--text-heading);
+  font-weight: 600;
 }
 
 .delete-form {
@@ -1030,7 +1049,7 @@ h3 {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 
 .confirm-label input {
@@ -1044,7 +1063,7 @@ h3 {
   justify-self: start;
   border-bottom: 2px solid var(--negative);
   padding-inline: 0;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 
 .sr-only {
@@ -1080,13 +1099,12 @@ h3 {
 }
 
 @media (max-width: 30rem) {
+  :root {
+    --text-brand: 1.25rem;
+  }
   .page-content,
   .site-header {
     width: min(calc(100% - 40px), 58rem);
-  }
-
-  .brand {
-    font-size: 20px;
   }
 
   .kobako-mark svg {
@@ -1098,22 +1116,13 @@ h3 {
     gap: 10px;
   }
 
-  .site-nav a {
-    min-width: 32px;
-    font-size: 12px;
-  }
-
   .category-row {
-    grid-template-columns: 8px 6.5em minmax(8px, 1fr) 5.4em 3em;
+    grid-template-columns: 8px 8em minmax(8px, 1fr) 5.4em 3em;
     column-gap: 5px;
   }
 
   .transaction-link {
     column-gap: 7px;
-  }
-
-  .record-amount {
-    font-size: 12px;
   }
 
   .filter-form {
