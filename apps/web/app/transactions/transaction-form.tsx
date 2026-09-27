@@ -1,14 +1,16 @@
 'use client';
 
-import { useActionState, useEffect, useState, type FormEvent } from 'react';
+import { useActionState, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import {
+  AMOUNT_LIMIT,
   MEMO_MAX_LENGTH,
   flattenTransactionError,
   transactionInputSchema,
 } from '@kobako/db/validation';
 
+import { sanitizeAmountTextWithCaret } from '../../src/lib/transaction-form';
 import {
   emptyTransactionFormState,
   type DeleteFormState,
@@ -41,6 +43,47 @@ function fieldError(
   field: keyof TransactionFormValues,
 ): string | undefined {
   return errors?.[field]?.[0];
+}
+
+function shortFieldError(field: keyof TransactionFormValues, message: string): string {
+  switch (field) {
+    case 'type':
+      return '種別を選択';
+    case 'amount':
+      if (message.includes('整数')) {
+        return '整数で入力';
+      }
+      if (message.includes('以上')) {
+        return `下限は-${AMOUNT_LIMIT.toLocaleString('ja-JP')}円`;
+      }
+      if (message.includes('以下')) {
+        return `上限は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円`;
+      }
+      return '入力してください';
+    case 'occurredOn':
+      return message.includes('入力') ? '入力してください' : '日付を確認';
+    case 'categoryId':
+      return message.includes('種別') ? 'カテゴリを確認' : 'カテゴリを選択';
+    case 'memo':
+      return message.includes('文字') ? `メモは${MEMO_MAX_LENGTH}文字以内` : 'メモを確認';
+  }
+}
+
+function FieldError({
+  field,
+  id,
+  message,
+}: {
+  field: keyof TransactionFormValues;
+  id: string;
+  message: string;
+}) {
+  return (
+    <span className="field-error" id={id} role="alert" aria-live="polite" title={message}>
+      <span aria-hidden="true">! {shortFieldError(field, message)}</span>
+      <span className="sr-only">{message}</span>
+    </span>
+  );
 }
 
 function SubmitButton({ label }: { label: string }) {
@@ -93,6 +136,21 @@ export function TransactionForm({
     }));
   }
 
+  function handleAmountChange(event: ChangeEvent<HTMLInputElement>): void {
+    const input = event.currentTarget;
+    const caret = input.selectionStart ?? input.value.length;
+    const sanitized = sanitizeAmountTextWithCaret(input.value, caret);
+    updateValue('amount', sanitized.value);
+    if (sanitized.value !== input.value && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const current = document.getElementById('transaction-amount') as HTMLInputElement | null;
+        if (current && current === document.activeElement) {
+          current.setSelectionRange(sanitized.caret, sanitized.caret);
+        }
+      });
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     const result = transactionInputSchema.safeParse(formValues);
     if (result.success) {
@@ -118,7 +176,7 @@ export function TransactionForm({
   const occurredOnError = fieldError(errors, 'occurredOn');
   const categoryError = fieldError(errors, 'categoryId');
   const memoError = fieldError(errors, 'memo');
-  const summaryMessage = clientErrors ? '入力内容を確認してください。' : state.message;
+  const summaryMessage = clientErrors || state.errors ? undefined : state.message;
 
   return (
     <form
@@ -135,7 +193,7 @@ export function TransactionForm({
       ) : null}
 
       <fieldset
-        className="type-field"
+        className={`type-field${typeError ? ' has-error' : ''}`}
         aria-invalid={typeError ? true : undefined}
         aria-describedby={typeError ? 'transaction-type-error' : undefined}
       >
@@ -162,130 +220,109 @@ export function TransactionForm({
             />
             <span>収入</span>
           </label>
+          {typeError ? (
+            <FieldError field="type" id="transaction-type-error" message={typeError} />
+          ) : null}
         </div>
-        {typeError ? (
-          <p className="field-error" id="transaction-type-error" role="alert">
-            <span aria-hidden="true">!</span> {typeError}
-          </p>
-        ) : null}
       </fieldset>
 
-      <div className="field amount-field">
+      <div className={`field amount-field${amountError ? ' has-error' : ''}`}>
         <label htmlFor="transaction-amount">金額</label>
         <div className="amount-line">
           <span aria-hidden="true">¥</span>
-          <input
-            id="transaction-amount"
-            name="amount"
-            type="text"
-            inputMode="numeric"
-            placeholder="0"
-            value={formValues.amount}
-            onChange={(event) => updateValue('amount', event.currentTarget.value)}
-            aria-invalid={amountError ? true : undefined}
-            aria-describedby={amountError ? 'transaction-amount-error' : undefined}
-            required
-          />
+          <div className={`field-value${amountError ? ' has-error' : ''}`}>
+            <input
+              id="transaction-amount"
+              name="amount"
+              type="text"
+              inputMode="text"
+              pattern="-?[0-9]+"
+              placeholder="0"
+              value={formValues.amount}
+              onChange={handleAmountChange}
+              aria-invalid={amountError ? true : undefined}
+              aria-describedby={amountError ? 'transaction-amount-error' : undefined}
+              required
+            />
+            {amountError ? (
+              <FieldError field="amount" id="transaction-amount-error" message={amountError} />
+            ) : null}
+          </div>
         </div>
-        <p
-          className="field-error"
-          id="transaction-amount-error"
-          role={amountError ? 'alert' : undefined}
-          aria-live="polite"
-        >
-          {amountError ? (
-            <>
-              <span aria-hidden="true">!</span> {amountError}
-            </>
-          ) : null}
-        </p>
       </div>
 
       <div className="entry-detail-grid">
-        <div className="field category-field">
+        <div className={`field category-field${categoryError ? ' has-error' : ''}`}>
           <label htmlFor="transaction-category">カテゴリ</label>
-          <select
-            id="transaction-category"
-            name="categoryId"
-            value={formValues.categoryId}
-            onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
-            aria-invalid={categoryError ? true : undefined}
-            aria-describedby={categoryError ? 'transaction-category-error' : undefined}
-            required
-          >
-            <option value="">選択してください</option>
-            {matchingCategories.map((category) => (
-              <option value={category.id} key={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <p
-            className="field-error"
-            id="transaction-category-error"
-            role={categoryError ? 'alert' : undefined}
-            aria-live="polite"
-          >
+          <div className={`field-value${categoryError ? ' has-error' : ''}`}>
+            <select
+              id="transaction-category"
+              name="categoryId"
+              value={formValues.categoryId}
+              onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
+              aria-invalid={categoryError ? true : undefined}
+              aria-describedby={categoryError ? 'transaction-category-error' : undefined}
+              required
+            >
+              <option value="">選択してください</option>
+              {matchingCategories.map((category) => (
+                <option value={category.id} key={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
             {categoryError ? (
-              <>
-                <span aria-hidden="true">!</span> {categoryError}
-              </>
+              <FieldError
+                field="categoryId"
+                id="transaction-category-error"
+                message={categoryError}
+              />
             ) : null}
-          </p>
+          </div>
         </div>
 
-        <div className="field date-field">
+        <div className={`field date-field${occurredOnError ? ' has-error' : ''}`}>
           <label htmlFor="transaction-date">日付</label>
-          <input
-            id="transaction-date"
-            name="occurredOn"
-            type="date"
-            value={formValues.occurredOn}
-            onChange={(event) => updateValue('occurredOn', event.currentTarget.value)}
-            aria-invalid={occurredOnError ? true : undefined}
-            aria-describedby={occurredOnError ? 'transaction-date-error' : undefined}
-            required
-          />
-          <p
-            className="field-error"
-            id="transaction-date-error"
-            role={occurredOnError ? 'alert' : undefined}
-            aria-live="polite"
-          >
+          <div className={`field-value${occurredOnError ? ' has-error' : ''}`}>
+            <input
+              id="transaction-date"
+              name="occurredOn"
+              type="date"
+              value={formValues.occurredOn}
+              onChange={(event) => updateValue('occurredOn', event.currentTarget.value)}
+              aria-invalid={occurredOnError ? true : undefined}
+              aria-describedby={occurredOnError ? 'transaction-date-error' : undefined}
+              required
+            />
             {occurredOnError ? (
-              <>
-                <span aria-hidden="true">!</span> {occurredOnError}
-              </>
+              <FieldError
+                field="occurredOn"
+                id="transaction-date-error"
+                message={occurredOnError}
+              />
             ) : null}
-          </p>
+          </div>
         </div>
 
-        <div className="field memo-field">
+        <div className={`field memo-field${memoError ? ' has-error' : ''}`}>
           <label htmlFor="transaction-memo">
             メモ（<span className="optional-label">任意</span>）
           </label>
-          <textarea
-            id="transaction-memo"
-            name="memo"
-            rows={1}
-            maxLength={MEMO_MAX_LENGTH}
-            value={formValues.memo}
-            onChange={(event) => updateValue('memo', event.currentTarget.value)}
-            aria-invalid={memoError ? true : undefined}
-            aria-describedby={memoError ? 'transaction-memo-error' : undefined}
-          />
-          <p
-            className="field-error"
-            id="transaction-memo-error"
-            role={memoError ? 'alert' : undefined}
-            aria-live="polite"
-          >
+          <div className={`field-value${memoError ? ' has-error' : ''}`}>
+            <textarea
+              id="transaction-memo"
+              name="memo"
+              rows={1}
+              maxLength={MEMO_MAX_LENGTH}
+              value={formValues.memo}
+              onChange={(event) => updateValue('memo', event.currentTarget.value)}
+              aria-invalid={memoError ? true : undefined}
+              aria-describedby={memoError ? 'transaction-memo-error' : undefined}
+            />
             {memoError ? (
-              <>
-                <span aria-hidden="true">!</span> {memoError}
-              </>
+              <FieldError field="memo" id="transaction-memo-error" message={memoError} />
             ) : null}
-          </p>
+          </div>
         </div>
       </div>
 

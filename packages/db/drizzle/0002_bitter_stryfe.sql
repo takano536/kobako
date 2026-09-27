@@ -1,0 +1,2 @@
+ALTER TABLE "transactions" DROP CONSTRAINT "transactions_amount_positive_limit_check";--> statement-breakpoint
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_amount_limit_check" CHECK ("transactions"."amount" >= -999999999 AND "transactions"."amount" <= 999999999);

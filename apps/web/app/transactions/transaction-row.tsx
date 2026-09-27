@@ -3,17 +3,19 @@ import Link from 'next/link';
 import type { ListedTransaction } from '@kobako/db';
 
 import { CategoryDot } from '../../src/lib/category';
-import { formatJapaneseDate, formatYen } from '../../src/lib/format';
+import {
+  formatJapaneseDate,
+  formatTransactionAmount,
+  transactionAmountTone,
+} from '../../src/lib/format';
 
 function typeLabel(type: ListedTransaction['type']): string {
   return type === 'income' ? '収入' : '支出';
 }
 
-function signedAmount(transaction: ListedTransaction): string {
-  return `${transaction.type === 'income' ? '＋' : '−'}${formatYen(transaction.amount)}`;
-}
 function transactionLabel(transaction: ListedTransaction): string {
-  return `${formatJapaneseDate(transaction.occurredOn)} ${typeLabel(transaction.type)} ${transaction.categoryName} ${signedAmount(transaction)}`;
+  const amount = formatTransactionAmount(transaction.type, transaction.amount);
+  return `${formatJapaneseDate(transaction.occurredOn)} ${typeLabel(transaction.type)} ${transaction.categoryName} ${amount}`;
 }
 
 export function TransactionRow({
@@ -28,8 +30,8 @@ export function TransactionRow({
   dateHeading?: string;
 }) {
   const label = transactionLabel(transaction);
-  const amount = signedAmount(transaction);
-
+  const amountTone = transactionAmountTone(transaction.type, transaction.amount);
+  const amount = formatTransactionAmount(transaction.type, transaction.amount);
   if (showDate) {
     return (
       <li className="recent-row">
@@ -47,7 +49,7 @@ export function TransactionRow({
               <span>{transaction.categoryName}</span>
             </span>
           </span>
-          <span className={`record-amount ${transaction.type}`}>{amount}</span>
+          <span className={`record-amount ${amountTone}`}>{amount}</span>
         </Link>
       </li>
     );
@@ -70,7 +72,7 @@ export function TransactionRow({
             </span>
           ) : null}
         </span>
-        <span className={`record-amount ${transaction.type}`}>{amount}</span>
+        <span className={`record-amount ${amountTone}`}>{amount}</span>
         <span className="row-affordance" aria-hidden="true">
           ›
         </span>

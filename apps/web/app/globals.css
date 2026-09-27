@@ -476,12 +476,16 @@ h3 {
   white-space: nowrap;
 }
 
-.record-amount.expense {
+.record-amount.negative {
   color: var(--negative);
 }
 
-.record-amount.income {
+.record-amount.positive {
   color: var(--positive);
+}
+
+.record-amount.neutral {
+  color: var(--muted);
 }
 
 .register-link {
@@ -807,11 +811,20 @@ h3 {
 }
 .ledger-form input:focus-visible,
 .ledger-form select:focus-visible,
-.ledger-form textarea:focus-visible,
+.ledger-form textarea:focus-visible {
+  outline: 0;
+}
+
 .filter-form input:focus-visible,
 .filter-form select:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
+}
+
+.ledger-form .amount-field:focus-within,
+.ledger-form .entry-detail-grid .field:focus-within {
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 -1px 0 var(--accent);
 }
 
 .ledger-form textarea {
@@ -875,7 +888,7 @@ h3 {
 .amount-field {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
-  grid-template-rows: minmax(52px, auto) auto;
+  grid-template-rows: 52px;
   column-gap: 12px;
   align-items: center;
   min-height: 52px;
@@ -894,6 +907,7 @@ h3 {
   grid-row: 1;
   align-items: center;
   gap: 7px;
+  min-width: 0;
   min-height: 52px;
   padding: 0;
 }
@@ -929,7 +943,7 @@ h3 {
 .entry-detail-grid .field {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
-  grid-template-rows: minmax(52px, auto) auto;
+  grid-template-rows: 52px;
   column-gap: 12px;
   align-items: center;
   min-height: 52px;
@@ -942,14 +956,28 @@ h3 {
   margin: 0;
 }
 
-.entry-detail-grid .field > input,
-.entry-detail-grid .field > select,
-.entry-detail-grid .field > textarea {
+.field-value {
+  min-width: 0;
+}
+
+.field-value.has-error {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 8px;
+}
+
+.amount-line > .field-value {
+  flex: 1;
+}
+
+.amount-line > .field-value,
+.entry-detail-grid .field > .field-value {
   grid-column: 2;
   grid-row: 1;
 }
 
-.entry-detail-grid .category-field > select {
+.entry-detail-grid .category-field .field-value > select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
   background-position: right center;
@@ -957,40 +985,56 @@ h3 {
   background-size: 16px 16px;
 }
 
-.entry-detail-grid .field > .field-error {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: start;
-}
-
 .entry-detail-grid .memo-field > label {
   align-self: start;
   margin-top: 16px;
 }
 
-.memo-field > textarea {
+.memo-field .field-value > textarea {
+  height: 52px;
   min-height: 52px;
+  max-height: 52px;
   padding: 14px 0;
-  field-sizing: content;
+  overflow: auto;
   resize: vertical;
 }
 
+.entry-detail-grid .memo-field.has-error {
+  grid-template-rows: auto;
+  align-items: stretch;
+}
+
+.memo-field .field-value.has-error > textarea {
+  height: auto;
+  min-height: 52px;
+  max-height: none;
+  field-sizing: content;
+  overflow: hidden;
+}
+
 .field-error {
-  min-height: 15px;
+  min-width: 0;
   margin: 0;
   color: var(--negative);
   font-size: var(--text-small);
+  line-height: 1.35;
+  text-align: right;
+  white-space: nowrap;
 }
 
-.field-error:empty {
-  display: none;
-  min-height: 0;
+.field-value.has-error > .field-error {
+  overflow: visible;
+  text-overflow: clip;
 }
 
-.amount-field > .field-error {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: start;
+.type-options > .field-error {
+  max-width: min(18rem, 45vw);
+}
+
+.ledger-form .amount-field.has-error,
+.ledger-form .entry-detail-grid .field.has-error {
+  border-bottom-color: var(--negative);
+  box-shadow: inset 0 -1px 0 var(--negative);
 }
 
 .form-message {

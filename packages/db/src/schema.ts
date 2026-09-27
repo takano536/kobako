@@ -77,8 +77,8 @@ export const transactions = pgTable(
       foreignColumns: [categories.id, categories.householdId, categories.type],
     }).onDelete('restrict'),
     check(
-      'transactions_amount_positive_limit_check',
-      sql`${table.amount} > 0 AND ${table.amount} <= 999999999`,
+      'transactions_amount_limit_check',
+      sql`${table.amount} >= -999999999 AND ${table.amount} <= 999999999`,
     ),
     index('transactions_household_occurred_on_idx').on(table.householdId, table.occurredOn),
     index('transactions_household_type_occurred_on_idx').on(

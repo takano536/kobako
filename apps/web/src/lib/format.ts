@@ -1,9 +1,52 @@
+function integerText(value: string | number): string {
+  const source =
+    typeof value === 'number'
+      ? Number.isFinite(value)
+        ? Math.trunc(value).toString()
+        : '0'
+      : value.trim().replace(/^−/, '-');
+  if (!/^-?\d+$/.test(source)) {
+    return '0';
+  }
+  const negative = source.startsWith('-');
+  const digits = (negative ? source.slice(1) : source).replace(/^0+(?=\d)/, '');
+  return digits === '0' ? '0' : `${negative ? '-' : ''}${digits}`;
+}
+
 export function formatYen(value: string | number): string {
-  const text = typeof value === 'number' ? String(value) : value;
+  const text = integerText(value);
   const negative = text.startsWith('-');
   const digits = negative ? text.slice(1) : text;
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${negative ? '-' : ''}${grouped}円`;
+  return `${negative ? '−' : ''}${grouped}円`;
+}
+
+export function formatTransactionAmount(
+  type: 'expense' | 'income',
+  value: string | number,
+): string {
+  const text = integerText(value);
+  const negativeAmount = text.startsWith('-');
+  const magnitude = negativeAmount ? text.slice(1) : text;
+  if (magnitude === '0') {
+    return '0円';
+  }
+  const isNegativeCashflow = type === 'expense' ? !negativeAmount : negativeAmount;
+  return `${isNegativeCashflow ? '−' : '＋'}${formatYen(magnitude)}`;
+}
+
+export function transactionAmountTone(
+  type: 'expense' | 'income',
+  value: string | number,
+): 'positive' | 'negative' | 'neutral' {
+  const text = integerText(value);
+  const negativeAmount = text.startsWith('-');
+  const magnitude = negativeAmount ? text.slice(1) : text;
+  if (magnitude === '0') {
+    return 'neutral';
+  }
+  const isNegativeCashflow = type === 'expense' ? !negativeAmount : negativeAmount;
+  return isNegativeCashflow ? 'negative' : 'positive';
 }
 
 export function monthLabel(month: string): string {
@@ -14,14 +57,27 @@ export function monthLabel(month: string): string {
 export function formatExpenseShare(categoryTotal: string, expenseTotal: string): string {
   const category = BigInt(categoryTotal);
   const expense = BigInt(expenseTotal);
-  if (category <= 0n || expense <= 0n) {
+  if (expense <= 0n || category < 0n) {
+    return '—';
+  }
+  if (category === 0n) {
     return '0%';
   }
   if (category * 100n < expense) {
     return '<1%';
   }
   const rounded = (category * 100n + expense / 2n) / expense;
-  return `${rounded}%`;
+  return `${rounded > 100n ? 100n : rounded}%`;
+}
+
+export function expenseBarWidth(categoryTotal: string, expenseTotal: string): number {
+  const category = BigInt(categoryTotal);
+  const expense = BigInt(expenseTotal);
+  if (expense <= 0n || category <= 0n) {
+    return 0;
+  }
+  const percentage = Number((category * 10000n) / expense) / 100;
+  return Math.min(100, Math.max(0, percentage));
 }
 
 const JAPANESE_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;

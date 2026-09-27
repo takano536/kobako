@@ -1,6 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatExpenseShare, formatJapaneseDate, groupTransactionsByDate } from './format';
+import {
+  expenseBarWidth,
+  formatExpenseShare,
+  formatJapaneseDate,
+  formatTransactionAmount,
+  formatYen,
+  groupTransactionsByDate,
+  transactionAmountTone,
+} from './format';
+
+describe('amount display', () => {
+  it('formats negative values without NaN and applies transaction direction once', () => {
+    expect(formatYen(-1200)).toBe('−1,200円');
+    expect(formatYen('-0')).toBe('0円');
+    expect(formatTransactionAmount('expense', 500)).toBe('−500円');
+    expect(formatTransactionAmount('expense', -500)).toBe('＋500円');
+    expect(formatTransactionAmount('income', -500)).toBe('−500円');
+    expect(formatTransactionAmount('income', 0)).toBe('0円');
+    expect(transactionAmountTone('expense', 500)).toBe('negative');
+    expect(transactionAmountTone('expense', -500)).toBe('positive');
+    expect(transactionAmountTone('income', -500)).toBe('negative');
+    expect(transactionAmountTone('income', 0)).toBe('neutral');
+  });
+});
 
 describe('Japanese calendar date display', () => {
   it('formats month-end dates without a timezone shift', () => {
@@ -43,10 +66,19 @@ describe('transaction date grouping', () => {
 });
 
 describe('expense share display', () => {
-  it('rounds actual category share and handles zero totals', () => {
+  it('rounds actual category share and handles non-positive totals', () => {
     expect(formatExpenseShare('12', '100')).toBe('12%');
     expect(formatExpenseShare('1', '1000')).toBe('<1%');
-    expect(formatExpenseShare('0', '0')).toBe('0%');
-    expect(formatExpenseShare('40', '0')).toBe('0%');
+    expect(formatExpenseShare('0', '100')).toBe('0%');
+    expect(formatExpenseShare('-40', '100')).toBe('—');
+    expect(formatExpenseShare('0', '0')).toBe('—');
+    expect(formatExpenseShare('40', '-1')).toBe('—');
+  });
+
+  it('clamps category bars to a safe CSS percentage', () => {
+    expect(expenseBarWidth('50', '100')).toBe(50);
+    expect(expenseBarWidth('-50', '100')).toBe(0);
+    expect(expenseBarWidth('50', '0')).toBe(0);
+    expect(expenseBarWidth('200', '100')).toBe(100);
   });
 });

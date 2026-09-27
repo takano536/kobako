@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-
 import {
   MAX_SUPPORTED_YEAR,
   MIN_SUPPORTED_YEAR,
@@ -14,7 +13,7 @@ import {
 
 import { CategoryDot, EmptyLedgerMotif } from '../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../src/lib/ledger-data';
-import { formatExpenseShare, formatYen, monthLabel } from '../src/lib/format';
+import { expenseBarWidth, formatExpenseShare, formatYen, monthLabel } from '../src/lib/format';
 import { TransactionRow } from './transactions/transaction-row';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +39,6 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     listTransactions(db, householdId, { month, limit: 5 }),
     getExpenseCategoryTotals(db, householdId, month),
   ]);
-  const expenseTotal = BigInt(totals.expense);
   const differenceIsNegative = totals.difference.startsWith('-');
   const differenceAmount = differenceIsNegative ? totals.difference.slice(1) : totals.difference;
 
@@ -106,14 +104,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         ) : (
           <ul className="category-list">
             {categoryTotals.map((category) => {
-              const percentage = expenseTotal
-                ? Number((BigInt(category.total) * 10000n) / expenseTotal) / 100
-                : 0;
+              const categoryWidth = expenseBarWidth(category.total, totals.expense);
               return (
                 <li
                   className="category-item"
                   key={category.categoryId}
-                  style={{ '--category-width': `${Math.max(percentage, 0.8)}%` } as CSSProperties}
+                  style={{ '--category-width': `${categoryWidth}%` } as CSSProperties}
                 >
                   <div className="category-row">
                     <CategoryDot type="expense" name={category.categoryName} />

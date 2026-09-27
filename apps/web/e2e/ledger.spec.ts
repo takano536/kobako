@@ -299,30 +299,81 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
   }
 });
 
-test('shows a Japanese validation error and keeps the entered amount with aria-invalid', async ({
-  page,
-}) => {
-  await page.goto('/transactions/new');
-  const amountField = page.getByLabel('金額');
-  await amountField.fill('0');
+test('saves and displays zero and negative amounts', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  await page.getByLabel('金額').fill('0');
+  await page.getByLabel('日付').fill(`${month}-26`);
+  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.getByLabel('メモ（任意）').fill(markerFor('zero'));
   await page.getByRole('button', { name: '登録する' }).click();
-  await expect(
-    page.getByRole('alert').filter({ hasText: '入力内容を確認してください。' }),
-  ).toContainText('入力内容を確認してください。');
-  await expect(amountField).toHaveValue('0');
-  await expect(amountField).toHaveAttribute('aria-invalid', 'true');
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(page.getByRole('link', { name: /支出.*0円/ })).toBeVisible();
+
+  await page.goto(`/transactions/new?month=${month}`);
+  await page.getByLabel('金額').fill('-1200');
+  await page.getByLabel('日付').fill(`${month}-27`);
+  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.getByLabel('メモ（任意）').fill(markerFor('negative'));
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(page.getByRole('link', { name: /支出.*＋1,200円/ })).toBeVisible();
 });
 
-test('rejects an invalid amount server-side when JavaScript is disabled', async ({ browser }) => {
+test('strips non-numeric characters from the amount field and keeps value controls full width', async ({
+  page,
+}) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  await amount.fill('1,200');
+  await expect(amount).toHaveValue('1200');
+  await amount.fill('１２ａ３');
+  await expect(amount).toHaveValue('123');
+  await amount.fill('−１，２００');
+  await expect(amount).toHaveValue('-1200');
+
+  for (const selector of [
+    '.amount-line .field-value',
+    '.category-field .field-value',
+    '.date-field .field-value',
+    '.memo-field .field-value',
+  ]) {
+    const valueBox = await page.locator(selector).boundingBox();
+    const controlBox = await page
+      .locator(`${selector} > input, ${selector} > select, ${selector} > textarea`)
+      .boundingBox();
+    if (!valueBox || !controlBox) {
+      throw new Error(`value control is not measurable: ${selector}`);
+    }
+    expect(controlBox.width).toBeCloseTo(valueBox.width, 1);
+  }
+});
+
+test('shows server amount errors in-row without changing row height', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   try {
-    await page.goto('/transactions/new');
-    await page.getByLabel('金額').fill('0');
-    await page.getByRole('button', { name: '登録する' }).click();
-    await expect(
-      page.getByRole('alert').filter({ hasText: '入力内容を確認してください。' }),
-    ).toContainText('入力内容を確認してください。');
+    for (const [invalidAmount, expectedMessage] of [
+      ['1.5', '金額は整数で入力してください。'],
+      ['1000000000', '999,999,999'],
+    ] as const) {
+      await page.goto(`/transactions/new?month=${month}`);
+      const amount = page.getByLabel('金額');
+      const row = page.locator('.amount-field');
+      await amount.fill('100');
+      const validBox = await row.boundingBox();
+      if (!validBox) {
+        throw new Error('amount row is not measurable');
+      }
+      await amount.fill(invalidAmount);
+      await page.getByRole('button', { name: '登録する' }).click();
+      await expect(page.locator('#transaction-amount-error')).toContainText(expectedMessage);
+      await expect(amount).toHaveAttribute('aria-invalid', 'true');
+      const errorBox = await row.boundingBox();
+      if (!errorBox) {
+        throw new Error('amount error row is not measurable');
+      }
+      expect(errorBox.height).toBe(validBox.height);
+    }
   } finally {
     await context.close();
   }

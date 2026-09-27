@@ -18,7 +18,7 @@ function normalizeFullWidthDigits(value: string): string {
 }
 
 /**
- * Normalize accepted JPY input without ever accepting a decimal or sign.
+ * Normalize accepted JPY input without ever accepting a decimal.
  * Full-width digits/commas and one optional leading yen sign are accepted.
  * A yen sign must touch the first digit; surrounding whitespace is accepted.
  */
@@ -32,28 +32,51 @@ export function normalizeAmountInput(input: unknown): number | undefined {
     value = value.slice(1);
   }
 
-  value = normalizeFullWidthDigits(value).replaceAll('，', ',');
-  if (!value || !/^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)$/.test(value)) {
+  value = normalizeFullWidthDigits(value)
+    .replaceAll('，', ',')
+    .replaceAll('−', '-')
+    .replaceAll('－', '-');
+  const negative = value.startsWith('-');
+  const unsignedValue = negative ? value.slice(1) : value;
+  if (!unsignedValue || !/^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)$/.test(unsignedValue)) {
     return undefined;
   }
 
-  const digits = value.replaceAll(',', '');
+  const digits = unsignedValue.replaceAll(',', '');
   const canonicalDigits = digits.replace(/^0+(?=\d)/, '');
   if (
     canonicalDigits.length > AMOUNT_LIMIT_TEXT.length ||
     (canonicalDigits.length === AMOUNT_LIMIT_TEXT.length && canonicalDigits > AMOUNT_LIMIT_TEXT)
   ) {
-    return AMOUNT_LIMIT + 1;
+    return negative ? -(AMOUNT_LIMIT + 1) : AMOUNT_LIMIT + 1;
   }
-  return Number(canonicalDigits);
+  const amount = Number(canonicalDigits);
+  return negative ? -amount : amount;
+}
+
+function preprocessAmount(input: unknown): unknown {
+  if (typeof input !== 'string') {
+    return input;
+  }
+
+  const decimalCandidate = normalizeFullWidthDigits(input.trim())
+    .replaceAll('，', ',')
+    .replaceAll('．', '.')
+    .replaceAll(',', '');
+  if (/^-?(?:\d+\.\d*|\.\d+)$/.test(decimalCandidate)) {
+    return Number(decimalCandidate);
+  }
+  return normalizeAmountInput(input);
 }
 
 export const amountSchema = z.preprocess(
-  normalizeAmountInput,
+  preprocessAmount,
   z
     .number({ error: '金額を入力してください。' })
     .int({ error: '金額は整数で入力してください。' })
-    .positive({ error: '金額は1円以上で入力してください。' })
+    .min(-AMOUNT_LIMIT, {
+      error: `金額は-${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以上で入力してください。`,
+    })
     .max(AMOUNT_LIMIT, {
       error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。`,
     }),
