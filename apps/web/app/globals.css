@@ -1044,6 +1044,10 @@ h3 {
   background-size: 16px 16px;
 }
 
+.memo-field .field-value[data-memo-multiline='true'] {
+  padding-block: 8px;
+}
+
 .memo-field .field-value > textarea {
   display: block;
   height: 52px;

@@ -152,6 +152,11 @@ function resizeMemo(textarea: HTMLTextAreaElement): void {
   const borders =
     (Number.parseFloat(computedStyle.borderTopWidth) || 0) +
     (Number.parseFloat(computedStyle.borderBottomWidth) || 0);
+  const minHeight = Number.parseFloat(computedStyle.minHeight) || 0;
+  const fieldValue = textarea.parentElement;
+  if (fieldValue) {
+    fieldValue.dataset.memoMultiline = String(textarea.scrollHeight > minHeight + 0.5);
+  }
   const maxHeight = lineHeight * MEMO_MAX_LINES + padding + borders;
 
   textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
