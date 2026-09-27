@@ -155,10 +155,9 @@ export async function deleteTransactionAction(
   if (id === undefined) {
     notFound();
   }
-  if (formData.get('confirm') !== 'yes') {
-    return { message: '削除する場合は確認欄にチェックしてください。' };
+  if (textField(formData, 'confirm') !== 'delete') {
+    return { message: '削除する場合は確認操作を完了してください。' };
   }
-
   let deleted;
   try {
     deleted = await deleteTransaction(getLedgerDatabase(), getCurrentHouseholdId(), id);

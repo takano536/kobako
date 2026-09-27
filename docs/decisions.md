@@ -18,7 +18,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## 金額と日付の型
 
-金額は JPY の正の `integer` とし、上限を `999,999,999` 円に制約します。この上限なら PostgreSQL `int4` に収まり、画面入力の小数・浮動小数点誤差を排除できます。入力は前後空白、先頭の `¥`/`￥`（1 個のみ、記号と数字の間の空白は不可）、ASCII/全角数字、3 桁区切りの ASCII/全角カンマを正規化します。区切りありは先頭 1〜3 桁（0 始まり不可）と後続 3 桁の組み合わせだけ、区切りなしは先頭 0 を許容します。0、`+`/`-` などの符号、小数点（全角含む）、指数表記、崩れた桁区切り、二重の通貨記号、数字以外の混入を拒否し、任意に長い上限超過も上限エラーへ統一します。sum は PostgreSQL で `bigint` になるため、query は文字列へ cast し、差額は JavaScript の `BigInt` で算術を行います。
+金額は JPY の `integer` とし、`-999,999,999`〜`999,999,999` 円（0 を含む）に制約します。この上限なら PostgreSQL `int4` に収まり、画面入力の小数・浮動小数点誤差を排除できます。負数は返金・訂正などの符号付き取引に使います。入力の完成形は共有する ASCII パターン（区切りなしの整数、または `1,200` のような 3 桁区切り、先頭の `-` は 1 個）だけとし、全角文字、通貨記号、空白、小数、指数表記、崩れた桁区切り、途中や複数の `-` は拒否します。クライアントは不正文字を別の値へ除去せず元の値を保ち、Server Action は同じ文字列を schema で再検証します。sum は PostgreSQL で `bigint` になるため、query は文字列へ cast し、差額は JavaScript の `BigInt` で算術を行います。
 
 台帳日付は PostgreSQL `date` と Drizzle の `{ mode: 'string' }` を使い、`YYYY-MM-DD` を文字列のまま処理します。`Date` へ変換して UTC/JST で日付がずれることを避けます。新規登録の初期値は、`?month=` が今月なら `Intl.DateTimeFormat` の `Asia/Tokyo` で求めた今日、それ以外の対象月なら `{month}-01` です。
 
@@ -30,7 +30,11 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## Mutation と再検証
 
-Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は確認チェックを必須にし、`deleteTransaction` が単一の `DELETE ... RETURNING occurred_on` で削除対象の日付を取得します（削除前に別 query で存在確認しません）。行が返らなければ `notFound()` を呼び、削除後は対象月一覧へ redirect して削除済み URL には戻しません。Route Handler、optimistic update、追加キャッシュは使いません。
+Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は単一の `DELETE ... RETURNING occurred_on` で削除対象の日付を取得し（削除前に別 query で存在確認しません）、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
+
+## 入力拒否とフォーカス可能な日付欄
+
+不正な金額のキー入力・貼り付けは、別の数値へ変換せず元の値を保持して小さな `role="alert"` を再マウントします。見た目の date button と送信用 native input は、後者を `tabIndex=-1` にして Tab stop を一つにし、button のラベルと focus ring を維持します。mouse/touch と keyboard の picker 起動は native date input に委譲します。
 
 ## server-only パッケージ
 

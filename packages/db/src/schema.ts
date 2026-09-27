@@ -14,6 +14,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
+import { AMOUNT_LIMIT } from './amount.js';
+
 /** A domain-neutral table used to prove migrations and database connectivity. */
 export const systemHealthchecks = pgTable('system_healthchecks', {
   id: serial('id').primaryKey(),
@@ -77,8 +79,10 @@ export const transactions = pgTable(
       foreignColumns: [categories.id, categories.householdId, categories.type],
     }).onDelete('restrict'),
     check(
-      'transactions_amount_positive_limit_check',
-      sql`${table.amount} > 0 AND ${table.amount} <= 999999999`,
+      'transactions_amount_limit_check',
+      sql`${table.amount} >= ${sql.raw(String(-AMOUNT_LIMIT))} AND ${table.amount} <= ${sql.raw(
+        String(AMOUNT_LIMIT),
+      )}`,
     ),
     index('transactions_household_occurred_on_idx').on(table.householdId, table.occurredOn),
     index('transactions_household_type_occurred_on_idx').on(

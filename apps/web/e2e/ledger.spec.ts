@@ -137,73 +137,192 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await assertEmptyMonth(month);
   await page.goto(`/?month=${month}`);
   await expect(page.getByRole('heading', { name: monthLabel })).toBeVisible();
-  await expect(page.getByText('この月の取引はまだありません。')).toBeVisible();
+  await expect(page.getByText('まだ記録がありません')).toBeVisible();
 
   await page.getByRole('link', { name: '取引を登録', exact: true }).click();
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
-  await page.getByLabel('金額（円）').fill('1,200');
-  await page.getByLabel('日付').fill(`${month}-10`);
+  await page.getByLabel('金額').fill('1,200');
+  await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
   await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('expense'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*1,200円/ })).toBeVisible();
-
   await page.goto(`/?month=${month}`);
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('1,200円')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+  ).toBeVisible();
+  await expect(page.getByRole('group', { name: '収支差額' }).locator('dd')).toHaveText(
+    'マイナス−1,200円',
+  );
 });
 
 test('adds income and updates the difference, then edits and deletes a transaction', async ({
   page,
 }) => {
   await page.goto(`/transactions/new?month=${month}`);
-  await page.getByLabel('種別').selectOption('income');
-  await page.getByLabel('金額（円）').fill('5,000');
-  await page.getByLabel('日付').fill(`${month}-20`);
+  await page.getByText('収入', { exact: true }).click();
+  await page.getByLabel('金額').fill('5,000');
+  await page.locator('input[name="occurredOn"]').fill(`${month}-20`);
   await page.getByLabel('カテゴリ').selectOption({ label: '給与' });
   await page.getByLabel('メモ（任意）').fill(markerFor('income'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await page.goto(`/?month=${month}`);
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('5,000円')).toBeVisible();
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('1,200円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('5,000円')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+  ).toBeVisible();
   await expect(page.getByRole('group', { name: '収支差額' }).getByText('3,800円')).toBeVisible();
 
   await page.goto(`/transactions?month=${month}`);
-  await page.getByRole('link', { name: new RegExp(`${month}-10`) }).click();
-  await page.getByLabel('金額（円）').fill('2,000');
+  await page.getByRole('link', { name: /10日/ }).click();
+  await page.getByLabel('金額').fill('2,000');
   await page.getByRole('button', { name: '変更を保存' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*2,000円/ })).toBeVisible();
 
-  await page.getByRole('link', { name: new RegExp(`${month}-10`) }).click();
-  await page.getByLabel('この取引を削除することを確認しました').check();
-  await page.getByRole('button', { name: '削除する' }).click();
+  await page.getByRole('link', { name: /10日/ }).click();
+  const deleteTrigger = page.locator('.delete-confirm > summary');
+  await deleteTrigger.click();
+  await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+  await page.getByRole('link', { name: 'キャンセル' }).click();
+  await expect(deleteTrigger).toBeVisible();
+  await deleteTrigger.click();
+  await page.locator('#delete-transaction-form input[name="confirm"]').evaluate((input) => {
+    input.remove();
+  });
+  await page.getByRole('button', { name: '削除を確定' }).click();
+  await expect(page.getByRole('dialog')).toContainText('確認操作を完了してください');
+  await page.getByRole('button', { name: '閉じる' }).click();
+  await page.reload();
+  await page.locator('.delete-confirm > summary').click();
+  await page.getByRole('button', { name: '削除を確定' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*2,000円/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /収入.*5,000円/ })).toBeVisible();
 });
 
+test('requires explicit delete confirmation when JavaScript is disabled', async ({ browser }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+  const categoryRows = await databaseClient.sql`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+    order by id
+    limit 1
+  `;
+  const categoryId = Number(categoryRows[0]?.id);
+  if (!Number.isInteger(categoryId)) {
+    throw new Error('expense category fixture is missing');
+  }
+  const memo = markerFor('js-disabled-delete');
+  const insertedRows = await databaseClient.sql`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 321, ${`${month}-28`}, ${categoryId}, ${memo})
+    returning id
+  `;
+  const transactionId = Number(insertedRows[0]?.id);
+  if (!Number.isInteger(transactionId)) {
+    throw new Error('delete fixture was not created');
+  }
+
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    await page.goto(`/transactions/${transactionId}/edit`);
+    const deleteTrigger = page.locator('.delete-confirm > summary');
+    await expect(deleteTrigger).toBeVisible();
+    await deleteTrigger.click();
+    await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await page.getByRole('button', { name: '削除を確定' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+    await expect(page.getByRole('link', { name: /支出.*321円/ })).toHaveCount(0);
+  } finally {
+    await context.close();
+    await databaseClient.sql`delete from transactions where id = ${transactionId}`;
+  }
+});
+
+test('preselects an unknown category when editing its transaction', async ({ page }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+
+  const categoryRows = await databaseClient.sql`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+      and name = '不明なカテゴリ'
+    limit 1
+  `;
+  let categoryId: number;
+  let createdCategory = false;
+  const existingCategoryId = categoryRows[0]?.id;
+  if (existingCategoryId !== undefined) {
+    categoryId = Number(existingCategoryId);
+  } else {
+    const insertedCategories = await databaseClient.sql`
+      insert into categories (household_id, type, name, sort_order)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'expense', '不明なカテゴリ', 95)
+      returning id
+    `;
+    categoryId = Number(insertedCategories[0]?.id);
+    createdCategory = true;
+  }
+  if (!Number.isInteger(categoryId)) {
+    throw new Error('unknown category fixture was not created');
+  }
+
+  const memo = markerFor('unknown-category-edit');
+  const insertedTransactions = await databaseClient.sql`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 450, ${`${month}-25`}, ${categoryId}, ${memo})
+    returning id
+  `;
+  const transactionId = Number(insertedTransactions[0]?.id);
+  if (!Number.isInteger(transactionId)) {
+    throw new Error('unknown category transaction fixture was not created');
+  }
+
+  try {
+    await page.goto(`/transactions/${transactionId}/edit`);
+    const categorySelect = page.getByLabel('カテゴリ');
+    await expect(categorySelect).toHaveValue(String(categoryId));
+    await expect(categorySelect.locator('option:checked')).toHaveText('不明なカテゴリ');
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(memo);
+  } finally {
+    await databaseClient.sql`delete from transactions where id = ${transactionId}`;
+    if (createdCategory) {
+      await databaseClient.sql`delete from categories where id = ${categoryId}`;
+    }
+  }
+});
+
 test('isolates months: a transaction in one month never appears in another', async ({ page }) => {
   await assertEmptyMonth(nextMonth);
   await page.goto(`/transactions/new?month=${nextMonth}`);
-  await page.getByLabel('金額（円）').fill('700');
-  await page.getByLabel('日付').fill(`${nextMonth}-05`);
+  await page.getByLabel('金額').fill('700');
+  await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-05`);
   await page.getByLabel('カテゴリ').selectOption({ label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
   await page.getByRole('button', { name: '登録する' }).click();
 
   await page.goto(`/?month=${month}`);
   await expect(page.getByText('700円')).toHaveCount(0);
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('5,000円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('5,000円')).toBeVisible();
 
   await page.goto(`/transactions?month=${month}`);
   await expect(page.getByRole('link', { name: /700円/ })).toHaveCount(0);
 
   await page.goto(`/?month=${nextMonth}`);
   await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
-  await expect(page.getByRole('group', { name: '支出合計' }).getByText('700円')).toBeVisible();
-  await expect(page.getByRole('group', { name: '収入合計' }).getByText('0円')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'この月の支出' }).getByText('700円')).toBeVisible();
+  await expect(page.getByRole('group', { name: '収入' }).getByText('0円')).toBeVisible();
 
   await page.goto(`/transactions?month=${nextMonth}`);
   const rows = page.getByRole('list', { name: '取引' }).getByRole('listitem');
@@ -215,30 +334,303 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
 });
 
-test('shows a Japanese validation error and keeps the entered amount with aria-invalid', async ({
-  page,
+test('filters transactions with a native GET form when JavaScript is disabled', async ({
+  browser,
 }) => {
-  await page.goto('/transactions/new');
-  const amountField = page.getByLabel('金額（円）');
-  await amountField.fill('0');
-  await page.getByRole('button', { name: '登録する' }).click();
-  await expect(
-    page.getByRole('alert').filter({ hasText: '入力内容を確認してください。' }),
-  ).toContainText('入力内容を確認してください。');
-  await expect(amountField).toHaveValue('0');
-  await expect(amountField).toHaveAttribute('aria-invalid', 'true');
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    locale: 'ja-JP',
+    timezoneId: 'Asia/Tokyo',
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`/transactions?month=${month}`);
+    await expect(page.getByText('すべての種別・すべてのカテゴリ')).toBeVisible();
+    await page.getByText('条件を変更する', { exact: true }).click();
+    await page.getByRole('combobox', { name: '種別' }).selectOption('income');
+    await page.getByRole('button', { name: '適用' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
+    await expect(page.getByText('収入・すべてのカテゴリ')).toBeVisible();
+    await expect(page.getByRole('link', { name: /収入.*円/ })).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });
 
-test('rejects an invalid amount server-side when JavaScript is disabled', async ({ browser }) => {
+test('saves and displays zero and negative amounts', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  await page.getByLabel('金額').fill('0');
+  await page.locator('input[name="occurredOn"]').fill(`${month}-26`);
+  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.getByLabel('メモ（任意）').fill(markerFor('zero'));
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(page.getByRole('link', { name: /支出.*0円/ })).toBeVisible();
+
+  await page.goto(`/transactions/new?month=${month}`);
+  await page.getByLabel('金額').fill('-1200');
+  await page.locator('input[name="occurredOn"]').fill(`${month}-27`);
+  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.getByLabel('メモ（任意）').fill(markerFor('negative'));
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(page.getByRole('link', { name: /支出.*＋1,200円/ })).toBeVisible();
+});
+
+test('rejects invalid amount input without stripping and shows an accessible format popup', async ({
+  page,
+}) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  await amount.fill('1,200');
+  await expect(amount).toHaveValue('1,200');
+
+  await amount.press('a');
+  await expect(amount).toHaveValue('1,200');
+  await expect(page.locator('#transaction-amount-format-error')).toContainText(
+    '整数で入力してください',
+  );
+
+  for (const invalidValue of ['1.5', '1.', '.5', '1e3', '12abc', '1-2', '--2', '1_200']) {
+    await amount.fill(invalidValue);
+    await expect(amount).toHaveValue('1,200');
+    const error = page.locator('#transaction-amount-format-error');
+    await expect(error).toContainText('整数で入力してください');
+    await expect(error).toHaveAttribute('id', 'transaction-amount-format-error');
+    await expect(error).toHaveAttribute('role', 'alert');
+    await expect(amount).toHaveAttribute('aria-invalid', 'true');
+    await expect(amount).toHaveAttribute('aria-describedby', 'transaction-amount-format-error');
+  }
+
+  await amount.fill('-');
+  await expect(amount).toHaveValue('-');
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(/\/transactions\/new\?month=/);
+  await expect(page.locator('#transaction-amount-format-error')).toContainText(
+    '整数で入力してください',
+  );
+  await page.getByRole('dialog').getByRole('button', { name: '閉じる' }).click();
+  await amount.fill('-1,200');
+  await expect(amount).toHaveValue('-1,200');
+  await expect(page.locator('#transaction-amount-format-error')).toHaveCount(0);
+  for (const selector of [
+    '.amount-line .field-value',
+    '.category-field .field-value',
+    '.date-field .field-value',
+    '.memo-field .field-value',
+  ]) {
+    const valueBox = await page.locator(selector).boundingBox();
+    const controlBox = await page
+      .locator(
+        `${selector} > input, ${selector} > select, ${selector} > textarea, ${selector} .date-picker-display`,
+      )
+      .first()
+      .boundingBox();
+    if (!valueBox || !controlBox) {
+      throw new Error(`value control is not measurable: ${selector}`);
+    }
+    expect(controlBox.width).toBeCloseTo(valueBox.width, 1);
+  }
+});
+
+test('centers and auto-grows the memo field up to five lines', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+
+  const memo = page.locator('#transaction-memo');
+  const memoRow = page.locator('.memo-field');
+  const categoryRow = page.locator('.category-field');
+  const measureMemo = () =>
+    memoRow.evaluate((field) => {
+      const label = field.querySelector('label');
+      const textarea = field.querySelector('textarea');
+      if (!label || !textarea) {
+        throw new Error('memo field controls are not measurable');
+      }
+      const labelBox = label.getBoundingClientRect();
+      const textareaBox = textarea.getBoundingClientRect();
+      const style = getComputedStyle(textarea);
+      return {
+        rowHeight: field.getBoundingClientRect().height,
+        labelCenter: labelBox.top + labelBox.height / 2,
+        textareaCenter: textareaBox.top + textareaBox.height / 2,
+        textareaHeight: textareaBox.height,
+        clientHeight: textarea.clientHeight,
+        scrollHeight: textarea.scrollHeight,
+        lineHeight: Number.parseFloat(style.lineHeight),
+        padding: Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom),
+      };
+    });
+
+  const emptyMetrics = await measureMemo();
+  const categoryBox = await categoryRow.boundingBox();
+  if (!categoryBox) {
+    throw new Error('category row is not measurable');
+  }
+  expect(Math.abs(emptyMetrics.rowHeight - categoryBox.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(emptyMetrics.labelCenter - emptyMetrics.textareaCenter)).toBeLessThanOrEqual(1);
+
+  const threeLineMemo = 'one\ntwo\nthree';
+  await memo.fill(threeLineMemo);
+  await expect
+    .poll(async () => (await measureMemo()).textareaHeight)
+    .toBeGreaterThan(emptyMetrics.textareaHeight);
+  const threeLineMetrics = await measureMemo();
+  expect(threeLineMetrics.rowHeight).toBeGreaterThan(emptyMetrics.rowHeight);
+  expect(
+    Math.abs(threeLineMetrics.labelCenter - threeLineMetrics.textareaCenter),
+  ).toBeLessThanOrEqual(1);
+  await expect(memo).toHaveValue(threeLineMemo);
+
+  const tenLineMemo = Array.from({ length: 10 }, (_, index) => `line ${index + 1}`).join('\n');
+  await memo.fill(tenLineMemo);
+  await expect
+    .poll(async () => {
+      const metrics = await measureMemo();
+      return metrics.scrollHeight - metrics.clientHeight;
+    })
+    .toBeGreaterThan(0);
+  const maxMetrics = await measureMemo();
+  expect(maxMetrics.scrollHeight).toBeGreaterThan(maxMetrics.clientHeight);
+  expect(
+    Math.abs(maxMetrics.clientHeight - (maxMetrics.lineHeight * 5 + maxMetrics.padding)),
+  ).toBeLessThanOrEqual(2);
+  expect(Math.abs(maxMetrics.labelCenter - maxMetrics.textareaCenter)).toBeLessThanOrEqual(1);
+  await expect(memo).toHaveValue(tenLineMemo);
+});
+
+test('shows server amount errors in the fallback dialog without changing row height', async ({
+  browser,
+}) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   try {
-    await page.goto('/transactions/new');
-    await page.getByLabel('金額（円）').fill('0');
+    for (const [invalidAmount, expectedMessage] of [
+      ['1.5', '金額は整数で入力してください。'],
+      ['1000000000', '金額は999,999,999円以下で入力してください。'],
+    ] as const) {
+      await page.goto(`/transactions/new?month=${month}`);
+      const amount = page.getByLabel('金額');
+      const row = page.locator('.amount-field');
+      await amount.fill('100');
+      const validBox = await row.boundingBox();
+      if (!validBox) {
+        throw new Error('amount row is not measurable');
+      }
+      await amount.fill(invalidAmount);
+      await page.getByRole('button', { name: '登録する' }).click();
+      const dialog = page.locator('dialog[open]');
+      await expect(dialog).toContainText(expectedMessage);
+      await expect(page.locator('#transaction-amount-error')).toHaveClass(/sr-only/);
+      await expect(amount).toHaveAttribute('aria-invalid', 'true');
+      await expect(row).toHaveClass(/has-error/);
+      const errorBox = await row.boundingBox();
+      if (!errorBox) {
+        throw new Error('amount error row is not measurable');
+      }
+      expect(errorBox.height).toBe(validBox.height);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test('opens an error dialog and restores focus without changing invalid row height', async ({
+  page,
+}) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  const row = page.locator('.amount-field');
+  const validBox = await row.boundingBox();
+  if (!validBox) {
+    throw new Error('amount row is not measurable');
+  }
+  await amount.fill('1000000000');
+  await page.getByRole('button', { name: '登録する' }).click();
+
+  const dialog = page.getByRole('dialog', { name: '入力内容を確認してください' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('金額は999,999,999円以下で入力してください。');
+  await expect(page.locator('#transaction-amount-error')).toHaveClass(/sr-only/);
+  await expect(amount).toHaveAttribute('aria-invalid', 'true');
+  await expect(row).toHaveClass(/has-error/);
+  const errorColor = await row.evaluate((element) => getComputedStyle(element).borderBottomColor);
+  expect(errorColor).toBe('rgb(138, 91, 91)');
+  const errorBox = await row.boundingBox();
+  if (!errorBox) {
+    throw new Error('amount error row is not measurable');
+  }
+  expect(errorBox.height).toBe(validBox.height);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(amount).toBeFocused();
+
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '閉じる' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(amount).toBeFocused();
+});
+
+test('keeps the date picker tab stop visible and saves after picking a date', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  const category = page.getByLabel('カテゴリ');
+  const dateDisplay = page.locator('.date-picker-display');
+  const memo = page.getByLabel('メモ（任意）');
+  await amount.focus();
+
+  await page.keyboard.press('Tab');
+  await expect(category).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dateDisplay).toBeFocused();
+  const dateInput = page.locator('input[type="date"][name="occurredOn"]');
+  await expect(dateInput).toHaveJSProperty('tabIndex', -1);
+  const dateBox = await dateDisplay.boundingBox();
+  if (!dateBox || dateBox.width === 0 || dateBox.height === 0) {
+    throw new Error('date picker display is not visible');
+  }
+  await page.keyboard.press('Tab');
+  await expect(memo).toBeFocused();
+
+  const pickedDate = `${month}-03`;
+  await dateInput.fill(pickedDate);
+  await expect(dateDisplay).toContainText(pickedDate.replaceAll('-', '/'));
+  await amount.fill('432');
+  await category.selectOption({ label: '食費' });
+  await memo.fill(markerFor('date-tab-save'));
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(page.getByRole('link', { name: /支出.*432円/ })).toBeVisible();
+});
+
+test('formats date and month controls independently of browser locale', async ({ browser }) => {
+  const context = await browser.newContext({
+    locale: 'en-US',
+    timezoneId: 'Asia/Tokyo',
+  });
+  const page = await context.newPage();
+  const day = `${month}-27`;
+  const initialDate = `${month.replace('-', '/')}/01`;
+  const expectedDate = `${month.replace('-', '/')}/27`;
+  const expectedMonth = month.replace('-', '/');
+  try {
+    await page.goto(`/transactions/new?month=${month}`);
+    const dateInput = page.locator('input[type="date"][name="occurredOn"]');
+    await expect(page.locator('.date-picker-display')).toContainText(initialDate);
+    await dateInput.fill(day);
+    await expect(page.locator('.date-picker-display')).toContainText(expectedDate);
+    await page.getByLabel('金額').fill('321');
+    await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+    await page.getByLabel('メモ（任意）').fill(markerFor('locale-date'));
     await page.getByRole('button', { name: '登録する' }).click();
-    await expect(
-      page.getByRole('alert').filter({ hasText: '入力内容を確認してください。' }),
-    ).toContainText('入力内容を確認してください。');
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+
+    await page.getByText('条件を変更する', { exact: true }).click();
+    await expect(page.locator('.month-picker-display')).toHaveText(expectedMonth);
+    const monthInput = page.locator('input[type="month"][name="month"]');
+    await monthInput.fill(month);
+    await expect(monthInput).toHaveValue(month);
   } finally {
     await context.close();
   }
@@ -253,7 +645,7 @@ test('treats non-int4 transaction ids as not found', async ({ request }) => {
 
 test('health endpoints are available', async ({ page, request }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'kobako 家計簿 ホーム' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'kobako 家計ノート ホーム' })).toBeVisible();
 
   const health = await request.get('/api/health');
   expect(health.ok()).toBe(true);
