@@ -92,6 +92,7 @@ export function DatePickerField({
       aria-invalid={ariaInvalid ? true : undefined}
       aria-describedby={ariaDescribedBy}
       required={required}
+      tabIndex={enhanced ? -1 : undefined}
     />
   );
 

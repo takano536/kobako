@@ -11,12 +11,14 @@ import {
 import { useFormStatus } from 'react-dom';
 
 import {
+  AMOUNT_FORMAT_MESSAGE,
+  AMOUNT_TEXT_PATTERN_SOURCE,
   MEMO_MAX_LENGTH,
   flattenTransactionError,
+  isAmountText,
+  isAmountTextWhileEditing,
   transactionInputSchema,
 } from '@kobako/db/validation';
-
-import { sanitizeAmountTextWithCaret } from '../../src/lib/transaction-form';
 import {
   emptyTransactionFormState,
   type DeleteFormState,
@@ -172,6 +174,8 @@ export function TransactionForm({
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
   const [clientErrors, setClientErrors] = useState<TransactionFieldErrors>();
+  const [amountInputError, setAmountInputError] = useState<string>();
+  const [amountInputErrorKey, setAmountInputErrorKey] = useState(0);
   const [hasHydrated, setHasHydrated] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const memoRef = useRef<HTMLTextAreaElement>(null);
@@ -187,6 +191,7 @@ export function TransactionForm({
       setValues(state.values);
       setIsDirty(false);
       setClientErrors(undefined);
+      setAmountInputError(undefined);
     }
   }, [state.values]);
 
@@ -230,18 +235,14 @@ export function TransactionForm({
   }
 
   function handleAmountChange(event: ChangeEvent<HTMLInputElement>): void {
-    const input = event.currentTarget;
-    const caret = input.selectionStart ?? input.value.length;
-    const sanitized = sanitizeAmountTextWithCaret(input.value, caret);
-    updateValue('amount', sanitized.value);
-    if (sanitized.value !== input.value && typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        const current = document.getElementById('transaction-amount') as HTMLInputElement | null;
-        if (current && current === document.activeElement) {
-          current.setSelectionRange(sanitized.caret, sanitized.caret);
-        }
-      });
+    const nextValue = event.currentTarget.value;
+    if (!isAmountTextWhileEditing(nextValue)) {
+      setAmountInputError(AMOUNT_FORMAT_MESSAGE);
+      setAmountInputErrorKey((current) => current + 1);
+      return;
     }
+    setAmountInputError(undefined);
+    updateValue('amount', nextValue);
   }
 
   function handleMemoChange(event: ChangeEvent<HTMLTextAreaElement>): void {
@@ -260,6 +261,8 @@ export function TransactionForm({
       categoryId: String(formData.get('categoryId') ?? ''),
       memo: String(formData.get('memo') ?? ''),
     };
+    const completeAmount = isAmountText(submittedValues.amount);
+    setAmountInputError(completeAmount ? undefined : AMOUNT_FORMAT_MESSAGE);
     const result = transactionInputSchema.safeParse(submittedValues);
     if (result.success) {
       setClientErrors(undefined);
@@ -274,6 +277,14 @@ export function TransactionForm({
   const errors = pending ? undefined : (clientErrors ?? state.errors);
   const typeError = fieldError(errors, 'type');
   const amountError = fieldError(errors, 'amount');
+  const amountInvalid = Boolean(amountError || amountInputError);
+  const amountDescribedBy =
+    [
+      amountError ? 'transaction-amount-error' : '',
+      amountInputError ? 'transaction-amount-format-error' : '',
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined;
   const occurredOnError = fieldError(errors, 'occurredOn');
   const categoryError = fieldError(errors, 'categoryId');
   const memoError = fieldError(errors, 'memo');
@@ -373,24 +384,34 @@ export function TransactionForm({
           </div>
         </fieldset>
 
-        <div className={`field amount-field${amountError ? ' has-error' : ''}`}>
+        <div className={`field amount-field${amountInvalid ? ' has-error' : ''}`}>
           <label htmlFor="transaction-amount">金額</label>
           <div className="amount-line">
             <span aria-hidden="true">¥</span>
-            <div className={`field-value${amountError ? ' has-error' : ''}`}>
+            <div className={`field-value${amountInvalid ? ' has-error' : ''}`}>
               <input
                 id="transaction-amount"
                 name="amount"
                 type="text"
                 inputMode="text"
-                pattern="-?[0-9]+"
+                pattern={AMOUNT_TEXT_PATTERN_SOURCE}
                 placeholder="0"
                 value={formValues.amount}
                 onChange={handleAmountChange}
-                aria-invalid={amountError ? true : undefined}
-                aria-describedby={amountError ? 'transaction-amount-error' : undefined}
+                aria-invalid={amountInvalid ? true : undefined}
+                aria-describedby={amountDescribedBy}
                 required
               />
+              {amountInputError ? (
+                <span
+                  key={amountInputErrorKey}
+                  className="field-error amount-input-error"
+                  id="transaction-amount-format-error"
+                  role="alert"
+                >
+                  {amountInputError}
+                </span>
+              ) : null}
               {amountError ? (
                 <FieldError field="amount" id="transaction-amount-error" message={amountError} />
               ) : null}
@@ -539,19 +560,28 @@ export function DeleteTransactionForm({
           modalOpenRef.current = false;
         }}
       />
-      <form id={formId} className="delete-form" action={formAction}>
-        <input type="hidden" name="id" value={transactionId} />
-      </form>
       <div className="delete-action">
-        <button
-          className="button button-danger"
-          type="submit"
-          form={formId}
-          disabled={pending}
-          aria-busy={pending}
-        >
-          {pending ? '削除中…' : '削除する'}
-        </button>
+        <details className="delete-confirm">
+          <summary className="button button-danger">削除する</summary>
+          <div className="delete-confirmation">
+            <p>この取引を削除しますか？</p>
+            <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
+              <input type="hidden" name="id" value={transactionId} />
+              <input type="hidden" name="confirm" value="delete" />
+              <button
+                className="button button-danger"
+                type="submit"
+                disabled={pending}
+                aria-busy={pending}
+              >
+                {pending ? '削除中…' : '削除を確定'}
+              </button>
+              <a className="delete-cancel" href={`/transactions/${transactionId}/edit`}>
+                キャンセル
+              </a>
+            </form>
+          </div>
+        </details>
       </div>
     </>
   );

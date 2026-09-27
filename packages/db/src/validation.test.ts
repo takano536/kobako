@@ -4,15 +4,13 @@ import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
 import { AMOUNT_LIMIT, transactionInputSchema, normalizeAmountInput } from './validation.js';
 
 describe('transaction input validation', () => {
-  it('normalizes accepted JPY input forms, including signed amounts', () => {
-    expect(normalizeAmountInput('  ¥１２，３４５  ')).toBe(12_345);
+  it('normalizes accepted ASCII integer input forms, including signed amounts', () => {
+    expect(normalizeAmountInput('1,2345')).toBeUndefined();
+    expect(normalizeAmountInput('1,200')).toBe(1_200);
     expect(normalizeAmountInput('1,000,000')).toBe(1_000_000);
-    expect(normalizeAmountInput('１，０００')).toBe(1_000);
-    expect(normalizeAmountInput('  1,000  ')).toBe(1_000);
-    expect(normalizeAmountInput('￥９９９')).toBe(999);
     expect(normalizeAmountInput('0001')).toBe(1);
     expect(normalizeAmountInput('-100')).toBe(-100);
-    expect(normalizeAmountInput('−１，２００')).toBe(-1_200);
+    expect(normalizeAmountInput('-1,200')).toBe(-1_200);
     expect(normalizeAmountInput('0')).toBe(0);
   });
 
@@ -22,9 +20,13 @@ describe('transaction input validation', () => {
     expect(normalizeAmountInput('1234,567')).toBeUndefined();
     expect(normalizeAmountInput('0,100')).toBeUndefined();
     expect(normalizeAmountInput('01,000')).toBeUndefined();
-    expect(normalizeAmountInput('¥ 100')).toBeUndefined();
+    expect(normalizeAmountInput(' 100')).toBeUndefined();
     expect(normalizeAmountInput('+100')).toBeUndefined();
     expect(normalizeAmountInput('１．５')).toBeUndefined();
+    expect(normalizeAmountInput('−１，２００')).toBeUndefined();
+    expect(normalizeAmountInput('1.5')).toBeUndefined();
+    expect(normalizeAmountInput('1.')).toBeUndefined();
+    expect(normalizeAmountInput('.5')).toBeUndefined();
     expect(normalizeAmountInput('1e3')).toBeUndefined();
     expect(normalizeAmountInput('1,2345')).toBeUndefined();
     expect(normalizeAmountInput('¥¥100')).toBeUndefined();

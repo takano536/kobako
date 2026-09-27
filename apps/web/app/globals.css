@@ -1027,7 +1027,26 @@ h3 {
 }
 
 .amount-line > .field-value {
+  position: relative;
   flex: 1;
+}
+
+.amount-input-error {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% - 2px);
+  left: 0;
+  display: block;
+  width: max-content;
+  max-width: min(calc(100vw - 40px), 26rem);
+  padding: 4px 8px;
+  border: 1px solid #b77b73;
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 3px 10px rgb(41 46 43 / 14%);
+  color: #8f443d;
+  font-size: var(--text-small);
+  line-height: 1.35;
 }
 
 .amount-line > .field-value,
@@ -1127,10 +1146,6 @@ h3 {
   position: relative;
 }
 
-.edit-form-layout > .delete-form {
-  display: none;
-}
-
 .edit-form-layout > .delete-action {
   position: absolute;
   bottom: 0;
@@ -1149,6 +1164,53 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+.delete-confirm {
+  display: grid;
+  gap: 8px;
+}
+
+.delete-confirm > summary {
+  list-style: none;
+}
+
+.delete-confirm > summary::-webkit-details-marker {
+  display: none;
+}
+
+.delete-confirm > summary::marker {
+  content: '';
+}
+
+.delete-confirmation {
+  display: grid;
+  gap: 8px;
+  min-width: min(17rem, calc(100vw - 40px));
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 0 3px 10px rgb(41 46 43 / 10%);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.delete-confirm-form {
+  gap: 10px;
+}
+
+.delete-confirm-form .button {
+  min-height: 38px;
+  padding: 0.4rem 0.7rem;
+  font-size: var(--text-small);
+}
+
+.delete-cancel {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  color: var(--muted);
+  font-size: var(--text-small);
 }
 
 .delete-action .button {

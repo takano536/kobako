@@ -119,7 +119,7 @@ describe('PostgreSQL migrations and ledger', () => {
     }
     const input = transactionInputSchema.parse({
       type: 'expense',
-      amount: '１２，３４５',
+      amount: '12,345',
       occurredOn: '2026-09-12',
       categoryId: String(expenseCategory.id),
       memo: '  買い物  ',
