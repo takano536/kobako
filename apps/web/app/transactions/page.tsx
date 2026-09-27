@@ -14,6 +14,7 @@ import { EmptyLedgerMotif } from '../../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { formatJapaneseDateShort, groupTransactionsByDate, monthLabel } from '../../src/lib/format';
 import { parseInt4Id } from '../../src/lib/ids';
+import { MonthPickerField } from './date-picker-field';
 import { TransactionRow } from './transaction-row';
 
 export const dynamic = 'force-dynamic';
@@ -108,9 +109,14 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             <span className="filter-summary-action">条件を変更する</span>
           </summary>
           <form className="filter-form" method="get">
-            <label>
+            <label id="filter-month-label" htmlFor="filter-month">
               月
-              <input type="month" name="month" defaultValue={month} />
+              <MonthPickerField
+                id="filter-month"
+                name="month"
+                value={month}
+                labelId="filter-month-label"
+              />
             </label>
             <label>
               種別

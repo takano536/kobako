@@ -142,7 +142,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await page.getByRole('link', { name: '取引を登録', exact: true }).click();
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
   await page.getByLabel('金額').fill('1,200');
-  await page.getByLabel('日付').fill(`${month}-10`);
+  await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
   await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('expense'));
   await page.getByRole('button', { name: '登録する' }).click();
@@ -163,7 +163,7 @@ test('adds income and updates the difference, then edits and deletes a transacti
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByText('収入', { exact: true }).click();
   await page.getByLabel('金額').fill('5,000');
-  await page.getByLabel('日付').fill(`${month}-20`);
+  await page.locator('input[name="occurredOn"]').fill(`${month}-20`);
   await page.getByLabel('カテゴリ').selectOption({ label: '給与' });
   await page.getByLabel('メモ（任意）').fill(markerFor('income'));
   await page.getByRole('button', { name: '登録する' }).click();
@@ -249,7 +249,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await assertEmptyMonth(nextMonth);
   await page.goto(`/transactions/new?month=${nextMonth}`);
   await page.getByLabel('金額').fill('700');
-  await page.getByLabel('日付').fill(`${nextMonth}-05`);
+  await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-05`);
   await page.getByLabel('カテゴリ').selectOption({ label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
   await page.getByRole('button', { name: '登録する' }).click();
@@ -302,7 +302,7 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
 test('saves and displays zero and negative amounts', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('0');
-  await page.getByLabel('日付').fill(`${month}-26`);
+  await page.locator('input[name="occurredOn"]').fill(`${month}-26`);
   await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('zero'));
   await page.getByRole('button', { name: '登録する' }).click();
@@ -311,7 +311,7 @@ test('saves and displays zero and negative amounts', async ({ page }) => {
 
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('-1200');
-  await page.getByLabel('日付').fill(`${month}-27`);
+  await page.locator('input[name="occurredOn"]').fill(`${month}-27`);
   await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('negative'));
   await page.getByRole('button', { name: '登録する' }).click();
@@ -339,7 +339,10 @@ test('strips non-numeric characters from the amount field and keeps value contro
   ]) {
     const valueBox = await page.locator(selector).boundingBox();
     const controlBox = await page
-      .locator(`${selector} > input, ${selector} > select, ${selector} > textarea`)
+      .locator(
+        `${selector} > input, ${selector} > select, ${selector} > textarea, ${selector} .date-picker-display`,
+      )
+      .first()
       .boundingBox();
     if (!valueBox || !controlBox) {
       throw new Error(`value control is not measurable: ${selector}`);
@@ -348,13 +351,15 @@ test('strips non-numeric characters from the amount field and keeps value contro
   }
 });
 
-test('shows server amount errors in-row without changing row height', async ({ browser }) => {
+test('shows server amount errors in the fallback dialog without changing row height', async ({
+  browser,
+}) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   try {
     for (const [invalidAmount, expectedMessage] of [
       ['1.5', '金額は整数で入力してください。'],
-      ['1000000000', '999,999,999'],
+      ['1000000000', '金額は999,999,999円以下で入力してください。'],
     ] as const) {
       await page.goto(`/transactions/new?month=${month}`);
       const amount = page.getByLabel('金額');
@@ -366,14 +371,87 @@ test('shows server amount errors in-row without changing row height', async ({ b
       }
       await amount.fill(invalidAmount);
       await page.getByRole('button', { name: '登録する' }).click();
-      await expect(page.locator('#transaction-amount-error')).toContainText(expectedMessage);
+      const dialog = page.locator('dialog[open]');
+      await expect(dialog).toContainText(expectedMessage);
+      await expect(page.locator('#transaction-amount-error')).toHaveClass(/sr-only/);
       await expect(amount).toHaveAttribute('aria-invalid', 'true');
+      await expect(row).toHaveClass(/has-error/);
       const errorBox = await row.boundingBox();
       if (!errorBox) {
         throw new Error('amount error row is not measurable');
       }
       expect(errorBox.height).toBe(validBox.height);
     }
+  } finally {
+    await context.close();
+  }
+});
+
+test('opens an error dialog and restores focus without changing invalid row height', async ({
+  page,
+}) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  const row = page.locator('.amount-field');
+  const validBox = await row.boundingBox();
+  if (!validBox) {
+    throw new Error('amount row is not measurable');
+  }
+  await amount.fill('1000000000');
+  await page.getByRole('button', { name: '登録する' }).click();
+
+  const dialog = page.getByRole('dialog', { name: '入力内容を確認してください' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('金額は999,999,999円以下で入力してください。');
+  await expect(page.locator('#transaction-amount-error')).toHaveClass(/sr-only/);
+  await expect(amount).toHaveAttribute('aria-invalid', 'true');
+  await expect(row).toHaveClass(/has-error/);
+  const errorColor = await row.evaluate((element) => getComputedStyle(element).borderBottomColor);
+  expect(errorColor).toBe('rgb(138, 91, 91)');
+  const errorBox = await row.boundingBox();
+  if (!errorBox) {
+    throw new Error('amount error row is not measurable');
+  }
+  expect(errorBox.height).toBe(validBox.height);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(amount).toBeFocused();
+
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '閉じる' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(amount).toBeFocused();
+});
+
+test('formats date and month controls independently of browser locale', async ({ browser }) => {
+  const context = await browser.newContext({
+    locale: 'en-US',
+    timezoneId: 'Asia/Tokyo',
+  });
+  const page = await context.newPage();
+  const day = `${month}-27`;
+  const initialDate = `${month.replace('-', '/')}/01`;
+  const expectedDate = `${month.replace('-', '/')}/27`;
+  const expectedMonth = month.replace('-', '/');
+  try {
+    await page.goto(`/transactions/new?month=${month}`);
+    const dateInput = page.locator('input[type="date"][name="occurredOn"]');
+    await expect(page.locator('.date-picker-display')).toContainText(initialDate);
+    await dateInput.fill(day);
+    await expect(page.locator('.date-picker-display')).toContainText(expectedDate);
+    await page.getByLabel('金額').fill('321');
+    await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+    await page.getByLabel('メモ（任意）').fill(markerFor('locale-date'));
+    await page.getByRole('button', { name: '登録する' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+
+    await page.getByText('条件を変更する', { exact: true }).click();
+    await expect(page.locator('.month-picker-display')).toHaveText(expectedMonth);
+    const monthInput = page.locator('input[type="month"][name="month"]');
+    await monthInput.fill(month);
+    await expect(monthInput).toHaveValue(month);
   } finally {
     await context.close();
   }
