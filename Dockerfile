@@ -2,6 +2,11 @@
 
 FROM node:24.21.0-bookworm-slim AS runtime
 ENV NODE_ENV=production
+ARG OCI_SOURCE=https://github.com/takano536/kobako
+ARG OCI_REVISION=unknown
+LABEL org.opencontainers.image.source="${OCI_SOURCE}" \
+      org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.description="kobako production image"
 WORKDIR /app
 
 FROM node:24.21.0-bookworm-slim AS toolchain

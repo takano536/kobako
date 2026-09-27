@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kobako
+      POSTGRES_USER: kobako
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to a URL-safe password before starting kobako}
+    volumes:
+      - /opt/selfhost-data/kobako/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks:
+      - internal
+
+  migrate:
+    image: ghcr.io/takano536/kobako-migrate:${KOBAKO_IMAGE_TAG:-latest}
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://kobako:${POSTGRES_PASSWORD}@postgres:5432/kobako
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  web:
+    image: ghcr.io/takano536/kobako-web:${KOBAKO_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://kobako:${POSTGRES_PASSWORD}@postgres:5432/kobako
+      NODE_ENV: production
+    init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      internal:
+      proxy_network:
+        aliases:
+          - kobako-web
+
+networks:
+  internal:
+    internal: true
+  proxy_network:
+    external: true
+    name: proxy_network

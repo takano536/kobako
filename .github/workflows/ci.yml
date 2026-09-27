@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: kobako-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
 
 jobs:
   lint:
@@ -123,15 +123,25 @@ jobs:
         with:
           context: .
           target: web
+          build-args: |
+            OCI_SOURCE=https://github.com/takano536/kobako
+            OCI_REVISION=${{ github.sha }}
           tags: kobako-web:local
           load: true
+          cache-from: type=gha,scope=kobako-web
+          cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
       - name: Build migration image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           target: migrate
           tags: kobako-migrate:local
+          build-args: |
+            OCI_SOURCE=https://github.com/takano536/kobako
+            OCI_REVISION=${{ github.sha }}
           load: true
+          cache-from: type=gha,scope=kobako-migrate
+          cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
       - name: Build worker image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -139,6 +149,11 @@ jobs:
           target: worker
           tags: kobako-worker:local
           load: true
+          build-args: |
+            OCI_SOURCE=https://github.com/takano536/kobako
+            OCI_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=kobako-worker
+          cache-to: type=gha,mode=max,scope=kobako-worker,ignore-error=true
       - name: Create CI compose environment
         run: |
           cat > .env <<'EOF'
@@ -148,6 +163,10 @@ jobs:
           POSTGRES_DB=kobako
           COMPOSE_DATABASE_URL=postgresql://kobako_ci:kobako_ci_password@postgres:5432/kobako
           EOF
+      - name: Validate self-host Compose configuration
+        env:
+          POSTGRES_PASSWORD: ci_selfhost_password
+        run: docker compose -f compose.selfhost.yaml config >/dev/null
       - name: Start Compose stack and verify health
         run: |
           docker compose up -d
@@ -203,3 +222,131 @@ jobs:
       - name: Remove Compose stack
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  publish:
+    name: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, unit, integration, build, e2e, docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: kobako-publish-main
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check existing web SHA tag
+        id: web_sha
+        env:
+          IMAGE: ghcr.io/takano536/kobako-web
+          TAG: sha-${{ github.sha }}
+          EXPECTED_SOURCE: https://github.com/takano536/kobako
+          EXPECTED_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          inspect_file="$(mktemp)"
+          trap 'rm -f "$inspect_file"' EXIT
+          if docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Image}}' >"$inspect_file" 2>&1; then
+            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" '
+              def configs:
+                if (.config? | type) == "object" then [.config]
+                else [to_entries[] | .value.config? | select(type == "object")]
+                end;
+              configs
+              | if length == 0 then false
+                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source))
+                end
+            ' "$inspect_file" >/dev/null; then
+              echo 'exists=true' >> "$GITHUB_OUTPUT"
+            else
+              echo "SHA tag labels do not match expected source/revision: $IMAGE:$TAG" >&2
+              cat "$inspect_file" >&2
+              exit 1
+            fi
+          else
+            echo "::notice title=SHA tag inspect failed::Inspecting $IMAGE:$TAG failed; build/push will be attempted."
+            cat "$inspect_file" >&2
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build and push web image
+        if: steps.web_sha.outputs.exists != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: web
+          push: true
+          tags: ghcr.io/takano536/kobako-web:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/takano536/kobako
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=kobako production web image
+          build-args: |
+            OCI_SOURCE=https://github.com/takano536/kobako
+            OCI_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=kobako-web
+          cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
+      - name: Check existing migration SHA tag
+        id: migrate_sha
+        env:
+          IMAGE: ghcr.io/takano536/kobako-migrate
+          TAG: sha-${{ github.sha }}
+          EXPECTED_SOURCE: https://github.com/takano536/kobako
+          EXPECTED_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          inspect_file="$(mktemp)"
+          trap 'rm -f "$inspect_file"' EXIT
+          if docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Image}}' >"$inspect_file" 2>&1; then
+            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" '
+              def configs:
+                if (.config? | type) == "object" then [.config]
+                else [to_entries[] | .value.config? | select(type == "object")]
+                end;
+              configs
+              | if length == 0 then false
+                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source))
+                end
+            ' "$inspect_file" >/dev/null; then
+              echo 'exists=true' >> "$GITHUB_OUTPUT"
+            else
+              echo "SHA tag labels do not match expected source/revision: $IMAGE:$TAG" >&2
+              cat "$inspect_file" >&2
+              exit 1
+            fi
+          else
+            echo "::notice title=SHA tag inspect failed::Inspecting $IMAGE:$TAG failed; build/push will be attempted."
+            cat "$inspect_file" >&2
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build and push migration image
+        if: steps.migrate_sha.outputs.exists != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: migrate
+          push: true
+          tags: ghcr.io/takano536/kobako-migrate:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/takano536/kobako
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=kobako production migrate image
+          build-args: |
+            OCI_SOURCE=https://github.com/takano536/kobako
+            OCI_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=kobako-migrate
+          cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
+      - name: Promote web image to latest
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:sha-${{ github.sha }}
+      - name: Promote migration image to latest
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:sha-${{ github.sha }}

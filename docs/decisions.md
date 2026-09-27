@@ -60,6 +60,10 @@ Dependabot と Renovate の二重運用は避け、Renovate を採用します�
 
 validation、calendar helper、家計簿 schema/query は Web の Server Component/Action と integration test が実際に共有するため `@kobako/db` に置きます。ブラウザ用フォームは DB client を import せず、validation サブパスだけを import します。空の抽象 package は増やしません。
 
+## Self-host network and image delivery
+
+`compose.selfhost.yaml` は PostgreSQL と migration を `internal: true` の app network に閉じ込め、web だけを既存の external `proxy_network` に `kobako-web` alias 付きで接続します。現行の web は外向き接続を必要としないため、DB を reverse proxy network に置かず、host port も公開しません。PostgreSQL 18 の upstream `PGDATA=/var/lib/postgresql/18/docker` を変更せず、bind mount の root (`/opt/selfhost-data/kobako/postgres`) をそのまま渡します。image は private GHCR から `latest` または `sha-<full commit SHA>` で取得し、rollback では SHA tag を pin します。PostgreSQL major version bump は image tag の変更だけで行わず、明示的な `pg_upgrade` または dump/restore を実施します。現行の data layout は bind mount 内の `/var/lib/postgresql/18/docker` です。
+
 ## Next.js generated guidance
 
 Next.js 16 の `next dev` が生成する `apps/web/AGENTS.md` と `apps/web/CLAUDE.md` は、ファイル内の指示どおり削除せず commit します。将来の Next.js 開発時に、該当バージョンの公式ガイドを確認するための開発者向け案内です。
