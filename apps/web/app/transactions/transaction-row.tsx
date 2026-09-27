@@ -42,7 +42,9 @@ export function TransactionRow({
           </span>
         </span>
         <span className={`transaction-amount ${transaction.type}`}>
-          <span className="sr-only">{typeLabel(transaction.type)}</span>
+          <span className="sr-only">
+            {typeLabel(transaction.type)} {transaction.type === 'expense' ? 'マイナス' : 'プラス'}
+          </span>
           <span aria-hidden="true">{transaction.type === 'income' ? '＋' : '−'}</span>
           {formatYen(transaction.amount)}
         </span>

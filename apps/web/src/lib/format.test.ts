@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatJapaneseDate, groupTransactionsByDate } from './format';
+import { formatExpenseShare, formatJapaneseDate, groupTransactionsByDate } from './format';
 
 describe('Japanese calendar date display', () => {
   it('formats month-end dates without a timezone shift', () => {
@@ -39,5 +39,14 @@ describe('transaction date grouping', () => {
       { occurredOn: '2026-05-02', transactions: [{ id: 2, occurredOn: '2026-05-02' }] },
       { occurredOn: '2026-05-01', transactions: [{ id: 1, occurredOn: '2026-05-01' }] },
     ]);
+  });
+});
+
+describe('expense share display', () => {
+  it('rounds actual category share and handles zero totals', () => {
+    expect(formatExpenseShare('12', '100')).toBe('12%');
+    expect(formatExpenseShare('1', '1000')).toBe('<1%');
+    expect(formatExpenseShare('0', '0')).toBe('0%');
+    expect(formatExpenseShare('40', '0')).toBe('0%');
   });
 });

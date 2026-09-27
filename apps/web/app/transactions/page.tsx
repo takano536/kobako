@@ -67,39 +67,34 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
-  const filterSummary = `${monthLabel(month)}・${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべて'}・${categoryName ?? 'すべてのカテゴリ'}`;
+  const filterSummary = `${monthLabel(month)}・${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべての種別'}・${categoryName ?? 'すべてのカテゴリ'}`;
   const groupedRows = groupTransactionsByDate(rows);
 
   return (
     <div className="content-stack transactions-page">
       <section className="page-heading" aria-labelledby="transactions-title">
-        <div>
-          <p className="eyebrow">小さな家計ノート</p>
-          <h1 id="transactions-title">取引</h1>
-        </div>
-        <Link className="button button-secondary" href={newTransactionHref(month)}>
-          <span aria-hidden="true">＋</span> 取引を追加
+        <h1 id="transactions-title">取引</h1>
+        <Link className="heading-add-link" href={newTransactionHref(month)}>
+          ＋ 取引を追加
         </Link>
       </section>
 
-      <nav className="month-nav" aria-label="月を移動">
-        {month > `${MIN_SUPPORTED_YEAR}-01` ? (
-          <Link href={listHref(shiftMonth(month, -1), type, categoryId)}>‹ 前月</Link>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-        <span aria-current="date">対象月：{monthLabel(month)}</span>
-        {month < `${MAX_SUPPORTED_YEAR}-12` ? (
-          <Link href={listHref(shiftMonth(month, 1), type, categoryId)}>翌月 ›</Link>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-      </nav>
-
       <section className="filter-section" aria-labelledby="filter-title">
-        <p className="filter-summary" id="filter-title">
-          {filterSummary}
-        </p>
+        <div className="filter-summary-row">
+          {month > `${MIN_SUPPORTED_YEAR}-01` ? (
+            <Link href={listHref(shiftMonth(month, -1), type, categoryId)}>‹ 前月</Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <p className="filter-summary" id="filter-title">
+            {filterSummary}
+          </p>
+          {month < `${MAX_SUPPORTED_YEAR}-12` ? (
+            <Link href={listHref(shiftMonth(month, 1), type, categoryId)}>翌月 ›</Link>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+        </div>
         <details className="filter-details">
           <summary>条件を変更する</summary>
           <form className="filter-form" method="get">
@@ -135,10 +130,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
 
       <section className="notebook-section" aria-labelledby="list-title">
         <div className="section-heading">
-          <div>
-            <p className="section-kicker">記録</p>
-            <h2 id="list-title">取引一覧</h2>
-          </div>
+          <h2 id="list-title">取引一覧</h2>
           <span className="result-count">{rows.length}件</span>
         </div>
         {rows.length === 0 ? (
@@ -147,7 +139,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             <h3>{hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}</h3>
             <p>
               {hasFilter
-                ? '条件を変えるか、すべての条件を表示してみてください。'
+                ? '条件を変えるか、条件をクリアしてください。'
                 : '最初の取引を記録すると、ここに並びます。'}
             </p>
             {hasFilter ? (

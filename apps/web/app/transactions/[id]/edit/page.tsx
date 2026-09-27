@@ -36,10 +36,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
   return (
     <div className="content-stack content-narrow form-page">
       <section className="page-heading" aria-labelledby="edit-transaction-title">
-        <div>
-          <p className="eyebrow">取引をしまう</p>
-          <h1 id="edit-transaction-title">取引を編集</h1>
-        </div>
+        <h1 id="edit-transaction-title">取引を編集</h1>
         <Link
           className="text-link"
           href={`/transactions?month=${transaction.occurredOn.slice(0, 7)}`}
@@ -62,9 +59,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
         />
       </section>
       <section className="delete-section" aria-labelledby="delete-title">
-        <p className="section-kicker">整理</p>
         <h2 id="delete-title">取引を削除</h2>
-        <p>必要なときだけ、登録を取り消せます。</p>
         <DeleteTransactionForm transactionId={transaction.id} />
       </section>
     </div>

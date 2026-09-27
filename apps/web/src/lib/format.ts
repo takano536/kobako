@@ -10,6 +10,20 @@ export function monthLabel(month: string): string {
   const [year, monthNumber] = month.split('-');
   return `${year}年${Number(monthNumber)}月`;
 }
+
+export function formatExpenseShare(categoryTotal: string, expenseTotal: string): string {
+  const category = BigInt(categoryTotal);
+  const expense = BigInt(expenseTotal);
+  if (category <= 0n || expense <= 0n) {
+    return '0%';
+  }
+  if (category * 100n < expense) {
+    return '<1%';
+  }
+  const rounded = (category * 100n + expense / 2n) / expense;
+  return `${rounded}%`;
+}
+
 const JAPANESE_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
 function calendarDateParts(value: string): [year: number, month: number, day: number] | undefined {

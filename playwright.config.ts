@@ -9,6 +9,8 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL: 'http://127.0.0.1:3000',
+    locale: 'ja-JP',
+    timezoneId: 'Asia/Tokyo',
     trace: 'retain-on-failure',
   },
   webServer: {

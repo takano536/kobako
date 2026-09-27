@@ -33,10 +33,7 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   return (
     <div className="content-stack content-narrow form-page">
       <section className="page-heading" aria-labelledby="new-transaction-title">
-        <div>
-          <p className="eyebrow">取引をしまう</p>
-          <h1 id="new-transaction-title">新規登録</h1>
-        </div>
+        <h1 id="new-transaction-title">新規登録</h1>
         <Link className="text-link" href={backHref}>
           取引一覧へ戻る
         </Link>

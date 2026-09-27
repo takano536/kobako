@@ -148,11 +148,13 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(page.getByRole('link', { name: /支出.*1,200円/ })).toBeVisible();
-
   await page.goto(`/?month=${month}`);
   await expect(
     page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
   ).toBeVisible();
+  await expect(page.getByRole('group', { name: '収支差額' }).locator('dd')).toHaveText(
+    'マイナス−1,200円',
+  );
 });
 
 test('adds income and updates the difference, then edits and deletes a transaction', async ({
@@ -222,10 +224,15 @@ test('isolates months: a transaction in one month never appears in another', asy
 test('filters transactions with a native GET form when JavaScript is disabled', async ({
   browser,
 }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    locale: 'ja-JP',
+    timezoneId: 'Asia/Tokyo',
+  });
   const page = await context.newPage();
   try {
     await page.goto(`/transactions?month=${month}`);
+    await expect(page.getByText(`${monthLabel}・すべての種別・すべてのカテゴリ`)).toBeVisible();
     await page.getByText('条件を変更する', { exact: true }).click();
     await page.getByRole('combobox', { name: '種別' }).selectOption('income');
     await page.getByRole('button', { name: '適用' }).click();

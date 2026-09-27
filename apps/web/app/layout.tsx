@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     default: 'kobako 家計ノート',
     template: '%s | kobako 家計ノート',
   },
-  description: '収入と支出を静かに記録できる小さな家計ノート',
+  description: '家計の収入と支出を記録できます。',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

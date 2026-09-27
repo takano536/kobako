@@ -192,15 +192,6 @@ button:disabled {
   align-items: end;
 }
 
-.eyebrow,
-.section-kicker {
-  margin: 0 0 0.35rem;
-  color: #2f6b52;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
 h1,
 h2,
 h3,
@@ -244,6 +235,25 @@ p {
   border-block: 1px solid #e7e3da;
 }
 
+.month-nav > :first-child,
+.month-nav > :last-child {
+  flex: 0 0 4.5rem;
+}
+
+.month-nav > :last-child {
+  justify-content: flex-end;
+}
+
+.month-nav h1 {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.55rem 0.25rem;
+  color: #6d6e67;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+}
 .month-nav a,
 .month-nav span {
   min-height: 2.75rem;
@@ -267,10 +277,6 @@ p {
   display: inline-flex;
   color: #6d6e67;
   font-weight: 700;
-}
-
-.overview-intro {
-  padding-top: 0.1rem;
 }
 
 .expense-hero {
@@ -297,12 +303,6 @@ p {
   font-weight: 750;
   letter-spacing: -0.055em;
   line-height: 1.1;
-}
-
-.hero-note {
-  margin: 0.7rem 0 0;
-  color: #6d6e67;
-  font-size: 0.86rem;
 }
 
 .secondary-summary {
@@ -400,12 +400,25 @@ p {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.category-line strong {
+.category-amount {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.category-amount strong {
   overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.category-share {
+  color: #6d6e67;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .category-bar {
@@ -562,6 +575,7 @@ p {
   max-width: 30rem;
   margin: 0;
   font-size: 0.9rem;
+  text-wrap: pretty;
 }
 
 .empty-motif {
@@ -584,16 +598,10 @@ p {
 .overview-add {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e7e3da;
-}
-
-.overview-add p {
-  margin: 0;
-  color: #6d6e67;
-  font-size: 0.88rem;
 }
 
 .add-link {
@@ -605,6 +613,18 @@ p {
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+}
+.heading-add-link {
+  color: #24563f;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.heading-add-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.22rem;
 }
 
 .add-link:hover {
@@ -675,6 +695,32 @@ p {
   padding: 0.1rem 0 0.35rem;
   border-block: 1px solid #e7e3da;
 }
+.filter-summary-row {
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.filter-summary-row > :first-child {
+  justify-self: start;
+}
+
+.filter-summary-row > :last-child {
+  justify-self: end;
+}
+
+.filter-summary-row a {
+  color: #24563f;
+  font-size: 0.88rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filter-summary-row a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.22rem;
+}
 
 .filter-summary {
   margin: 0;
@@ -682,6 +728,7 @@ p {
   color: #242521;
   font-size: 0.92rem;
   font-weight: 700;
+  text-align: center;
 }
 
 .filter-details summary {
@@ -738,10 +785,7 @@ p {
 }
 
 .form-surface {
-  padding: clamp(1.1rem, 4vw, 1.75rem);
-  border: 1px solid #e7e3da;
-  border-radius: 1rem;
-  background: #fff;
+  padding: 0.25rem 0;
 }
 
 .ledger-form {
@@ -929,12 +973,6 @@ p {
   margin-bottom: 0.4rem;
 }
 
-.delete-section > p:not(.section-kicker) {
-  margin: 0 0 1rem;
-  color: #6d6e67;
-  font-size: 0.88rem;
-}
-
 .delete-form {
   display: grid;
   gap: 0.85rem;
@@ -1032,8 +1070,26 @@ p {
     font-size: 1.8rem;
   }
 
-  .month-nav span {
-    font-size: 0.84rem;
+  .month-nav h1 {
+    font-size: 0.94rem;
+  }
+
+  .month-nav > :first-child,
+  .month-nav > :last-child {
+    flex-basis: 3.8rem;
+  }
+
+  .filter-summary-row {
+    gap: 0.5rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .filter-summary-row a {
+    font-size: 0.8rem;
+  }
+
+  .filter-summary {
+    font-size: 0.86rem;
   }
 
   .secondary-summary-item {
@@ -1055,11 +1111,6 @@ p {
 
   .transaction-memo {
     max-width: 38vw;
-  }
-
-  .overview-add {
-    align-items: start;
-    flex-direction: column;
   }
 
   .filter-form {
