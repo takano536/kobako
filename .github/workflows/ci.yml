@@ -77,25 +77,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      DATABASE_URL: postgresql://ci_kobako:ci_kobako_password@localhost:5432/kobako_e2e
+      # E2E runs the web server and cleanup against this dedicated test DB.
+      # DATABASE_URL is intentionally unset, so the guard only verifies TEST_DATABASE_URL.
+      TEST_DATABASE_URL: postgresql://ci_kobako:ci_kobako_password@localhost:5432/kobako_e2e_test
     services:
       postgres:
         image: postgres:18.6-alpine3.24
         env:
           POSTGRES_USER: ci_kobako
           POSTGRES_PASSWORD: ci_kobako_password
-          POSTGRES_DB: kobako_e2e
+          POSTGRES_DB: kobako_e2e_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ci_kobako -d kobako_e2e"
+          --health-cmd "pg_isready -U ci_kobako -d kobako_e2e_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      - run: pnpm db:migrate
+      - run: DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e

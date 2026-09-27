@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 import { createDatabaseClient, type DatabaseClient } from './client.js';
+import { initializeDefaultLedger } from './ledger.js';
 
 const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
 
@@ -10,6 +11,7 @@ export async function runMigrations(connectionString?: string): Promise<void> {
   const client: DatabaseClient = createDatabaseClient(connectionString);
   try {
     await migrate(client.db, { migrationsFolder });
+    await initializeDefaultLedger(client.db);
   } finally {
     await client.close();
   }
