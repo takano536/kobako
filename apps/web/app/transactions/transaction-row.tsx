@@ -24,7 +24,9 @@ export function TransactionRow({
     <li className="transaction-list-item">
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
       <Link className="transaction-row" href={`/transactions/${transaction.id}/edit`}>
-        <span className="sr-only">{formatJapaneseDate(transaction.occurredOn)}</span>
+        {!showDate ? (
+          <span className="sr-only">{formatJapaneseDate(transaction.occurredOn)}</span>
+        ) : null}
         <span className="transaction-leading">
           <CategoryIcon type={transaction.type} name={transaction.categoryName} />
           <span className="transaction-copy">

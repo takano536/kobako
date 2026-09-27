@@ -229,6 +229,21 @@ p {
   gap: 1.75rem;
 }
 
+.transactions-page {
+  gap: 0;
+}
+
+.transactions-page > .page-heading {
+  margin-bottom: 2rem;
+}
+
+.transactions-page > .notebook-section {
+  padding-top: 0;
+}
+
+.transactions-page > .filter-section + .notebook-section .transaction-list-item:first-child {
+  border-top: 0;
+}
 .month-nav {
   min-height: 3.25rem;
   padding: 0.35rem 0;
