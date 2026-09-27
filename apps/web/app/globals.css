@@ -875,6 +875,7 @@ h3 {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
   column-gap: 12px;
+  align-items: baseline;
   min-height: 58px;
 }
 
@@ -923,6 +924,7 @@ h3 {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
   column-gap: 12px;
+  align-items: baseline;
   min-height: 48px;
   border-bottom: 1px solid var(--rule);
 }
@@ -941,15 +943,6 @@ h3 {
 .entry-detail-grid .field > .field-error {
   grid-column: 2;
   grid-row: 2;
-}
-
-.memo-field {
-  align-items: start !important;
-  padding-top: 7px;
-}
-
-.memo-field > label {
-  margin-top: 5px !important;
 }
 
 .memo-field > textarea {
