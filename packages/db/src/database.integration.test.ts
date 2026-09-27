@@ -119,7 +119,7 @@ describe('PostgreSQL migrations and ledger', () => {
     }
     const input = transactionInputSchema.parse({
       type: 'expense',
-      amount: '１２，３４５',
+      amount: '12,345',
       occurredOn: '2026-09-12',
       categoryId: String(expenseCategory.id),
       memo: '  買い物  ',
@@ -284,48 +284,47 @@ describe('PostgreSQL migrations and ledger', () => {
     ]);
   });
 
-  it('lets PostgreSQL reject a zero amount with a check constraint violation', async () => {
+  it('stores zero and negative amounts in PostgreSQL', async () => {
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
     if (!expenseCategory) {
       throw new Error('expense category seed missing');
     }
 
-    await expect(async () => {
-      try {
-        await client.sql`
-          insert into transactions
-            (household_id, type, amount, occurred_on, category_id, memo)
-          values
-            (${DEFAULT_HOUSEHOLD_ID}, 'expense', 0, '2026-09-01', ${expenseCategory.id}, '')
-        `;
-      } catch (error) {
-        expect(pgError(error).code).toBe('23514');
-        expect(pgError(error).constraint_name).toBe('transactions_amount_positive_limit_check');
-        throw error;
-      }
-    }).rejects.toThrow();
+    const rows = await client.sql`
+      insert into transactions
+        (household_id, type, amount, occurred_on, category_id, memo)
+      values
+        (${DEFAULT_HOUSEHOLD_ID}, 'expense', 0, '2026-09-01', ${expenseCategory.id}, ''),
+        (${DEFAULT_HOUSEHOLD_ID}, 'expense', -500, '2026-09-02', ${expenseCategory.id}, '')
+      returning amount
+    `;
+    expect(rows.map((row) => Number(row.amount)).sort((left, right) => left - right)).toEqual([
+      -500, 0,
+    ]);
   });
 
-  it('lets PostgreSQL reject an amount above the upper limit with a check constraint violation', async () => {
+  it('lets PostgreSQL reject amounts outside the symmetric limit', async () => {
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
     if (!expenseCategory) {
       throw new Error('expense category seed missing');
     }
 
-    await expect(async () => {
-      try {
-        await client.sql`
-          insert into transactions
-            (household_id, type, amount, occurred_on, category_id, memo)
-          values
-            (${DEFAULT_HOUSEHOLD_ID}, 'expense', 1000000000, '2026-09-01', ${expenseCategory.id}, '')
-        `;
-      } catch (error) {
-        expect(pgError(error).code).toBe('23514');
-        expect(pgError(error).constraint_name).toBe('transactions_amount_positive_limit_check');
-        throw error;
-      }
-    }).rejects.toThrow();
+    for (const amount of [1_000_000_000, -1_000_000_000]) {
+      await expect(async () => {
+        try {
+          await client.sql`
+            insert into transactions
+              (household_id, type, amount, occurred_on, category_id, memo)
+            values
+              (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${amount}, '2026-09-01', ${expenseCategory.id}, '')
+          `;
+        } catch (error) {
+          expect(pgError(error).code).toBe('23514');
+          expect(pgError(error).constraint_name).toBe('transactions_amount_limit_check');
+          throw error;
+        }
+      }).rejects.toThrow();
+    }
   });
 
   it('lets PostgreSQL reject an unknown category with a foreign key violation', async () => {

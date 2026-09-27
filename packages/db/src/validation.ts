@@ -1,59 +1,74 @@
 import { z } from 'zod';
 
 import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
+import { AMOUNT_LIMIT, AMOUNT_LIMIT_TEXT, AMOUNT_TEXT_PATTERN } from './amount.js';
 import type { TransactionType } from './schema.js';
-export const AMOUNT_LIMIT = 999_999_999;
+
+export { AMOUNT_FORMAT_MESSAGE, AMOUNT_LIMIT, AMOUNT_TEXT_PATTERN_SOURCE } from './amount.js';
+
 export const MEMO_MAX_LENGTH = 200;
-const AMOUNT_LIMIT_TEXT = String(AMOUNT_LIMIT);
+const DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d+|\.\d+)$/;
+const AMOUNT_EDITING_PATTERN = /^-?(?:\d+|[1-9]\d{0,2}(?:,\d{3})*(?:,\d{0,3})?)$/;
 
-const fullWidthDigitOffset = '０'.codePointAt(0) ?? 0;
-
-function normalizeFullWidthDigits(value: string): string {
-  return Array.from(value, (character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return codePoint >= fullWidthDigitOffset && codePoint <= fullWidthDigitOffset + 9
-      ? String(codePoint - fullWidthDigitOffset)
-      : character;
-  }).join('');
+export function isAmountText(input: unknown): input is string {
+  return typeof input === 'string' && AMOUNT_TEXT_PATTERN.test(input);
 }
 
 /**
- * Normalize accepted JPY input without ever accepting a decimal or sign.
- * Full-width digits/commas and one optional leading yen sign are accepted.
- * A yen sign must touch the first digit; surrounding whitespace is accepted.
+ * Return whether a value is a possible amount while the user is editing.
+ * Empty input and a lone leading minus are intentionally accepted as transient
+ * states; the submit-time schema rejects both.
+ */
+export function isAmountTextWhileEditing(input: unknown): input is string {
+  if (typeof input !== 'string') {
+    return false;
+  }
+  if (input === '' || input === '-') {
+    return true;
+  }
+  return AMOUNT_EDITING_PATTERN.test(input);
+}
+
+/**
+ * Parse a valid amount string while preserving range failures for amountSchema.
  */
 export function normalizeAmountInput(input: unknown): number | undefined {
-  if (typeof input !== 'string') {
+  if (typeof input !== 'string' || !isAmountText(input)) {
     return undefined;
   }
 
-  let value = input.trim();
-  if (value.startsWith('¥') || value.startsWith('￥')) {
-    value = value.slice(1);
-  }
-
-  value = normalizeFullWidthDigits(value).replaceAll('，', ',');
-  if (!value || !/^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)$/.test(value)) {
-    return undefined;
-  }
-
-  const digits = value.replaceAll(',', '');
+  const negative = input.startsWith('-');
+  const unsignedValue = negative ? input.slice(1) : input;
+  const digits = unsignedValue.replaceAll(',', '');
   const canonicalDigits = digits.replace(/^0+(?=\d)/, '');
   if (
     canonicalDigits.length > AMOUNT_LIMIT_TEXT.length ||
     (canonicalDigits.length === AMOUNT_LIMIT_TEXT.length && canonicalDigits > AMOUNT_LIMIT_TEXT)
   ) {
-    return AMOUNT_LIMIT + 1;
+    return negative ? -(AMOUNT_LIMIT + 1) : AMOUNT_LIMIT + 1;
   }
-  return Number(canonicalDigits);
+  const amount = Number(canonicalDigits);
+  return negative ? -amount : amount;
+}
+
+function preprocessAmount(input: unknown): unknown {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  if (DECIMAL_AMOUNT_PATTERN.test(input)) {
+    return Number(input);
+  }
+  return normalizeAmountInput(input);
 }
 
 export const amountSchema = z.preprocess(
-  normalizeAmountInput,
+  preprocessAmount,
   z
     .number({ error: '金額を入力してください。' })
     .int({ error: '金額は整数で入力してください。' })
-    .positive({ error: '金額は1円以上で入力してください。' })
+    .min(-AMOUNT_LIMIT, {
+      error: `金額は-${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以上で入力してください。`,
+    })
     .max(AMOUNT_LIMIT, {
       error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。`,
     }),

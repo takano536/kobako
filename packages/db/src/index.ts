@@ -48,11 +48,14 @@ export {
   type SafeTestDatabaseTarget,
 } from './database-safety.js';
 export {
+  AMOUNT_FORMAT_MESSAGE,
   AMOUNT_LIMIT,
-  MEMO_MAX_LENGTH,
+  AMOUNT_TEXT_PATTERN_SOURCE,
   amountSchema,
   categoryIdSchema,
   flattenTransactionError,
+  isAmountText,
+  isAmountTextWhileEditing,
   isCalendarDate,
   memoSchema,
   normalizeAmountInput,

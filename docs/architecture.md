@@ -23,7 +23,7 @@ households (1) ──< categories
 ```
 
 - `categories`: `household_id`、`type`（`expense`/`income`）、表示名、並び順。`(household_id, type, name)` を一意にし、初期カテゴリを支出 9 種・収入 3 種登録します。
-- `transactions`: `household_id`、`type`、JPY 整数 `amount`、カレンダー日付 `occurred_on`、`category_id`、空文字を許容する `memo`、作成・更新時刻を持ちます。`household_id` の FK に加えて `(category_id, household_id, type)` の複合 FK を categories の一意キーへ張り、別家計カテゴリや種別違いカテゴリを DB で拒否します。
+- `transactions`: `household_id`、`type`、JPY の ASCII 整数 `amount`（`-999,999,999`〜`999,999,999`、0/負数を含む）、カレンダー日付 `occurred_on`、`category_id`、空文字を許容する `memo`、作成・更新時刻を持ちます。`household_id` の FK に加えて `(category_id, household_id, type)` の複合 FK を categories の一意キーへ張り、別家計カテゴリや種別違いカテゴリを DB で拒否します。金額 CHECK は `packages/db/drizzle/0002_bitter_stryfe.sql` で旧 positive-only 制約から `transactions_amount_limit_check` へ置き換えました。
 - 全ての Web query は呼び出し元が渡す household を条件に含めます（現状は常に `getCurrentHouseholdId()` の値）。月次範囲は `YYYY-MM-01` 以上、翌月 1 日未満の half-open range です。
 - 月・日付が扱う年は 1900〜9998 年（`packages/db/src/month.ts` の `MIN_SUPPORTED_YEAR`/`MAX_SUPPORTED_YEAR`）に制限します。PostgreSQL `date`/`YYYY-MM` 自体はこれより広い範囲を扱えますが、`0000-01` のような極端な値が migration 未対応のクライアント入力や URL 改ざんから届いても 500 にならないよう、`isValidMonth`/`isCalendarDate`/`parseMonth`/`shiftMonth` すべてでこの範囲を検証・フォールバックします。
 
@@ -39,7 +39,10 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 概要と一覧は Server Component で URL query (`month`、`type`、`category`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
-登録・編集・削除は Server Actions だけで行います。Client Component のフォームは React 19 `useActionState`/`useFormStatus` で pending とフィールドエラーを表示しますが、同じ Zod schema を Server Action でも必ず再検証します。成功時は対象月へ redirect し、`/` と `/transactions` を `revalidatePath` して読み取りを新しくします。削除は確認チェックを必須にした専用フォームで、削除後に削除 URL へ戻りません。
+登録・編集・削除は Server Actions だけで行います。Client Component のフォームは React 19 `useActionState`/`useFormStatus` で pending とフィールドエラーを表示しますが、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。成功時は対象月へ redirect し、`/` と `/transactions` を `revalidatePath` して読み取りを新しくします。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+表示側は signed amount を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
+
+日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 
 ## 実行モデル
 

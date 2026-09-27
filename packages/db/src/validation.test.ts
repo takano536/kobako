@@ -4,24 +4,29 @@ import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
 import { AMOUNT_LIMIT, transactionInputSchema, normalizeAmountInput } from './validation.js';
 
 describe('transaction input validation', () => {
-  it('normalizes accepted JPY input forms', () => {
-    expect(normalizeAmountInput('  ¥１２，３４５  ')).toBe(12_345);
+  it('normalizes accepted ASCII integer input forms, including signed amounts', () => {
+    expect(normalizeAmountInput('1,2345')).toBeUndefined();
+    expect(normalizeAmountInput('1,200')).toBe(1_200);
     expect(normalizeAmountInput('1,000,000')).toBe(1_000_000);
-    expect(normalizeAmountInput('１，０００')).toBe(1_000);
-    expect(normalizeAmountInput('  1,000  ')).toBe(1_000);
-    expect(normalizeAmountInput('￥９９９')).toBe(999);
     expect(normalizeAmountInput('0001')).toBe(1);
+    expect(normalizeAmountInput('-100')).toBe(-100);
+    expect(normalizeAmountInput('-1,200')).toBe(-1_200);
+    expect(normalizeAmountInput('0')).toBe(0);
   });
 
-  it('rejects malformed amounts, signs, decimals, grouping, and zero', () => {
+  it('rejects malformed amounts while allowing zero and negative integers', () => {
     expect(normalizeAmountInput('')).toBeUndefined();
     expect(normalizeAmountInput('1,00')).toBeUndefined();
     expect(normalizeAmountInput('1234,567')).toBeUndefined();
     expect(normalizeAmountInput('0,100')).toBeUndefined();
     expect(normalizeAmountInput('01,000')).toBeUndefined();
-    expect(normalizeAmountInput('¥ 100')).toBeUndefined();
+    expect(normalizeAmountInput(' 100')).toBeUndefined();
     expect(normalizeAmountInput('+100')).toBeUndefined();
     expect(normalizeAmountInput('１．５')).toBeUndefined();
+    expect(normalizeAmountInput('−１，２００')).toBeUndefined();
+    expect(normalizeAmountInput('1.5')).toBeUndefined();
+    expect(normalizeAmountInput('1.')).toBeUndefined();
+    expect(normalizeAmountInput('.5')).toBeUndefined();
     expect(normalizeAmountInput('1e3')).toBeUndefined();
     expect(normalizeAmountInput('1,2345')).toBeUndefined();
     expect(normalizeAmountInput('¥¥100')).toBeUndefined();
@@ -29,20 +34,39 @@ describe('transaction input validation', () => {
     expect(normalizeAmountInput('12a')).toBeUndefined();
     expect(normalizeAmountInput('１２ａ')).toBeUndefined();
     expect(normalizeAmountInput('¥')).toBeUndefined();
-    expect(normalizeAmountInput('-100')).toBeUndefined();
-    expect(normalizeAmountInput('1.5')).toBeUndefined();
-    expect(
-      transactionInputSchema.safeParse({
-        type: 'expense',
-        amount: '0',
-        occurredOn: '2026-09-01',
-        categoryId: '1',
-        memo: '',
-      }).success,
-    ).toBe(false);
+
+    const zero = transactionInputSchema.safeParse({
+      type: 'expense',
+      amount: '0',
+      occurredOn: '2026-09-01',
+      categoryId: '1',
+      memo: '',
+    });
+    expect(zero.success).toBe(true);
+
+    const negative = transactionInputSchema.safeParse({
+      type: 'income',
+      amount: '-100',
+      occurredOn: '2026-09-01',
+      categoryId: '2',
+      memo: '',
+    });
+    expect(negative.success).toBe(true);
+
+    const decimal = transactionInputSchema.safeParse({
+      type: 'expense',
+      amount: '1.5',
+      occurredOn: '2026-09-01',
+      categoryId: '1',
+      memo: '',
+    });
+    expect(decimal.success).toBe(false);
+    if (!decimal.success) {
+      expect(decimal.error.issues[0]?.message).toBe('金額は整数で入力してください。');
+    }
   });
 
-  it('enforces the integer amount upper limit and trimmed memo length', () => {
+  it('enforces the symmetric integer amount limit and trimmed memo length', () => {
     const valid = transactionInputSchema.safeParse({
       type: 'income',
       amount: String(AMOUNT_LIMIT),
@@ -82,6 +106,24 @@ describe('transaction input validation', () => {
       transactionInputSchema.safeParse({
         type: 'expense',
         amount: String(AMOUNT_LIMIT + 1),
+        occurredOn: '2026-09-01',
+        categoryId: '1',
+        memo: '',
+      }).success,
+    ).toBe(false);
+    expect(
+      transactionInputSchema.safeParse({
+        type: 'expense',
+        amount: String(-AMOUNT_LIMIT),
+        occurredOn: '2026-09-01',
+        categoryId: '1',
+        memo: '',
+      }).success,
+    ).toBe(true);
+    expect(
+      transactionInputSchema.safeParse({
+        type: 'expense',
+        amount: String(-AMOUNT_LIMIT - 1),
         occurredOn: '2026-09-01',
         categoryId: '1',
         memo: '',
