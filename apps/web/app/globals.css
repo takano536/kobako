@@ -844,7 +844,7 @@ h3 {
 
 .ledger-form textarea {
   min-height: 38px;
-  resize: vertical;
+  resize: none;
 }
 
 .type-field {
@@ -958,7 +958,7 @@ h3 {
 .entry-detail-grid .field {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
-  grid-template-rows: 52px;
+  grid-template-rows: minmax(52px, auto);
   column-gap: 12px;
   align-items: center;
   min-height: 52px;
@@ -1044,18 +1044,25 @@ h3 {
   background-size: 16px 16px;
 }
 
-.entry-detail-grid .memo-field > label {
-  align-self: start;
-  margin-top: 16px;
-}
-
 .memo-field .field-value > textarea {
+  display: block;
   height: 52px;
   min-height: 52px;
   max-height: 52px;
   padding: 14px 0;
-  overflow: auto;
-  resize: vertical;
+  overflow-y: auto;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+.memo-field .field-value > textarea[data-autosize='true'] {
+  max-height: calc(7.5em + 28px);
+}
+
+@supports (field-sizing: content) {
+  .memo-field .field-value > textarea[data-autosize='true'] {
+    field-sizing: content;
+  }
 }
 
 .ledger-form .amount-field.has-error,

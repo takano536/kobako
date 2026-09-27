@@ -136,6 +136,27 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
+const MEMO_MAX_LINES = 5;
+
+function resizeMemo(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = 'auto';
+  const computedStyle = window.getComputedStyle(textarea);
+  const fontSize = Number.parseFloat(computedStyle.fontSize) || 16;
+  const lineHeight =
+    computedStyle.lineHeight === 'normal'
+      ? fontSize * 1.2
+      : Number.parseFloat(computedStyle.lineHeight) || fontSize * 1.5;
+  const padding =
+    (Number.parseFloat(computedStyle.paddingTop) || 0) +
+    (Number.parseFloat(computedStyle.paddingBottom) || 0);
+  const borders =
+    (Number.parseFloat(computedStyle.borderTopWidth) || 0) +
+    (Number.parseFloat(computedStyle.borderBottomWidth) || 0);
+  const maxHeight = lineHeight * MEMO_MAX_LINES + padding + borders;
+
+  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+}
+
 export function TransactionForm({
   action,
   categories,
@@ -148,6 +169,7 @@ export function TransactionForm({
   const [clientErrors, setClientErrors] = useState<TransactionFieldErrors>();
   const [hasHydrated, setHasHydrated] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const memoRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const modalOpenRef = useRef(false);
   const convertingDialogRef = useRef(false);
@@ -162,6 +184,15 @@ export function TransactionForm({
       setClientErrors(undefined);
     }
   }, [state.values]);
+
+  useEffect(() => {
+    const memo = memoRef.current;
+    if (!memo) {
+      return;
+    }
+    memo.dataset.autosize = 'true';
+    resizeMemo(memo);
+  }, [formValues.memo]);
 
   useEffect(() => {
     setHasHydrated(true);
@@ -206,6 +237,13 @@ export function TransactionForm({
         }
       });
     }
+  }
+
+  function handleMemoChange(event: ChangeEvent<HTMLTextAreaElement>): void {
+    const memo = event.currentTarget;
+    memo.dataset.autosize = 'true';
+    updateValue('memo', memo.value);
+    resizeMemo(memo);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -417,12 +455,13 @@ export function TransactionForm({
             </label>
             <div className={`field-value${memoError ? ' has-error' : ''}`}>
               <textarea
+                ref={memoRef}
                 id="transaction-memo"
                 name="memo"
                 rows={1}
                 maxLength={MEMO_MAX_LENGTH}
                 value={formValues.memo}
-                onChange={(event) => updateValue('memo', event.currentTarget.value)}
+                onChange={handleMemoChange}
                 aria-invalid={memoError ? true : undefined}
                 aria-describedby={memoError ? 'transaction-memo-error' : undefined}
               />

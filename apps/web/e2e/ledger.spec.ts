@@ -351,6 +351,71 @@ test('strips non-numeric characters from the amount field and keeps value contro
   }
 });
 
+test('centers and auto-grows the memo field up to five lines', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+
+  const memo = page.locator('#transaction-memo');
+  const memoRow = page.locator('.memo-field');
+  const categoryRow = page.locator('.category-field');
+  const measureMemo = () =>
+    memoRow.evaluate((field) => {
+      const label = field.querySelector('label');
+      const textarea = field.querySelector('textarea');
+      if (!label || !textarea) {
+        throw new Error('memo field controls are not measurable');
+      }
+      const labelBox = label.getBoundingClientRect();
+      const textareaBox = textarea.getBoundingClientRect();
+      const style = getComputedStyle(textarea);
+      return {
+        rowHeight: field.getBoundingClientRect().height,
+        labelCenter: labelBox.top + labelBox.height / 2,
+        textareaCenter: textareaBox.top + textareaBox.height / 2,
+        textareaHeight: textareaBox.height,
+        clientHeight: textarea.clientHeight,
+        scrollHeight: textarea.scrollHeight,
+        lineHeight: Number.parseFloat(style.lineHeight),
+        padding: Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom),
+      };
+    });
+
+  const emptyMetrics = await measureMemo();
+  const categoryBox = await categoryRow.boundingBox();
+  if (!categoryBox) {
+    throw new Error('category row is not measurable');
+  }
+  expect(Math.abs(emptyMetrics.rowHeight - categoryBox.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(emptyMetrics.labelCenter - emptyMetrics.textareaCenter)).toBeLessThanOrEqual(1);
+
+  const threeLineMemo = 'one\ntwo\nthree';
+  await memo.fill(threeLineMemo);
+  await expect
+    .poll(async () => (await measureMemo()).textareaHeight)
+    .toBeGreaterThan(emptyMetrics.textareaHeight);
+  const threeLineMetrics = await measureMemo();
+  expect(threeLineMetrics.rowHeight).toBeGreaterThan(emptyMetrics.rowHeight);
+  expect(
+    Math.abs(threeLineMetrics.labelCenter - threeLineMetrics.textareaCenter),
+  ).toBeLessThanOrEqual(1);
+  await expect(memo).toHaveValue(threeLineMemo);
+
+  const tenLineMemo = Array.from({ length: 10 }, (_, index) => `line ${index + 1}`).join('\n');
+  await memo.fill(tenLineMemo);
+  await expect
+    .poll(async () => {
+      const metrics = await measureMemo();
+      return metrics.scrollHeight - metrics.clientHeight;
+    })
+    .toBeGreaterThan(0);
+  const maxMetrics = await measureMemo();
+  expect(maxMetrics.scrollHeight).toBeGreaterThan(maxMetrics.clientHeight);
+  expect(
+    Math.abs(maxMetrics.clientHeight - (maxMetrics.lineHeight * 5 + maxMetrics.padding)),
+  ).toBeLessThanOrEqual(2);
+  expect(Math.abs(maxMetrics.labelCenter - maxMetrics.textareaCenter)).toBeLessThanOrEqual(1);
+  await expect(memo).toHaveValue(tenLineMemo);
+});
+
 test('shows server amount errors in the fallback dialog without changing row height', async ({
   browser,
 }) => {
