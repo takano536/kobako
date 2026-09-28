@@ -62,7 +62,11 @@ validation、calendar helper、家計簿 schema/query は Web の Server Compone
 
 ## Self-host network and image delivery
 
-`compose.selfhost.yaml` は PostgreSQL と migration を `internal: true` の app network に閉じ込め、web だけを既存の external `proxy_network` に `kobako-web` alias 付きで接続します。現行の web は外向き接続を必要としないため、DB を reverse proxy network に置かず、host port も公開しません。PostgreSQL 18 の upstream `PGDATA=/var/lib/postgresql/18/docker` を変更せず、bind mount の root (`/opt/selfhost-data/kobako/postgres`) をそのまま渡します。image は private GHCR から `latest` または `sha-<full commit SHA>` で取得し、rollback では SHA tag を pin します。PostgreSQL major version bump は image tag の変更だけで行わず、明示的な `pg_upgrade` または dump/restore を実施します。現行の data layout は bind mount 内の `/var/lib/postgresql/18/docker` です。
+`compose.selfhost.yaml` は PostgreSQL と migration を `internal: true` の app network に閉じ込め、web だけを既存の external `proxy_network` に `kobako-web` alias 付きで接続します。現行の web は外向き接続を必要としないため、DB を reverse proxy network に置かず、host port も公開しません。PostgreSQL 18 の upstream `PGDATA=/var/lib/postgresql/18/docker` を変更せず、bind mount の root (`/opt/selfhost-data/kobako/postgres`) をそのまま渡します。image は初回 Release Please merge 後に存在する完全な SemVer (`X.Y.Z`) を使用し、main の `latest` は Compose へ持ち込みません。調査・厳密な pin・rollback では web と migrate に同じ `sha-<full commit SHA>` を指定します。PostgreSQL major version bump は image tag の変更だけで行わず、明示的な `pg_upgrade` または dump/restore を実施します。現行の data layout は bind mount 内の `/var/lib/postgresql/18/docker` です。
+
+## Release version source
+
+Release Please は root `.` の単一 version として扱います。root `package.json` を正 canonical version とし、初回は空の manifest と `initial-version: 0.1.0` で必ず初回 version を `0.1.0` にします。Release PR の `extra-files` で web/worker/db の private workspace manifest と `compose.selfhost.yaml` の image tag も更新します。pnpm lockfile は workspace package の version を記録しないため、version bump による lockfile 更新は行いません。初回 Release PR merge 後は manifest の release version と通常の Conventional Commit bump に戻ります。`latest` は main の最新成功 build の試用用で、本番 Compose には使いません。
 
 ## Next.js generated guidance
 

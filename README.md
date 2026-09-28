@@ -78,64 +78,70 @@ docker compose ps
 
 ## GHCR 経由のセルフホスト
 
-`main` への push が成功すると、GitHub Actions は次の production image を private GitHub Container Registry (GHCR) へ push します。
+正式なリリースは Release Please の Release PR を merge した後だけ作成されます。Release PR が merge されるまでは、Git tag、GitHub Release、SemVer 付き image は存在しません。初回 Release PR の merge 後に `0.1.0` が利用できるようになります。
 
-- `ghcr.io/takano536/kobako-web`
-- `ghcr.io/takano536/kobako-migrate`
+リリースの tag と image は次の形式です。
 
-`latest` は最新成功 `main` build の tag で、同じ `publish` job が web と migrate の `sha-<full commit SHA>` tag を検証または push し、両方が成功した後に promote step がそれぞれを retag します。SHA tag の inspect が成功して既存と確認できた場合は再 push しません。SHA tag は CI が同じ SHA を別内容へ付け直さない運用上の immutable tag ですが、GHCR の write 権限を持つ者は技術的には retag/delete できます。digest（`@sha256:...`）だけが registry 上でも真に immutable な参照です。2 つの package の `latest` retag は atomic ではなく best-effort なので、web/migrate の整合性が必要な更新・rollback では `KOBAKO_IMAGE_TAG=sha-<full commit SHA>` を pin してください。worker image は現時点では publish しません。Compose ファイルは `compose.selfhost.yaml` で、ソース checkout や build なしに Dockge へ貼り付けて使えます。
+- Git tag / GitHub Release: `vX.Y.Z`
+- `ghcr.io/takano536/kobako-web:X.Y.Z`
+- `ghcr.io/takano536/kobako-migrate:X.Y.Z`
+
+`web` と `migrate` は常に同じ version と同じ commit から公開し、異なる version を組み合わせて deploy しません。self-host Compose は Release Please が更新する完全な SemVer を直接指定します。
+
+### SemVer と Conventional Commits
+
+通常 PR と Release Please の Release PR は squash merge し、main に残る PR title を Conventional Commit として解析します。
+
+| prefix                                             | `0.x`        | `1.0.0` 以降 |
+| -------------------------------------------------- | ------------ | ------------ |
+| `fix:`                                             | patch        | patch        |
+| `feat:`                                            | minor        | minor        |
+| `feat!:` / `BREAKING CHANGE:`                      | minor        | major        |
+| `docs:` / `test:` / `ci:` / `chore:` / `refactor:` | リリースなし | リリースなし |
+
+実際の不具合修正をリリース抑制のために `chore:` や `ci:` へ偽装しないでください。複数の `fix:` は一つの Release PR に蓄積でき、Release PR を一度 merge すれば patch bump は一度だけです。安定版への移行時は独自 prefix を作らず、`Release-As: 1.0.0` footer を使います。
+
+```sh
+git commit --allow-empty \
+  -m "chore: prepare stable release" \
+  -m "Release-As: 1.0.0"
+```
+
+DB migration の additive change は内容に応じて patch/minor、列削除・互換性のない型変更・データ損失・手動作業を伴うものは breaking として PR と CHANGELOG に記載します。rollback では以前の完全な SemVer または `sha-<full commit SHA>` を web/migrate ともに pin します。不可逆 migration は Release notes にも明記します。
+
+`latest` は main の最新成功 build を指す可変 tag で、試用・手動確認用です。正式 release は `latest` を更新しません。本番 Compose と Renovate では `latest` や `X.Y`/`X` を使わず、完全な `X.Y.Z` を使います。`sha-<full commit SHA>` は調査、厳密な pin、rollback 用です。
+
+詳しい運用は [`docs/releasing.md`](docs/releasing.md) を参照してください。
 
 ### 初回準備
 
-GitHub Packages の image は private です。deploy host では一度だけ GHCR へログインしてください。現時点の GitHub Packages pull 認証には、`read:packages` scope を持つ **classic PAT** が必要です。host の既定 Docker config に `credsStore`/`credHelpers` があると、Docker login は inline `auths` を書かないことがあります。専用 config directory を作って login すれば、Dockge container へ安全に read-only mount できます。
+GitHub Packages の image は private です。deploy host では `read:packages` 権限を持つ token で一度だけ GHCR へ login してください。token は Compose や repository に保存しません。
 
 ```sh
-GHCR_AUTH_DIR=/opt/selfhost-data/dockge/docker-auth
-install -d -m 700 "$GHCR_AUTH_DIR"
-printf '{}' > "$GHCR_AUTH_DIR/config.json"
-chmod 600 "$GHCR_AUTH_DIR/config.json"
-read -r -s -p 'GitHub classic PAT (read:packages): ' GHCR_READ_PACKAGES_TOKEN
+read -r -s -p 'GitHub token (read:packages): ' GHCR_READ_PACKAGES_TOKEN
 printf '\n'
 printf '%s' "$GHCR_READ_PACKAGES_TOKEN" \
-  | DOCKER_CONFIG="$GHCR_AUTH_DIR" docker login ghcr.io \
-      --username YOUR_GITHUB_USERNAME --password-stdin
+  | docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin
 unset GHCR_READ_PACKAGES_TOKEN
-jq -e '.auths["ghcr.io"].auth | type == "string"' "$GHCR_AUTH_DIR/config.json"
 ```
 
-この login により PAT は host の `config.json` に username:token の base64 値として保存されます。PAT は Compose ファイルや repository には絶対に保存せず、directory を mode `700`、file を mode `600` に保護し、不要になった PAT は revoke/rotate してください。
-
-Dockge は container 内の `/root/.docker/config.json` を読みます。上の手順で作成した host の専用 `$GHCR_AUTH_DIR` を、Dockge container 内の `/root/.docker` へ read-only mount してください。`config.json` には inline の `auths` が必要で、`credsStore` または `credHelpers` だけを含む config は Dockge container 内に helper binary がないため使えません。
-
-```yaml
-services:
-  dockge:
-    volumes:
-      - /opt/selfhost-data/dockge/docker-auth:/root/.docker:ro
-```
-
-既存の Dockge Compose にこの volume だけを追加すればよく、PAT 自体を Dockge の Compose や repository に書く必要はありません。
-
-proxy network を一度だけ作成します。
+`proxy_network` を一度だけ作成します。
 
 ```sh
 docker network create proxy_network
 ```
 
-### 起動（Dockge）
+### 起動（Dockge / CLI）
 
-Dockge で新しい Stack（例: `kobako`）を作成し、`compose.selfhost.yaml` の内容をそのまま貼り付けます。Stack の `.env` editor に次を設定してください。
+`compose.selfhost.yaml` の `web` と `migrate` は Release Please が同じ完全 SemVer へ更新します。初回の Release PR を merge する前は `0.1.0` image が存在しないため起動できません。
+
+Dockge の Stack directory、または CLI で次の `.env` だけを用意します。
 
 ```dotenv
 POSTGRES_PASSWORD=<openssl rand -hex 32 の出力>
-# KOBAKO_IMAGE_TAG=latest
 ```
 
-`POSTGRES_PASSWORD` は URL-safe な英数字にしてください。host の shell で `openssl rand -hex 32` を実行して得た値を貼り付けます。`KOBAKO_IMAGE_TAG` は任意で、未設定時は `latest` です。Dockge で **Deploy / Recreate** を実行すると、web と migration が同じ tag で起動します。
-
-### CLI alternative（clone 不要）
-
-host に必要なのは `compose.selfhost.yaml` と `.env` だけです。repository を clone せず、ファイルを host へコピーした場所を指定して起動できます。
+`POSTGRES_PASSWORD` は URL-safe な英数字にしてください。Compose のサービス名 `postgres`、`depends_on`、`DATABASE_URL` 内の hostname は変更しないでください。
 
 ```sh
 printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > /path/to/.env
@@ -143,9 +149,7 @@ chmod 600 /path/to/.env
 docker compose --env-file /path/to/.env -f /path/to/compose.selfhost.yaml up -d
 ```
 
-`KOBAKO_IMAGE_TAG` を rollback 用に設定する場合は `.env` へ追加します。web と migration は同じ tag を使うため、更新・rollback の対象が一致します。
-
-Nginx Proxy Manager (NPM) からは次の値で proxy host を作成してください。
+Nginx Proxy Manager (NPM) の proxy host は次の値です。
 
 - Scheme: `http`
 - Forward Hostname: `kobako-web`
@@ -153,32 +157,33 @@ Nginx Proxy Manager (NPM) からは次の値で proxy host を作成してくだ
 
 `kobako` にはユーザー認証がまだありません。インターネットへ直接公開せず、Tailscale 内だけに公開し、NPM の Access List で保護してください。PostgreSQL は `proxy_network` に接続せず、host port も開きません。
 
-### 更新・rollback・バックアップ
+### 更新・rollback・backup
 
-更新時は Dockge で最新 image を pull してから stack を recreate します（`latest` は最新成功 build へ更新されます）。`docker compose` を直接使う場合は次のようにします。
-
-以下の CLI commands は、`compose.selfhost.yaml` と `.env` を置いた directory で実行してください。Dockge を使う場合は、その Stack directory が対象です。別の directory から実行する場合は、CLI alternative と同じように各 command へ `--env-file /path/to/.env` を渡してください。
+正式版更新では Release Please が更新した `compose.selfhost.yaml` を取得して recreate します。
 
 ```sh
 docker compose -f compose.selfhost.yaml pull
 docker compose -f compose.selfhost.yaml up -d --force-recreate
 ```
 
-特定の build に rollback する場合は、`sha-` と full commit SHA を使って `.env` の tag を pin します。
+rollback では Compose の `web` と `migrate` を以前の同じ `X.Y.Z`、または同じ `sha-<full commit SHA>` へ戻します。migration は forward-only の場合があるため、古い image に戻しても schema は自動で戻りません。必要なら先に DB backup を復元してください。通常の停止は `docker compose down` または `stop` とし、DB data を消す `down -v` は使わないでください。
 
-```dotenv
-KOBAKO_IMAGE_TAG=sha-<full-commit-sha>
+### Renovate（利用側）
+
+この repository には利用側の `renovate.json` を追加しません。利用側で Docker datasource の認証（private GHCR の hostRules）を設定し、完全な SemVer を追跡してください。`kobako-web` と `kobako-migrate` の更新を一つの PR にまとめる例です。
+
+```json
+{
+  "packageRules": [
+    {
+      "matchPackageNames": ["ghcr.io/takano536/kobako-web", "ghcr.io/takano536/kobako-migrate"],
+      "groupName": "kobako images"
+    }
+  ]
+}
 ```
 
-web と migrate の SHA tag は同じ publish job で検証または push され、inspect が成功して既存と確認できた tag は再 push されません。両方成功した後に同じ `publish` job の promote step が `latest` へ best-effort retag します。2 package の latest promotion は atomic ではありません。SHA tag は CI が inspect 成功時に再 push しない運用上の immutable tag ですが、真に immutable な参照は digest です。rollback では `KOBAKO_IMAGE_TAG` を SHA に pin し、recreate するとその SHA の migration image も再実行されます。migration は forward-only のため、古い image に戻しても schema の変更は取り消されません。schema を戻す必要がある場合は、先に DB backup から復元してください。
-
-データの backup 対象は `/opt/selfhost-data/kobako/postgres` です。directory の copy は stack を `docker compose -f compose.selfhost.yaml stop` で停止している間だけ一貫します。通常の停止は `stop`（または Dockge の停止）を使い、`docker compose down -v` など volume を削除する操作は通常の手順として絶対に実行しないでください。停止できない hot backup には次を使えます。
-
-```sh
-docker compose -f compose.selfhost.yaml exec -T postgres pg_dump -U kobako -d kobako -Fc > kobako-$(date +%F).dump
-```
-
-restore では先に web を停止して書き込み競合を避けます（`docker compose -f compose.selfhost.yaml stop web`）。その後、次のように `--clean --if-exists` 付きで復元します: `docker compose -f compose.selfhost.yaml exec -T postgres pg_restore --clean --if-exists -U kobako -d kobako < kobako-2026-09-27.dump`。PostgreSQL の major version bump は image tag の変更だけで行わず、明示的な `pg_upgrade` または dump/restore を実施してください。現行の data layout は bind mount 内の `/var/lib/postgresql/18/docker` です。
+`latest` は Renovate の追跡対象にしないでください。
 
 ## 家計簿データと入力ルール
 
@@ -233,7 +238,7 @@ integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-d
 
 ## CI 概要
 
-`.github/workflows/ci.yml` は pull request と `main` への push で実行します。外部 Action は full SHA pin です。Required status checks には次の job 名を指定できます。
+`.github/workflows/ci.yml` は pull request、`main` への push、Release Please workflow からの `workflow_call` で実行します。外部 Action は full SHA pin です。Required status checks には次の job 名を指定できます。
 
 - `lint`: format check、ESLint、TypeScript
 - `unit`: Vitest unit tests
@@ -241,9 +246,11 @@ integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-d
 - `build`: production build
 - `e2e`: PostgreSQL service、migration、production E2E、失敗時 artifact
 - `docker`: 3 target の image build、Compose 起動、migration、web/DB health
-- `publish`: `main` push の全 job 成功後に web/migrate を private GHCR へ push
+- `publish`: main では `sha-<full SHA>` と `latest`、Release Please trigger では ci.yml の publish job が `X.Y.Z` の web/migrate image を全 gate 成功後に private GHCR へ push
 
-CI の PostgreSQL 認証情報は workflow 内の固定 CI 専用値であり、repository secret や本番 secret ではありません。Docker job は registry へ push せず、publish job だけが `${{ secrets.GITHUB_TOKEN }}` で private GHCR へ push します。
+pull request は registry へ push しません。Release Please が作成した tag は同じ workflow run から reusable CI を呼び、tag の commit に対して全 gate を再実行します。CI の PostgreSQL 認証情報は workflow 内の固定 CI 専用値であり、repository secret や本番 secret ではありません。Docker job は registry へ push せず、publish job だけが `${{ secrets.GITHUB_TOKEN }}` で private GHCR へ push します。
+
+`latest` は main の最新成功 build を指す試用用、`sha-<full SHA>` は調査・pin・rollback 用、`X.Y.Z` は正式版です。release job は `latest` を更新せず、self-host Compose と Renovate は完全な SemVer だけを使います。
 
 `compose.selfhost.yaml` の構成検証も Docker job で実行します。
 
@@ -256,8 +263,9 @@ apps/
 packages/db/              # Drizzle schema、migration、家計簿 query、validation
 packages/db/drizzle/      # commit 対象の生成済み migration
 .github/workflows/ci.yml  # lint/unit/integration/build/e2e/docker/publish
+.github/workflows/release-please.yml # Release PR、tag、release-ci
 compose.yaml              # 開発用 PostgreSQL とアプリ群
-compose.selfhost.yaml     # private GHCR 経由のセルフホスト stack
+compose.selfhost.yaml     # private GHCR 経由の SemVer 固定セルフホスト stack
 Dockerfile                # web/migrate/worker multi-stage image
 ```
 
@@ -271,7 +279,7 @@ Dockerfile                # web/migrate/worker multi-stage image
 - `TEST_DATABASE_URL`: integration test と E2E の専用 URL。loopback host の test-designated database（名前に `test` または `tests` の token を含む）を指定し、`DATABASE_URL` と host alias・port・database name が異なる必要があります。`NODE_ENV=production` では integration test の破壊的 reset は拒否されます。E2E の web server と後処理はこの URL の DB を使います。
 - `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`: Compose の開発用 PostgreSQL のユーザー、パスワード、DB 名
 - `COMPOSE_DATABASE_URL`: Compose ネットワーク内から PostgreSQL へ接続する URL。未設定時は `POSTGRES_*` の値から開発用既定 URL を構成する。接続情報に URL 予約文字を含める場合は、percent-encoding 済みの URL を設定する
-- `compose.selfhost.yaml` の `.env`: `POSTGRES_PASSWORD` は必須、`KOBAKO_IMAGE_TAG` は任意（既定値 `latest`）。self-host の手順に従い、秘密情報は repository に commit しないでください。
+- `compose.selfhost.yaml` の `.env`: `POSTGRES_PASSWORD` は必須です。image version は Compose に直接記述され、Release Please が Release PR で更新します。self-host の手順に従い、秘密情報は repository に commit しないでください。
 
 認証、アップロード、AI 用の未実装設定や秘密情報はこの段階では追加していません。
 

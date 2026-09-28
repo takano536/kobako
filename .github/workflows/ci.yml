@@ -4,13 +4,21 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Release Please tag to publish (vX.Y.Z)
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: kobako-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
+  # Reusable workflows inherit the caller's github context. The release input
+  # is therefore the only reliable discriminator for release CI.
+  group: kobako-ci-${{ inputs.release_tag != '' && format('release-{0}', inputs.release_tag) || format('{0}-{1}', github.event_name, github.ref) }}
+  cancel-in-progress: ${{ inputs.release_tag == '' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
 
 jobs:
   lint:
@@ -126,6 +134,7 @@ jobs:
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
+            OCI_VERSION=sha-${{ github.sha }}
           tags: kobako-web:local
           load: true
           cache-from: type=gha,scope=kobako-web
@@ -139,6 +148,7 @@ jobs:
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
+            OCI_VERSION=sha-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=kobako-migrate
           cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
@@ -152,6 +162,7 @@ jobs:
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
+            OCI_VERSION=sha-${{ github.sha }}
           cache-from: type=gha,scope=kobako-worker
           cache-to: type=gha,mode=max,scope=kobako-worker,ignore-error=true
       - name: Create CI compose environment
@@ -225,7 +236,7 @@ jobs:
 
   publish:
     name: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: inputs.release_tag != '' || (inputs.release_tag == '' && github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [lint, unit, integration, build, e2e, docker]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -233,10 +244,34 @@ jobs:
       contents: read
       packages: write
     concurrency:
-      group: kobako-publish-main
+      # Main publishes retain the existing cancellation policy. A release
+      # publish has a distinct group, so it cannot cancel that main run.
+      group: kobako-publish-${{ inputs.release_tag != '' && format('release-{0}', inputs.release_tag) || 'main' }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compute image tags
+        id: tags
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: ./scripts/compute-release-tags.sh
+      - name: Verify release tag points at this commit
+        if: steps.tags.outputs.mode == 'release'
+        env:
+          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
+          EXPECTED_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          tagged_revision="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          if [[ "$tagged_revision" != "$EXPECTED_REVISION" ]]; then
+            echo "Release tag $RELEASE_TAG points at $tagged_revision, expected $EXPECTED_REVISION" >&2
+            exit 1
+          fi
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -244,32 +279,44 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check existing web SHA tag
-        id: web_sha
+      - name: Check existing web image tag
+        id: web_tag
         env:
           IMAGE: ghcr.io/takano536/kobako-web
-          TAG: sha-${{ github.sha }}
+          TAG: ${{ steps.tags.outputs.web_tag }}
+          MODE: ${{ steps.tags.outputs.mode }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
           EXPECTED_REVISION: ${{ github.sha }}
+          EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
           inspect_file="$(mktemp)"
           trap 'rm -f "$inspect_file"' EXIT
           if docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Image}}' >"$inspect_file" 2>&1; then
-            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" '
+            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" --arg version "$EXPECTED_VERSION" --arg mode "$MODE" '
               def configs:
                 if (.config? | type) == "object" then [.config]
                 else [to_entries[] | .value.config? | select(type == "object")]
                 end;
               configs
               | if length == 0 then false
-                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source))
+                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision
+                  and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source
+                  and ($mode == "main" or ((.Labels? // {}) | .["org.opencontainers.image.version"]) == $version)))
                 end
             ' "$inspect_file" >/dev/null; then
               echo 'exists=true' >> "$GITHUB_OUTPUT"
             else
-              echo "SHA tag labels do not match expected source/revision: $IMAGE:$TAG" >&2
+              echo "Existing $MODE tag has unexpected OCI labels: $IMAGE:$TAG" >&2
+              cat "$inspect_file" >&2
+              exit 1
+            fi
+          elif [[ "$MODE" == release ]]; then
+            if grep -Eiq 'manifest unknown|name unknown|no such manifest|not found|404' "$inspect_file"; then
+              echo 'exists=false' >> "$GITHUB_OUTPUT"
+            else
+              echo "Could not determine whether release tag exists: $IMAGE:$TAG" >&2
               cat "$inspect_file" >&2
               exit 1
             fi
@@ -279,48 +326,62 @@ jobs:
             echo 'exists=false' >> "$GITHUB_OUTPUT"
           fi
       - name: Build and push web image
-        if: steps.web_sha.outputs.exists != 'true'
+        if: steps.web_tag.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           target: web
           push: true
-          tags: ghcr.io/takano536/kobako-web:sha-${{ github.sha }}
+          tags: ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
             org.opencontainers.image.description=kobako production web image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
+            OCI_VERSION=${{ steps.tags.outputs.version }}
           cache-from: type=gha,scope=kobako-web
           cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
-      - name: Check existing migration SHA tag
-        id: migrate_sha
+      - name: Check existing migration image tag
+        id: migrate_tag
         env:
           IMAGE: ghcr.io/takano536/kobako-migrate
-          TAG: sha-${{ github.sha }}
+          TAG: ${{ steps.tags.outputs.migrate_tag }}
+          MODE: ${{ steps.tags.outputs.mode }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
           EXPECTED_REVISION: ${{ github.sha }}
+          EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
           inspect_file="$(mktemp)"
           trap 'rm -f "$inspect_file"' EXIT
           if docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Image}}' >"$inspect_file" 2>&1; then
-            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" '
+            if jq -e --arg revision "$EXPECTED_REVISION" --arg source "$EXPECTED_SOURCE" --arg version "$EXPECTED_VERSION" --arg mode "$MODE" '
               def configs:
                 if (.config? | type) == "object" then [.config]
                 else [to_entries[] | .value.config? | select(type == "object")]
                 end;
               configs
               | if length == 0 then false
-                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source))
+                else all(.[]; (((.Labels? // {}) | .["org.opencontainers.image.revision"]) == $revision
+                  and ((.Labels? // {}) | .["org.opencontainers.image.source"]) == $source
+                  and ($mode == "main" or ((.Labels? // {}) | .["org.opencontainers.image.version"]) == $version)))
                 end
             ' "$inspect_file" >/dev/null; then
               echo 'exists=true' >> "$GITHUB_OUTPUT"
             else
-              echo "SHA tag labels do not match expected source/revision: $IMAGE:$TAG" >&2
+              echo "Existing $MODE tag has unexpected OCI labels: $IMAGE:$TAG" >&2
+              cat "$inspect_file" >&2
+              exit 1
+            fi
+          elif [[ "$MODE" == release ]]; then
+            if grep -Eiq 'manifest unknown|name unknown|no such manifest|not found|404' "$inspect_file"; then
+              echo 'exists=false' >> "$GITHUB_OUTPUT"
+            else
+              echo "Could not determine whether release tag exists: $IMAGE:$TAG" >&2
               cat "$inspect_file" >&2
               exit 1
             fi
@@ -330,23 +391,27 @@ jobs:
             echo 'exists=false' >> "$GITHUB_OUTPUT"
           fi
       - name: Build and push migration image
-        if: steps.migrate_sha.outputs.exists != 'true'
+        if: steps.migrate_tag.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           target: migrate
           push: true
-          tags: ghcr.io/takano536/kobako-migrate:sha-${{ github.sha }}
+          tags: ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
             org.opencontainers.image.description=kobako production migrate image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
+            OCI_VERSION=${{ steps.tags.outputs.version }}
           cache-from: type=gha,scope=kobako-migrate
           cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
       - name: Promote web image to latest
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:sha-${{ github.sha }}
+        if: steps.tags.outputs.promote_latest == 'true'
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
       - name: Promote migration image to latest
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:sha-${{ github.sha }}
+        if: steps.tags.outputs.promote_latest == 'true'
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
