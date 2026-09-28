@@ -76,6 +76,39 @@ docker compose ps
 
 どちらの curl も `{"status":"ok"}` を返し、`docker compose ps` の `web` が healthy なら確認完了です。
 
+## リリースとGHCR
+
+正式なリリースは Release Please の Release PR を merge した後だけ作成されます。Release PR が merge されるまでは、Git tag、GitHub Release、SemVer 付き image は存在しません。初回 Release PR の merge 後に `0.1.0` が利用できるようになります。
+
+リリースの tag と image は次の形式です。
+
+- Git tag / GitHub Release: `vX.Y.Z`
+- `ghcr.io/takano536/kobako-web:X.Y.Z`
+- `ghcr.io/takano536/kobako-migrate:X.Y.Z`
+
+`web` と `migrate` は常に同じ version と同じ commit から公開します。通常 PR と Release Please の Release PR は squash merge し、main に残る PR title を Conventional Commit として解析します。
+
+| prefix                                             | `0.x`        | `1.0.0` 以降 |
+| -------------------------------------------------- | ------------ | ------------ |
+| `fix:`                                             | patch        | patch        |
+| `feat:`                                            | minor        | minor        |
+| `feat!:` / `BREAKING CHANGE:`                      | minor        | major        |
+| `docs:` / `test:` / `ci:` / `chore:` / `refactor:` | リリースなし | リリースなし |
+
+実際の不具合修正をリリース抑制のために `chore:` や `ci:` へ偽装しません。複数の `fix:` は一つの Release PR に蓄積でき、Release PR を一度 merge すれば patch bump は一度だけです。安定版への移行時は独自 prefix を作らず、`Release-As: 1.0.0` footer を使います。
+
+```sh
+git commit --allow-empty \
+  -m "chore: prepare stable release" \
+  -m "Release-As: 1.0.0"
+```
+
+DB migration の additive change は内容に応じて patch/minor、列削除・互換性のない型変更・データ損失・手動作業を伴うものは breaking として PR と CHANGELOG に記載します。不可逆 migration は Release notes にも明記します。
+
+`latest` は main の最新成功 build を指す可変 tag で、試用・手動確認用です。正式 release は `latest` を更新しません。正式版の追跡と Renovate では完全な `X.Y.Z` を使い、`sha-<full commit SHA>` は調査、厳密な pin、rollback に使います。private GHCR の pull には `read:packages` 権限が必要です。
+
+詳しい運用は [`docs/releasing.md`](docs/releasing.md) を参照してください。
+
 ## 家計簿データと入力ルール
 
 現在は認証導入前の単一所有境界です。`households` に固定 ID のローカル家計（slug `local`）を一つ作成し、将来の認証でユーザーをこの境界へ関連付けられる形にしています。家計の切り替え UI はありません。`@kobako/db` の query/mutation 関数はすべて `householdId` を明示的な引数として受け取り、Web 側は `apps/web/src/lib/ledger-data.ts` の一箇所だけで対象 household を解決します（将来の認証実装時はこの一箇所だけ差し替えます）。
@@ -129,7 +162,7 @@ integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-d
 
 ## CI 概要
 
-`.github/workflows/ci.yml` は pull request と `main` への push で実行します。外部 Action は full SHA pin です。Required status checks には次の job 名を指定できます。
+`.github/workflows/ci.yml` は pull request、`main` への push、Release Please workflow からの `workflow_call` で実行します。外部 Action は full SHA pin です。Required status checks には次の job 名を指定できます。
 
 - `lint`: format check、ESLint、TypeScript
 - `unit`: Vitest unit tests
@@ -137,8 +170,11 @@ integration test は `TEST_DATABASE_URL` が必須で、loopback host の test-d
 - `build`: production build
 - `e2e`: PostgreSQL service、migration、production E2E、失敗時 artifact
 - `docker`: 3 target の image build、Compose 起動、migration、web/DB health
+- `publish`: main では `sha-<full SHA>` と `latest`、Release Please trigger では ci.yml の publish job が `X.Y.Z` の web/migrate image を全 gate 成功後に private GHCR へ push
 
-CI の PostgreSQL 認証情報は workflow 内の固定 CI 専用値であり、repository secret や本番 secret ではありません。Docker job は registry へ push しません。
+pull request は registry へ push しません。Release Please が作成した tag は同じ workflow run から reusable CI を呼び、tag の commit に対して全 gate を再実行します。CI の PostgreSQL 認証情報は workflow 内の固定 CI 専用値であり、repository secret や本番 secret ではありません。Docker job は registry へ push せず、publish job だけが `${{ secrets.GITHUB_TOKEN }}` で private GHCR へ push します。
+
+`latest` は main の最新成功 build を指す試用用、`sha-<full SHA>` は調査・pin・rollback 用、`X.Y.Z` は正式版です。release job は `latest` を更新せず、正式版を追跡する利用側と Renovate は完全な SemVer を使います。
 
 ## ディレクトリ構成
 
@@ -148,7 +184,8 @@ apps/
   worker/                 # DB 確認後に idle 待機する worker
 packages/db/              # Drizzle schema、migration、家計簿 query、validation
 packages/db/drizzle/      # commit 対象の生成済み migration
-.github/workflows/ci.yml  # lint/unit/integration/build/e2e/docker
+.github/workflows/ci.yml  # lint/unit/integration/build/e2e/docker/publish
+.github/workflows/release-please.yml # Release PR、tag、release-ci
 compose.yaml              # 開発用 PostgreSQL とアプリ群
 Dockerfile                # web/migrate/worker multi-stage image
 ```
@@ -168,7 +205,7 @@ Dockerfile                # web/migrate/worker multi-stage image
 
 ## 未実装機能
 
-ユーザー認証、複数ユーザー・家計切り替え、カテゴリ管理 UI、口座・残高・振替、予算・定期取引、カード請求、Import/Export/CSV、銀行連携、OCR・添付、PWA・オフライン、AI、通知、バックアップ UI、worker job、本番デプロイ、GHCR 公開は対象外です。
+ユーザー認証、複数ユーザー・家計切り替え、カテゴリ管理 UI、口座・残高・振替、予算・定期取引、カード請求、Import/Export/CSV、銀行連携、OCR・添付、PWA・オフライン、AI、通知、バックアップ UI、worker job は未実装です。
 
 ## トラブルシューティング
 
