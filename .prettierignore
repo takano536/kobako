@@ -8,3 +8,5 @@ test-results
 apps/web/next-env.d.ts
 packages/db/drizzle
 pnpm-lock.yaml
+.release-please-manifest.json
+CHANGELOG.md
