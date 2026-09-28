@@ -215,3 +215,10 @@ Dockerfile                # web/migrate/worker multi-stage image
 - **integration test / E2E が拒否される**: `TEST_DATABASE_URL` を設定し、`kobako_test` のように名前に区切られた `test`/`tests` token を含む loopback DB を指定してください。`DATABASE_URL` を設定する場合は到達可能な別 DB を指定し、同じ DB、localhost/127.0.0.1/::1 の host alias、port 5432（既定値）、database name が同じ場合や、`NODE_ENV=production` の場合は安全のため拒否されます。
 - **Chromium がない**: `pnpm exec playwright install chromium`（CI は `--with-deps`）を実行してください。
 - **Docker がない**: Docker Compose の確認はできませんが、ローカル PostgreSQL を用意すれば Node.js 側の migration、health、test、build は実行できます。
+
+## License
+
+Copyright (C) 2026 takano536
+
+This project is licensed under the GNU Affero General Public License
+v3.0 or later (`AGPL-3.0-or-later`). See [LICENSE](LICENSE).
