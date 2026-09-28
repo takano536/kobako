@@ -62,7 +62,7 @@ validation、calendar helper、家計簿 schema/query は Web の Server Compone
 
 ## Release version source
 
-Release Please は root `.` の単一 version として扱います。root `package.json` を正 canonical version とし、初回は空の manifest と `initial-version: 0.1.0` で必ず初回 version を `0.1.0` にします。Release PR の `extra-files` で web/worker/db の private workspace manifest も更新します。pnpm lockfile は workspace package の version を記録しないため、version bump による lockfile 更新は行いません。初回 Release PR merge 後は manifest の release version と通常の Conventional Commit bump に戻ります。`latest` は main の最新成功 build の試用用とし、正式版を追跡する利用側は完全な SemVer を使います。
+Release Please は root `.` の単一 version として扱います。root `package.json` を正 canonical version とし、`.release-please-manifest.json`、apps/web、apps/worker、packages/db の version を同じ version に保ちます。pnpm lockfile は workspace package の version を記録しないため、version bump による lockfile 更新は行いません。`CHANGELOG.md` と manifest は Release Please の生成物として Prettier から除外し、quality gate の validator で構文と整合性を確認します。generic extra-file を追加する場合も、その marker を validator で検証します。`latest` は main の最新成功 build の試用用とし、正式版を追跡する利用側は完全な SemVer を使います。`v0.1.0` は quality gate 失敗前に作成された履歴なので再利用せず、次の正常な候補は `v0.1.1` です。
 
 ## Next.js generated guidance
 
