@@ -18,7 +18,7 @@ services:
       - internal
 
   migrate:
-    image: ghcr.io/takano536/kobako-migrate:${KOBAKO_IMAGE_TAG:-latest}
+    image: ghcr.io/takano536/kobako-migrate:0.1.0 # x-release-please-version
     restart: 'no'
     environment:
       DATABASE_URL: postgresql://kobako:${POSTGRES_PASSWORD}@postgres:5432/kobako
@@ -30,7 +30,7 @@ services:
       - internal
 
   web:
-    image: ghcr.io/takano536/kobako-web:${KOBAKO_IMAGE_TAG:-latest}
+    image: ghcr.io/takano536/kobako-web:0.1.0 # x-release-please-version
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://kobako:${POSTGRES_PASSWORD}@postgres:5432/kobako
