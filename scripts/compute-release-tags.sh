@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Compute the image tags for each CI event without talking to a registry.
-# Inputs are the same environment values used by the reusable CI workflow:
-# GITHUB_EVENT_NAME, GITHUB_REF, GITHUB_SHA, and RELEASE_TAG.
+# Inputs are the environment values used by the CI workflow:
+# GITHUB_EVENT_NAME, GITHUB_REF, GITHUB_SHA, RELEASE_CREATED, and RELEASE_TAG.
 set -euo pipefail
 
 fail() {
@@ -27,15 +27,19 @@ semver_tag_re='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
 : "${GITHUB_SHA:?GITHUB_SHA is required}"
 
 release_tag="${RELEASE_TAG:-}"
+release_created="${RELEASE_CREATED:-true}"
 if [[ -n "$release_tag" ]]; then
+  [[ "$release_created" == true ]] || fail "release tag was supplied without release_created=true"
   [[ "$release_tag" =~ $semver_tag_re ]] || fail "release tag must match ^vX.Y.Z$: $release_tag"
   version="${release_tag#v}"
+  [[ "$version" != 0.1.0 ]] || fail "v0.1.0 is retired and must not be published"
   emit mode release
   emit push true
   emit version "$version"
   emit web_tag "$version"
   emit migrate_tag "$version"
-  emit promote_latest false
+  emit sha_tag "sha-${GITHUB_SHA}"
+  emit promote_latest true
   emit release_tag "$release_tag"
   exit 0
 fi
