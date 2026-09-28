@@ -60,6 +60,10 @@ Dependabot と Renovate の二重運用は避け、Renovate を採用します�
 
 validation、calendar helper、家計簿 schema/query は Web の Server Component/Action と integration test が実際に共有するため `@kobako/db` に置きます。ブラウザ用フォームは DB client を import せず、validation サブパスだけを import します。空の抽象 package は増やしません。
 
+## Release version source
+
+Release Please は root `.` の単一 version として扱います。root `package.json` を正 canonical version とし、初回は空の manifest と `initial-version: 0.1.0` で必ず初回 version を `0.1.0` にします。Release PR の `extra-files` で web/worker/db の private workspace manifest も更新します。pnpm lockfile は workspace package の version を記録しないため、version bump による lockfile 更新は行いません。初回 Release PR merge 後は manifest の release version と通常の Conventional Commit bump に戻ります。`latest` は main の最新成功 build の試用用とし、正式版を追跡する利用側は完全な SemVer を使います。
+
 ## Next.js generated guidance
 
 Next.js 16 の `next dev` が生成する `apps/web/AGENTS.md` と `apps/web/CLAUDE.md` は、ファイル内の指示どおり削除せず commit します。将来の Next.js 開発時に、該当バージョンの公式ガイドを確認するための開発者向け案内です。
