@@ -13,6 +13,14 @@
     "./validation": {
       "types": "./dist/validation.d.ts",
       "import": "./dist/validation.js"
+    },
+    "./money-manager": {
+      "types": "./dist/money-manager.d.ts",
+      "import": "./dist/money-manager.js"
+    },
+    "./test-fixtures": {
+      "types": "./dist/test-fixtures/money-manager-workbook.d.ts",
+      "import": "./dist/test-fixtures/money-manager-workbook.js"
     }
   },
   "files": [
@@ -28,9 +36,13 @@
   "dependencies": {
     "drizzle-orm": "0.45.3",
     "postgres": "3.4.9",
+    "saxes": "6.0.0",
+    "yauzl": "3.4.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "drizzle-kit": "0.31.11"
+    "@types/yauzl": "3.4.0",
+    "drizzle-kit": "0.31.11",
+    "fflate": "0.8.3"
   }
 }
