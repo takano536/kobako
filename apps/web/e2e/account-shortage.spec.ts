@@ -71,7 +71,7 @@ test.afterAll(async () => {
   }
 });
 
-test('allows ordinary registration but explains the two-account transfer requirement', async ({
+test('allows ordinary registration and validates transfers with fewer than two accounts', async ({
   page,
 }) => {
   if (!databaseClient) {
@@ -95,10 +95,24 @@ test('allows ordinary registration but explains the two-account transfer require
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
 
+  await page.goto(`/transactions/new?type=income&month=${month}`);
+  await page.getByLabel('金額').fill('200');
+  await page.locator('.category-field-income select').selectOption({ label: '給与' });
+  await page.getByLabel('メモ（任意）').fill(`${marker}:shortage-income`);
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+
   await page.goto(`/transactions/new?type=transfer&month=${month}`);
-  await expect(page.locator('.insufficient-accounts')).toContainText(
-    '振替には2つ以上の口座が必要です。',
+  await expect(page.locator('.insufficient-accounts')).toHaveCount(0);
+  await expect(page.getByLabel('振替元')).toBeVisible();
+  await expect(page.getByLabel('振替先')).toBeVisible();
+  const saveButton = page.getByRole('button', { name: '登録する' });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect(page.locator('.form-error-dialog')).toContainText(
+    '振替元の口座を選択してください。',
   );
-  await expect(page.locator('.insufficient-accounts')).toContainText('取り込み画面へ');
-  await expect(page.getByRole('button', { name: '登録する' })).toBeDisabled();
+  await expect(page.locator('.form-error-dialog')).toContainText(
+    '振替先の口座を選択してください。',
+  );
 });

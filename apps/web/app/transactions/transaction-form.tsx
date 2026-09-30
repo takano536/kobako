@@ -1,5 +1,4 @@
 'use client';
-import Link from 'next/link';
 import {
   useActionState,
   useEffect,
@@ -195,7 +194,6 @@ export function TransactionForm({
   const formValues = state.values && !isDirty ? state.values : values;
   const selectedType: TransactionFormType =
     formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
-  const hasEnoughAccounts = accounts.length >= 2;
 
   useEffect(() => {
     if (state.values) {
@@ -482,70 +480,56 @@ export function TransactionForm({
         </div>
 
         <div className="entry-detail-grid account-detail-grid">
-          {hasEnoughAccounts ? (
-            <>
-              <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
-                <label htmlFor="transaction-from-account">振替元</label>
-                <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
-                  <select
-                    className="field-select"
-                    id="transaction-from-account"
-                    name="fromAccountId"
-                    value={formValues.fromAccountId}
-                    onChange={(event) => updateValue('fromAccountId', event.currentTarget.value)}
-                    aria-invalid={fromAccountError ? true : undefined}
-                    aria-describedby={
-                      fromAccountError ? 'transaction-from-account-error' : undefined
-                    }
-                    required
-                  >
-                    <option value="">選択してください</option>
-                    {accounts.map((account) => (
-                      <option value={account.id} key={account.id}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </select>
-                  {fromAccountError ? (
-                    <FieldError id="transaction-from-account-error" message={fromAccountError} />
-                  ) : null}
-                </div>
-              </div>
-              <div className={`field account-field${toAccountError ? ' has-error' : ''}`}>
-                <label htmlFor="transaction-to-account">振替先</label>
-                <div className={`field-value${toAccountError ? ' has-error' : ''}`}>
-                  <select
-                    className="field-select"
-                    id="transaction-to-account"
-                    name="toAccountId"
-                    value={formValues.toAccountId}
-                    onChange={(event) => updateValue('toAccountId', event.currentTarget.value)}
-                    aria-invalid={toAccountError ? true : undefined}
-                    aria-describedby={toAccountError ? 'transaction-to-account-error' : undefined}
-                    required
-                  >
-                    <option value="">選択してください</option>
-                    {accounts.map((account) => (
-                      <option value={account.id} key={account.id}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </select>
-                  {toAccountError ? (
-                    <FieldError id="transaction-to-account-error" message={toAccountError} />
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className="insufficient-accounts">
-              <strong>振替には2つ以上の口座が必要です。</strong>{' '}
-              <span>「らくな家計簿」から口座を取り込むと登録できます。</span>{' '}
-              <Link className="text-link" href="/transactions/import">
-                取り込み画面へ
-              </Link>
-            </p>
-          )}
+          <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-from-account">振替元</label>
+            <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-from-account"
+                name="fromAccountId"
+                value={formValues.fromAccountId}
+                onChange={(event) => updateValue('fromAccountId', event.currentTarget.value)}
+                aria-invalid={fromAccountError ? true : undefined}
+                aria-describedby={fromAccountError ? 'transaction-from-account-error' : undefined}
+                required
+              >
+                <option value="">選択してください</option>
+                {accounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {fromAccountError ? (
+                <FieldError id="transaction-from-account-error" message={fromAccountError} />
+              ) : null}
+            </div>
+          </div>
+          <div className={`field account-field${toAccountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-to-account">振替先</label>
+            <div className={`field-value${toAccountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-to-account"
+                name="toAccountId"
+                value={formValues.toAccountId}
+                onChange={(event) => updateValue('toAccountId', event.currentTarget.value)}
+                aria-invalid={toAccountError ? true : undefined}
+                aria-describedby={toAccountError ? 'transaction-to-account-error' : undefined}
+                required
+              >
+                <option value="">選択してください</option>
+                {accounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {toAccountError ? (
+                <FieldError id="transaction-to-account-error" message={toAccountError} />
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <div className="entry-detail-grid">
@@ -597,7 +581,7 @@ export function TransactionForm({
             <SubmitButton label={submitLabel} />
           </span>
           <span className="save-button-transfer">
-            <SubmitButton label={submitLabel} disabled={!hasEnoughAccounts} />
+            <SubmitButton label={submitLabel} />
           </span>
         </div>
       </form>

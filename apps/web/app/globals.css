@@ -1247,12 +1247,6 @@ h3 {
   gap: 10px;
 }
 
-.delete-confirm-form .button {
-  min-height: 38px;
-  padding: 0.4rem 0.7rem;
-  font-size: var(--text-small);
-}
-
 .delete-cancel {
   display: inline-flex;
   min-height: 38px;
@@ -2322,10 +2316,4 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.insufficient-accounts {
-  padding-top: 0.5rem;
-  color: var(--muted);
-  font-size: var(--text-small);
 }

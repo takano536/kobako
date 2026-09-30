@@ -129,6 +129,46 @@ async function assertDeleteConfirmationDoesNotOverlapForm(page: Page): Promise<v
   });
   expect(overlaps).toBe(false);
 }
+type ButtonMetrics = {
+  width: number;
+  height: number;
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+  fontSize: number;
+  borderRadius: string;
+  lineHeight: string;
+};
+
+async function buttonMetrics(button: Locator): Promise<ButtonMetrics> {
+  return button.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return {
+      width: rect.width,
+      height: rect.height,
+      paddingTop: Number.parseFloat(style.paddingTop),
+      paddingRight: Number.parseFloat(style.paddingRight),
+      paddingBottom: Number.parseFloat(style.paddingBottom),
+      paddingLeft: Number.parseFloat(style.paddingLeft),
+      fontSize: Number.parseFloat(style.fontSize),
+      borderRadius: style.borderRadius,
+      lineHeight: style.lineHeight,
+    };
+  });
+}
+
+function expectButtonMetricsToMatch(actual: ButtonMetrics, expected: ButtonMetrics): void {
+  expect(actual.height).toBeCloseTo(expected.height, 1);
+  expect(actual.paddingTop).toBeCloseTo(expected.paddingTop, 1);
+  expect(actual.paddingRight).toBeCloseTo(expected.paddingRight, 1);
+  expect(actual.paddingBottom).toBeCloseTo(expected.paddingBottom, 1);
+  expect(actual.paddingLeft).toBeCloseTo(expected.paddingLeft, 1);
+  expect(actual.fontSize).toBeCloseTo(expected.fontSize, 1);
+  expect(actual.borderRadius).toBe(expected.borderRadius);
+  expect(actual.lineHeight).toBe(expected.lineHeight);
+}
 
 async function deleteRunTransfersAndAccounts(client: DatabaseClient): Promise<void> {
   assertCleanupMarker(runMarkerPrefix);
@@ -515,6 +555,80 @@ test('renders transfers with the same row geometry and neutral amount tone', asy
   expect(transferDeleteBox.x).toBeCloseTo(ordinaryDeleteBox.x, 1);
   expect(transferDeleteBox.width).toBeCloseTo(ordinaryDeleteBox.width, 1);
   expect(transferDeleteBox.height).toBeCloseTo(ordinaryDeleteBox.height, 1);
+});
+test('matches delete control dimensions to save controls on desktop and mobile', async ({
+  page,
+}) => {
+  if (!databaseClient) {
+    throw new Error('transfer test database is not initialized');
+  }
+  await clearRunTransfers(databaseClient);
+  await seedRunTransfer();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`/transactions/new?month=${month}`);
+  await page.getByLabel('金額').fill('100');
+  await page.locator('input[name="occurredOn"]').fill(`${month}-11`);
+  await page.locator('.category-field-expense select').selectOption({ label: '食費' });
+  await page.getByLabel('メモ（任意）').fill(`${marker}:delete-geometry`);
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+
+  const transferRow = runTransferRows(page);
+  const ordinaryRow = page
+    .locator('.transaction-link')
+    .filter({ hasText: `${marker}:delete-geometry` });
+  const transferHref = await transferRow.getAttribute('href');
+  const ordinaryHref = await ordinaryRow.getAttribute('href');
+  if (!transferHref || !ordinaryHref) {
+    throw new Error('delete geometry edit links are missing');
+  }
+
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 375, height: 812 },
+  ]) {
+    await page.setViewportSize(viewport);
+    let ordinarySummaryMetrics: ButtonMetrics | undefined;
+    let ordinaryConfirmationMetrics: ButtonMetrics | undefined;
+    for (const [kind, href] of [
+      ['ordinary', ordinaryHref],
+      ['transfer', transferHref],
+    ] as const) {
+      await page.goto(href);
+      await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
+      const saveButton = page.getByRole('button', { name: '変更を保存' });
+      const deleteSummary = page.locator('.delete-confirm > summary');
+      const saveMetrics = await buttonMetrics(saveButton);
+      const summaryMetrics = await buttonMetrics(deleteSummary);
+      expectButtonMetricsToMatch(summaryMetrics, saveMetrics);
+      expect(summaryMetrics.width).toBeGreaterThan(0);
+      expect(summaryMetrics.width).toBeLessThan(viewport.width);
+      await deleteSummary.click();
+      const confirmationButton = page.getByRole('button', { name: '削除を確定' });
+      const cancelLink = page.getByRole('link', { name: 'キャンセル' });
+      await expect(confirmationButton).toBeVisible();
+      await expect(cancelLink).toBeVisible();
+      const confirmationMetrics = await buttonMetrics(confirmationButton);
+      expectButtonMetricsToMatch(confirmationMetrics, saveMetrics);
+      expect(confirmationMetrics.width).toBeGreaterThan(0);
+      expect(confirmationMetrics.width).toBeLessThan(viewport.width);
+      await assertDeleteConfirmationDoesNotOverlapForm(page);
+      await assertNoHorizontalOverflow(page);
+      if (kind === 'ordinary') {
+        ordinarySummaryMetrics = summaryMetrics;
+        ordinaryConfirmationMetrics = confirmationMetrics;
+      } else {
+        if (!ordinarySummaryMetrics || !ordinaryConfirmationMetrics) {
+          throw new Error('ordinary delete metrics were not captured');
+        }
+        expect(summaryMetrics.width).toBeCloseTo(ordinarySummaryMetrics.width, 1);
+        expect(summaryMetrics.height).toBeCloseTo(ordinarySummaryMetrics.height, 1);
+        expect(confirmationMetrics.width).toBeCloseTo(ordinaryConfirmationMetrics.width, 1);
+        expect(confirmationMetrics.height).toBeCloseTo(ordinaryConfirmationMetrics.height, 1);
+      }
+    }
+  }
 });
 
 test('supports keyboard-only create/edit/delete and mobile layouts without overflow', async ({
