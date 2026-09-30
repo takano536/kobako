@@ -191,12 +191,23 @@ jobs:
       - name: Validate Compose configurations
         run: |
           docker compose config >/dev/null
+          if docker compose config --services | grep -qx migrate; then
+            echo 'standard Compose configuration must not include migrate service' >&2
+            exit 1
+          fi
       - name: Start Compose stack and verify health
         run: |
           docker compose up -d
           for attempt in $(seq 1 36); do
-            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null \
-              && curl --fail --silent http://127.0.0.1:3000/api/health/db >/dev/null; then
+            web_container_id="$(docker compose ps -q web)"
+            web_health=''
+            if [ -n "$web_container_id" ]; then
+              web_health="$(docker inspect -f '{{.State.Health.Status}}' "$web_container_id" || true)"
+            fi
+            if [ "$web_health" = healthy ] \
+              && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:3000/api/health/db >/dev/null \
+              && curl --fail --silent http://127.0.0.1:3000/transactions >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 36 ]; then
@@ -205,9 +216,22 @@ jobs:
             fi
             sleep 5
           done
-          test "$(docker compose ps -aq migrate | xargs docker inspect -f '{{.State.ExitCode}}')" = 0
           curl --fail http://127.0.0.1:3000/api/health
           curl --fail http://127.0.0.1:3000/api/health/db
+          curl --fail http://127.0.0.1:3000/transactions
+      - name: Verify bundled migrator in web image
+        run: |
+          docker run --rm --entrypoint sh kobako-web:local -c \
+            'test -f /app/migrator/dist/migrate.js && test -f /app/migrator/drizzle/meta/_journal.json'
+      - name: Verify standalone migration image remains usable
+        run: |
+          postgres_container_id="$(docker compose ps -q postgres)"
+          compose_network="$(docker inspect -f '{{range $network, $_ := .NetworkSettings.Networks}}{{$network}}{{end}}' "$postgres_container_id")"
+          database_url='postgresql://kobako_ci:kobako_ci_password@postgres:5432/kobako'
+          before="$(docker compose exec -T postgres psql -U kobako_ci -d kobako -Atc 'select count(*) from drizzle.__drizzle_migrations')"
+          docker run --rm --network "$compose_network" -e "DATABASE_URL=$database_url" kobako-migrate:local
+          after="$(docker compose exec -T postgres psql -U kobako_ci -d kobako -Atc 'select count(*) from drizzle.__drizzle_migrations')"
+          test "$after" = "$before"
       - name: Wait for idle worker and web services
         run: |
           sleep 30
@@ -219,6 +243,12 @@ jobs:
               exit 1
             fi
           done
+          bad_services="$(docker compose ps -a --format '{{.Service}} {{.State}}' | grep -Ei ' (exited|dead|created)' || true)"
+          if [ -n "$bad_services" ]; then
+            echo 'Compose contains exited services unexpectedly:' >&2
+            printf '%s\n' "$bad_services" >&2
+            exit 1
+          fi
       - name: Stop services and verify graceful shutdown
         run: |
           docker compose stop -t 20

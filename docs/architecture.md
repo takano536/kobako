@@ -80,6 +80,10 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 ## 実行モデル
 
-Next.js は `output: 'standalone'` で build し、Docker では non-root の `node` user で起動します。Compose では PostgreSQL healthy → migration completed（schema + 初期データ）→ web/worker の順に依存させます。
+Next.js は `output: 'standalone'` で build し、Docker では non-root の `node` user で起動します。Compose では PostgreSQL が healthy になってから `web` を起動し、web image に同梱した migration（schema + 初期データ）を Next.js の起動前に適用します。`worker` は `web` の health check 後に起動するため、通常構成に終了済みのワンショット `migrate` サービスはありません。PostgreSQL の health check は接続可能になるまでを、web の entrypoint は migration の成否をそれぞれ担当します。
+
+migration 中に受け取った `SIGTERM`/`SIGINT` は、Compose の `init: true` でも `--init` なしの `docker run` でも entrypoint から migrator に転送され、Next.js を起動せずに非ゼロで終了します。
+
+Drizzle の postgres-js migrator は migration SQL と journal の記録を一つの transaction で実行します（schema と migration table の準備はその前です）。そのため migration が失敗すると、その migration の SQL と記録はまとめて rollback されます。
 
 worker は busy loop やダミー job を持ちません。DB check が成功した後、signal を解決条件とする promise を待ちます。`SIGTERM`/`SIGINT` で DB client を閉じ、正常終了します。

@@ -45,7 +45,7 @@ packages: write
 - `integration`: `postgres:18.6-alpine3.24` service、空 DB への migration、実 PostgreSQL integration test
 - `build`: DB package、Next.js、worker の production build
 - `e2e`: PostgreSQL service、migration、production server、Chromium E2E。失敗時に Playwright report/test results を artifact 化
-- `docker`: buildx で web/migrate/worker image を load（push なし）し、Compose config、migration、web health、DB health、graceful shutdown を確認
+- `docker`: buildx で web/migrate/worker image を load（push なし）し、標準 Compose（独立 `migrate` サービスなし）を起動して web image の起動前 migration、web image 内の migrator 一式、standalone `migrate` image の冪等実行、web/DB health、DB-backed page、web/worker の継続起動、graceful shutdown を確認する。`migrate` target の build は手動・高度な運用向け互換性のため継続する。
 
 `.release-please-manifest.json` と `release-please-config.json` は JSON として parse し、root version と workspace version の整合性を確認します。Release Please が設定する generic extra-file がある場合は、`# x-release-please-version` marker と version も確認します。`CHANGELOG.md` がある場合は先頭を `# Changelog` 見出しにします。生成物は Release Please 所有の canonical output なので Prettier からは除外しますが、validator とレビューの対象です。
 
