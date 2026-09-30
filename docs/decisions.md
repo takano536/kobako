@@ -101,3 +101,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 ## インポート schema
 
 schema は `packages/db/src/schema.ts` に定義し、`0003` は drizzle-kit で生成します。空 DB に全 migration を適用する integration test で確認します。
+
+## 振替フォームの口座不足
+
+振替フォームは口座が2つ未満の家計では入力欄を表示せず、「らくな家計簿」から2つ以上の口座を取り込む案内を表示します。口座管理画面を追加せず、誤った口座をその場で作成するよりも、既存のインポートと所有境界を安全に再利用できるためです。

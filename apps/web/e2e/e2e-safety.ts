@@ -23,6 +23,12 @@ export async function monthIsEmpty(client: DatabaseClient, value: string): Promi
     where household_id = ${DEFAULT_HOUSEHOLD_ID}
       and occurred_on >= ${range.start}
       and occurred_on < ${range.endExclusive}
+    union all
+    select 1
+    from transfers
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and occurred_on >= ${range.start}
+      and occurred_on < ${range.endExclusive}
     limit 1
   `;
   return rows.length === 0;

@@ -1,4 +1,6 @@
-export const MAX_INT4_ID = 2_147_483_647;
+import { MAX_INT4_ID } from '@kobako/db/validation';
+
+export { MAX_INT4_ID };
 const MAX_INT4_ID_TEXT = String(MAX_INT4_ID);
 
 export function parseInt4Id(value: string): number | undefined {

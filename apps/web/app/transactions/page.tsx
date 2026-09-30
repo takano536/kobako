@@ -52,6 +52,10 @@ function newTransactionHref(month: string): string {
   return `/transactions/new?${new URLSearchParams({ month }).toString()}`;
 }
 
+function newTransferHref(month: string): string {
+  return `/transactions/transfers/new?${new URLSearchParams({ month }).toString()}`;
+}
+
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const month = parseMonth(firstQueryValue(query.month), currentTokyoMonth());
@@ -83,6 +87,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         <div className="page-heading-actions">
           <Link className="import-link" href="/transactions/import">
             取り込む
+          </Link>
+          <Link className="add-link" href={newTransferHref(month)}>
+            ＋ 振替を追加
           </Link>
           <Link className="add-link" href={newTransactionHref(month)}>
             ＋ 取引を追加

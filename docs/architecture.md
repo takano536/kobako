@@ -48,9 +48,9 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 概要と一覧は Server Component で URL query (`month`、`type`、`category`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
-`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜ、振替を単一の read-only 行（`振替`、`移動元 → 移動先`）として表示します。種別またはカテゴリの filter 中は振替を表示せず、振替は収入・支出の全 totals から除外します。
+`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜ、振替を単一の「振替」行（`振替`、`移動元 → 移動先`、編集リンク）として表示します。種別またはカテゴリの filter 中は振替を表示せず、振替は収入・支出の全 totals から除外します。
 
-登録・編集・削除は Server Actions だけで行います。Client Component のフォームは React 19 `useActionState`/`useFormStatus` で pending とフィールドエラーを表示しますが、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。成功時は対象月へ redirect し、`/` と `/transactions` を `revalidatePath` して読み取りを新しくします。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+登録・編集・削除は Server Actions だけで行います。Client Component のフォームは React 19 `useActionState`/`useFormStatus` で pending とフィールドエラーを表示しますが、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。成功時は対象月へ redirect し、`/` と `/transactions` を `revalidatePath` して読み取りを新しくします。振替の DB mutation は household と両口座を明示的に照合し、別家計の口座や同一口座を拒否します。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
 表示側は signed amount を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
 
 `getAccountBalances` は口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、口座を持たない手入力の取引を除外します。

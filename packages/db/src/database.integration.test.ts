@@ -6,16 +6,20 @@ import { createDatabaseClient, type DatabaseClient } from './client.js';
 import {
   DEFAULT_HOUSEHOLD_ID,
   createTransaction,
+  createTransfer,
   deleteTransaction,
-  getMonthlyTotals,
-  getExpenseCategoryTotals,
+  deleteTransfer,
   getAccountBalances,
+  getExpenseCategoryTotals,
+  getMonthlyTotals,
   getTransaction,
+  getTransfer,
   initializeDefaultLedger,
   listCategories,
   listLedgerEntries,
   listTransactions,
   updateTransaction,
+  updateTransfer,
 } from './ledger.js';
 import { commitMoneyManagerImport } from './imports.js';
 import { runMigrations } from './migrate.js';
@@ -32,7 +36,7 @@ import {
   transactions,
   transfers,
 } from './schema.js';
-import { transactionInputSchema } from './validation.js';
+import { MAX_INT4_ID, transactionInputSchema, transferInputSchema } from './validation.js';
 
 interface PostgresErrorLike {
   code?: string;
@@ -627,6 +631,418 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(
       await client.sql`select id from transfers where household_id = ${cascadeHouseholdId}`,
     ).toEqual([]);
+  });
+
+  it('creates, edits, and deletes transfers with household and balance boundaries', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '操作元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '操作先')
+      returning id
+    `;
+    const [alternateAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変更先')
+      returning id
+    `;
+    if (!fromAccount || !toAccount || !alternateAccount) {
+      throw new Error('transfer account fixtures were not created');
+    }
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!expenseCategory || !incomeCategory) {
+      throw new Error('transfer category fixtures were not created');
+    }
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '10000',
+        occurredOn: '2026-09-01',
+        categoryId: String(incomeCategory.id),
+        accountId: String(fromAccount.id),
+        memo: '',
+      }),
+    );
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '1000',
+        occurredOn: '2026-09-02',
+        categoryId: String(expenseCategory.id),
+        accountId: String(fromAccount.id),
+        memo: '',
+      }),
+    );
+
+    const input = transferInputSchema.parse({
+      fromAccountId: String(fromAccount.id),
+      toAccountId: String(toAccount.id),
+      amount: '3000',
+      occurredOn: '2026-09-03',
+      memo: '作成',
+    });
+    const sameCreateResult = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+      ...input,
+      toAccountId: fromAccount.id,
+    });
+    expect(sameCreateResult).toEqual({ status: 'validation_error', code: 'same_account' });
+    const outOfRangeCreateResult = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+      ...input,
+      fromAccountId: 2_147_483_648,
+    });
+    expect(outOfRangeCreateResult).toEqual({
+      status: 'validation_error',
+      code: 'account_unavailable',
+    });
+    const createdResult = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, input);
+    expect(createdResult.status).toBe('ok');
+    if (createdResult.status !== 'ok') {
+      throw new Error('transfer was not created');
+    }
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, createdResult.transfer.id),
+    ).toMatchObject({
+      id: createdResult.transfer.id,
+      fromAccountName: '操作元',
+      toAccountName: '操作先',
+      amount: 3000,
+      memo: '作成',
+    });
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '10000',
+      expense: '1000',
+      difference: '9000',
+    });
+
+    const initialBalances = await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(initialBalances.find((balance) => balance.accountId === fromAccount.id)).toMatchObject({
+      income: '10000',
+      expense: '1000',
+      transfersOut: '3000',
+      transfersIn: '0',
+      balance: '6000',
+    });
+    expect(initialBalances.find((balance) => balance.accountId === toAccount.id)).toMatchObject({
+      balance: '3000',
+    });
+    expect(initialBalances.reduce((sum, balance) => sum + BigInt(balance.balance), 0n)).toBe(9000n);
+
+    const updatedInput = transferInputSchema.parse({
+      fromAccountId: String(toAccount.id),
+      toAccountId: String(alternateAccount.id),
+      amount: '2000',
+      occurredOn: '2026-09-04',
+      memo: '変更',
+    });
+    const updatedResult = await updateTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      createdResult.transfer.id,
+      updatedInput,
+    );
+    expect(updatedResult.status).toBe('ok');
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, createdResult.transfer.id),
+    ).toMatchObject({
+      fromAccountName: '操作先',
+      toAccountName: '変更先',
+      amount: 2000,
+      occurredOn: '2026-09-04',
+    });
+    const outOfRangeUpdateResult = await updateTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      createdResult.transfer.id,
+      {
+        ...updatedInput,
+        toAccountId: MAX_INT4_ID + 1,
+      },
+    );
+    expect(outOfRangeUpdateResult).toEqual({
+      status: 'validation_error',
+      code: 'account_unavailable',
+    });
+
+    const sameAccountResult = await updateTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      createdResult.transfer.id,
+      {
+        ...updatedInput,
+        fromAccountId: toAccount.id,
+        toAccountId: toAccount.id,
+      },
+    );
+    expect(sameAccountResult).toEqual({ status: 'validation_error', code: 'same_account' });
+    const unavailableResult = await updateTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      createdResult.transfer.id,
+      {
+        ...updatedInput,
+        toAccountId: 99999999,
+      },
+    );
+    expect(unavailableResult).toEqual({ status: 'validation_error', code: 'account_unavailable' });
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, createdResult.transfer.id),
+    ).toMatchObject({
+      fromAccountId: toAccount.id,
+      toAccountId: alternateAccount.id,
+      amount: 2000,
+    });
+
+    const updatedBalances = await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(updatedBalances.find((balance) => balance.accountId === fromAccount.id)?.balance).toBe(
+      '9000',
+    );
+    expect(updatedBalances.find((balance) => balance.accountId === toAccount.id)?.balance).toBe(
+      '-2000',
+    );
+    expect(
+      updatedBalances.find((balance) => balance.accountId === alternateAccount.id)?.balance,
+    ).toBe('2000');
+
+    const deletedResult = await deleteTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      createdResult.transfer.id,
+    );
+    expect(deletedResult).toEqual({ status: 'ok', occurredOn: '2026-09-04' });
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, createdResult.transfer.id),
+    ).toBeNull();
+    const revertedBalances = await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(revertedBalances.find((balance) => balance.accountId === fromAccount.id)?.balance).toBe(
+      '9000',
+    );
+    expect(revertedBalances.find((balance) => balance.accountId === toAccount.id)?.balance).toBe(
+      '0',
+    );
+    expect(
+      revertedBalances.find((balance) => balance.accountId === alternateAccount.id)?.balance,
+    ).toBe('0');
+    expect(revertedBalances.reduce((sum, balance) => sum + BigInt(balance.balance), 0n)).toBe(
+      9000n,
+    );
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '10000',
+      expense: '1000',
+      difference: '9000',
+    });
+
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'transfer-api-other', '別家計')
+    `;
+    const [otherFrom] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, '別家計元')
+      returning id
+    `;
+    const [otherTo] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, '別家計先')
+      returning id
+    `;
+    if (!otherFrom || !otherTo) {
+      throw new Error('other household transfer fixtures were not created');
+    }
+    const otherTransferResult = await createTransfer(
+      client.db,
+      otherHouseholdId,
+      transferInputSchema.parse({
+        fromAccountId: String(otherFrom.id),
+        toAccountId: String(otherTo.id),
+        amount: '500',
+        occurredOn: '2026-09-05',
+        memo: '',
+      }),
+    );
+    expect(otherTransferResult.status).toBe('ok');
+    if (otherTransferResult.status !== 'ok') {
+      throw new Error('other household transfer was not created');
+    }
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, otherTransferResult.transfer.id),
+    ).toBeNull();
+    expect(
+      await updateTransfer(client.db, DEFAULT_HOUSEHOLD_ID, otherTransferResult.transfer.id, {
+        ...input,
+        fromAccountId: fromAccount.id,
+        toAccountId: fromAccount.id,
+      }),
+    ).toEqual({ status: 'not_found' });
+    expect(
+      await updateTransfer(client.db, DEFAULT_HOUSEHOLD_ID, otherTransferResult.transfer.id, input),
+    ).toEqual({ status: 'not_found' });
+    expect(
+      await deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, otherTransferResult.transfer.id),
+    ).toEqual({ status: 'not_found' });
+    expect(
+      await getTransfer(client.db, otherHouseholdId, otherTransferResult.transfer.id),
+    ).not.toBeNull();
+  });
+
+  it('keeps unrelated ledger rows and orders mixed entries by date', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び先')
+      returning id
+    `;
+    const [alternateAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び別')
+      returning id
+    `;
+    if (!fromAccount || !toAccount || !alternateAccount) {
+      throw new Error('mixed ledger account fixtures were not created');
+    }
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!expenseCategory || !incomeCategory) {
+      throw new Error('mixed ledger category fixtures were not created');
+    }
+    const incomeTransaction = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '100',
+        occurredOn: '2026-09-01',
+        categoryId: String(incomeCategory.id),
+        accountId: String(fromAccount.id),
+        memo: '並び収入',
+      }),
+    );
+    const expenseTransaction = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '20',
+        occurredOn: '2026-09-03',
+        categoryId: String(expenseCategory.id),
+        accountId: String(fromAccount.id),
+        memo: '残す支出',
+      }),
+    );
+    const survivorResult = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '40',
+        occurredOn: '2026-09-04',
+        memo: '残す振替',
+      }),
+    );
+    const targetResult = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(alternateAccount.id),
+        amount: '30',
+        occurredOn: '2026-09-02',
+        memo: '削除対象',
+      }),
+    );
+    if (
+      survivorResult.status !== 'ok' ||
+      targetResult.status !== 'ok' ||
+      !incomeTransaction ||
+      !expenseTransaction
+    ) {
+      throw new Error('mixed ledger fixtures were not created');
+    }
+    const mixedEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(mixedEntries.map((entry) => `${entry.occurredOn}:${entry.type}`)).toEqual([
+      '2026-09-04:transfer',
+      '2026-09-03:expense',
+      '2026-09-02:transfer',
+      '2026-09-01:income',
+    ]);
+
+    await expect(
+      deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, targetResult.transfer.id),
+    ).resolves.toEqual({ status: 'ok', occurredOn: '2026-09-02' });
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, survivorResult.transfer.id),
+    ).not.toBeNull();
+    expect(
+      await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, expenseTransaction.id),
+    ).not.toBeNull();
+    const remainingEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(remainingEntries.map((entry) => `${entry.occurredOn}:${entry.type}`)).toEqual([
+      '2026-09-04:transfer',
+      '2026-09-03:expense',
+      '2026-09-01:income',
+    ]);
+  });
+
+  it('allows imported transfers to use the same edit and delete operations', async () => {
+    const imported = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'b'.repeat(64),
+      originalFilename: 'transfer-edit.xlsx',
+      rows: [
+        {
+          sourceRow: 2,
+          type: 'transfer',
+          amount: 700,
+          occurredOn: '2026-09-06',
+          fromAccountName: '取込元',
+          toAccountName: '取込先',
+          memo: '取込',
+        },
+      ],
+    });
+    expect(imported.status).toBe('imported');
+    const entries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' });
+    const transfer = entries.find((entry) => entry.type === 'transfer');
+    if (!transfer || transfer.type !== 'transfer') {
+      throw new Error('imported transfer was not created');
+    }
+    const edited = await updateTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transfer.id,
+      transferInputSchema.parse({
+        fromAccountId: String(transfer.fromAccountId),
+        toAccountId: String(transfer.toAccountId),
+        amount: '800',
+        occurredOn: transfer.occurredOn,
+        memo: '編集済み',
+      }),
+    );
+    expect(edited.status).toBe('ok');
+    expect(await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transfer.id)).toMatchObject({
+      amount: 800,
+      memo: '編集済み',
+    });
+    expect(await deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transfer.id)).toMatchObject({
+      status: 'ok',
+    });
   });
 
   it('imports new categories and transactions atomically', async () => {

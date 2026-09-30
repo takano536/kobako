@@ -65,6 +65,19 @@ describe('transaction input validation', () => {
       expect(decimal.error.issues[0]?.message).toBe('金額は整数で入力してください。');
     }
   });
+  it.each(['1.0', '1.00'])('rejects decimal-looking integer amounts: %s', (amount) => {
+    const result = transactionInputSchema.safeParse({
+      type: 'expense',
+      amount,
+      occurredOn: '2026-09-01',
+      categoryId: '1',
+      memo: '',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.amount).toContain('金額は整数で入力してください。');
+    }
+  });
 
   it('enforces the symmetric integer amount limit and trimmed memo length', () => {
     const valid = transactionInputSchema.safeParse({
