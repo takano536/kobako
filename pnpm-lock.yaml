@@ -237,13 +237,25 @@ importers:
       postgres:
         specifier: 3.4.9
         version: 3.4.9
+      saxes:
+        specifier: 6.0.0
+        version: 6.0.0
+      yauzl:
+        specifier: 3.4.0
+        version: 3.4.0
       zod:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      '@types/yauzl':
+        specifier: 3.4.0
+        version: 3.4.0
       drizzle-kit:
         specifier: 0.31.11
         version: 0.31.11
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
 
 packages:
 
@@ -1215,6 +1227,9 @@ packages:
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
+  '@types/yauzl@3.4.0':
+    resolution: {integrity: sha512-NRPn5w6h8dhcnmx3YIRQcqMywY/+nND/uOkJessedcrowO3C0AssHp3tMJpxKAwOhFOo0OV1y9VtsC5hbKKBAw==}
+
   '@typescript-eslint/eslint-plugin@8.70.1':
     resolution: {integrity: sha512-nDNrUQ/4ruSNYbu749TRY7cfrzPtoLHEXSNBI8aaNY32LlZCajixqRf3FqcKC4p5Cam4VOHYx/t+i5+nKXvrqA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -1560,6 +1575,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   file-entry-cache@11.1.5:
     resolution: {integrity: sha512-+PFTHITI08JIGhnNpGNI8T8inUpgZfk3GNEqfT9R2zZV2iFXg3CvqzSl/uEhs7TSGujYRELEANyDvS8Fj7+S7Q==}
 
@@ -1800,6 +1818,9 @@ packages:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
     engines: {node: '>=8'}
 
+  pend@1.2.0:
+    resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -1862,6 +1883,10 @@ packages:
     resolution: {integrity: sha512-qpSwIyz0jHQq5qXBTNxFmE6664rJ7O+4TvPFOiOaBSrz8IOHc1koKKSqTM2H6u1UG1+TveuC6vaDHKXFOvb1Kw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
+
+  saxes@6.0.0:
+    resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
+    engines: {node: '>=v12.22.7'}
 
   scheduler@0.28.0:
     resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
@@ -2071,8 +2096,15 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
 
+  xmlchars@2.2.0:
+    resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
+
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  yauzl@3.4.0:
+    resolution: {integrity: sha512-jIH9yLR9wqr0wOS0TpBvo/g/2UgZH5qePVbjgRliiF0BYvOZyaBknKsF+x9Iht0O6sqgnB93rCICdOZFecJuDw==}
+    engines: {node: '>=12'}
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
@@ -2744,6 +2776,10 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/yauzl@3.4.0':
+    dependencies:
+      '@types/node': 24.19.0
+
   '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.11.0)(typescript@6.0.3))(eslint@10.11.0)(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -3097,6 +3133,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.7
 
+  fflate@0.8.3: {}
+
   file-entry-cache@11.1.5:
     dependencies:
       flat-cache: 6.1.23
@@ -3298,6 +3336,8 @@ snapshots:
 
   path-key@3.1.1: {}
 
+  pend@1.2.0: {}
+
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
@@ -3361,6 +3401,10 @@ snapshots:
       '@rolldown/binding-openharmony-arm64': 1.2.11
       '@rolldown/binding-win32-arm64-msvc': 1.2.11
       '@rolldown/binding-win32-x64-msvc': 1.2.11
+
+  saxes@6.0.0:
+    dependencies:
+      xmlchars: 2.2.0
 
   scheduler@0.28.0: {}
 
@@ -3520,8 +3564,14 @@ snapshots:
 
   word-wrap@1.2.5: {}
 
+  xmlchars@2.2.0: {}
+
   yallist@3.1.1:
     optional: true
+
+  yauzl@3.4.0:
+    dependencies:
+      pend: 1.2.0
 
   yocto-queue@0.1.0: {}
 

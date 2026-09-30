@@ -6,17 +6,19 @@ import {
   assertSafeTestDatabaseTarget,
   createDatabaseClient,
   initializeDefaultLedger,
-  monthRange,
-  shiftMonth,
   verifySafeTestDatabaseConnection,
   type DatabaseClient,
 } from '@kobako/db';
+import {
+  E2E_MARKER_PREFIX,
+  SENTINEL_CLEANUP_END_YEAR,
+  SENTINEL_MIN_YEAR,
+  assertEmptyMonth as assertEmptyMonthInDatabase,
+  chooseEmptyMonthPair,
+  labelForMonth,
+  markerFor as markerForPrefix,
+} from './e2e-safety';
 
-const E2E_MARKER_PREFIX = 'e2e:';
-const SENTINEL_MIN_YEAR = 9000;
-const SENTINEL_MAX_YEAR = 9997;
-const SENTINEL_CLEANUP_END_YEAR = SENTINEL_MAX_YEAR + 2;
-const SENTINEL_MONTH_COUNT = (SENTINEL_MAX_YEAR - SENTINEL_MIN_YEAR + 1) * 12;
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
 
@@ -26,53 +28,14 @@ let monthLabel = '';
 let nextMonth = '';
 let nextMonthLabel = '';
 
-function labelForMonth(value: string): string {
-  const [year, monthNumber] = value.split('-');
-  return `${year}年${Number(monthNumber)}月`;
-}
-
 function markerFor(testName: string): string {
-  return `${runMarkerPrefix}${testName}`;
+  return markerForPrefix(runMarkerPrefix, testName);
 }
-
-async function monthIsEmpty(client: DatabaseClient, value: string): Promise<boolean> {
-  const range = monthRange(value);
-  const rows = await client.sql`
-    select 1
-    from transactions
-    where household_id = ${DEFAULT_HOUSEHOLD_ID}
-      and occurred_on >= ${range.start}
-      and occurred_on < ${range.endExclusive}
-    limit 1
-  `;
-  return rows.length === 0;
-}
-
-async function chooseEmptyMonthPair(client: DatabaseClient): Promise<[string, string]> {
-  const runOffset = Number(
-    BigInt(`0x${runId.replaceAll('-', '').slice(0, 12)}`) % BigInt(SENTINEL_MONTH_COUNT),
-  );
-  for (let offset = 0; offset < SENTINEL_MONTH_COUNT; offset += 1) {
-    const candidateIndex = (runOffset + offset) % SENTINEL_MONTH_COUNT;
-    const year = SENTINEL_MIN_YEAR + Math.floor(candidateIndex / 12);
-    const monthNumber = (candidateIndex % 12) + 1;
-    const candidate = `${year}-${String(monthNumber).padStart(2, '0')}`;
-    const candidateNext = shiftMonth(candidate, 1);
-    if ((await monthIsEmpty(client, candidate)) && (await monthIsEmpty(client, candidateNext))) {
-      return [candidate, candidateNext];
-    }
-  }
-  throw new Error(
-    `No empty E2E sentinel month pair is available in ${SENTINEL_MIN_YEAR}-${SENTINEL_MAX_YEAR}; existing data was not deleted`,
-  );
-}
-
 async function assertEmptyMonth(value: string): Promise<void> {
-  if (!databaseClient || !(await monthIsEmpty(databaseClient, value))) {
-    throw new Error(
-      `E2E sentinel month ${value} is not empty; refusing to assert empty-month UI state`,
-    );
+  if (!databaseClient) {
+    throw new Error(`E2E sentinel month ${value} cannot be checked without a database`);
   }
+  await assertEmptyMonthInDatabase(databaseClient, value);
 }
 
 async function deleteRunTransactions(client: DatabaseClient): Promise<void> {
@@ -101,7 +64,7 @@ test.beforeAll(async () => {
       process.env.DATABASE_URL,
     );
     await initializeDefaultLedger(databaseClient.db);
-    [month, nextMonth] = await chooseEmptyMonthPair(databaseClient);
+    [month, nextMonth] = await chooseEmptyMonthPair(databaseClient, runId);
     monthLabel = labelForMonth(month);
     nextMonthLabel = labelForMonth(nextMonth);
   } catch (error) {

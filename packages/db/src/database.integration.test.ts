@@ -1,4 +1,5 @@
 import { asc } from 'drizzle-orm';
+import type { MoneyManagerLedgerRow, MoneyManagerNormalizedRow } from './money-manager-format.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDatabaseClient, type DatabaseClient } from './client.js';
@@ -6,21 +7,31 @@ import {
   DEFAULT_HOUSEHOLD_ID,
   createTransaction,
   deleteTransaction,
-  getExpenseCategoryTotals,
   getMonthlyTotals,
+  getExpenseCategoryTotals,
+  getAccountBalances,
   getTransaction,
   initializeDefaultLedger,
   listCategories,
+  listLedgerEntries,
   listTransactions,
   updateTransaction,
 } from './ledger.js';
+import { commitMoneyManagerImport } from './imports.js';
 import { runMigrations } from './migrate.js';
 import {
   assertSafeTestDatabaseTarget,
   verifySafeTestDatabaseConnection,
   type DatabaseTarget,
 } from './database-safety.js';
-import { systemHealthchecks, transactions } from './schema.js';
+import {
+  accounts,
+  categories,
+  transactionImports,
+  systemHealthchecks,
+  transactions,
+  transfers,
+} from './schema.js';
 import { transactionInputSchema } from './validation.js';
 
 interface PostgresErrorLike {
@@ -32,15 +43,33 @@ function pgError(error: unknown): PostgresErrorLike {
   return error as PostgresErrorLike;
 }
 
+function importedRow(
+  overrides: Partial<MoneyManagerLedgerRow> = {},
+  sourceRow = 2,
+): MoneyManagerLedgerRow {
+  return {
+    sourceRow,
+    type: 'expense',
+    amount: 720,
+    occurredOn: '2026-09-29',
+    accountName: '現金',
+    categoryName: '取込テスト',
+    memo: 'テスト',
+    ...overrides,
+  };
+}
+
 describe('PostgreSQL migrations and ledger', () => {
   let client: DatabaseClient;
   let developmentUrl: string | undefined;
   let testDatabaseTarget: DatabaseTarget;
+  let testDatabaseUrl: string;
 
   beforeAll(async () => {
     const safeTestDatabase = assertSafeTestDatabaseTarget();
     testDatabaseTarget = safeTestDatabase.target;
     const testUrl = safeTestDatabase.url;
+    testDatabaseUrl = testUrl;
     developmentUrl = process.env.DATABASE_URL;
 
     // Prove migrations apply to a genuinely empty database, not just a truncated one.
@@ -67,7 +96,7 @@ describe('PostgreSQL migrations and ledger', () => {
       throw error;
     }
     await client.sql`
-      truncate table "transactions", "categories", "households", "system_healthchecks"
+      truncate table "transaction_imports", "transactions", "categories", "households", "system_healthchecks"
       restart identity cascade
     `;
     await initializeDefaultLedger(client.db);
@@ -211,6 +240,48 @@ describe('PostgreSQL migrations and ledger', () => {
         memo: '',
       }),
     );
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly source')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly destination')
+      returning id
+    `;
+    if (!fromAccount || !toAccount) {
+      throw new Error('monthly transfer accounts were not created');
+    }
+    await client.sql`
+      insert into transfers
+        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+      values
+        (${DEFAULT_HOUSEHOLD_ID}, ${fromAccount.id}, ${toAccount.id}, 9000, '2026-09-10', '移動')
+    `;
+    const ledgerEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(ledgerEntries).toHaveLength(4);
+    expect(ledgerEntries.filter((entry) => entry.type === 'transfer')).toMatchObject([
+      {
+        amount: 9000,
+        fromAccountName: 'Monthly source',
+        toAccountName: 'Monthly destination',
+      },
+    ]);
+    expect(
+      await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+        month: '2026-09',
+        type: 'expense',
+      }),
+    ).toHaveLength(2);
+    expect(
+      await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+        month: '2026-09',
+        categoryId: expenseCategory.id,
+      }),
+    ).toHaveLength(2);
 
     expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
       income: '5000',
@@ -395,35 +466,595 @@ describe('PostgreSQL migrations and ledger', () => {
       }
     }).rejects.toThrow();
   });
-
-  it('returns newest dates first with a stable id tiebreaker', async () => {
-    const category = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
-    if (!category) {
-      throw new Error('category seed missing');
+  it('rejects transfer endpoints from another household', async () => {
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'other-transfer', 'Other transfer household')
+    `;
+    const [defaultAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Default account')
+      returning id
+    `;
+    const [otherAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, 'Other account')
+      returning id
+    `;
+    if (!defaultAccount || !otherAccount) {
+      throw new Error('accounts were not created');
     }
-    const first = await createTransaction(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transactionInputSchema.parse({
-        type: 'expense',
-        amount: '100',
-        occurredOn: '2026-09-01',
-        categoryId: String(category.id),
-        memo: 'first',
+    await expect(async () => {
+      try {
+        await client.sql`
+          insert into transfers
+            (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+          values
+            (${DEFAULT_HOUSEHOLD_ID}, ${defaultAccount.id}, ${otherAccount.id}, 100, '2026-09-01', '')
+        `;
+      } catch (error) {
+        expect(pgError(error).code).toBe('23503');
+        expect(pgError(error).constraint_name).toBe('transfers_to_account_household_fk');
+        throw error;
+      }
+    }).rejects.toThrow();
+  });
+
+  it('rejects a transaction account from another household', async () => {
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'other-account', 'Other account household')
+    `;
+    const [otherAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, 'Other account')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!otherAccount || !expenseCategory) {
+      throw new Error('cross-household account fixtures were not created');
+    }
+
+    await expect(async () => {
+      try {
+        await client.sql`
+          insert into transactions
+            (household_id, type, amount, occurred_on, category_id, account_id, memo)
+          values
+            (
+              ${DEFAULT_HOUSEHOLD_ID},
+              'expense',
+              100,
+              '2026-09-01',
+              ${expenseCategory.id},
+              ${otherAccount.id},
+              ''
+            )
+        `;
+      } catch (error) {
+        expect(pgError(error).code).toBe('23503');
+        expect(pgError(error).constraint_name).toBe('transactions_account_household_fk');
+        throw error;
+      }
+    }).rejects.toThrow();
+  });
+
+  it('rejects a transfer whose source and destination are the same account', async () => {
+    const [account] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Same account')
+      returning id
+    `;
+    if (!account) {
+      throw new Error('same account was not created');
+    }
+    await expect(async () => {
+      try {
+        await client.sql`
+          insert into transfers
+            (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+          values
+            (${DEFAULT_HOUSEHOLD_ID}, ${account.id}, ${account.id}, 100, '2026-09-01', '')
+        `;
+      } catch (error) {
+        expect(pgError(error).code).toBe('23514');
+        expect(pgError(error).constraint_name).toBe('transfers_distinct_accounts_check');
+        throw error;
+      }
+    }).rejects.toThrow();
+  });
+
+  it('restricts referenced accounts and cascades accounts and transfers with a household', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Referenced source')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Referenced destination')
+      returning id
+    `;
+    if (!fromAccount || !toAccount) {
+      throw new Error('referenced accounts were not created');
+    }
+    await client.sql`
+      insert into transfers
+        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+      values
+        (${DEFAULT_HOUSEHOLD_ID}, ${fromAccount.id}, ${toAccount.id}, 100, '2026-09-01', '')
+    `;
+    await expect(async () => {
+      try {
+        await client.sql`delete from accounts where id = ${fromAccount.id}`;
+      } catch (error) {
+        expect(pgError(error).code).toBe('23503');
+        expect(pgError(error).constraint_name).toBe('transfers_from_account_household_fk');
+        throw error;
+      }
+    }).rejects.toThrow();
+
+    const cascadeHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${cascadeHouseholdId}, 'cascade', 'Cascade household')
+    `;
+    const [cascadeFrom] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${cascadeHouseholdId}, 'Cascade source')
+      returning id
+    `;
+    const [cascadeTo] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${cascadeHouseholdId}, 'Cascade destination')
+      returning id
+    `;
+    if (!cascadeFrom || !cascadeTo) {
+      throw new Error('cascade accounts were not created');
+    }
+    await client.sql`
+      insert into transfers
+        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+      values
+        (${cascadeHouseholdId}, ${cascadeFrom.id}, ${cascadeTo.id}, 200, '2026-09-01', '')
+    `;
+    await client.sql`delete from households where id = ${cascadeHouseholdId}`;
+    expect(
+      await client.sql`select id from accounts where household_id = ${cascadeHouseholdId}`,
+    ).toEqual([]);
+    expect(
+      await client.sql`select id from transfers where household_id = ${cascadeHouseholdId}`,
+    ).toEqual([]);
+  });
+
+  it('imports new categories and transactions atomically', async () => {
+    const result = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'a'.repeat(64),
+      originalFilename: 'import.xlsx',
+      rows: [
+        importedRow({ categoryName: '食費', amount: 120 }),
+        importedRow({
+          sourceRow: 3,
+          type: 'income',
+          categoryName: 'Imported Salary',
+          amount: 5000,
+          occurredOn: '2026-09-30',
+        }),
+        {
+          sourceRow: 4,
+          type: 'transfer',
+          amount: 300,
+          occurredOn: '2026-09-29',
+          fromAccountName: '現金',
+          toAccountName: '銀行',
+          memo: '入金',
+        },
+      ],
+    });
+    if (result.status !== 'imported') {
+      throw new Error('expected the import to commit');
+    }
+    expect(result.transactionCount).toBe(3);
+    expect(result.counts).toEqual({
+      income: { count: 1, total: '5000' },
+      expense: { count: 1, total: '120' },
+      transfer: { count: 1, total: '300' },
+    });
+    expect(result.accounts.map((account) => account.name)).toEqual(['現金', '銀行']);
+    expect(result.createdAccounts).toBe(2);
+    expect(result.categories).toHaveLength(2);
+    expect(result.categories.map((category) => category.action)).toEqual(['reused', 'created']);
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toHaveLength(2);
+    expect(await client.db.select().from(transfers)).toHaveLength(1);
+    const importedEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(importedEntries.filter((entry) => entry.type === 'transfer')).toMatchObject([
+      {
+        amount: 300,
+        fromAccountName: '現金',
+        toAccountName: '銀行',
+        memo: '入金',
+      },
+    ]);
+    expect(importedEntries.filter((entry) => entry.type !== 'transfer')).toHaveLength(2);
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '5000',
+      expense: '120',
+      difference: '4880',
+    });
+    expect(await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual([
+      {
+        accountId: expect.any(Number),
+        accountName: '現金',
+        income: '5000',
+        expense: '120',
+        transfersIn: '0',
+        transfersOut: '300',
+        balance: '4580',
+      },
+      {
+        accountId: expect.any(Number),
+        accountName: '銀行',
+        income: '0',
+        expense: '0',
+        transfersIn: '300',
+        transfersOut: '0',
+        balance: '300',
+      },
+    ]);
+  });
+
+  it('keeps imported categories and transactions isolated by household', async () => {
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'other', 'Other household')
+    `;
+    const row = importedRow({ categoryName: 'Same category' });
+    await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'b'.repeat(64),
+      originalFilename: 'default.xlsx',
+      rows: [row],
+    });
+    await commitMoneyManagerImport(client.db, {
+      householdId: otherHouseholdId,
+      sha256: 'c'.repeat(64),
+      originalFilename: 'other.xlsx',
+      rows: [row],
+    });
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toHaveLength(1);
+    expect(await listTransactions(client.db, otherHouseholdId, { month: '2026-09' })).toHaveLength(
+      1,
+    );
+    expect(
+      (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
+        (category) => category.name === 'Same category',
+      ),
+    ).toHaveLength(1);
+    expect(
+      (await listCategories(client.db, otherHouseholdId)).filter(
+        (category) => category.name === 'Same category',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('reuses same-name household accounts but creates accounts for other households locally', async () => {
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'account-other', 'Other account household')
+    `;
+    const [existingAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Existing account')
+      returning id
+    `;
+    const [otherHouseholdAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, 'Other-only account')
+      returning id
+    `;
+    if (!existingAccount || !otherHouseholdAccount) {
+      throw new Error('account reuse fixtures were not created');
+    }
+
+    const result = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'a'.repeat(64),
+      originalFilename: 'account-reuse.xlsx',
+      rows: [
+        importedRow({ accountName: 'Existing account', categoryName: 'Account reuse' }),
+        {
+          sourceRow: 3,
+          type: 'transfer',
+          amount: 400,
+          occurredOn: '2026-09-29',
+          fromAccountName: 'Existing account',
+          toAccountName: 'Other-only account',
+          memo: 'household scope',
+        },
+      ],
+    });
+    if (result.status !== 'imported') {
+      throw new Error('expected account reuse import to commit');
+    }
+    expect(result.accounts).toEqual([
+      { name: 'Existing account', action: 'reused', id: existingAccount.id },
+      { name: 'Other-only account', action: 'created', id: expect.any(Number) },
+    ]);
+    const [localOtherAccount] = await client.sql<{ id: number }[]>`
+      select id
+      from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'Other-only account'
+    `;
+    expect(localOtherAccount?.id).toBeDefined();
+    expect(localOtherAccount?.id).not.toBe(otherHouseholdAccount.id);
+    expect(
+      await client.sql`
+        select count(*)::int as count
+        from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'Existing account'
+      `,
+    ).toEqual([{ count: 1 }]);
+  });
+
+  it('does not conflate categories with the same name across income and expense types', async () => {
+    const result = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'd'.repeat(64),
+      originalFilename: 'same-name.xlsx',
+      rows: [
+        importedRow({ categoryName: 'Same name', amount: 100 }),
+        importedRow({ sourceRow: 3, type: 'income', categoryName: 'Same name', amount: 200 }),
+      ],
+    });
+    if (result.status !== 'imported') {
+      throw new Error('expected the import to commit');
+    }
+    expect(result.categories).toHaveLength(2);
+    expect(
+      (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
+        (category) => category.name === 'Same name',
+      ),
+    ).toHaveLength(2);
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toHaveLength(2);
+  });
+
+  it('returns a duplicate result and leaves the database constraint enforceable', async () => {
+    const input = {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'e'.repeat(64),
+      originalFilename: 'duplicate.xlsx',
+      rows: [
+        importedRow({ accountName: 'Duplicate source', categoryName: 'Duplicate category' }),
+        {
+          sourceRow: 3,
+          type: 'transfer' as const,
+          amount: 250,
+          occurredOn: '2026-09-29',
+          fromAccountName: 'Duplicate source',
+          toAccountName: 'Duplicate destination',
+          memo: 'duplicate transfer',
+        },
+      ],
+    };
+    const first = await commitMoneyManagerImport(client.db, input);
+    const countsAfterFirst = {
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+    };
+    const second = await commitMoneyManagerImport(client.db, input);
+    expect(first.status).toBe('imported');
+    expect(second.status).toBe('duplicate');
+    expect({
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+    }).toEqual(countsAfterFirst);
+    await expect(
+      client.db.insert(transactionImports).values({
+        householdId: DEFAULT_HOUSEHOLD_ID,
+        source: 'realbyte-money-manager',
+        sha256: input.sha256,
+        originalFilename: input.originalFilename,
+        transactionCount: 2,
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: '23505',
+        constraint_name: 'transaction_imports_household_source_sha256_unique',
+      },
+    });
+  });
+  it('rejects import hashes outside the lowercase SHA-256 format', async () => {
+    await expect(
+      client.db.insert(transactionImports).values({
+        householdId: DEFAULT_HOUSEHOLD_ID,
+        source: 'realbyte-money-manager',
+        sha256: 'A'.repeat(64),
+        originalFilename: 'invalid-hash.xlsx',
+        transactionCount: 0,
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: '23514',
+        constraint_name: 'transaction_imports_sha256_check',
+      },
+    });
+  });
+
+  it('serializes concurrent imports so only one creates categories and transactions', async () => {
+    const input = {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'f'.repeat(64),
+      originalFilename: 'concurrent.xlsx',
+      rows: [importedRow({ categoryName: 'Concurrent category' })],
+    };
+    const results = await Promise.all([
+      commitMoneyManagerImport(client.db, input),
+      commitMoneyManagerImport(client.db, input),
+    ]);
+    expect(results.filter((result) => result.status === 'imported')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'duplicate')).toHaveLength(1);
+    const categoriesForImport = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
+      (category) => category.name === 'Concurrent category',
+    );
+    expect(categoriesForImport).toHaveLength(1);
+    expect(new Set(categoriesForImport.map((category) => category.sortOrder)).size).toBe(1);
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toHaveLength(1);
+    const distinctResults = await Promise.all([
+      commitMoneyManagerImport(client.db, {
+        ...input,
+        sha256: '2'.repeat(64),
+        originalFilename: 'concurrent-2.xlsx',
+        rows: [importedRow({ categoryName: 'Concurrent category 2' })],
+      }),
+      commitMoneyManagerImport(client.db, {
+        ...input,
+        sha256: '3'.repeat(64),
+        originalFilename: 'concurrent-3.xlsx',
+        rows: [importedRow({ categoryName: 'Concurrent category 3' })],
+      }),
+    ]);
+    expect(distinctResults.every((result) => result.status === 'imported')).toBe(true);
+    const distinctCategories = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
+      (category) => category.name.startsWith('Concurrent category'),
+    );
+    expect(new Set(distinctCategories.map((category) => category.sortOrder)).size).toBe(3);
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toHaveLength(3);
+  });
+
+  it('rolls back new accounts, transfers, categories, transactions, and the import on failure', async () => {
+    const rows: MoneyManagerNormalizedRow[] = Array.from({ length: 500 }, (_, index) =>
+      importedRow({
+        sourceRow: index + 2,
+        accountName: 'Rollback normal account',
+        categoryName: 'Atomic rollback',
+        amount: 1,
       }),
     );
-    const second = await createTransaction(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transactionInputSchema.parse({
-        type: 'expense',
-        amount: '200',
-        occurredOn: '2026-09-01',
-        categoryId: String(category.id),
-        memo: 'second',
+    rows.push({
+      sourceRow: 502,
+      type: 'transfer',
+      amount: 100,
+      occurredOn: '2026-09-29',
+      fromAccountName: 'Rollback source',
+      toAccountName: 'Rollback destination',
+      memo: 'valid transfer rolled back',
+    });
+    rows.push({
+      sourceRow: 503,
+      type: 'transfer',
+      amount: 1_000_000_000,
+      occurredOn: '2026-09-29',
+      fromAccountName: 'Rollback source',
+      toAccountName: 'Rollback destination',
+      memo: 'late failing transfer',
+    });
+    const before = {
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      categories: (await client.db.select().from(categories)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+    };
+    await expect(
+      commitMoneyManagerImport(client.db, {
+        householdId: DEFAULT_HOUSEHOLD_ID,
+        sha256: '0'.repeat(64),
+        originalFilename: 'rollback.xlsx',
+        rows,
       }),
-    );
-    const rows = await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' });
-    expect(rows.map((row) => row.id)).toEqual([second.id, first.id]);
+    ).rejects.toMatchObject({ cause: { code: '23514' } });
+    expect({
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      categories: (await client.db.select().from(categories)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+    }).toEqual(before);
+  });
+
+  it('re-runs migrations without changing imported data or balances', async () => {
+    const result = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'b'.repeat(64),
+      originalFilename: 'migration-rerun.xlsx',
+      rows: [
+        importedRow({
+          accountName: 'Migration source',
+          categoryName: 'Migration expense',
+          amount: 800,
+        }),
+        {
+          sourceRow: 3,
+          type: 'transfer',
+          amount: 300,
+          occurredOn: '2026-09-29',
+          fromAccountName: 'Migration source',
+          toAccountName: 'Migration destination',
+          memo: 'migration transfer',
+        },
+      ],
+    });
+    expect(result.status).toBe('imported');
+    const before = {
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      categories: (await client.db.select().from(categories)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+      balances: await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID),
+    };
+    await runMigrations(testDatabaseUrl);
+    expect({
+      accounts: (await client.db.select().from(accounts)).length,
+      transfers: (await client.db.select().from(transfers)).length,
+      transactions: (await client.db.select().from(transactions)).length,
+      categories: (await client.db.select().from(categories)).length,
+      imports: (await client.db.select().from(transactionImports)).length,
+      balances: await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID),
+    }).toEqual(before);
+  });
+
+  it('exposes imported totals and rows immediately after commit', async () => {
+    await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: '1'.repeat(64),
+      originalFilename: 'totals.xlsx',
+      rows: [
+        importedRow({ categoryName: 'Immediate', amount: 300, memo: 'first' }),
+        importedRow({ sourceRow: 3, categoryName: 'Immediate', amount: -50, memo: 'second' }),
+      ],
+    });
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '0',
+      expense: '250',
+      difference: '-250',
+    });
+    expect(
+      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
+    ).toMatchObject([
+      { amount: -50, memo: 'second', categoryName: 'Immediate' },
+      { amount: 300, memo: 'first', categoryName: 'Immediate' },
+    ]);
   });
 });

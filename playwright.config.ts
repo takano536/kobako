@@ -18,7 +18,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'export DATABASE_URL="$TEST_DATABASE_URL" && mkdir -p apps/web/.next/standalone/apps/web/.next && cp -R apps/web/.next/static apps/web/.next/standalone/apps/web/.next/ && exec node apps/web/.next/standalone/apps/web/server.js',
+      'export HOSTNAME=127.0.0.1 && export DATABASE_URL="$TEST_DATABASE_URL" && mkdir -p apps/web/.next/standalone/apps/web/.next && cp -R apps/web/.next/static apps/web/.next/standalone/apps/web/.next/ && exec node apps/web/.next/standalone/apps/web/server.js',
     url: 'http://127.0.0.1:3000/api/health',
     timeout: 120_000,
   },

@@ -4,6 +4,7 @@ import {
   expenseBarWidth,
   formatExpenseShare,
   formatJapaneseDate,
+  formatJapaneseDateWithYear,
   formatTransactionAmount,
   formatYen,
   groupTransactionsByDate,
@@ -30,7 +31,9 @@ describe('Japanese calendar date display', () => {
     expect(formatJapaneseDate('2026-04-30')).toBe('4月30日（木）');
     expect(formatJapaneseDate('2026-05-01')).toBe('5月1日（金）');
   });
-
+  it('includes the year when displaying an import date', () => {
+    expect(formatJapaneseDateWithYear('2026-02-05')).toBe('2026年2月5日（木）');
+  });
   it('formats year-end and leap-day dates', () => {
     expect(formatJapaneseDate('2025-12-31')).toBe('12月31日（水）');
     expect(formatJapaneseDate('2028-02-29')).toBe('2月29日（火）');

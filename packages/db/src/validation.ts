@@ -122,11 +122,19 @@ export const memoSchema = z.preprocess(
   }),
 );
 
+export const accountIdSchema = z.preprocess((value) => {
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  return value;
+}, z.number().int().positive().optional().nullable());
+
 export const transactionInputSchema = z.object({
   type: transactionTypeSchema,
   amount: amountSchema,
   occurredOn: occurredOnSchema,
   categoryId: categoryIdSchema,
+  accountId: accountIdSchema,
   memo: memoSchema,
 });
 

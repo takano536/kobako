@@ -110,6 +110,15 @@ export function formatJapaneseDate(value: string): string {
   const weekday = JAPANESE_WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
   return `${month}月${day}日（${weekday}）`;
 }
+export function formatJapaneseDateWithYear(value: string): string {
+  const parts = calendarDateParts(value);
+  if (!parts) {
+    return value;
+  }
+  const [year, month, day] = parts;
+  const weekday = JAPANESE_WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return `${year}年${month}月${day}日（${weekday}）`;
+}
 
 export function formatJapaneseDateShort(value: string): string {
   const parts = calendarDateParts(value);
