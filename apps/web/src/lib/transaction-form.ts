@@ -1,4 +1,3 @@
-import { categoryIdFromFormData } from '@kobako/db/validation';
 import type { TransferValidationCode } from '@kobako/db';
 
 export type TransactionFormType = 'expense' | 'income' | 'transfer';
@@ -68,6 +67,12 @@ export interface DeleteFormState {
   message?: string;
 }
 
+function categoryIdFromFormData(formData: FormData): unknown {
+  const type = formData.get('type');
+  const values = formData.getAll('categoryId');
+  const index = type === 'income' ? 1 : 0;
+  return values[index] ?? values[0] ?? null;
+}
 function textField(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : '';
