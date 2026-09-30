@@ -1,6 +1,7 @@
 'use client';
 import {
   useActionState,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -605,11 +606,31 @@ export function DeleteTransactionForm({
     {},
   );
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const modalOpenRef = useRef(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const wasDeleteConfirmOpenRef = useRef(false);
+  const bodyOverflowRef = useRef<string | null>(null);
+  const htmlOverflowRef = useRef<string | null>(null);
 
   useEffect(() => {
     setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const details = detailsRef.current;
+    if (!details) {
+      return;
+    }
+    const handleToggle = () => {
+      setIsDeleteConfirmOpen(details.open);
+    };
+    handleToggle();
+    details.addEventListener('toggle', handleToggle);
+    return () => details.removeEventListener('toggle', handleToggle);
   }, []);
 
   const hasMessage = !pending && Boolean(state.message);
@@ -636,6 +657,78 @@ export function DeleteTransactionForm({
     }
   }, [hasHydrated, hasMessage, state]);
 
+  const closeDeleteConfirm = useCallback(() => {
+    detailsRef.current?.removeAttribute('open');
+    setIsDeleteConfirmOpen(false);
+    summaryRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || !isDeleteConfirmOpen) {
+      if (hasHydrated && wasDeleteConfirmOpenRef.current) {
+        wasDeleteConfirmOpenRef.current = false;
+        summaryRef.current?.focus();
+      }
+      return;
+    }
+
+    wasDeleteConfirmOpenRef.current = true;
+    bodyOverflowRef.current = document.body.style.overflow;
+    htmlOverflowRef.current = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const dialog = detailsRef.current?.querySelector<HTMLElement>('.delete-confirmation');
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDeleteConfirm();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    confirmButtonRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = bodyOverflowRef.current ?? '';
+      document.documentElement.style.overflow = htmlOverflowRef.current ?? '';
+      bodyOverflowRef.current = null;
+      htmlOverflowRef.current = null;
+    };
+  }, [closeDeleteConfirm, hasHydrated, isDeleteConfirmOpen]);
+
   const editPath =
     entryType === 'transfer'
       ? `/transactions/transfers/${transactionId}/edit`
@@ -643,7 +736,7 @@ export function DeleteTransactionForm({
 
   function handleCancel(event: MouseEvent<HTMLAnchorElement>): void {
     event.preventDefault();
-    event.currentTarget.closest('details')?.removeAttribute('open');
+    closeDeleteConfirm();
   }
 
   return (
@@ -658,15 +751,30 @@ export function DeleteTransactionForm({
         }}
       />
       <div className="delete-action">
-        <details className="delete-confirm">
-          <summary className="button button-danger">削除する</summary>
-          <div className="delete-confirmation">
-            <p>この取引を削除しますか？</p>
+        <details ref={detailsRef} className="delete-confirm">
+          <summary ref={summaryRef} className="button button-danger">
+            削除する
+          </summary>
+          <button
+            className="delete-modal-backdrop"
+            type="button"
+            tabIndex={-1}
+            aria-label="削除確認を閉じる"
+            onClick={closeDeleteConfirm}
+          />
+          <div
+            className="delete-confirmation"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${formId}-title`}
+          >
+            <p id={`${formId}-title`}>この取引を削除しますか？</p>
             <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
               <input type="hidden" name="id" value={transactionId} />
 
               <input type="hidden" name="confirm" value="delete" />
               <button
+                ref={confirmButtonRef}
                 className="button button-danger"
                 type="submit"
                 disabled={pending}

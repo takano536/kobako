@@ -17,6 +17,12 @@ import {
   chooseEmptyMonthPair,
   monthIsEmpty,
 } from './e2e-safety';
+import {
+  assertDeleteAndSaveAligned,
+  assertDeleteModalGeometry,
+  assertDeleteModalInteraction,
+  type ModalViewport,
+} from './delete-modal-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -107,28 +113,13 @@ async function seedRunTransfer(): Promise<void> {
 async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,
+    documentWidth: document.documentElement.scrollWidth,
     viewportWidth: window.innerWidth,
   }));
   expect(dimensions.bodyWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
 }
 
-async function assertDeleteConfirmationDoesNotOverlapForm(page: Page): Promise<void> {
-  const overlaps = await page.locator('.delete-confirmation').evaluate((confirmation) => {
-    const confirmationRect = confirmation.getBoundingClientRect();
-    return [...document.querySelectorAll('.ledger-form .field, .ledger-form .save-button')].some(
-      (target) => {
-        const targetRect = target.getBoundingClientRect();
-        return (
-          confirmationRect.left < targetRect.right &&
-          confirmationRect.right > targetRect.left &&
-          confirmationRect.top < targetRect.bottom &&
-          confirmationRect.bottom > targetRect.top
-        );
-      },
-    );
-  });
-  expect(overlaps).toBe(false);
-}
 type ButtonMetrics = {
   width: number;
   height: number;
@@ -599,6 +590,7 @@ test('matches delete control dimensions to save controls on desktop and mobile',
       await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
       const saveButton = page.getByRole('button', { name: '変更を保存' });
       const deleteSummary = page.locator('.delete-confirm > summary');
+      await assertDeleteAndSaveAligned(page);
       const saveMetrics = await buttonMetrics(saveButton);
       const summaryMetrics = await buttonMetrics(deleteSummary);
       expectButtonMetricsToMatch(summaryMetrics, saveMetrics);
@@ -616,7 +608,7 @@ test('matches delete control dimensions to save controls on desktop and mobile',
       expectButtonMetricsToMatch(confirmationMetrics, saveMetrics);
       expect(confirmationMetrics.width).toBeGreaterThan(0);
       expect(confirmationMetrics.width).toBeLessThan(viewport.width);
-      await assertDeleteConfirmationDoesNotOverlapForm(page);
+      await assertDeleteModalGeometry(page, viewport);
       await assertNoHorizontalOverflow(page);
       if (kind === 'ordinary') {
         ordinarySummaryMetrics = openSummaryMetrics;
@@ -630,6 +622,9 @@ test('matches delete control dimensions to save controls on desktop and mobile',
         expect(confirmationMetrics.width).toBeCloseTo(ordinaryConfirmationMetrics.width, 1);
         expect(confirmationMetrics.height).toBeCloseTo(ordinaryConfirmationMetrics.height, 1);
       }
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.delete-confirmation')).toBeHidden();
+      await assertDeleteModalInteraction(page, viewport);
     }
   }
 });
@@ -695,7 +690,7 @@ test('supports keyboard-only create/edit/delete and mobile layouts without overf
   await deleteSummary.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('.delete-confirmation')).toContainText('この取引を削除しますか？');
-  await assertDeleteConfirmationDoesNotOverlapForm(page);
+  await assertDeleteModalGeometry(page, { width: 375, height: 812 });
   await assertNoHorizontalOverflow(page);
   const deleteButton = page.getByRole('button', { name: '削除を確定' });
   await deleteButton.focus();
@@ -772,12 +767,21 @@ test('supports transfer create, edit, delete confirmation/cancel, and server val
     await expect(runTransferRows(page)).toContainText(alternateName);
 
     await runTransferRows(page).click();
-    const deleteSummary = page.locator('.delete-confirm > summary');
+    const desktopViewport = { width: 1280, height: 900 } satisfies ModalViewport;
+    await page.setViewportSize(desktopViewport);
+    let deleteSummary = page.locator('.delete-confirm > summary');
     await deleteSummary.click();
     await expect(page.locator('.delete-confirmation')).toContainText('この取引を削除しますか？');
+    await assertDeleteModalGeometry(page, desktopViewport);
     await page.getByRole('link', { name: 'キャンセル' }).click();
     await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
-    await page.locator('.delete-confirm > summary').click();
+
+    const mobileViewport = { width: 375, height: 812 } satisfies ModalViewport;
+    await page.setViewportSize(mobileViewport);
+    deleteSummary = page.locator('.delete-confirm > summary');
+    await deleteSummary.click();
+    await expect(page.locator('.delete-confirmation')).toContainText('この取引を削除しますか？');
+    await assertDeleteModalGeometry(page, mobileViewport);
     await page.getByRole('button', { name: '削除を確定' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
     await expect(runTransferRows(page)).toHaveCount(0);

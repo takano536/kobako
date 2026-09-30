@@ -19,6 +19,12 @@ import {
   labelForMonth,
   markerFor as markerForPrefix,
 } from './e2e-safety';
+import {
+  assertDeleteAndSaveAligned,
+  assertDeleteModalGeometry,
+  assertDeleteModalInteraction,
+  type ModalViewport,
+} from './delete-modal-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -178,6 +184,14 @@ test('adds income and updates the difference, then edits and deletes a transacti
 
   await page.getByRole('link', { name: /10日/ }).click();
   const deleteTrigger = page.locator('.delete-confirm > summary');
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 375, height: 812 },
+  ] satisfies ModalViewport[]) {
+    await page.setViewportSize(viewport);
+    await assertDeleteAndSaveAligned(page);
+    await assertDeleteModalInteraction(page, viewport);
+  }
   await deleteTrigger.click();
   await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
   await page.getByRole('link', { name: 'キャンセル' }).click();
@@ -187,8 +201,11 @@ test('adds income and updates the difference, then edits and deletes a transacti
     input.remove();
   });
   await page.getByRole('button', { name: '削除を確定' }).click();
-  await expect(page.getByRole('dialog')).toContainText('確認操作を完了してください');
-  await page.getByRole('button', { name: '閉じる' }).click();
+  await expect(page.locator('.form-error-dialog')).toContainText('確認操作を完了してください');
+  await page
+    .locator('.form-error-dialog')
+    .getByRole('button', { name: '閉じる', exact: true })
+    .click();
   await page.reload();
   await page.locator('.delete-confirm > summary').click();
   await page.getByRole('button', { name: '削除を確定' }).click();
@@ -228,10 +245,22 @@ test('requires explicit delete confirmation when JavaScript is disabled', async 
   const page = await context.newPage();
   try {
     await page.goto(`/transactions/${transactionId}/edit`);
-    const deleteTrigger = page.locator('.delete-confirm > summary');
+    const desktopViewport = { width: 1280, height: 900 } satisfies ModalViewport;
+    await page.setViewportSize(desktopViewport);
+    let deleteTrigger = page.locator('.delete-confirm > summary');
     await expect(deleteTrigger).toBeVisible();
     await deleteTrigger.click();
     await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await assertDeleteModalGeometry(page, desktopViewport);
+    await page.getByRole('link', { name: 'キャンセル' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions/${transactionId}/edit`));
+
+    const mobileViewport = { width: 375, height: 812 } satisfies ModalViewport;
+    await page.setViewportSize(mobileViewport);
+    deleteTrigger = page.locator('.delete-confirm > summary');
+    await deleteTrigger.click();
+    await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await assertDeleteModalGeometry(page, mobileViewport);
     await page.getByRole('button', { name: '削除を確定' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
     await expect(page.getByRole('link', { name: /支出.*321円/ })).toHaveCount(0);
