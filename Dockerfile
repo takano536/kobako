@@ -37,10 +37,14 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+# Keep `dist` and `drizzle` together: migrate.ts resolves `../drizzle` from `dist/migrate.js`.
+COPY --from=build --chown=node:node /out/db ./migrator
+COPY --chown=node:node --chmod=0555 docker-entrypoint.sh /app/docker-entrypoint.sh
 USER node
 EXPOSE 3000
 STOPSIGNAL SIGTERM
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "apps/web/server.js"]
 
 FROM runtime AS migrate

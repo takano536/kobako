@@ -16,19 +16,6 @@ services:
       retries: 12
       start_period: 5s
 
-  migrate:
-    build:
-      context: .
-      target: migrate
-    image: kobako-migrate:local
-    environment:
-      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
-    init: true
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: 'no'
-
   web:
     build:
       context: .
@@ -39,8 +26,8 @@ services:
       NODE_ENV: production
     init: true
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     ports:
       - '127.0.0.1:3000:3000'
     healthcheck:
@@ -54,7 +41,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 6
-      start_period: 10s
+      start_period: 30s
 
   worker:
     build:
@@ -65,8 +52,8 @@ services:
       DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
       NODE_ENV: production
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      web:
+        condition: service_healthy
     init: true
 
 volumes:
