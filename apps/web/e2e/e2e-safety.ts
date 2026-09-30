@@ -15,6 +15,15 @@ export function markerFor(runMarkerPrefix: string, testName: string): string {
   return `${runMarkerPrefix}${testName}`;
 }
 
+export function assertCleanupMarker(runMarkerPrefix: string): void {
+  if (
+    !runMarkerPrefix.startsWith(E2E_MARKER_PREFIX) ||
+    runMarkerPrefix.length <= E2E_MARKER_PREFIX.length
+  ) {
+    throw new Error('E2E cleanup marker is invalid');
+  }
+}
+
 export async function monthIsEmpty(client: DatabaseClient, value: string): Promise<boolean> {
   const range = monthRange(value);
   const rows = await client.sql`

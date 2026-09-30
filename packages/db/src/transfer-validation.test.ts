@@ -21,6 +21,17 @@ describe('transfer input validation', () => {
     });
   });
 
+  it('accepts integer numbers and rejects fractional numbers', () => {
+    expect(transferInputSchema.parse({ ...validTransfer, amount: 1_200 }).amount).toBe(1_200);
+    const fractional = transferInputSchema.safeParse({ ...validTransfer, amount: 1.5 });
+    expect(fractional.success).toBe(false);
+    if (!fractional.success) {
+      expect(fractional.error.flatten().fieldErrors.amount).toContain(
+        '金額は整数で入力してください。',
+      );
+    }
+  });
+
   it('requires both transfer accounts and rejects the same account', () => {
     const fromMissing = transferInputSchema.safeParse({ ...validTransfer, fromAccountId: '' });
     expect(fromMissing.success).toBe(false);
@@ -88,7 +99,7 @@ describe('transfer input validation', () => {
     }
   });
 
-  it.each(['1.5', '1.0', '1.00'])('rejects decimal amounts as non-integers: %s', (amount) => {
+  it.each(['1.', '1.5', '1.0', '1.00'])('rejects decimal amounts as non-integers: %s', (amount) => {
     const result = transferInputSchema.safeParse({ ...validTransfer, amount });
     expect(result.success).toBe(false);
     if (!result.success) {

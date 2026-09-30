@@ -5,6 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDatabaseClient, type DatabaseClient } from './client.js';
 import {
   DEFAULT_HOUSEHOLD_ID,
+  convertTransactionToTransfer,
+  convertTransferToTransaction,
   createTransaction,
   createTransfer,
   deleteTransaction,
@@ -36,7 +38,14 @@ import {
   transactions,
   transfers,
 } from './schema.js';
-import { MAX_INT4_ID, transactionInputSchema, transferInputSchema } from './validation.js';
+import {
+  AMOUNT_LIMIT,
+  MAX_INT4_ID,
+  transactionInputSchema,
+  transferInputSchema,
+  type TransactionInput,
+  type TransferInput,
+} from './validation.js';
 
 interface PostgresErrorLike {
   code?: string;
@@ -700,7 +709,16 @@ describe('PostgreSQL migrations and ledger', () => {
     });
     expect(outOfRangeCreateResult).toEqual({
       status: 'validation_error',
-      code: 'account_unavailable',
+      code: 'from_account_unavailable',
+    });
+    const bothUnavailableResult = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+      ...input,
+      fromAccountId: 2_147_483_648,
+      toAccountId: 2_147_483_649,
+    });
+    expect(bothUnavailableResult).toEqual({
+      status: 'validation_error',
+      code: 'accounts_unavailable',
     });
     const createdResult = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, input);
     expect(createdResult.status).toBe('ok');
@@ -768,7 +786,7 @@ describe('PostgreSQL migrations and ledger', () => {
     );
     expect(outOfRangeUpdateResult).toEqual({
       status: 'validation_error',
-      code: 'account_unavailable',
+      code: 'to_account_unavailable',
     });
 
     const sameAccountResult = await updateTransfer(
@@ -791,7 +809,10 @@ describe('PostgreSQL migrations and ledger', () => {
         toAccountId: 99999999,
       },
     );
-    expect(unavailableResult).toEqual({ status: 'validation_error', code: 'account_unavailable' });
+    expect(unavailableResult).toEqual({
+      status: 'validation_error',
+      code: 'to_account_unavailable',
+    });
     expect(
       await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, createdResult.transfer.id),
     ).toMatchObject({
@@ -893,6 +914,428 @@ describe('PostgreSQL migrations and ledger', () => {
     ).not.toBeNull();
   });
 
+  it('converts transactions and transfers in one household transaction', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変換元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変換先')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!fromAccount || !toAccount || !expenseCategory || !incomeCategory) {
+      throw new Error('conversion fixtures were not created');
+    }
+
+    const sourceTransaction = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '750',
+        occurredOn: '2026-09-12',
+        categoryId: String(expenseCategory.id),
+        memo: '変換前',
+      }),
+    );
+    const toTransferResult = await convertTransactionToTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      sourceTransaction.id,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '750',
+        occurredOn: sourceTransaction.occurredOn,
+        memo: sourceTransaction.memo,
+      }),
+    );
+    expect(toTransferResult.status).toBe('ok');
+    if (toTransferResult.status !== 'ok') {
+      throw new Error('transaction conversion did not create a transfer');
+    }
+    expect(await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, sourceTransaction.id)).toBeNull();
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, toTransferResult.transfer.id),
+    ).toMatchObject({ amount: 750, fromAccountName: '変換元', toAccountName: '変換先' });
+
+    const sourceTransferResult = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '500',
+        occurredOn: '2026-09-13',
+        memo: '振替前',
+      }),
+    );
+    expect(sourceTransferResult.status).toBe('ok');
+    if (sourceTransferResult.status !== 'ok') {
+      throw new Error('transfer conversion source was not created');
+    }
+    const toTransactionResult = await convertTransferToTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      sourceTransferResult.transfer.id,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '500',
+        occurredOn: '2026-09-13',
+        categoryId: String(incomeCategory.id),
+        memo: '変換後',
+      }),
+    );
+    expect(toTransactionResult.status).toBe('ok');
+    if (toTransactionResult.status !== 'ok') {
+      throw new Error('transfer conversion did not create a transaction');
+    }
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, sourceTransferResult.transfer.id),
+    ).toBeNull();
+    expect(
+      await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, toTransactionResult.transaction.id),
+    ).toMatchObject({ amount: 500, type: 'income', categoryName: incomeCategory.name });
+
+    const invalidSource = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '100',
+        occurredOn: '2026-09-14',
+        categoryId: String(expenseCategory.id),
+        memo: '',
+      }),
+    );
+    expect(
+      await convertTransactionToTransfer(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        invalidSource.id,
+        transferInputSchema.parse({
+          fromAccountId: '99999999',
+          toAccountId: String(toAccount.id),
+          amount: '100',
+          occurredOn: invalidSource.occurredOn,
+          memo: '',
+        }),
+      ),
+    ).toEqual({ status: 'validation_error', code: 'from_account_unavailable' });
+    expect(await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, invalidSource.id)).not.toBeNull();
+  });
+
+  it('converts ordinary and transfer entries in every direction with stable totals', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '集計元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '集計先')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!fromAccount || !toAccount || !expenseCategory || !incomeCategory) {
+      throw new Error('direction conversion fixtures were not created');
+    }
+
+    const ordinary = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '100',
+        occurredOn: '2026-09-01',
+        categoryId: String(expenseCategory.id),
+        memo: '通常変換',
+      }),
+    );
+    const asIncome = await updateTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      ordinary.id,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '100',
+        occurredOn: ordinary.occurredOn,
+        categoryId: String(incomeCategory.id),
+        memo: ordinary.memo,
+      }),
+    );
+    expect(asIncome).toMatchObject({ type: 'income', categoryId: incomeCategory.id });
+    const asExpense = await updateTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      ordinary.id,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '100',
+        occurredOn: ordinary.occurredOn,
+        categoryId: String(expenseCategory.id),
+        memo: ordinary.memo,
+      }),
+    );
+    expect(asExpense).toMatchObject({ type: 'expense', categoryId: expenseCategory.id });
+
+    const ordinaryToTransfer = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '300',
+        occurredOn: '2026-09-02',
+        categoryId: String(expenseCategory.id),
+        memo: '通常から振替',
+      }),
+    );
+    const transferResult = await convertTransactionToTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      ordinaryToTransfer.id,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '300',
+        occurredOn: ordinaryToTransfer.occurredOn,
+        memo: ordinaryToTransfer.memo,
+      }),
+    );
+    expect(transferResult.status).toBe('ok');
+    if (transferResult.status !== 'ok') {
+      throw new Error('ordinary to transfer conversion failed');
+    }
+    expect(await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, ordinaryToTransfer.id)).toBeNull();
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '0',
+      expense: '100',
+      difference: '-100',
+    });
+    expect(await getExpenseCategoryTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual([
+      { categoryId: expenseCategory.id, categoryName: expenseCategory.name, total: '100' },
+    ]);
+
+    const transferToIncome = await convertTransferToTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferResult.transfer.id,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '300',
+        occurredOn: '2026-09-02',
+        categoryId: String(incomeCategory.id),
+        memo: '振替から収入',
+      }),
+    );
+    expect(transferToIncome.status).toBe('ok');
+    if (transferToIncome.status !== 'ok') {
+      throw new Error('transfer to income conversion failed');
+    }
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transferResult.transfer.id),
+    ).toBeNull();
+    expect(
+      await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, transferToIncome.transaction.id),
+    ).toMatchObject({ type: 'income', categoryId: incomeCategory.id });
+
+    const transferToExpense = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '200',
+        occurredOn: '2026-09-03',
+        memo: '振替から支出',
+      }),
+    );
+    expect(transferToExpense.status).toBe('ok');
+    if (transferToExpense.status !== 'ok') {
+      throw new Error('transfer fixture was not created');
+    }
+    const expenseResult = await convertTransferToTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferToExpense.transfer.id,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '200',
+        occurredOn: '2026-09-03',
+        categoryId: String(expenseCategory.id),
+        memo: '振替から支出',
+      }),
+    );
+    expect(expenseResult.status).toBe('ok');
+    if (expenseResult.status !== 'ok') {
+      throw new Error('transfer to expense conversion failed');
+    }
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transferToExpense.transfer.id),
+    ).toBeNull();
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual({
+      income: '300',
+      expense: '300',
+      difference: '0',
+    });
+    expect(await getExpenseCategoryTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual([
+      { categoryId: expenseCategory.id, categoryName: expenseCategory.name, total: '300' },
+    ]);
+    const balances = await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(balances.reduce((sum, balance) => sum + BigInt(balance.balance), 0n)).toBe(0n);
+    expect(balances.find((balance) => balance.accountId === fromAccount.id)?.balance).toBe('0');
+    expect(balances.find((balance) => balance.accountId === toAccount.id)?.balance).toBe('0');
+  });
+
+  it('rolls back conversion insert failures and rejects other-household resources', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '失敗元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '失敗先')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!fromAccount || !toAccount || !expenseCategory) {
+      throw new Error('rollback conversion fixtures were not created');
+    }
+    const sourceTransaction = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '100',
+        occurredOn: '2026-09-01',
+        categoryId: String(expenseCategory.id),
+        memo: 'insert失敗元',
+      }),
+    );
+    const transferInput = transferInputSchema.parse({
+      fromAccountId: String(fromAccount.id),
+      toAccountId: String(toAccount.id),
+      amount: '100',
+      occurredOn: sourceTransaction.occurredOn,
+      memo: sourceTransaction.memo,
+    });
+    const failedTransfer = await convertTransactionToTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      sourceTransaction.id,
+      { ...transferInput, amount: AMOUNT_LIMIT + 1 } as TransferInput,
+    );
+    expect(failedTransfer).toEqual({ status: 'error' });
+    expect(
+      await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, sourceTransaction.id),
+    ).not.toBeNull();
+    expect(await client.db.select().from(transfers)).toHaveLength(0);
+
+    const sourceTransfer = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transferInput);
+    expect(sourceTransfer.status).toBe('ok');
+    if (sourceTransfer.status !== 'ok') {
+      throw new Error('rollback transfer fixture was not created');
+    }
+    const transactionInput = transactionInputSchema.parse({
+      type: 'expense',
+      amount: '100',
+      occurredOn: '2026-09-02',
+      categoryId: String(expenseCategory.id),
+      memo: 'insert失敗振替',
+    });
+    const failedTransaction = await convertTransferToTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      sourceTransfer.transfer.id,
+      { ...transactionInput, amount: AMOUNT_LIMIT + 1 } as TransactionInput,
+    );
+    expect(failedTransaction).toEqual({ status: 'error' });
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, sourceTransfer.transfer.id),
+    ).not.toBeNull();
+
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000003';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'conversion-other', '変換別家計')
+    `;
+    const [otherFrom] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, '別元')
+      returning id
+    `;
+    const [otherTo] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, '別先')
+      returning id
+    `;
+    const [otherCategory] = await client.sql<{ id: number }[]>`
+      insert into categories (household_id, type, name, sort_order)
+      values (${otherHouseholdId}, 'expense', '別カテゴリ', 10)
+      returning id
+    `;
+    if (!otherFrom || !otherTo || !otherCategory) {
+      throw new Error('other household conversion fixtures were not created');
+    }
+    const householdSource = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '50',
+        occurredOn: '2026-09-03',
+        categoryId: String(expenseCategory.id),
+        memo: '別家計口座拒否',
+      }),
+    );
+    expect(
+      await convertTransactionToTransfer(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        householdSource.id,
+        transferInputSchema.parse({
+          fromAccountId: String(otherFrom.id),
+          toAccountId: String(otherTo.id),
+          amount: '50',
+          occurredOn: householdSource.occurredOn,
+          memo: householdSource.memo,
+        }),
+      ),
+    ).toEqual({ status: 'validation_error', code: 'accounts_unavailable' });
+    expect(
+      await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, householdSource.id),
+    ).not.toBeNull();
+
+    const householdTransfer = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transferInput);
+    expect(householdTransfer.status).toBe('ok');
+    if (householdTransfer.status !== 'ok') {
+      throw new Error('household transfer fixture was not created');
+    }
+    expect(
+      await convertTransferToTransaction(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        householdTransfer.transfer.id,
+        transactionInputSchema.parse({
+          type: 'expense',
+          amount: '100',
+          occurredOn: '2026-09-04',
+          categoryId: String(otherCategory.id),
+          memo: '別家計カテゴリ拒否',
+        }),
+      ),
+    ).toEqual({ status: 'validation_error', code: 'category_unavailable' });
+    expect(
+      await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, householdTransfer.transfer.id),
+    ).not.toBeNull();
+  });
+
   it('keeps unrelated ledger rows and orders mixed entries by date', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
       insert into accounts (household_id, name)
@@ -981,6 +1424,13 @@ describe('PostgreSQL migrations and ledger', () => {
       '2026-09-01:income',
     ]);
 
+    const transferOnly = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+      type: 'transfer',
+      categoryId: expenseCategory.id,
+    });
+    expect(transferOnly.map((entry) => entry.type)).toEqual(['transfer', 'transfer']);
+
     await expect(
       deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, targetResult.transfer.id),
     ).resolves.toEqual({ status: 'ok', occurredOn: '2026-09-02' });
@@ -997,6 +1447,81 @@ describe('PostgreSQL migrations and ledger', () => {
       '2026-09-04:transfer',
       '2026-09-03:expense',
       '2026-09-01:income',
+    ]);
+  });
+
+  it('orders same-date transfers and transactions deterministically', async () => {
+    const [fromAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '同日元')
+      returning id
+    `;
+    const [toAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, '同日先')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!fromAccount || !toAccount || !expenseCategory || !incomeCategory) {
+      throw new Error('same-date ordering fixtures were not created');
+    }
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'income',
+        amount: '10',
+        occurredOn: '2026-09-10',
+        categoryId: String(incomeCategory.id),
+        memo: '同日収入1',
+      }),
+    );
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '20',
+        occurredOn: '2026-09-10',
+        categoryId: String(expenseCategory.id),
+        memo: '同日支出2',
+      }),
+    );
+    const firstTransfer = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '30',
+        occurredOn: '2026-09-10',
+        memo: '同日振替1',
+      }),
+    );
+    const secondTransfer = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(fromAccount.id),
+        toAccountId: String(toAccount.id),
+        amount: '40',
+        occurredOn: '2026-09-10',
+        memo: '同日振替2',
+      }),
+    );
+    expect(firstTransfer.status).toBe('ok');
+    expect(secondTransfer.status).toBe('ok');
+    const first = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' });
+    const second = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' });
+    const describe = (entries: typeof first) =>
+      entries.map((entry) => `${entry.type}:${entry.memo}`);
+    expect(describe(second)).toEqual(describe(first));
+    expect(describe(first)).toEqual([
+      'transfer:同日振替2',
+      'expense:同日支出2',
+      'transfer:同日振替1',
+      'income:同日収入1',
     ]);
   });
 
@@ -1040,9 +1565,30 @@ describe('PostgreSQL migrations and ledger', () => {
       amount: 800,
       memo: '編集済み',
     });
-    expect(await deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transfer.id)).toMatchObject({
-      status: 'ok',
-    });
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expenseCategory) {
+      throw new Error('import conversion category fixture is missing');
+    }
+    const converted = await convertTransferToTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transfer.id,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '800',
+        occurredOn: transfer.occurredOn,
+        categoryId: String(expenseCategory.id),
+        memo: '変換済み',
+      }),
+    );
+    expect(converted.status).toBe('ok');
+    if (converted.status !== 'ok') {
+      throw new Error('imported transfer conversion failed');
+    }
+    expect(await getTransfer(client.db, DEFAULT_HOUSEHOLD_ID, transfer.id)).toBeNull();
+    expect(
+      await deleteTransaction(client.db, DEFAULT_HOUSEHOLD_ID, converted.transaction.id),
+    ).toMatchObject({ occurredOn: transfer.occurredOn });
   });
 
   it('imports new categories and transactions atomically', async () => {

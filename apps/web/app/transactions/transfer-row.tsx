@@ -15,21 +15,17 @@ export function TransferRow({
 }) {
   const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}`;
   return (
-    <li className="transaction-row transaction-transfer-row">
+    <li className="transaction-row">
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
       <Link
-        className="transaction-transfer transaction-transfer-link"
+        className="transaction-link"
         href={`/transactions/transfers/${transfer.id}/edit`}
         aria-label={label}
       >
-        <span className="transaction-transfer-label">振替</span>
+        <span className="category-dot transfer-dot" aria-hidden="true" />
         <span className="transaction-main">
-          <span className="transaction-category">
-            {transfer.fromAccountName}
-            <span className="sr-only">から </span>
-            <span aria-hidden="true"> → </span>
-            {transfer.toAccountName}
-            <span className="sr-only"> へ</span>
+          <span className="transaction-category transfer-category">
+            {transfer.fromAccountName} <span aria-hidden="true">→</span> {transfer.toAccountName}
           </span>
           {showMemo && transfer.memo ? (
             <span className="transaction-memo" title={transfer.memo}>
@@ -38,7 +34,9 @@ export function TransferRow({
           ) : null}
         </span>
         <span className="record-amount neutral">{formatYen(transfer.amount)}</span>
-        <span className="row-affordance transfer-edit-label">編集 ›</span>
+        <span className="row-affordance" aria-hidden="true">
+          ›
+        </span>
       </Link>
     </li>
   );

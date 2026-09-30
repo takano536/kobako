@@ -25,6 +25,13 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /account-shortage\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'account-shortage',
+      dependencies: ['chromium'],
+      testMatch: /account-shortage\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

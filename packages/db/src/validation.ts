@@ -8,7 +8,8 @@ export { AMOUNT_FORMAT_MESSAGE, AMOUNT_LIMIT, AMOUNT_TEXT_PATTERN_SOURCE } from 
 
 export const MEMO_MAX_LENGTH = 200;
 export const MAX_INT4_ID = 2_147_483_647;
-const DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d*|\.\d+)$/;
+const DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d+|\.\d+)$/;
+const TRANSFER_DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d*|\.\d+)$/;
 const AMOUNT_EDITING_PATTERN = /^-?(?:\d+|[1-9]\d{0,2}(?:,\d{3})*(?:,\d{0,3})?)$/;
 
 export function isAmountText(input: unknown): input is string {
@@ -52,16 +53,12 @@ export function normalizeAmountInput(input: unknown): number | undefined {
   return negative ? -amount : amount;
 }
 
-function preprocessAmount(
-  input: unknown,
-  context: { addIssue: (issue: { code: 'custom'; message: string }) => void },
-): unknown {
+function preprocessAmount(input: unknown): unknown {
   if (typeof input !== 'string') {
     return input;
   }
   if (DECIMAL_AMOUNT_PATTERN.test(input)) {
-    context.addIssue({ code: 'custom', message: '金額は整数で入力してください。' });
-    return z.NEVER;
+    return Number(input);
   }
   return normalizeAmountInput(input);
 }
@@ -136,7 +133,16 @@ export const accountIdSchema = z.preprocess((value) => {
 
 /** Positive integer amount validation used for one-row account transfers. */
 export const transferAmountSchema = z.preprocess(
-  preprocessAmount,
+  (input) => {
+    if (typeof input !== 'string') {
+      return input;
+    }
+    if (TRANSFER_DECIMAL_AMOUNT_PATTERN.test(input)) {
+      const amount = Number(input);
+      return Number.isInteger(amount) ? amount + 0.5 : amount;
+    }
+    return normalizeAmountInput(input);
+  },
   z
     .number({ error: '金額を入力してください。' })
     .int({ error: '金額は整数で入力してください。' })
@@ -207,12 +213,20 @@ export type TransactionInput = z.infer<typeof transactionInputSchema> & {
   type: TransactionType;
 };
 
+export function categoryIdFromFormData(formData: FormData): unknown {
+  const type = formData.get('type');
+  const values = formData.getAll('categoryId');
+  const index = type === 'income' ? 1 : 0;
+  return values[index] ?? values[0] ?? null;
+}
+
 export function transactionInputFromFormData(formData: FormData): Record<string, unknown> {
   return {
     type: formData.get('type'),
     amount: formData.get('amount'),
     occurredOn: formData.get('occurredOn'),
-    categoryId: formData.get('categoryId'),
+    categoryId: categoryIdFromFormData(formData),
+    accountId: null,
     memo: formData.get('memo') ?? '',
   };
 }

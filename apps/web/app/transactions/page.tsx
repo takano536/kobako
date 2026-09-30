@@ -14,7 +14,11 @@ import {
 import { EmptyLedgerMotif } from '../../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { formatJapaneseDateShort, groupTransactionsByDate, monthLabel } from '../../src/lib/format';
-import { parseInt4Id } from '../../src/lib/ids';
+import {
+  firstQueryValue,
+  parseTransactionListFilters,
+  type TransactionListType,
+} from '../../src/lib/transaction-query';
 import { MonthPickerField } from './date-picker-field';
 import { TransactionRow } from './transaction-row';
 import { TransferRow } from './transfer-row';
@@ -27,54 +31,48 @@ export const metadata = {
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-type TransactionType = 'expense' | 'income';
 
-function firstQueryValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parseType(value: string | undefined): TransactionType | undefined {
-  return value === 'expense' || value === 'income' ? value : undefined;
-}
-
-function parseCategoryId(value: string | undefined): number | undefined {
-  return value ? parseInt4Id(value) : undefined;
-}
-
-function listHref(month: string, type?: TransactionType, categoryId?: number): string {
+function listHref(month: string, type?: TransactionListType, categoryId?: number): string {
   const params = new URLSearchParams({ month });
   if (type) params.set('type', type);
-  if (categoryId) params.set('category', String(categoryId));
+  if (categoryId && type !== 'transfer') params.set('category', String(categoryId));
   return `/transactions?${params.toString()}`;
 }
 
 function newTransactionHref(month: string): string {
-  return `/transactions/new?${new URLSearchParams({ month }).toString()}`;
-}
-
-function newTransferHref(month: string): string {
-  return `/transactions/transfers/new?${new URLSearchParams({ month }).toString()}`;
+  const params = new URLSearchParams({ month });
+  return `/transactions/new?${params.toString()}`;
 }
 
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const month = parseMonth(firstQueryValue(query.month), currentTokyoMonth());
-  const type = parseType(firstQueryValue(query.type));
-  const categoryId = parseCategoryId(firstQueryValue(query.category));
+  const { type, categoryId } = parseTransactionListFilters(query);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const [rows, categories] = await Promise.all([
     listLedgerEntries(db, householdId, { month, type, categoryId }),
     listCategories(db, householdId),
   ]);
-  const filterCategories = type
-    ? categories.filter((category) => category.type === type)
-    : categories;
+  const filterCategories =
+    type && type !== 'transfer'
+      ? categories.filter((category) => category.type === type)
+      : type === 'transfer'
+        ? []
+        : categories;
   const hasFilter = Boolean(type || categoryId);
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
-  const filterSummary = `${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべての種別'}・${categoryName ?? 'すべてのカテゴリ'}`;
+  const typeName =
+    type === 'expense'
+      ? '支出'
+      : type === 'income'
+        ? '収入'
+        : type === 'transfer'
+          ? '振替'
+          : 'すべての種別';
+  const filterSummary = `${typeName}・${type === 'transfer' ? 'カテゴリなし' : (categoryName ?? 'すべてのカテゴリ')}`;
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
 
   return (
@@ -87,9 +85,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         <div className="page-heading-actions">
           <Link className="import-link" href="/transactions/import">
             取り込む
-          </Link>
-          <Link className="add-link" href={newTransferHref(month)}>
-            ＋ 振替を追加
           </Link>
           <Link className="add-link" href={newTransactionHref(month)}>
             ＋ 取引を追加
@@ -138,11 +133,17 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 <option value="">すべて</option>
                 <option value="expense">支出</option>
                 <option value="income">収入</option>
+                <option value="transfer">振替</option>
               </select>
             </label>
             <label>
               カテゴリ
-              <select name="category" defaultValue={categoryId ? String(categoryId) : ''}>
+              <select
+                name="category"
+                defaultValue={categoryId ? String(categoryId) : ''}
+                disabled={type === 'transfer'}
+                aria-describedby={type === 'transfer' ? 'transfer-category-note' : undefined}
+              >
                 <option value="">すべて</option>
                 {filterCategories.map((category) => (
                   <option key={category.id} value={category.id}>
@@ -150,6 +151,11 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   </option>
                 ))}
               </select>
+              {type === 'transfer' ? (
+                <span id="transfer-category-note" className="sr-only">
+                  振替にはカテゴリがありません
+                </span>
+              ) : null}
             </label>
             <button className="button button-primary" type="submit">
               適用
