@@ -35,7 +35,7 @@ main への push は、同じ commit (`github.sha`) を明示的に checkout し
 
 1. format、Release Please 生成物の検証、lint、typecheck
 2. unit、integration、production build、E2E
-3. Docker の web/migrate/worker build と Compose の migration・web・DB health
+3. Docker の web/migrate/worker build と、独立 `migrate` サービスを含まない標準 Compose の web image 起動前 migration、web/DB health
 4. すべて成功した場合だけ Release Please を実行
 5. Release Please が `release_created: true` を返した場合だけ、厳密な `vX.Y.Z` tag を検証して SemVer image を公開
 
@@ -59,7 +59,7 @@ guard は main の現在 tip commit ではなく、merge済み `autorelease: pen
 - `ghcr.io/takano536/kobako-web:X.Y.Z`
 - `ghcr.io/takano536/kobako-migrate:X.Y.Z`
 
-`web` と `migrate` は必ず同じ Release PR merge commit の同じ version で公開します。Release image は `^vX.Y.Z$` の Release Please output 以外から作成せず、tag が origin に存在し、保護された merge commit を指すことを公開前に確認します。OCI label の `source`、`revision`、`version` も検証します。同じ version が同じ revision で既に存在する場合は再実行時に再利用し、別 revision または不明な内容なら上書きせず失敗します。
+`web` と `migrate` は必ず同じ Release PR merge commit の同じ version で公開します。`migrate` image は既存利用者との互換性を保つ手動保守・外部オーケストレーション向けで、通常の Compose/Dockge Deploy では使用しません。Release image は `^vX.Y.Z$` の Release Please output 以外から作成せず、tag が origin に存在し、保護された merge commit を指すことを公開前に確認します。OCI label の `source`、`revision`、`version` も検証します。同じ version が同じ revision で既に存在する場合は再実行時に再利用し、別 revision または不明な内容なら上書きせず失敗します。
 
 main の quality gate に成功した通常 build では次の tag も更新します。
 
@@ -74,7 +74,7 @@ Release merge commit への main push では `publish_main` と `publish_release
 
 ## DB migration と rollback
 
-既存データを維持する additive migration は内容に応じて patch または minor とします。列削除、互換性のない型変更、データ損失、手動手順が必要な migration は breaking change とし、PR と CHANGELOG に明記します。rollback では以前の完全な `X.Y.Z`、または調査時点の `sha-<full commit SHA>` へ web と migrate を一緒に pin します。migration が forward-only の場合、image を戻しても schema は戻らないため、必要なら DB backup を復元します。
+既存データを維持する additive migration は内容に応じて patch または minor とします。列削除、互換性のない型変更、データ損失、手動手順が必要な migration は breaking change とし、PR と CHANGELOG に明記します。通常の Compose/Dockge Deploy では web image が PostgreSQL healthy 後かつ Next.js 起動前に migration を適用するため、利用者は web のタグを更新して Deploy するだけで、既存の DB volume を削除する必要はありません。migration に失敗した場合は web が起動せず、ログを確認します。rollback では以前の完全な `X.Y.Z`、または調査時点の `sha-<full commit SHA>` へ web を pin します。migration が forward-only の場合、image を戻しても schema は戻らないため、バージョンダウン前に DB backup を取得してアプリとの互換性を確認し、必要なら DB backup を復元します。
 
 private GHCR の pull には `read:packages` 権限が必要です。token は Compose や repository に保存しません。
 
