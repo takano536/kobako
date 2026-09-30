@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/takano536/kobako/compare/v0.2.0...v0.2.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* web 起動前に DB migration を自動適用する ([#12](https://github.com/takano536/kobako/issues/12)) ([d8453b1](https://github.com/takano536/kobako/commit/d8453b107938f837b917db9f6f30dfa4ed88eaf3))
+
 ## [0.2.0](https://github.com/takano536/kobako/compare/v0.1.1...v0.2.0) (2026-09-30)
 
 
