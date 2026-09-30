@@ -22,6 +22,13 @@
       "when": 1790512371715,
       "tag": "0002_bitter_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790721354855,
+      "tag": "0003_money_manager_import",
+      "breakpoints": true
     }
   ]
 }

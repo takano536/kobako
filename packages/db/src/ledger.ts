@@ -1,11 +1,15 @@
 import { and, asc, desc, eq, gte, lt, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
+  accounts,
   categories,
   households,
   transactions,
+  transfers,
+  type Account,
   type Category,
   type NewTransaction,
   type Transaction,
@@ -62,6 +66,13 @@ export async function getHousehold(db: Database, householdId: string) {
   const rows = await db.select().from(households).where(eq(households.id, householdId)).limit(1);
   return rows[0] ?? null;
 }
+export async function listAccounts(db: Database, householdId: string): Promise<Account[]> {
+  return db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.householdId, householdId))
+    .orderBy(asc(accounts.name), asc(accounts.id));
+}
 
 export async function listCategories(
   db: Database,
@@ -113,8 +124,24 @@ export interface ListedTransaction {
   occurredOn: string;
   categoryId: number;
   categoryName: string;
+  accountId: number | null;
+  accountName: string | null;
   memo: string;
 }
+
+export interface ListedTransfer {
+  id: number;
+  type: 'transfer';
+  amount: number;
+  occurredOn: string;
+  fromAccountId: number;
+  fromAccountName: string;
+  toAccountId: number;
+  toAccountName: string;
+  memo: string;
+}
+
+export type ListedLedgerEntry = ListedTransaction | ListedTransfer;
 
 function transactionConditions(householdId: string, filters: TransactionFilters): SQL[] {
   const range = monthRange(filters.month);
@@ -145,6 +172,8 @@ export async function listTransactions(
       occurredOn: transactions.occurredOn,
       categoryId: transactions.categoryId,
       categoryName: categories.name,
+      accountId: transactions.accountId,
+      accountName: accounts.name,
       memo: transactions.memo,
     })
     .from(transactions)
@@ -156,9 +185,69 @@ export async function listTransactions(
         eq(categories.type, transactions.type),
       ),
     )
+    .leftJoin(
+      accounts,
+      and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
+    )
     .where(and(...transactionConditions(householdId, filters)))
     .orderBy(desc(transactions.occurredOn), desc(transactions.id));
   return filters.limit ? query.limit(filters.limit) : query;
+}
+
+export async function listLedgerEntries(
+  db: Database,
+  householdId: string,
+  filters: TransactionFilters,
+): Promise<ListedLedgerEntry[]> {
+  const transactionRows = await listTransactions(db, householdId, {
+    ...filters,
+    limit: undefined,
+  });
+  if (filters.type || filters.categoryId) {
+    return filters.limit ? transactionRows.slice(0, filters.limit) : transactionRows;
+  }
+
+  const range = monthRange(filters.month);
+  const fromAccounts = alias(accounts, 'transfer_from_accounts');
+  const toAccounts = alias(accounts, 'transfer_to_accounts');
+  const transferRows = await db
+    .select({
+      id: transfers.id,
+      amount: transfers.amount,
+      occurredOn: transfers.occurredOn,
+      fromAccountId: transfers.fromAccountId,
+      fromAccountName: fromAccounts.name,
+      toAccountId: transfers.toAccountId,
+      toAccountName: toAccounts.name,
+      memo: transfers.memo,
+    })
+    .from(transfers)
+    .innerJoin(
+      fromAccounts,
+      and(eq(fromAccounts.id, transfers.fromAccountId), eq(fromAccounts.householdId, householdId)),
+    )
+    .innerJoin(
+      toAccounts,
+      and(eq(toAccounts.id, transfers.toAccountId), eq(toAccounts.householdId, householdId)),
+    )
+    .where(
+      and(
+        eq(transfers.householdId, householdId),
+        gte(transfers.occurredOn, range.start),
+        lt(transfers.occurredOn, range.endExclusive),
+      ),
+    );
+  const entries: ListedLedgerEntry[] = [
+    ...transactionRows,
+    ...transferRows.map((transfer) => ({ ...transfer, type: 'transfer' as const })),
+  ];
+  entries.sort(
+    (left, right) =>
+      right.occurredOn.localeCompare(left.occurredOn) ||
+      right.id - left.id ||
+      (right.type === 'transfer' ? 1 : -1),
+  );
+  return filters.limit ? entries.slice(0, filters.limit) : entries;
 }
 
 export async function getTransaction(
@@ -174,6 +263,8 @@ export async function getTransaction(
       occurredOn: transactions.occurredOn,
       categoryId: transactions.categoryId,
       categoryName: categories.name,
+      accountId: transactions.accountId,
+      accountName: accounts.name,
       memo: transactions.memo,
     })
     .from(transactions)
@@ -185,8 +276,92 @@ export async function getTransaction(
         eq(categories.type, transactions.type),
       ),
     )
+    .leftJoin(
+      accounts,
+      and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
+    )
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .limit(1);
+  return rows[0] ?? null;
+}
+
+export interface AccountBalance {
+  accountId: number;
+  accountName: string;
+  income: string;
+  expense: string;
+  transfersIn: string;
+  transfersOut: string;
+  balance: string;
+}
+
+interface AccountBalanceRow {
+  [key: string]: unknown;
+  accountId: number;
+  accountName: string;
+  income: string;
+  expense: string;
+  transfersIn: string;
+  transfersOut: string;
+  balance: string;
+}
+
+// Transactions without an account_id are manual entries and stay out of per-account balances.
+export async function getAccountBalances(
+  db: Database,
+  householdId: string,
+): Promise<AccountBalance[]> {
+  const rows = await db.execute<AccountBalanceRow>(sql`
+    select
+      a.id as "accountId",
+      a.name as "accountName",
+      coalesce(tx.income, 0)::text as income,
+      coalesce(tx.expense, 0)::text as expense,
+      coalesce(tin.transfers_in, 0)::text as "transfersIn",
+      coalesce(tout.transfers_out, 0)::text as "transfersOut",
+      (
+        coalesce(tx.income, 0)
+        - coalesce(tx.expense, 0)
+        - coalesce(tout.transfers_out, 0)
+        + coalesce(tin.transfers_in, 0)
+      )::text as balance
+    from ${accounts} a
+    left join (
+      select
+        household_id,
+        account_id,
+        sum(case when type = 'income' then amount else 0 end)::bigint as income,
+        sum(case when type = 'expense' then amount else 0 end)::bigint as expense
+      from ${transactions}
+      where household_id = ${householdId} and account_id is not null
+      group by household_id, account_id
+    ) tx on tx.household_id = a.household_id and tx.account_id = a.id
+    left join (
+      select household_id, to_account_id as account_id, sum(amount)::bigint as transfers_in
+      from ${transfers}
+      where household_id = ${householdId}
+      group by household_id, to_account_id
+    ) tin on tin.household_id = a.household_id and tin.account_id = a.id
+    left join (
+      select household_id, from_account_id as account_id, sum(amount)::bigint as transfers_out
+      from ${transfers}
+      where household_id = ${householdId}
+      group by household_id, from_account_id
+    ) tout on tout.household_id = a.household_id and tout.account_id = a.id
+    where a.household_id = ${householdId}
+    order by a.name, a.id
+  `);
+  return rows;
+}
+
+export async function getAccountBalance(
+  db: Database,
+  householdId: string,
+  accountId: number,
+): Promise<AccountBalance | null> {
+  const rows = (await getAccountBalances(db, householdId)).filter(
+    (balance) => balance.accountId === accountId,
+  );
   return rows[0] ?? null;
 }
 
@@ -280,6 +455,7 @@ export async function createTransaction(
     amount: input.amount,
     occurredOn: input.occurredOn,
     categoryId: input.categoryId,
+    accountId: input.accountId ?? null,
     memo: input.memo,
   };
   const rows = await db.insert(transactions).values(values).returning();
@@ -303,6 +479,7 @@ export async function updateTransaction(
       amount: input.amount,
       occurredOn: input.occurredOn,
       categoryId: input.categoryId,
+      accountId: input.accountId ?? null,
       memo: input.memo,
       updatedAt: new Date(),
     })

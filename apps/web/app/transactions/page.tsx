@@ -5,9 +5,10 @@ import {
   MIN_SUPPORTED_YEAR,
   currentTokyoMonth,
   listCategories,
-  listTransactions,
+  listLedgerEntries,
   parseMonth,
   shiftMonth,
+  type ListedLedgerEntry,
 } from '@kobako/db';
 
 import { EmptyLedgerMotif } from '../../src/lib/category';
@@ -16,6 +17,7 @@ import { formatJapaneseDateShort, groupTransactionsByDate, monthLabel } from '..
 import { parseInt4Id } from '../../src/lib/ids';
 import { MonthPickerField } from './date-picker-field';
 import { TransactionRow } from './transaction-row';
+import { TransferRow } from './transfer-row';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -58,7 +60,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const [rows, categories] = await Promise.all([
-    listTransactions(db, householdId, { month, type, categoryId }),
+    listLedgerEntries(db, householdId, { month, type, categoryId }),
     listCategories(db, householdId),
   ]);
   const filterCategories = type
@@ -69,7 +71,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
   const filterSummary = `${type === 'expense' ? '支出' : type === 'income' ? '収入' : 'すべての種別'}・${categoryName ?? 'すべてのカテゴリ'}`;
-  const groupedRows = groupTransactionsByDate(rows);
+  const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
 
   return (
     <div className="content-stack transactions-page">
@@ -78,9 +80,14 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           <span className="heading-title">取引</span>
           <span className="heading-count">{rows.length}件</span>
         </h1>
-        <Link className="add-link" href={newTransactionHref(month)}>
-          ＋ 取引を追加
-        </Link>
+        <div className="page-heading-actions">
+          <Link className="import-link" href="/transactions/import">
+            取り込む
+          </Link>
+          <Link className="add-link" href={newTransactionHref(month)}>
+            ＋ 取引を追加
+          </Link>
+        </div>
       </section>
 
       <section className="transaction-controls" aria-labelledby="filter-title">
@@ -167,15 +174,28 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         ) : (
           <ul className="transaction-list transaction-list-full" aria-label="取引">
             {groupedRows.flatMap((group) =>
-              group.transactions.map((transaction, index) => (
-                <TransactionRow
-                  key={transaction.id}
-                  transaction={transaction}
-                  showMemo
-                  showDate={false}
-                  dateHeading={index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined}
-                />
-              )),
+              group.transactions.map((transaction, index) =>
+                transaction.type === 'transfer' ? (
+                  <TransferRow
+                    key={`transfer-${transaction.id}`}
+                    transfer={transaction}
+                    showMemo
+                    dateHeading={
+                      index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined
+                    }
+                  />
+                ) : (
+                  <TransactionRow
+                    key={`transaction-${transaction.id}`}
+                    transaction={transaction}
+                    showMemo
+                    showDate={false}
+                    dateHeading={
+                      index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined
+                    }
+                  />
+                ),
+              ),
             )}
           </ul>
         )}

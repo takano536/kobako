@@ -38,7 +38,7 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 ## server-only パッケージ
 
-`apps/web/src/lib/ledger-data.ts` は DB client と household 解決をこの一箇所に閉じ込めていますが、`server-only` パッケージはこのリポジトリに追加されていない（lockfile に存在しない）ため import していません。Client Component は `@kobako/db/validation` サブパスだけを import し DB client を含まないため、実害はありません。将来 `server-only` を依存として追加する場合はこのファイルの先頭に `import 'server-only'` を足すだけで済みます。
+`server-only` パッケージは依存に追加していません。DB client と household 解決は `apps/web/src/lib/ledger-data.ts` に置き、`apps/web/app/transactions/import/actions.ts` は `'use server'` で XLSX 解析と DB 操作を実行します。`import-form.tsx` は Server Action の参照と型だけを持ち、`state.ts` は型 import だけです。`page.tsx` は Server Component です。
 
 ## Worker
 
@@ -67,3 +67,37 @@ Release Please は root `.` の単一 version として扱います。root `pack
 ## Next.js generated guidance
 
 Next.js 16 の `next dev` が生成する `apps/web/AGENTS.md` と `apps/web/CLAUDE.md` は、ファイル内の指示どおり削除せず commit します。将来の Next.js 開発時に、該当バージョンの公式ガイドを確認するための開発者向け案内です。
+
+## Money Manager のインポートで使うパーサー
+
+XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比較しました。exceljs は依存関係が大きく UUID に関する脆弱性があり、xlsx/SheetJS CE は npm での更新が滞り、既知の脆弱性と配布元の検証上の懸念があります。read-excel-file は数式のキャッシュ値を受け入れ、展開時の上限を十分に設けにくく、fflate の `unzipSync` も展開前の検査が必要です。比較の結果、yauzl 3.4.0 と saxes 6.0.0 を採用しました。yauzl はエントリを必要な時に読み込み、`validateEntrySizes` とファイル名の厳格な検証を使えます。`fromBufferPromise` で入力バイト列から読み込み、saxes で XML を狭い範囲の機能だけ解析します。エントリ数、個別の展開量、全体の展開量をアプリケーション側で制限できるため、パーサーはサーバー側だけで使用します。
+
+## インポート形式と振替の扱い
+
+対応するのは「らくな家計簿」Android 版の Excel エクスポートだけです。iOS 版、PC Manager、CSV、`.xls`、`.mmbak` は対象外です。先頭 11 列は、日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順です。通常行の B は使用口座、振替（`引き出し`）行の B は送金元、C は送金先です。F が正本金額で、J は JPY の確認に使い、保存しません。I と K も保存せず、手数料は推測しません。
+
+振替は収入+支出の組にはせず、`accounts` と `transfers` の一行として保存します。振替は正の整数 JPY で、送金元と送金先を別口座に限定します。通常行の B/C はそれぞれ口座名/分類名として扱い、空の口座名・同一の振替元先・不正な日付や金額・未知の種別は、日本語の修正案付き行エラーにします。空でない新しい口座名はエラーではなくプレビューの新規口座一覧に出し、確定時に household 内で一度だけ作成します。
+
+## 口座・振替のデータモデル
+
+`accounts` は household ごとに `(household_id, name)` を一意にし、`(id, household_id)` を複合 FK の参照キーにします。`transactions.account_id` は nullable ですが、設定される場合は household を含む複合 FK で別家計を拒否します。`transfers` は from/to の両方に同じ複合 FK、`from <> to` CHECK、正の金額 CHECK を持ち、家計削除は cascade、参照中の口座削除は restrict です。取引の日付/口座、振替の日付/from/to に lookup index を持ちます。`getAccountBalances` は口座ごとに `income - expense - transfersOut + transfersIn` を文字列で返し、口座を持たない手入力の取引を除外します。月次収入・支出・カテゴリ集計は transfers を参照しません。
+
+## 重複検知と世帯ロック
+
+ファイル本体のバイト列から SHA-256 ハッシュを計算し、内容を識別する値として使います。`transaction_imports(household_id, source='realbyte-money-manager', sha256)` の一意制約で、同じ家計・提供元・ファイル内容の組み合わせを重複としてデータベース側でも防ぎます。SHA-256 は 64 文字の小文字 16 進数として DB の CHECK でも検証します。プレビューではこの記録を読み取り専用で確認します。
+
+確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を追加します。追加時の一意制約違反は重複として扱います。重複でなければ、取引に必要なカテゴリを種別と名前でまとめ、既存カテゴリを再利用し、新しいカテゴリには既存の最大 `sort_order` に 10 を加えた並び順を割り当てます。その後、取引を 500 行ずつ追加します。記録の追加を取引追加より先にロック内で行うため、同じファイルを同時に確定した場合も片方だけが登録されます。
+
+## 再アップロードによる確定
+
+`moneyManagerImportAction` はプレビュー時にファイルのハッシュを計算し、正規化と重複確認を行います。返すのはファイル名、集計値、先頭の取引行、エラー、新しく作るカテゴリなどに限られ、ファイル本体は保存しません。完了画面の一覧リンクは、取り込んだ期間の最新月を開きます。
+
+確定時は、画面に選択されたままのファイルを同じフォームからもう一度送信します。JavaScript が無効でも同じフォームを二回送信できます。サーバーはファイルを読み直してハッシュと上限を検証し、プレビュー時のハッシュと比較します。選択ファイルが変わっている場合やクライアントが保持する状態と一致しない場合は確定しません。ファイル本体はリクエスト処理中のメモリだけに置き、ディスクや `.tmp`、`public` には書き込みません。Next.js の `experimental.serverActions.bodySizeLimit` は multipart の付加分を含めて 6 MB に設定しています。
+
+## インポートの上限
+
+`MONEY_MANAGER_XLSX_LIMITS` は ZIP のエントリ数を 128、エントリごとの未圧縮サイズを 8 MiB、全体の未圧縮サイズを 32 MiB に制限します。共有文字列は 100,000 件、合計 8 MiB までです。ワークシートの取引行は読み込み時に `MONEY_MANAGER_MAX_ROWS` の 10,000 行まで、金額・日付シリアルの数値表記は 64 文字までです。共有文字列の参照先が範囲外ならファイルエラーにします。アップロードするファイル本体は 5 MiB、XML の深さは 64 までです。yauzl のサイズ検証で過剰な展開を防ぎ、saxes は DOCTYPE を拒否します。数式セルは検出して行エラーにします。
+
+## インポート schema
+
+schema は `packages/db/src/schema.ts` に定義し、`0003` は drizzle-kit で生成します。空 DB に全 migration を適用する integration test で確認します。
