@@ -605,6 +605,9 @@ test('matches delete control dimensions to save controls on desktop and mobile',
       expect(summaryMetrics.width).toBeGreaterThan(0);
       expect(summaryMetrics.width).toBeLessThan(viewport.width);
       await deleteSummary.click();
+      const openSummaryMetrics = await buttonMetrics(deleteSummary);
+      expectButtonMetricsToMatch(openSummaryMetrics, saveMetrics);
+      expect(openSummaryMetrics.width).toBeCloseTo(summaryMetrics.width, 1);
       const confirmationButton = page.getByRole('button', { name: '削除を確定' });
       const cancelLink = page.getByRole('link', { name: 'キャンセル' });
       await expect(confirmationButton).toBeVisible();
@@ -616,14 +619,14 @@ test('matches delete control dimensions to save controls on desktop and mobile',
       await assertDeleteConfirmationDoesNotOverlapForm(page);
       await assertNoHorizontalOverflow(page);
       if (kind === 'ordinary') {
-        ordinarySummaryMetrics = summaryMetrics;
+        ordinarySummaryMetrics = openSummaryMetrics;
         ordinaryConfirmationMetrics = confirmationMetrics;
       } else {
         if (!ordinarySummaryMetrics || !ordinaryConfirmationMetrics) {
           throw new Error('ordinary delete metrics were not captured');
         }
-        expect(summaryMetrics.width).toBeCloseTo(ordinarySummaryMetrics.width, 1);
-        expect(summaryMetrics.height).toBeCloseTo(ordinarySummaryMetrics.height, 1);
+        expect(openSummaryMetrics.width).toBeCloseTo(ordinarySummaryMetrics.width, 1);
+        expect(openSummaryMetrics.height).toBeCloseTo(ordinarySummaryMetrics.height, 1);
         expect(confirmationMetrics.width).toBeCloseTo(ordinaryConfirmationMetrics.width, 1);
         expect(confirmationMetrics.height).toBeCloseTo(ordinaryConfirmationMetrics.height, 1);
       }

@@ -1220,6 +1220,7 @@ h3 {
 
 .delete-confirm > summary {
   list-style: none;
+  width: max-content;
 }
 
 .delete-confirm > summary::-webkit-details-marker {
