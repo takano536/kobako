@@ -13,11 +13,18 @@ import {
   E2E_MARKER_PREFIX,
   SENTINEL_CLEANUP_END_YEAR,
   SENTINEL_MIN_YEAR,
+  assertCleanupMarker,
   assertEmptyMonth as assertEmptyMonthInDatabase,
   chooseEmptyMonthPair,
   labelForMonth,
   markerFor as markerForPrefix,
 } from './e2e-safety';
+import {
+  assertDeleteAndSaveAligned,
+  assertDeleteModalGeometry,
+  assertDeleteModalInteraction,
+  type ModalViewport,
+} from './delete-modal-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -39,12 +46,7 @@ async function assertEmptyMonth(value: string): Promise<void> {
 }
 
 async function deleteRunTransactions(client: DatabaseClient): Promise<void> {
-  if (
-    !runMarkerPrefix.startsWith(E2E_MARKER_PREFIX) ||
-    runMarkerPrefix.length <= E2E_MARKER_PREFIX.length
-  ) {
-    throw new Error('E2E cleanup marker is invalid');
-  }
+  assertCleanupMarker(runMarkerPrefix);
   await client.sql`
     delete from transactions
     where household_id = ${DEFAULT_HOUSEHOLD_ID}
@@ -106,7 +108,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
   await page.getByLabel('金額').fill('1,200');
   await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
-  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.locator('.category-field-expense select').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('expense'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -120,6 +122,41 @@ test('shows an empty month and reflects an added expense in the list and overvie
   );
 });
 
+test('supports keyboard entry and mobile layout for an ordinary transaction', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`/transactions/new?month=${month}`);
+  const amount = page.getByLabel('金額');
+  const category = page.locator('.category-field-expense select');
+  const memo = page.getByLabel('メモ（任意）');
+  await amount.focus();
+  await amount.pressSequentially('321');
+  await page.keyboard.press('Tab');
+  await expect(category).toBeFocused();
+  await category.press('Home');
+  await category.press('ArrowDown');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(memo).toBeFocused();
+  await memo.pressSequentially(markerFor('keyboard-mobile'));
+  const dimensions = await page.evaluate(() => ({
+    bodyWidth: document.body.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
+  expect(dimensions.bodyWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  await page.getByRole('button', { name: '登録する' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  const row = page.locator('.transaction-link').filter({ hasText: markerFor('keyboard-mobile') });
+  await expect(row).toHaveCount(1);
+  await row.click();
+  await page.locator('.delete-confirm > summary').click();
+  await page.getByRole('button', { name: '削除を確定' }).click();
+  await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
+  await expect(
+    page.locator('.transaction-link').filter({ hasText: markerFor('keyboard-mobile') }),
+  ).toHaveCount(0);
+});
+
 test('adds income and updates the difference, then edits and deletes a transaction', async ({
   page,
 }) => {
@@ -127,7 +164,7 @@ test('adds income and updates the difference, then edits and deletes a transacti
   await page.getByText('収入', { exact: true }).click();
   await page.getByLabel('金額').fill('5,000');
   await page.locator('input[name="occurredOn"]').fill(`${month}-20`);
-  await page.getByLabel('カテゴリ').selectOption({ label: '給与' });
+  await page.locator('.category-field-income select').selectOption({ label: '給与' });
   await page.getByLabel('メモ（任意）').fill(markerFor('income'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -147,6 +184,14 @@ test('adds income and updates the difference, then edits and deletes a transacti
 
   await page.getByRole('link', { name: /10日/ }).click();
   const deleteTrigger = page.locator('.delete-confirm > summary');
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 375, height: 812 },
+  ] satisfies ModalViewport[]) {
+    await page.setViewportSize(viewport);
+    await assertDeleteAndSaveAligned(page);
+    await assertDeleteModalInteraction(page, viewport);
+  }
   await deleteTrigger.click();
   await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
   await page.getByRole('link', { name: 'キャンセル' }).click();
@@ -156,8 +201,11 @@ test('adds income and updates the difference, then edits and deletes a transacti
     input.remove();
   });
   await page.getByRole('button', { name: '削除を確定' }).click();
-  await expect(page.getByRole('dialog')).toContainText('確認操作を完了してください');
-  await page.getByRole('button', { name: '閉じる' }).click();
+  await expect(page.locator('.form-error-dialog')).toContainText('確認操作を完了してください');
+  await page
+    .locator('.form-error-dialog')
+    .getByRole('button', { name: '閉じる', exact: true })
+    .click();
   await page.reload();
   await page.locator('.delete-confirm > summary').click();
   await page.getByRole('button', { name: '削除を確定' }).click();
@@ -197,10 +245,22 @@ test('requires explicit delete confirmation when JavaScript is disabled', async 
   const page = await context.newPage();
   try {
     await page.goto(`/transactions/${transactionId}/edit`);
-    const deleteTrigger = page.locator('.delete-confirm > summary');
+    const desktopViewport = { width: 1280, height: 900 } satisfies ModalViewport;
+    await page.setViewportSize(desktopViewport);
+    let deleteTrigger = page.locator('.delete-confirm > summary');
     await expect(deleteTrigger).toBeVisible();
     await deleteTrigger.click();
     await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await assertDeleteModalGeometry(page, desktopViewport);
+    await page.getByRole('link', { name: 'キャンセル' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions/${transactionId}/edit`));
+
+    const mobileViewport = { width: 375, height: 812 } satisfies ModalViewport;
+    await page.setViewportSize(mobileViewport);
+    deleteTrigger = page.locator('.delete-confirm > summary');
+    await deleteTrigger.click();
+    await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await assertDeleteModalGeometry(page, mobileViewport);
     await page.getByRole('button', { name: '削除を確定' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
     await expect(page.getByRole('link', { name: /支出.*321円/ })).toHaveCount(0);
@@ -254,7 +314,7 @@ test('preselects an unknown category when editing its transaction', async ({ pag
 
   try {
     await page.goto(`/transactions/${transactionId}/edit`);
-    const categorySelect = page.getByLabel('カテゴリ');
+    const categorySelect = page.locator('.category-field-expense select');
     await expect(categorySelect).toHaveValue(String(categoryId));
     await expect(categorySelect.locator('option:checked')).toHaveText('不明なカテゴリ');
     await expect(page.getByLabel('メモ（任意）')).toHaveValue(memo);
@@ -271,7 +331,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await page.goto(`/transactions/new?month=${nextMonth}`);
   await page.getByLabel('金額').fill('700');
   await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-05`);
-  await page.getByLabel('カテゴリ').selectOption({ label: '日用品' });
+  await page.locator('.category-field-expense select').selectOption({ label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
   await page.getByRole('button', { name: '登録する' }).click();
 
@@ -324,7 +384,7 @@ test('saves and displays zero and negative amounts', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('0');
   await page.locator('input[name="occurredOn"]').fill(`${month}-26`);
-  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.locator('.category-field-expense select').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('zero'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -333,7 +393,7 @@ test('saves and displays zero and negative amounts', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('-1200');
   await page.locator('input[name="occurredOn"]').fill(`${month}-27`);
-  await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+  await page.locator('.category-field-expense select').selectOption({ label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('negative'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -378,7 +438,7 @@ test('rejects invalid amount input without stripping and shows an accessible for
   await expect(page.locator('#transaction-amount-format-error')).toHaveCount(0);
   for (const selector of [
     '.amount-line .field-value',
-    '.category-field .field-value',
+    '.category-field-expense .field-value',
     '.date-field .field-value',
     '.memo-field .field-value',
   ]) {
@@ -401,7 +461,7 @@ test('centers and auto-grows the memo field up to five lines', async ({ page }) 
 
   const memo = page.locator('#transaction-memo');
   const memoRow = page.locator('.memo-field');
-  const categoryRow = page.locator('.category-field');
+  const categoryRow = page.locator('.category-field-expense');
   const measureMemo = () =>
     memoRow.evaluate((field) => {
       const label = field.querySelector('label');
@@ -538,7 +598,7 @@ test('opens an error dialog and restores focus without changing invalid row heig
 test('keeps the date picker tab stop visible and saves after picking a date', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   const amount = page.getByLabel('金額');
-  const category = page.getByLabel('カテゴリ');
+  const category = page.locator('.category-field-expense select');
   const dateDisplay = page.locator('.date-picker-display');
   const memo = page.getByLabel('メモ（任意）');
   await amount.focus();
@@ -584,7 +644,7 @@ test('formats date and month controls independently of browser locale', async ({
     await dateInput.fill(day);
     await expect(page.locator('.date-picker-display')).toContainText(expectedDate);
     await page.getByLabel('金額').fill('321');
-    await page.getByLabel('カテゴリ').selectOption({ label: '食費' });
+    await page.locator('.category-field-expense select').selectOption({ label: '食費' });
     await page.getByLabel('メモ（任意）').fill(markerFor('locale-date'));
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));

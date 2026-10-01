@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
-import { AMOUNT_LIMIT, transactionInputSchema, normalizeAmountInput } from './validation.js';
+import {
+  AMOUNT_LIMIT,
+  transactionInputFromFormData,
+  transactionInputSchema,
+  transferInputSchema,
+  normalizeAmountInput,
+} from './validation.js';
 
 describe('transaction input validation', () => {
   it('normalizes accepted ASCII integer input forms, including signed amounts', () => {
@@ -12,6 +18,17 @@ describe('transaction input validation', () => {
     expect(normalizeAmountInput('-100')).toBe(-100);
     expect(normalizeAmountInput('-1,200')).toBe(-1_200);
     expect(normalizeAmountInput('0')).toBe(0);
+  });
+
+  it('ignores account ids from ordinary transaction form posts', () => {
+    const formData = new FormData();
+    formData.set('type', 'expense');
+    formData.set('amount', '100');
+    formData.set('occurredOn', '2026-09-01');
+    formData.set('categoryId', '1');
+    formData.set('accountId', '2147483647');
+    formData.set('memo', '');
+    expect(transactionInputFromFormData(formData)).toMatchObject({ accountId: null });
   });
 
   it('rejects malformed amounts while allowing zero and negative integers', () => {
@@ -53,19 +70,57 @@ describe('transaction input validation', () => {
     });
     expect(negative.success).toBe(true);
 
-    const decimal = transactionInputSchema.safeParse({
-      type: 'expense',
-      amount: '1.5',
-      occurredOn: '2026-09-01',
-      categoryId: '1',
-      memo: '',
-    });
-    expect(decimal.success).toBe(false);
-    if (!decimal.success) {
-      expect(decimal.error.issues[0]?.message).toBe('金額は整数で入力してください。');
+    const amountCases = [
+      ['1', true, undefined],
+      ['1.0', true, undefined],
+      ['1.00', true, undefined],
+      ['1.5', false, '金額は整数で入力してください。'],
+      ['1.', false, '金額を入力してください。'],
+      ['.5', false, '金額は整数で入力してください。'],
+      ['-1', true, undefined],
+      ['0', true, undefined],
+      ['1,000', true, undefined],
+      ['abc', false, '金額を入力してください。'],
+      ['', false, '金額を入力してください。'],
+    ] as const;
+    for (const [amount, success, message] of amountCases) {
+      const result = transactionInputSchema.safeParse({
+        type: 'expense',
+        amount,
+        occurredOn: '2026-09-01',
+        categoryId: '1',
+        memo: '',
+      });
+      expect(result.success, amount).toBe(success);
+      if (!result.success && message) {
+        expect(result.error.flatten().fieldErrors.amount, amount).toContain(message);
+      }
+    }
+    for (const [amount, success, message] of amountCases) {
+      const result = transferInputSchema.safeParse({
+        fromAccountId: '1',
+        toAccountId: '2',
+        amount,
+        occurredOn: '2026-09-01',
+        memo: '',
+      });
+      const transferDecimal = amount === '1.' || amount === '1.0' || amount === '1.00';
+      const transferSuccess =
+        amount === '-1' || amount === '0' || transferDecimal ? false : success;
+      const expectedMessage =
+        amount === '-1' || amount === '0'
+          ? '金額は1円以上で入力してください。'
+          : transferDecimal
+            ? '金額は整数で入力してください。'
+            : message;
+      expect(result.success, `transfer ${amount}`).toBe(transferSuccess);
+      if (!result.success && expectedMessage) {
+        expect(result.error.flatten().fieldErrors.amount, `transfer ${amount}`).toContain(
+          expectedMessage,
+        );
+      }
     }
   });
-
   it('enforces the symmetric integer amount limit and trimmed memo length', () => {
     const valid = transactionInputSchema.safeParse({
       type: 'income',

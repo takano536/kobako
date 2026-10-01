@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
@@ -14,8 +14,9 @@ import {
   type NewTransaction,
   type Transaction,
   type TransactionType,
+  type Transfer,
 } from './schema.js';
-import type { TransactionInput } from './validation.js';
+import { MAX_INT4_ID, type TransactionInput, type TransferInput } from './validation.js';
 
 export const DEFAULT_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_HOUSEHOLD_SLUG = 'local';
@@ -117,6 +118,10 @@ export interface TransactionFilters {
   limit?: number;
 }
 
+export interface LedgerEntryFilters extends Omit<TransactionFilters, 'type'> {
+  type?: TransactionType | 'transfer';
+}
+
 export interface ListedTransaction {
   id: number;
   type: TransactionType;
@@ -143,6 +148,18 @@ export interface ListedTransfer {
 
 export type ListedLedgerEntry = ListedTransaction | ListedTransfer;
 
+export type TransferValidationCode =
+  'from_account_unavailable' | 'to_account_unavailable' | 'accounts_unavailable' | 'same_account';
+
+export type TransferMutationResult =
+  | { status: 'ok'; transfer: Transfer }
+  | { status: 'not_found' }
+  | { status: 'validation_error'; code: TransferValidationCode }
+  | { status: 'error' };
+
+export type TransferDeleteResult =
+  { status: 'ok'; occurredOn: string } | { status: 'not_found' } | { status: 'error' };
+
 function transactionConditions(householdId: string, filters: TransactionFilters): SQL[] {
   const range = monthRange(filters.month);
   const conditions: SQL[] = [
@@ -150,7 +167,7 @@ function transactionConditions(householdId: string, filters: TransactionFilters)
     gte(transactions.occurredOn, range.start),
     lt(transactions.occurredOn, range.endExclusive),
   ];
-  if (filters.type) {
+  if (filters.type === 'expense' || filters.type === 'income') {
     conditions.push(eq(transactions.type, filters.type));
   }
   if (filters.categoryId) {
@@ -197,13 +214,18 @@ export async function listTransactions(
 export async function listLedgerEntries(
   db: Database,
   householdId: string,
-  filters: TransactionFilters,
+  filters: LedgerEntryFilters,
 ): Promise<ListedLedgerEntry[]> {
-  const transactionRows = await listTransactions(db, householdId, {
-    ...filters,
-    limit: undefined,
-  });
-  if (filters.type || filters.categoryId) {
+  const transactionRows =
+    filters.type === 'transfer'
+      ? []
+      : await listTransactions(db, householdId, {
+          month: filters.month,
+          type: filters.type,
+          categoryId: filters.categoryId,
+          limit: undefined,
+        });
+  if (filters.type !== 'transfer' && (filters.type || filters.categoryId)) {
     return filters.limit ? transactionRows.slice(0, filters.limit) : transactionRows;
   }
 
@@ -283,6 +305,39 @@ export async function getTransaction(
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .limit(1);
   return rows[0] ?? null;
+}
+
+export async function getTransfer(
+  db: Database,
+  householdId: string,
+  id: number,
+): Promise<ListedTransfer | null> {
+  const fromAccounts = alias(accounts, 'transfer_from_accounts');
+  const toAccounts = alias(accounts, 'transfer_to_accounts');
+  const rows = await db
+    .select({
+      id: transfers.id,
+      amount: transfers.amount,
+      occurredOn: transfers.occurredOn,
+      fromAccountId: transfers.fromAccountId,
+      fromAccountName: fromAccounts.name,
+      toAccountId: transfers.toAccountId,
+      toAccountName: toAccounts.name,
+      memo: transfers.memo,
+    })
+    .from(transfers)
+    .innerJoin(
+      fromAccounts,
+      and(eq(fromAccounts.id, transfers.fromAccountId), eq(fromAccounts.householdId, householdId)),
+    )
+    .innerJoin(
+      toAccounts,
+      and(eq(toAccounts.id, transfers.toAccountId), eq(toAccounts.householdId, householdId)),
+    )
+    .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+    .limit(1);
+  const transfer = rows[0];
+  return transfer ? { ...transfer, type: 'transfer' } : null;
 }
 
 export interface AccountBalance {
@@ -498,4 +553,284 @@ export async function deleteTransaction(
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .returning({ occurredOn: transactions.occurredOn });
   return rows[0] ?? null;
+}
+
+type LedgerTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+type LedgerExecutor = Database | LedgerTransaction;
+
+async function validateTransferAccounts(
+  db: LedgerExecutor,
+  householdId: string,
+  fromAccountId: number,
+  toAccountId: number,
+): Promise<TransferValidationCode | null> {
+  const fromInvalid =
+    !Number.isSafeInteger(fromAccountId) || fromAccountId < 1 || fromAccountId > MAX_INT4_ID;
+  const toInvalid =
+    !Number.isSafeInteger(toAccountId) || toAccountId < 1 || toAccountId > MAX_INT4_ID;
+  if (fromInvalid && toInvalid) {
+    return 'accounts_unavailable';
+  }
+  if (fromInvalid) {
+    return 'from_account_unavailable';
+  }
+  if (toInvalid) {
+    return 'to_account_unavailable';
+  }
+  if (fromAccountId === toAccountId) {
+    return 'same_account';
+  }
+  const accountRows = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.householdId, householdId),
+        inArray(accounts.id, [fromAccountId, toAccountId]),
+      ),
+    );
+  const accountIds = new Set(accountRows.map((account) => account.id));
+  const fromAvailable = accountIds.has(fromAccountId);
+  const toAvailable = accountIds.has(toAccountId);
+  if (fromAvailable && toAvailable) {
+    return null;
+  }
+  if (!fromAvailable && !toAvailable) {
+    return 'accounts_unavailable';
+  }
+  return fromAvailable ? 'to_account_unavailable' : 'from_account_unavailable';
+}
+
+export async function createTransfer(
+  db: Database,
+  householdId: string,
+  input: TransferInput,
+): Promise<TransferMutationResult> {
+  try {
+    return await db.transaction(async (transaction) => {
+      const validationCode = await validateTransferAccounts(
+        transaction,
+        householdId,
+        input.fromAccountId,
+        input.toAccountId,
+      );
+      if (validationCode) {
+        return { status: 'validation_error', code: validationCode };
+      }
+      const rows = await transaction
+        .insert(transfers)
+        .values({
+          householdId,
+          fromAccountId: input.fromAccountId,
+          toAccountId: input.toAccountId,
+          amount: input.amount,
+          occurredOn: input.occurredOn,
+          memo: input.memo,
+        })
+        .returning();
+      const transfer = rows[0];
+      return transfer ? { status: 'ok', transfer } : { status: 'error' };
+    });
+  } catch (error) {
+    console.error('[ledger/createTransfer] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
+}
+
+export async function updateTransfer(
+  db: Database,
+  householdId: string,
+  id: number,
+  input: TransferInput,
+): Promise<TransferMutationResult> {
+  try {
+    return await db.transaction(async (transaction) => {
+      const targetRows = await transaction
+        .select({ id: transfers.id })
+        .from(transfers)
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .limit(1);
+      if (!targetRows[0]) {
+        return { status: 'not_found' };
+      }
+      const validationCode = await validateTransferAccounts(
+        transaction,
+        householdId,
+        input.fromAccountId,
+        input.toAccountId,
+      );
+      if (validationCode) {
+        return { status: 'validation_error', code: validationCode };
+      }
+      const rows = await transaction
+        .update(transfers)
+        .set({
+          fromAccountId: input.fromAccountId,
+          toAccountId: input.toAccountId,
+          amount: input.amount,
+          occurredOn: input.occurredOn,
+          memo: input.memo,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .returning();
+      const transfer = rows[0];
+      return transfer ? { status: 'ok', transfer } : { status: 'not_found' };
+    });
+  } catch (error) {
+    console.error('[ledger/updateTransfer] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
+}
+
+export type TransactionConversionResult =
+  | { status: 'ok'; transaction: Transaction }
+  | { status: 'not_found' }
+  | { status: 'validation_error'; code: 'category_unavailable' }
+  | { status: 'error' };
+
+export async function convertTransactionToTransfer(
+  db: Database,
+  householdId: string,
+  id: number,
+  input: TransferInput,
+): Promise<TransferMutationResult> {
+  try {
+    return await db.transaction(async (transaction) => {
+      const sourceRows = await transaction
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+        .limit(1)
+        .for('update');
+      if (!sourceRows[0]) {
+        return { status: 'not_found' };
+      }
+      const validationCode = await validateTransferAccounts(
+        transaction,
+        householdId,
+        input.fromAccountId,
+        input.toAccountId,
+      );
+      if (validationCode) {
+        return { status: 'validation_error', code: validationCode };
+      }
+      const inserted = await transaction
+        .insert(transfers)
+        .values({
+          householdId,
+          fromAccountId: input.fromAccountId,
+          toAccountId: input.toAccountId,
+          amount: input.amount,
+          occurredOn: input.occurredOn,
+          memo: input.memo,
+        })
+        .returning();
+      const transfer = inserted[0];
+      if (!transfer) {
+        throw new Error('Transaction conversion insert returned no row');
+      }
+      const deleted = await transaction
+        .delete(transactions)
+        .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+        .returning({ id: transactions.id });
+      if (!deleted[0]) {
+        throw new Error('Transaction conversion delete returned no row');
+      }
+      return { status: 'ok', transfer };
+    });
+  } catch (error) {
+    console.error('[ledger/convertTransactionToTransfer] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
+}
+
+export async function convertTransferToTransaction(
+  db: Database,
+  householdId: string,
+  id: number,
+  input: TransactionInput,
+): Promise<TransactionConversionResult> {
+  try {
+    return await db.transaction(async (transaction) => {
+      const sourceRows = await transaction
+        .select({ id: transfers.id })
+        .from(transfers)
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .limit(1)
+        .for('update');
+      if (!sourceRows[0]) {
+        return { status: 'not_found' };
+      }
+      const categoryRows = await transaction
+        .select({ id: categories.id })
+        .from(categories)
+        .where(
+          and(
+            eq(categories.id, input.categoryId),
+            eq(categories.householdId, householdId),
+            eq(categories.type, input.type),
+          ),
+        )
+        .limit(1);
+      if (!categoryRows[0]) {
+        return { status: 'validation_error', code: 'category_unavailable' };
+      }
+      const inserted = await transaction
+        .insert(transactions)
+        .values({
+          householdId,
+          type: input.type,
+          amount: input.amount,
+          occurredOn: input.occurredOn,
+          categoryId: input.categoryId,
+          accountId: null,
+          memo: input.memo,
+        })
+        .returning();
+      const transactionRow = inserted[0];
+      if (!transactionRow) {
+        throw new Error('Transfer conversion insert returned no row');
+      }
+      const deleted = await transaction
+        .delete(transfers)
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .returning({ id: transfers.id });
+      if (!deleted[0]) {
+        throw new Error('Transfer conversion delete returned no row');
+      }
+      return { status: 'ok', transaction: transactionRow };
+    });
+  } catch (error) {
+    console.error('[ledger/convertTransferToTransaction] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
+}
+
+export async function deleteTransfer(
+  db: Database,
+  householdId: string,
+  id: number,
+): Promise<TransferDeleteResult> {
+  try {
+    const rows = await db
+      .delete(transfers)
+      .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+      .returning({ occurredOn: transfers.occurredOn });
+    const deleted = rows[0];
+    return deleted ? { status: 'ok', occurredOn: deleted.occurredOn } : { status: 'not_found' };
+  } catch (error) {
+    console.error('[ledger/deleteTransfer] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
 }

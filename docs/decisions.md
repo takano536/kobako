@@ -101,3 +101,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 ## インポート schema
 
 schema は `packages/db/src/schema.ts` に定義し、`0003` は drizzle-kit で生成します。空 DB に全 migration を適用する integration test で確認します。
+
+## 統合フォームでの振替入力
+
+振替は通常の支出・収入と同じ登録・編集フォームの種別選択肢に含め、amount/date/memo を共有します。振替を選んだときだけ元口座・先口座を表示し、カテゴリは表示せず、口座数にかかわらず保存を試行できます。口座未選択や同一口座などの入力エラーは既存のクライアント・サーバー検証で拒否し、DB の制約も維持します。種別変更の保存は DB transaction 内で新しい行を作成して元行を削除するため、変換途中の二重計上や消失を防ぎます。

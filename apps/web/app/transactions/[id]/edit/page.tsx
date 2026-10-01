@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { getTransaction, listCategories } from '@kobako/db';
+import { getTransaction, listAccounts, listCategories } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { parseInt4Id } from '../../../../src/lib/ids';
@@ -24,15 +24,16 @@ export default async function EditTransactionPage({ params }: { params: Promise<
 
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
-  const [transaction, categories] = await Promise.all([
+  const [transaction, categories, accounts] = await Promise.all([
     getTransaction(db, householdId, id),
     listCategories(db, householdId),
+    listAccounts(db, householdId),
   ]);
   if (!transaction) {
     notFound();
   }
 
-  const action = updateTransactionAction.bind(null, idText);
+  const action = updateTransactionAction.bind(null, idText, 'transaction');
   return (
     <div className="content-stack content-narrow form-page">
       <section className="page-heading" aria-labelledby="edit-transaction-title">
@@ -49,11 +50,14 @@ export default async function EditTransactionPage({ params }: { params: Promise<
           <TransactionForm
             action={action}
             categories={categories}
+            accounts={accounts}
             initialValues={{
               type: transaction.type,
               amount: String(transaction.amount),
               occurredOn: transaction.occurredOn,
               categoryId: String(transaction.categoryId),
+              fromAccountId: '',
+              toAccountId: '',
               memo: transaction.memo,
             }}
             submitLabel="変更を保存"

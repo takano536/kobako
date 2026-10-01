@@ -742,6 +742,13 @@ h3 {
   font-size: var(--text-body);
 }
 
+.transfer-category {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
 .transaction-memo {
   display: -webkit-box;
   overflow: hidden;
@@ -965,6 +972,40 @@ h3 {
   border-bottom: 1px solid var(--rule);
 }
 
+.ledger-form .category-field-income,
+.account-detail-grid,
+.save-button-transfer {
+  display: none;
+}
+
+.ledger-form:has(input[name='type'][value='income']:checked) .category-field-expense,
+.ledger-form:has(input[name='type'][value='transfer']:checked) .category-field-expense,
+.ledger-form:has(input[name='type'][value='transfer']:checked) .category-field-income {
+  display: none;
+}
+
+.ledger-form:has(input[name='type'][value='income']:checked) .category-field-income,
+.ledger-form:has(input[name='type'][value='transfer']:checked) .account-detail-grid {
+  display: grid;
+}
+
+.save-button-options {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save-button-ordinary {
+  display: contents;
+}
+
+.ledger-form:has(input[name='type'][value='transfer']:checked) .save-button-ordinary {
+  display: none;
+}
+
+.ledger-form:has(input[name='type'][value='transfer']:checked) .save-button-transfer {
+  display: contents;
+}
+
 .entry-detail-grid .field > label {
   grid-column: 1;
   grid-row: 1;
@@ -1055,8 +1096,10 @@ h3 {
   grid-row: 1;
 }
 
-.entry-detail-grid .category-field .field-value > select {
+.entry-detail-grid .field-value > .field-select {
   appearance: none;
+  padding: 4px 0;
+  font: inherit;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
   background-position: right center;
   background-repeat: no-repeat;
@@ -1165,13 +1208,15 @@ h3 {
   align-items: center;
   gap: 8px;
 }
+
 .delete-confirm {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .delete-confirm > summary {
   list-style: none;
+  width: max-content;
 }
 
 .delete-confirm > summary::-webkit-details-marker {
@@ -1182,11 +1227,38 @@ h3 {
   content: '';
 }
 
+.delete-modal-backdrop {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  border: 0;
+  background: rgb(41 46 43 / 55%);
+  cursor: default;
+}
+
+.delete-confirm[open] > .delete-modal-backdrop {
+  display: block;
+}
+
 .delete-confirmation {
   display: grid;
   gap: 8px;
   min-width: min(17rem, calc(100vw - 40px));
-  padding: 10px;
+  width: min(calc(100vw - 32px), 30rem);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  position: fixed;
+  z-index: 1001;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  padding: 20px;
+  transform: translate(-50%, -50%);
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--paper);
@@ -1197,12 +1269,6 @@ h3 {
 
 .delete-confirm-form {
   gap: 10px;
-}
-
-.delete-confirm-form .button {
-  min-height: 38px;
-  padding: 0.4rem 0.7rem;
-  font-size: var(--text-small);
 }
 
 .delete-cancel {
@@ -2248,9 +2314,9 @@ h3 {
     grid-column: auto;
   }
   .page-heading-actions {
-    align-items: flex-end;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
   }
 }
 
@@ -2265,20 +2331,13 @@ h3 {
   }
 }
 
-/* Transaction transfer rows: read-only, neutral, and distinct from cashflow rows. */
-.transaction-transfer {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
-  align-items: center;
-  column-gap: 8px;
-  min-width: 0;
-  min-height: 56px;
-  padding: 2px 0;
+.transfer-dot {
+  background: var(--muted);
 }
 
-.transaction-transfer-label {
-  color: var(--muted);
-  font-size: var(--text-small);
-  font-weight: 600;
+.account-field .field-value > select {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }

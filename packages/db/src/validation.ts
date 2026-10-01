@@ -7,7 +7,9 @@ import type { TransactionType } from './schema.js';
 export { AMOUNT_FORMAT_MESSAGE, AMOUNT_LIMIT, AMOUNT_TEXT_PATTERN_SOURCE } from './amount.js';
 
 export const MEMO_MAX_LENGTH = 200;
+export const MAX_INT4_ID = 2_147_483_647;
 const DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d+|\.\d+)$/;
+const TRANSFER_DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d*|\.\d+)$/;
 const AMOUNT_EDITING_PATTERN = /^-?(?:\d+|[1-9]\d{0,2}(?:,\d{3})*(?:,\d{0,3})?)$/;
 
 export function isAmountText(input: unknown): input is string {
@@ -129,6 +131,75 @@ export const accountIdSchema = z.preprocess((value) => {
   return value;
 }, z.number().int().positive().optional().nullable());
 
+/** Positive integer amount validation used for one-row account transfers. */
+export const transferAmountSchema = z.preprocess(
+  (input) => {
+    if (typeof input !== 'string') {
+      return input;
+    }
+    if (TRANSFER_DECIMAL_AMOUNT_PATTERN.test(input)) {
+      const amount = Number(input);
+      return Number.isInteger(amount) ? amount + 0.5 : amount;
+    }
+    return normalizeAmountInput(input);
+  },
+  z
+    .number({ error: '金額を入力してください。' })
+    .int({ error: '金額は整数で入力してください。' })
+    .min(1, { error: '金額は1円以上で入力してください。' })
+    .max(AMOUNT_LIMIT, {
+      error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。`,
+    }),
+);
+
+function requiredTransferAccountIdSchema(label: string) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+        return Number(value.trim());
+      }
+      return value;
+    },
+    z
+      .number({ error: `${label}の口座を選択してください。` })
+      .int({ error: `${label}の口座を選択してください。` })
+      .positive({ error: `${label}の口座を選択してください。` })
+      .max(MAX_INT4_ID, { error: '選択した口座は利用できません。' }),
+  );
+}
+
+export const transferInputSchema = z
+  .object({
+    fromAccountId: requiredTransferAccountIdSchema('振替元'),
+    toAccountId: requiredTransferAccountIdSchema('振替先'),
+    amount: transferAmountSchema,
+    occurredOn: occurredOnSchema,
+    memo: memoSchema,
+  })
+  .superRefine((value, context) => {
+    if (value.fromAccountId === value.toAccountId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['toAccountId'],
+        message: '振替元と振替先は別の口座を選択してください。',
+      });
+    }
+  });
+
+export type TransferInput = z.infer<typeof transferInputSchema>;
+
+export function transferInputFromFormData(formData: FormData): Record<string, unknown> {
+  return {
+    fromAccountId: formData.get('fromAccountId'),
+    toAccountId: formData.get('toAccountId'),
+    amount: formData.get('amount'),
+    occurredOn: formData.get('occurredOn'),
+    memo: formData.get('memo') ?? '',
+  };
+}
+
+export const flattenTransferError = z.flattenError;
+
 export const transactionInputSchema = z.object({
   type: transactionTypeSchema,
   amount: amountSchema,
@@ -142,12 +213,20 @@ export type TransactionInput = z.infer<typeof transactionInputSchema> & {
   type: TransactionType;
 };
 
+export function categoryIdFromFormData(formData: FormData): unknown {
+  const type = formData.get('type');
+  const values = formData.getAll('categoryId');
+  const index = type === 'income' ? 1 : 0;
+  return values[index] ?? values[0] ?? null;
+}
+
 export function transactionInputFromFormData(formData: FormData): Record<string, unknown> {
   return {
     type: formData.get('type'),
     amount: formData.get('amount'),
     occurredOn: formData.get('occurredOn'),
-    categoryId: formData.get('categoryId'),
+    categoryId: categoryIdFromFormData(formData),
+    accountId: null,
     memo: formData.get('memo') ?? '',
   };
 }
