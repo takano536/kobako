@@ -1,12 +1,13 @@
 'use client';
-
 import {
   useActionState,
+  useCallback,
   useEffect,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
+  type MouseEvent,
 } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -15,25 +16,34 @@ import {
   AMOUNT_TEXT_PATTERN_SOURCE,
   MEMO_MAX_LENGTH,
   flattenTransactionError,
+  flattenTransferError,
   isAmountText,
   isAmountTextWhileEditing,
   transactionInputSchema,
+  transferInputSchema,
 } from '@kobako/db/validation';
 import {
   emptyTransactionFormState,
+  firstTransactionFieldError,
+  switchTransactionType,
+  transactionFormValuesFromFormData,
   type DeleteFormState,
   type TransactionFieldErrors,
   type TransactionFormState,
+  type TransactionFormType,
   type TransactionFormValues,
 } from '../../src/lib/transaction-form';
 import { DatePickerField } from './date-picker-field';
 import { deleteTransactionAction } from './actions';
 
-type TransactionType = 'expense' | 'income';
-
 type CategoryOption = {
   id: number;
-  type: TransactionType;
+  type: 'expense' | 'income';
+  name: string;
+};
+
+type AccountOption = {
+  id: number;
   name: string;
 };
 
@@ -43,19 +53,16 @@ export interface TransactionFormProps {
     formData: FormData,
   ) => Promise<TransactionFormState>;
   categories: CategoryOption[];
+  accounts: AccountOption[];
   initialValues: TransactionFormValues;
   submitLabel: string;
 }
 
-function fieldError(
-  errors: TransactionFieldErrors | undefined,
-  field: keyof TransactionFormValues,
-): string | undefined {
-  return errors?.[field]?.[0];
-}
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
   'type',
   'amount',
+  'fromAccountId',
+  'toAccountId',
   'occurredOn',
   'categoryId',
   'memo',
@@ -65,14 +72,7 @@ function errorMessages(errors: TransactionFieldErrors | undefined): string[] {
   return FIELD_ORDER.flatMap((field) => errors?.[field] ?? []);
 }
 
-function FieldError({
-  id,
-  message,
-}: {
-  field: keyof TransactionFormValues;
-  id: string;
-  message: string;
-}) {
+function FieldError({ id, message }: { id: string; message: string }) {
   return (
     <span className="field-error sr-only" id={id} role="alert" aria-live="polite">
       {message}
@@ -119,14 +119,14 @@ function FormErrorDialog({
   );
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, disabled = false }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <>
       <button
         className="button button-primary save-button"
         type="submit"
-        disabled={pending}
+        disabled={pending || disabled}
         aria-busy={pending}
       >
         {pending ? '保存中…' : label}
@@ -160,13 +160,23 @@ function resizeMemo(textarea: HTMLTextAreaElement): void {
     fieldValue.dataset.memoMultiline = String(textarea.scrollHeight > minHeight + 0.5);
   }
   const maxHeight = lineHeight * MEMO_MAX_LINES + padding + borders;
-
   textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+}
+
+function typeLabel(type: TransactionFormType): string {
+  if (type === 'income') {
+    return '収入';
+  }
+  if (type === 'transfer') {
+    return '振替';
+  }
+  return '支出';
 }
 
 export function TransactionForm({
   action,
   categories,
+  accounts,
   initialValues,
   submitLabel,
 }: TransactionFormProps) {
@@ -183,8 +193,8 @@ export function TransactionForm({
   const modalOpenRef = useRef(false);
   const convertingDialogRef = useRef(false);
   const formValues = state.values && !isDirty ? state.values : values;
-  const selectedType: TransactionType = formValues.type === 'income' ? 'income' : 'expense';
-  const matchingCategories = categories.filter((category) => category.type === selectedType);
+  const selectedType: TransactionFormType =
+    formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
 
   useEffect(() => {
     if (state.values) {
@@ -227,11 +237,12 @@ export function TransactionForm({
 
   function updateValue(field: keyof TransactionFormValues, value: string): void {
     setIsDirty(true);
-    setValues((current) => ({
-      ...current,
-      [field]: value,
-      ...(field === 'type' ? { categoryId: '' } : {}),
-    }));
+    setValues((current) => {
+      if (field !== 'type') {
+        return { ...current, [field]: value };
+      }
+      return switchTransactionType(current, value as TransactionFormType, categories);
+    });
   }
 
   function handleAmountChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -253,17 +264,34 @@ export function TransactionForm({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    const formData = new FormData(event.currentTarget);
-    const submittedValues: TransactionFormValues = {
-      type: String(formData.get('type') ?? ''),
-      amount: String(formData.get('amount') ?? ''),
-      occurredOn: String(formData.get('occurredOn') ?? ''),
-      categoryId: String(formData.get('categoryId') ?? ''),
-      memo: String(formData.get('memo') ?? ''),
-    };
+    const submittedValues = transactionFormValuesFromFormData(new FormData(event.currentTarget));
     const completeAmount = isAmountText(submittedValues.amount);
     setAmountInputError(completeAmount ? undefined : AMOUNT_FORMAT_MESSAGE);
-    const result = transactionInputSchema.safeParse(submittedValues);
+    if (submittedValues.type === 'transfer') {
+      const result = transferInputSchema.safeParse({
+        fromAccountId: submittedValues.fromAccountId,
+        toAccountId: submittedValues.toAccountId,
+        amount: submittedValues.amount,
+        occurredOn: submittedValues.occurredOn,
+        memo: submittedValues.memo,
+      });
+      if (result.success) {
+        setClientErrors(undefined);
+        return;
+      }
+      event.preventDefault();
+      setIsDirty(true);
+      setValues(submittedValues);
+      setClientErrors(flattenTransferError(result.error).fieldErrors as TransactionFieldErrors);
+      return;
+    }
+    const result = transactionInputSchema.safeParse({
+      type: submittedValues.type,
+      amount: submittedValues.amount,
+      occurredOn: submittedValues.occurredOn,
+      categoryId: submittedValues.categoryId,
+      memo: submittedValues.memo,
+    });
     if (result.success) {
       setClientErrors(undefined);
       return;
@@ -275,8 +303,8 @@ export function TransactionForm({
   }
 
   const errors = pending ? undefined : (clientErrors ?? state.errors);
-  const typeError = fieldError(errors, 'type');
-  const amountError = fieldError(errors, 'amount');
+  const typeError = firstTransactionFieldError(errors, 'type');
+  const amountError = firstTransactionFieldError(errors, 'amount');
   const amountInvalid = Boolean(amountError || amountInputError);
   const amountDescribedBy =
     [
@@ -285,14 +313,16 @@ export function TransactionForm({
     ]
       .filter(Boolean)
       .join(' ') || undefined;
-  const occurredOnError = fieldError(errors, 'occurredOn');
-  const categoryError = fieldError(errors, 'categoryId');
-  const memoError = fieldError(errors, 'memo');
+  const fromAccountError = firstTransactionFieldError(errors, 'fromAccountId');
+  const toAccountError = firstTransactionFieldError(errors, 'toAccountId');
+  const occurredOnError = firstTransactionFieldError(errors, 'occurredOn');
+  const categoryError = firstTransactionFieldError(errors, 'categoryId');
+  const memoError = firstTransactionFieldError(errors, 'memo');
   const messages = errorMessages(errors);
   const dialogMessages =
     messages.length > 0 ? messages : !pending && state.message ? [state.message] : [];
   const hasDialogContent = dialogMessages.length > 0;
-  const dialogKey = dialogMessages.join('\\u0000');
+  const dialogKey = dialogMessages.join('\u0000');
 
   useEffect(() => {
     if (!hasHydrated) {
@@ -353,34 +383,25 @@ export function TransactionForm({
         >
           <legend>種別</legend>
           <div className="type-options">
-            <label className={selectedType === 'expense' ? 'type-choice selected' : 'type-choice'}>
-              <input
-                type="radio"
-                name="type"
-                value="expense"
-                checked={formValues.type === 'expense'}
-                onChange={(event) => updateValue('type', event.currentTarget.value)}
-                aria-invalid={typeError ? true : undefined}
-                aria-describedby={typeError ? 'transaction-type-error' : undefined}
-                required
-              />
-              <span>支出</span>
-            </label>
-            <label className={selectedType === 'income' ? 'type-choice selected' : 'type-choice'}>
-              <input
-                type="radio"
-                name="type"
-                value="income"
-                checked={formValues.type === 'income'}
-                onChange={(event) => updateValue('type', event.currentTarget.value)}
-                aria-invalid={typeError ? true : undefined}
-                aria-describedby={typeError ? 'transaction-type-error' : undefined}
-              />
-              <span>収入</span>
-            </label>
-            {typeError ? (
-              <FieldError field="type" id="transaction-type-error" message={typeError} />
-            ) : null}
+            {(['expense', 'income', 'transfer'] as const).map((type) => (
+              <label
+                className={selectedType === type ? 'type-choice selected' : 'type-choice'}
+                key={type}
+              >
+                <input
+                  type="radio"
+                  name="type"
+                  value={type}
+                  checked={formValues.type === type}
+                  onChange={(event) => updateValue('type', event.currentTarget.value)}
+                  aria-invalid={typeError ? true : undefined}
+                  aria-describedby={typeError ? 'transaction-type-error' : undefined}
+                  required={type === 'expense'}
+                />
+                <span>{typeLabel(type)}</span>
+              </label>
+            ))}
+            {typeError ? <FieldError id="transaction-type-error" message={typeError} /> : null}
           </div>
         </fieldset>
 
@@ -413,42 +434,106 @@ export function TransactionForm({
                 </span>
               ) : null}
               {amountError ? (
-                <FieldError field="amount" id="transaction-amount-error" message={amountError} />
+                <FieldError id="transaction-amount-error" message={amountError} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="entry-detail-grid category-detail-grid">
+          {(['expense', 'income'] as const).map((categoryType) => {
+            const categoryErrorId = `transaction-category-${categoryType}-error`;
+            return (
+              <div
+                className={`field category-field category-field-${categoryType}${
+                  categoryError ? ' has-error' : ''
+                }`}
+                key={categoryType}
+              >
+                <label htmlFor={`transaction-category-${categoryType}`}>カテゴリ</label>
+                <div className={`field-value${categoryError ? ' has-error' : ''}`}>
+                  <select
+                    className="field-select"
+                    id={`transaction-category-${categoryType}`}
+                    name="categoryId"
+                    value={formValues.categoryId}
+                    onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
+                    aria-invalid={categoryError ? true : undefined}
+                    aria-describedby={categoryError ? categoryErrorId : undefined}
+                    required
+                  >
+                    <option value="">選択してください</option>
+                    {categories
+                      .filter((category) => category.type === categoryType)
+                      .map((category) => (
+                        <option value={category.id} key={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                  {categoryError ? (
+                    <FieldError id={categoryErrorId} message={categoryError} />
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="entry-detail-grid account-detail-grid">
+          <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-from-account">振替元</label>
+            <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-from-account"
+                name="fromAccountId"
+                value={formValues.fromAccountId}
+                onChange={(event) => updateValue('fromAccountId', event.currentTarget.value)}
+                aria-invalid={fromAccountError ? true : undefined}
+                aria-describedby={fromAccountError ? 'transaction-from-account-error' : undefined}
+                required
+              >
+                <option value="">選択してください</option>
+                {accounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {fromAccountError ? (
+                <FieldError id="transaction-from-account-error" message={fromAccountError} />
+              ) : null}
+            </div>
+          </div>
+          <div className={`field account-field${toAccountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-to-account">振替先</label>
+            <div className={`field-value${toAccountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-to-account"
+                name="toAccountId"
+                value={formValues.toAccountId}
+                onChange={(event) => updateValue('toAccountId', event.currentTarget.value)}
+                aria-invalid={toAccountError ? true : undefined}
+                aria-describedby={toAccountError ? 'transaction-to-account-error' : undefined}
+                required
+              >
+                <option value="">選択してください</option>
+                {accounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {toAccountError ? (
+                <FieldError id="transaction-to-account-error" message={toAccountError} />
               ) : null}
             </div>
           </div>
         </div>
 
         <div className="entry-detail-grid">
-          <div className={`field category-field${categoryError ? ' has-error' : ''}`}>
-            <label htmlFor="transaction-category">カテゴリ</label>
-            <div className={`field-value${categoryError ? ' has-error' : ''}`}>
-              <select
-                id="transaction-category"
-                name="categoryId"
-                value={formValues.categoryId}
-                onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
-                aria-invalid={categoryError ? true : undefined}
-                aria-describedby={categoryError ? 'transaction-category-error' : undefined}
-                required
-              >
-                <option value="">選択してください</option>
-                {matchingCategories.map((category) => (
-                  <option value={category.id} key={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              {categoryError ? (
-                <FieldError
-                  field="categoryId"
-                  id="transaction-category-error"
-                  message={categoryError}
-                />
-              ) : null}
-            </div>
-          </div>
-
           <div className={`field date-field${occurredOnError ? ' has-error' : ''}`}>
             <label id="transaction-date-label" htmlFor="transaction-date">
               日付
@@ -466,11 +551,7 @@ export function TransactionForm({
                 onChange={(value) => updateValue('occurredOn', value)}
               />
               {occurredOnError ? (
-                <FieldError
-                  field="occurredOn"
-                  id="transaction-date-error"
-                  message={occurredOnError}
-                />
+                <FieldError id="transaction-date-error" message={occurredOnError} />
               ) : null}
             </div>
           </div>
@@ -491,14 +572,19 @@ export function TransactionForm({
                 aria-invalid={memoError ? true : undefined}
                 aria-describedby={memoError ? 'transaction-memo-error' : undefined}
               />
-              {memoError ? (
-                <FieldError field="memo" id="transaction-memo-error" message={memoError} />
-              ) : null}
+              {memoError ? <FieldError id="transaction-memo-error" message={memoError} /> : null}
             </div>
           </div>
         </div>
 
-        <SubmitButton label={submitLabel} />
+        <div className="save-button-options">
+          <span className="save-button-ordinary">
+            <SubmitButton label={submitLabel} />
+          </span>
+          <span className="save-button-transfer">
+            <SubmitButton label={submitLabel} />
+          </span>
+        </div>
       </form>
     </>
   );
@@ -506,23 +592,45 @@ export function TransactionForm({
 
 export interface DeleteTransactionFormProps {
   transactionId: number;
+  entryType?: 'transaction' | 'transfer';
   formId?: string;
 }
 
 export function DeleteTransactionForm({
   transactionId,
+  entryType = 'transaction',
   formId = 'delete-transaction-form',
 }: DeleteTransactionFormProps) {
   const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(
-    deleteTransactionAction,
+    deleteTransactionAction.bind(null, entryType),
     {},
   );
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const modalOpenRef = useRef(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const wasDeleteConfirmOpenRef = useRef(false);
+  const bodyOverflowRef = useRef<string | null>(null);
+  const htmlOverflowRef = useRef<string | null>(null);
 
   useEffect(() => {
     setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const details = detailsRef.current;
+    if (!details) {
+      return;
+    }
+    const handleToggle = () => {
+      setIsDeleteConfirmOpen(details.open);
+    };
+    handleToggle();
+    details.addEventListener('toggle', handleToggle);
+    return () => details.removeEventListener('toggle', handleToggle);
   }, []);
 
   const hasMessage = !pending && Boolean(state.message);
@@ -549,6 +657,88 @@ export function DeleteTransactionForm({
     }
   }, [hasHydrated, hasMessage, state]);
 
+  const closeDeleteConfirm = useCallback(() => {
+    detailsRef.current?.removeAttribute('open');
+    setIsDeleteConfirmOpen(false);
+    summaryRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || !isDeleteConfirmOpen) {
+      if (hasHydrated && wasDeleteConfirmOpenRef.current) {
+        wasDeleteConfirmOpenRef.current = false;
+        summaryRef.current?.focus();
+      }
+      return;
+    }
+
+    wasDeleteConfirmOpenRef.current = true;
+    bodyOverflowRef.current = document.body.style.overflow;
+    htmlOverflowRef.current = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const dialog = detailsRef.current?.querySelector<HTMLElement>('.delete-confirmation');
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDeleteConfirm();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) {
+        return;
+      }
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    confirmButtonRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = bodyOverflowRef.current ?? '';
+      document.documentElement.style.overflow = htmlOverflowRef.current ?? '';
+      bodyOverflowRef.current = null;
+      htmlOverflowRef.current = null;
+    };
+  }, [closeDeleteConfirm, hasHydrated, isDeleteConfirmOpen]);
+
+  const editPath =
+    entryType === 'transfer'
+      ? `/transactions/transfers/${transactionId}/edit`
+      : `/transactions/${transactionId}/edit`;
+
+  function handleCancel(event: MouseEvent<HTMLAnchorElement>): void {
+    event.preventDefault();
+    closeDeleteConfirm();
+  }
+
   return (
     <>
       <FormErrorDialog
@@ -561,14 +751,30 @@ export function DeleteTransactionForm({
         }}
       />
       <div className="delete-action">
-        <details className="delete-confirm">
-          <summary className="button button-danger">削除する</summary>
-          <div className="delete-confirmation">
-            <p>この取引を削除しますか？</p>
+        <details ref={detailsRef} className="delete-confirm">
+          <summary ref={summaryRef} className="button button-danger">
+            削除する
+          </summary>
+          <button
+            className="delete-modal-backdrop"
+            type="button"
+            tabIndex={-1}
+            aria-label="削除確認を閉じる"
+            onClick={closeDeleteConfirm}
+          />
+          <div
+            className="delete-confirmation"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${formId}-title`}
+          >
+            <p id={`${formId}-title`}>この取引を削除しますか？</p>
             <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
               <input type="hidden" name="id" value={transactionId} />
+
               <input type="hidden" name="confirm" value="delete" />
               <button
+                ref={confirmButtonRef}
                 className="button button-danger"
                 type="submit"
                 disabled={pending}
@@ -576,7 +782,7 @@ export function DeleteTransactionForm({
               >
                 {pending ? '削除中…' : '削除を確定'}
               </button>
-              <a className="delete-cancel" href={`/transactions/${transactionId}/edit`}>
+              <a className="delete-cancel" href={editPath} onClick={handleCancel}>
                 キャンセル
               </a>
             </form>

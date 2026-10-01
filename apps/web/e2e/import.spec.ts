@@ -19,6 +19,7 @@ import {
   E2E_MARKER_PREFIX,
   SENTINEL_CLEANUP_END_YEAR,
   SENTINEL_MIN_YEAR,
+  assertCleanupMarker,
   assertEmptyMonth,
   chooseEmptyMonthPair,
   markerFor,
@@ -330,12 +331,9 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function deleteRunData(client: DatabaseClient): Promise<void> {
-  if (
-    !runMarkerPrefix.startsWith(E2E_MARKER_PREFIX) ||
-    runMarkerPrefix.length <= E2E_MARKER_PREFIX.length ||
-    fixtureHashes.some((hash) => !/^[a-f\d]{64}$/i.test(hash))
-  ) {
-    throw new Error('E2E cleanup marker or hash is invalid');
+  assertCleanupMarker(runMarkerPrefix);
+  if (fixtureHashes.some((hash) => !/^[a-f\d]{64}$/i.test(hash))) {
+    throw new Error('E2E cleanup hash is invalid');
   }
   await client.sql`
     delete from transfers
@@ -514,7 +512,9 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   await expect(
     page.getByText(markerFor(runMarkerPrefix, 'category-expense'), { exact: true }),
   ).toBeVisible();
-  const transferRow = page.locator('.transaction-transfer');
+  const transferRow = page
+    .locator('.transaction-link')
+    .filter({ hasText: markerFor(runMarkerPrefix, 'valid-transfer-from') });
   await expect(transferRow).toContainText(markerFor(runMarkerPrefix, 'valid-transfer-from'));
   await expect(transferRow).toContainText(markerFor(runMarkerPrefix, 'valid-transfer-to'));
   await expect(

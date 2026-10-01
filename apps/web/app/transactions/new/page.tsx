@@ -1,6 +1,12 @@
 import Link from 'next/link';
 
-import { currentTokyoDate, currentTokyoMonth, isValidMonth, listCategories } from '@kobako/db';
+import {
+  currentTokyoDate,
+  currentTokyoMonth,
+  isValidMonth,
+  listAccounts,
+  listCategories,
+} from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
 import { TransactionForm } from '../transaction-form';
@@ -15,8 +21,14 @@ export const metadata = {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
+type TransactionFormType = 'expense' | 'income' | 'transfer';
+
 function firstQueryValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function parseType(value: string | undefined): TransactionFormType {
+  return value === 'income' || value === 'transfer' ? value : 'expense';
 }
 
 export default async function NewTransactionPage({ searchParams }: { searchParams: SearchParams }) {
@@ -26,8 +38,15 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   const targetMonth =
     requestedMonth && isValidMonth(requestedMonth) ? requestedMonth : currentMonth;
   const occurredOn = targetMonth === currentMonth ? currentTokyoDate() : `${targetMonth}-01`;
-  const categories = await listCategories(getLedgerDatabase(), getCurrentHouseholdId());
+  const householdId = getCurrentHouseholdId();
+  const db = getLedgerDatabase();
+  const [categories, accounts] = await Promise.all([
+    listCategories(db, householdId),
+    listAccounts(db, householdId),
+  ]);
+  const type = parseType(firstQueryValue(query.type));
   const firstExpense = categories.find((category) => category.type === 'expense');
+  const firstIncome = categories.find((category) => category.type === 'income');
   const backHref = `/transactions?month=${encodeURIComponent(targetMonth)}`;
 
   return (
@@ -42,11 +61,21 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
         <TransactionForm
           action={createTransactionAction}
           categories={categories}
+          accounts={accounts}
           initialValues={{
-            type: 'expense',
+            type,
             amount: '',
             occurredOn,
-            categoryId: firstExpense ? String(firstExpense.id) : '',
+            categoryId:
+              type === 'income'
+                ? firstIncome
+                  ? String(firstIncome.id)
+                  : ''
+                : type === 'expense' && firstExpense
+                  ? String(firstExpense.id)
+                  : '',
+            fromAccountId: '',
+            toAccountId: '',
             memo: '',
           }}
           submitLabel="登録する"

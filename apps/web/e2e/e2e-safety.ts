@@ -15,11 +15,26 @@ export function markerFor(runMarkerPrefix: string, testName: string): string {
   return `${runMarkerPrefix}${testName}`;
 }
 
+export function assertCleanupMarker(runMarkerPrefix: string): void {
+  if (
+    !runMarkerPrefix.startsWith(E2E_MARKER_PREFIX) ||
+    runMarkerPrefix.length <= E2E_MARKER_PREFIX.length
+  ) {
+    throw new Error('E2E cleanup marker is invalid');
+  }
+}
+
 export async function monthIsEmpty(client: DatabaseClient, value: string): Promise<boolean> {
   const range = monthRange(value);
   const rows = await client.sql`
     select 1
     from transactions
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and occurred_on >= ${range.start}
+      and occurred_on < ${range.endExclusive}
+    union all
+    select 1
+    from transfers
     where household_id = ${DEFAULT_HOUSEHOLD_ID}
       and occurred_on >= ${range.start}
       and occurred_on < ${range.endExclusive}

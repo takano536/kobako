@@ -1,37 +1,44 @@
 'use server';
 
-import { createTransaction, deleteTransaction, getCategory, updateTransaction } from '@kobako/db';
+import {
+  convertTransactionToTransfer,
+  convertTransferToTransaction,
+  createTransaction,
+  createTransfer,
+  deleteTransaction,
+  deleteTransfer,
+  getCategory,
+  updateTransaction,
+  updateTransfer,
+} from '@kobako/db';
 import {
   flattenTransactionError,
+  flattenTransferError,
   transactionInputFromFormData,
   transactionInputSchema,
+  transferInputFromFormData,
+  transferInputSchema,
 } from '@kobako/db/validation';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { parseInt4Id } from '../../src/lib/ids';
-import type { TransactionInput } from '@kobako/db/validation';
-import type {
-  DeleteFormState,
-  TransactionFieldErrors,
-  TransactionFormState,
-  TransactionFormValues,
+import {
+  transferValidationErrors,
+  transactionFormValuesFromFormData,
+  type DeleteFormState,
+  type TransactionFieldErrors,
+  type TransactionFormState,
+  type TransactionFormValues,
 } from '../../src/lib/transaction-form';
+import type { TransactionInput } from '@kobako/db/validation';
+
+type EntryKind = 'transaction' | 'transfer';
 
 function textField(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : '';
-}
-
-function formValues(formData: FormData): TransactionFormValues {
-  return {
-    type: textField(formData, 'type'),
-    amount: textField(formData, 'amount'),
-    occurredOn: textField(formData, 'occurredOn'),
-    categoryId: textField(formData, 'categoryId'),
-    memo: textField(formData, 'memo'),
-  };
 }
 
 function validationState(
@@ -60,13 +67,55 @@ async function validateCategory(input: TransactionInput, householdId: string): P
   );
   return category !== null;
 }
+function transferResultState(
+  values: TransactionFormValues,
+  code: Parameters<typeof transferValidationErrors>[0],
+): TransactionFormState {
+  return validationState(values, transferValidationErrors(code));
+}
+
+function revalidateLedger(): void {
+  revalidatePath('/');
+  revalidatePath('/transactions');
+}
+
+function redirectToMonth(month: string): never {
+  revalidateLedger();
+  redirect(`/transactions?month=${month}`);
+}
 
 export async function createTransactionAction(
   previousState: TransactionFormState,
   formData: FormData,
 ): Promise<TransactionFormState> {
   void previousState;
-  const values = formValues(formData);
+  const values = transactionFormValuesFromFormData(formData);
+  const householdId = getCurrentHouseholdId();
+  const db = getLedgerDatabase();
+
+  if (values.type === 'transfer') {
+    const parsed = transferInputSchema.safeParse(transferInputFromFormData(formData));
+    if (!parsed.success) {
+      return validationState(
+        values,
+        flattenTransferError(parsed.error).fieldErrors as TransactionFieldErrors,
+      );
+    }
+    let result;
+    try {
+      result = await createTransfer(db, householdId, parsed.data);
+    } catch (error) {
+      return databaseFailure('create-transfer', error);
+    }
+    if (result.status === 'validation_error') {
+      return transferResultState(values, result.code);
+    }
+    if (result.status === 'error') {
+      return databaseFailure('create-transfer', new Error('database operation failed'));
+    }
+    redirectToMonth(parsed.data.occurredOn.slice(0, 7));
+  }
+
   const parsed = transactionInputSchema.safeParse(transactionInputFromFormData(formData));
   if (!parsed.success) {
     return validationState(
@@ -74,8 +123,6 @@ export async function createTransactionAction(
       flattenTransactionError(parsed.error).fieldErrors as TransactionFieldErrors,
     );
   }
-
-  const householdId = getCurrentHouseholdId();
   let categoryMatches: boolean;
   try {
     categoryMatches = await validateCategory(parsed.data, householdId);
@@ -85,21 +132,17 @@ export async function createTransactionAction(
   if (!categoryMatches) {
     return validationState(values, { categoryId: ['種別に合うカテゴリを選択してください。'] });
   }
-
   try {
-    await createTransaction(getLedgerDatabase(), householdId, parsed.data);
+    await createTransaction(db, householdId, parsed.data);
   } catch (error) {
     return databaseFailure('create', error);
   }
-
-  const month = parsed.data.occurredOn.slice(0, 7);
-  revalidatePath('/');
-  revalidatePath('/transactions');
-  redirect(`/transactions?month=${month}`);
+  redirectToMonth(parsed.data.occurredOn.slice(0, 7));
 }
 
 export async function updateTransactionAction(
   transactionId: string,
+  sourceKind: EntryKind,
   previousState: TransactionFormState,
   formData: FormData,
 ): Promise<TransactionFormState> {
@@ -109,7 +152,39 @@ export async function updateTransactionAction(
     notFound();
   }
 
-  const values = formValues(formData);
+  const values = transactionFormValuesFromFormData(formData);
+  const householdId = getCurrentHouseholdId();
+  const db = getLedgerDatabase();
+
+  if (values.type === 'transfer') {
+    const parsed = transferInputSchema.safeParse(transferInputFromFormData(formData));
+    if (!parsed.success) {
+      return validationState(
+        values,
+        flattenTransferError(parsed.error).fieldErrors as TransactionFieldErrors,
+      );
+    }
+    let result;
+    try {
+      result =
+        sourceKind === 'transfer'
+          ? await updateTransfer(db, householdId, id, parsed.data)
+          : await convertTransactionToTransfer(db, householdId, id, parsed.data);
+    } catch (error) {
+      return databaseFailure('update-transfer', error);
+    }
+    if (result.status === 'not_found') {
+      notFound();
+    }
+    if (result.status === 'validation_error') {
+      return transferResultState(values, result.code);
+    }
+    if (result.status === 'error') {
+      return databaseFailure('update-transfer', new Error('database operation failed'));
+    }
+    redirectToMonth(parsed.data.occurredOn.slice(0, 7));
+  }
+
   const parsed = transactionInputSchema.safeParse(transactionInputFromFormData(formData));
   if (!parsed.success) {
     return validationState(
@@ -118,7 +193,27 @@ export async function updateTransactionAction(
     );
   }
 
-  const householdId = getCurrentHouseholdId();
+  if (sourceKind === 'transfer') {
+    let result;
+    try {
+      result = await convertTransferToTransaction(db, householdId, id, parsed.data);
+    } catch (error) {
+      return databaseFailure('update-transaction', error);
+    }
+    if (result.status === 'not_found') {
+      notFound();
+    }
+    if (result.status === 'validation_error') {
+      return validationState(values, {
+        categoryId: ['種別に合うカテゴリを選択してください。'],
+      });
+    }
+    if (result.status === 'error') {
+      return databaseFailure('update-transaction', new Error('database operation failed'));
+    }
+    redirectToMonth(parsed.data.occurredOn.slice(0, 7));
+  }
+
   let categoryMatches: boolean;
   try {
     categoryMatches = await validateCategory(parsed.data, householdId);
@@ -131,46 +226,61 @@ export async function updateTransactionAction(
 
   let updated;
   try {
-    updated = await updateTransaction(getLedgerDatabase(), householdId, id, parsed.data);
+    updated = await updateTransaction(db, householdId, id, parsed.data);
   } catch (error) {
     return databaseFailure('update', error);
   }
   if (!updated) {
     notFound();
   }
-
-  const month = parsed.data.occurredOn.slice(0, 7);
-  revalidatePath('/');
-  revalidatePath('/transactions');
-  redirect(`/transactions?month=${month}`);
+  redirectToMonth(parsed.data.occurredOn.slice(0, 7));
 }
 
 export async function deleteTransactionAction(
+  entryType: EntryKind,
   previousState: DeleteFormState,
   formData: FormData,
 ): Promise<DeleteFormState> {
   void previousState;
-  const idText = textField(formData, 'id');
-  const id = parseInt4Id(idText);
+  const id = parseInt4Id(textField(formData, 'id'));
   if (id === undefined) {
     notFound();
   }
   if (textField(formData, 'confirm') !== 'delete') {
     return { message: '削除する場合は確認操作を完了してください。' };
   }
-  let deleted;
+
+  const householdId = getCurrentHouseholdId();
+  const db = getLedgerDatabase();
+
+  if (entryType === 'transfer') {
+    let deletedTransfer;
+    try {
+      deletedTransfer = await deleteTransfer(db, householdId, id);
+    } catch (error) {
+      const errorType = error instanceof Error ? error.name : 'UnknownError';
+      console.error('[transactions/delete] database operation failed', { errorType });
+      return { message: '削除できませんでした。時間をおいてもう一度お試しください。' };
+    }
+    if (deletedTransfer.status === 'not_found') {
+      notFound();
+    }
+    if (deletedTransfer.status === 'error') {
+      return { message: '削除できませんでした。時間をおいてもう一度お試しください。' };
+    }
+    redirectToMonth(deletedTransfer.occurredOn.slice(0, 7));
+  }
+
+  let deletedTransaction;
   try {
-    deleted = await deleteTransaction(getLedgerDatabase(), getCurrentHouseholdId(), id);
+    deletedTransaction = await deleteTransaction(db, householdId, id);
   } catch (error) {
     const errorType = error instanceof Error ? error.name : 'UnknownError';
     console.error('[transactions/delete] database operation failed', { errorType });
     return { message: '削除できませんでした。時間をおいてもう一度お試しください。' };
   }
-  if (!deleted) {
+  if (!deletedTransaction) {
     notFound();
   }
-
-  revalidatePath('/');
-  revalidatePath('/transactions');
-  redirect(`/transactions?month=${deleted.occurredOn.slice(0, 7)}`);
+  redirectToMonth(deletedTransaction.occurredOn.slice(0, 7));
 }
