@@ -278,6 +278,75 @@ test('uses one form for all types with type-specific fields and preserved shared
   }
 });
 
+test('shows type choice focus only for keyboard navigation', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+
+  const choiceFor = (type: 'expense' | 'income' | 'transfer') =>
+    page.locator(`.type-choice:has(input[value="${type}"])`);
+  const inputFor = (type: 'expense' | 'income' | 'transfer') =>
+    page.locator(`input[name="type"][value="${type}"]`);
+
+  for (const type of ['expense', 'income', 'transfer'] as const) {
+    const choice = choiceFor(type);
+    await choice.click();
+    await expect(choice).toHaveClass(/selected/);
+    await expect(choice).toHaveCSS('outline-style', 'none');
+  }
+
+  const transferChoice = choiceFor('transfer');
+  const transferInput = inputFor('transfer');
+  const backLink = page.getByRole('link', { name: '取引一覧へ戻る', exact: true });
+  await backLink.focus();
+  await page.keyboard.press('Tab');
+  await expect(transferInput).toBeFocused();
+  await expect(transferChoice).toHaveCSS('outline-style', 'solid');
+  await expect(transferChoice).toHaveCSS('outline-width', '3px');
+
+  await page.keyboard.press('Shift+Tab');
+  await expect(backLink).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(transferInput).toBeFocused();
+  await expect(transferChoice).toHaveCSS('outline-style', 'solid');
+
+  await page.getByLabel('金額').focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(transferInput).toBeFocused();
+  await expect(transferChoice).toHaveCSS('outline-style', 'solid');
+
+  await page.keyboard.press('ArrowLeft');
+  const incomeChoice = choiceFor('income');
+  await expect(inputFor('income')).toBeFocused();
+  await expect(incomeChoice).toHaveClass(/selected/);
+  await expect(incomeChoice).toHaveCSS('outline-style', 'solid');
+});
+
+test('keeps type choice taps free of focus rings', async ({ browser }) => {
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) {
+    throw new Error('Playwright baseURL is required for touch focus coverage');
+  }
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    isMobile: false,
+    locale: 'ja-JP',
+    timezoneId: 'Asia/Tokyo',
+    viewport: { width: 390, height: 844 },
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(`/transactions/new?month=${month}`);
+    for (const type of ['expense', 'income', 'transfer'] as const) {
+      const choice = page.locator(`.type-choice:has(input[value="${type}"])`);
+      await choice.tap();
+      await expect(choice).toHaveClass(/selected/);
+      await expect(choice).toHaveCSS('outline-style', 'none');
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test('filters transfer rows by direct transfer URL regardless of category query', async ({
   page,
 }) => {
