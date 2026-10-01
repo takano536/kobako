@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/takano536/kobako/compare/v0.3.0...v0.3.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **web:** show type choice focus ring only for keyboard focus ([#16](https://github.com/takano536/kobako/issues/16)) ([76cc3b1](https://github.com/takano536/kobako/commit/76cc3b1e699122be1c69b7c75a8d2b09d1bb80a3))
+
 ## [0.3.0](https://github.com/takano536/kobako/compare/v0.2.1...v0.3.0) (2026-10-01)
 
 
