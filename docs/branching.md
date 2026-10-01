@@ -19,11 +19,23 @@ docs: clarify local setup
 
 PR template の変更概要・理由・検証内容・migration・security impact・未解決事項を埋めます。UI 変更には screenshot の要否を記載します。
 
-Required status checks として `lint`、`unit`、`integration`、`build`、`e2e`、`docker` を設定します。CI が実行されない状態で merge せず、失敗時はログと再現手順を確認します。Release PR は `GITHUB_TOKEN` で作成されるため `pull_request` CI が自動実行されませんが、Release Please 成功後に同じ Release PR head へ手動 dispatch されます。merge 後は pending label、required check の成功、main の祖先関係を検証してから Release Please と GHCR publish を実行します。close/reopen や空 commit は不要です。
+Required status checks は `lint`、`unit`、`integration`、`build`、`e2e`、`docker` の6個です。CI が実行されない状態で merge せず、失敗時はログと再現手順を確認します。通常 PR は人間が従来どおり main へ squash merge します。
 
 ## Release PR
 
-Release Please は main の Conventional Commit（squash merge 後の PR title）から Release PR を作成または更新します。通常 PR と Release PR は squash merge します。Release PR を merge するまでは実リリースされません。
+Release Please は main の Conventional Commit（squash merge 後の PR title）から Release PR を作成または更新します。Release PR も squash merge しますが、canonical な Release Please PR（bot author、同一 repository head、base=`main`、正確な head branch、`autorelease: pending`、open・非 draft）だけを automation が自動 merge します。title や branch 名だけでは対象とみなしません。
+
+Release PR の head には `pull_request` workflow が自動起動しないことがあるため、Release Please の main run は REST API で PR を再検証して同じ head ref に `workflow_dispatch` を送ります。dispatch run の6 gateが in-run で成功し、Checks API の同じ head SHA にある各 gate の最新 check が GitHub Actions app の `completed/success` である場合だけ、検証済み head SHA を指定して squash merge します。head 更新、main の先行、missing/pending/failure/skipped/neutral/cancelled check、fork、他 author、他 base、label 欠落は merge しません。
+
+merge は GITHUB_TOKEN の push workflow suppression を受けるため、merge commit `M` へ専用 ref `release-verify/<M>` を作成し、`workflow_dispatch` で6 gateを **その run の `github.sha == M`** として再実行します。main push run（人間が Release PR を merge した場合を含む）は release/tag を作成せず、pending の merged Release PR の verify ref/run を REST API で自己修復します。verify run だけが `M` を tag、GitHub Release、versioned GHCR image の対象にします。
+
+verify ref/runとRelease PR branch dispatchはnon-cancellable groupで動き、pending runだけを新しいdispatchに置き換えます。PUT merge後に古いRelease PR runが止まっても、SHA/base-tip guardがstale mergeを拒否し、merge成功runのverify handoffを妨げません。
+
+Release PR の title は Release Please v17.6.1 の default pattern に従う `chore(main): release X.Y.Z` とし、body の root release section、root `package.json` version、manifest versionを automation が照合します。Release PR の変更は `release-please-config.json` から導出した CHANGELOG/manifest/package version/extra-files の allowlist 内だけで、head の author と committer は GitHub Actions bot である必要があります。
+
+main の base-tip check は merge API の compare-and-swap ではないため原子的ではありません。merge 後の `release-verify/<M>` run が `M` を checkout し、6 required checks、canonical PR、main ancestry、Release metadata、tag/Release target を全て再検証します。Release PR branch の update を bot と限定する ruleset、および main の `strict_required_status_checks_policy: true` は optional hardening（未適用）です。後者は通常 PR に最新 main の取り込みを要求する運用コストがあります。
+
+`release-verify` branch/ref が既に存在する、または別 SHA を指す場合は新しい ref を上書きせず停止します。conflict/mismatch ref を削除した後、同じ `M` の recovery dispatchを行います。verify ref の残存確認は `gh api repos/takano536/kobako/git/matching-refs/heads/release-verify/` で行います。`autorelease: tagged` 後の image publish failure は main self-heal の対象外なので、同じ SHA の failed-job rerun/recovery dispatchで再開し、tag/Release/imagesをmatching SHAから再利用します。
 
 SemVer の規則は次のとおりです。
 

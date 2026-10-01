@@ -31,42 +31,67 @@ Release Please が使う `autorelease: pending` と `autorelease: tagged` label 
 
 ## リリース順序
 
-main への push は、同じ commit (`github.sha`) を明示的に checkout して次の quality gate を実行します。
+すべての quality gate は、workflow run の `github.sha` と同じ commit を明示的に checkout します。別の SHA を checkout して run の check として扱うことは禁止です。
 
-1. format、Release Please 生成物の検証、lint、typecheck
-2. unit、integration、production build、E2E
-3. Docker の web/migrate/worker build と、独立 `migrate` サービスを含まない標準 Compose の web image 起動前 migration、web/DB health
-4. すべて成功した場合だけ Release Please を実行
-5. Release Please が `release_created: true` を返した場合だけ、厳密な `vX.Y.Z` tag を検証して SemVer image を公開
+1. normal PR では format、Release Please 生成物 validator、lint、typecheck、unit、integration、production build、E2E、Docker の6 gateだけを実行する。
+2. main の push（または main への normal `workflow_dispatch`）で6 gateが成功した場合だけ、Release Please を `target-branch: main` と `skip-github-release: true` で実行し、Release PR を作成・更新する。
+3. main run は REST API で canonical な open Release PR（bot author、同一 repository head、base=`main`、正確な head branch、`autorelease: pending`、非 draft）を再取得し、その head ref へ `workflow_dispatch` を送ります。Release Please の action output だけを PR identity の根拠にしません。
+4. Release PR dispatch の6 gateが同じ head SHAで成功した後、Checks API の各最新 record（GitHub Actions app id `15368` / slug `github-actions`）を確認し、`completed/success` の6個がそろった場合だけ、head SHAを指定して squash merge します。PR更新、main先行、fork、author/base/label/state違い、missing/pending/failure/cancelled/skipped/neutral checkは停止します。merge APIにはRelease PR titleと ` (#<number>)` を組み合わせた `commit_title` を明示し、既存の `chore(main): release 0.3.1 (#17)` と同じ履歴形式にします。
+5. merge 後は `release-verify/<merge SHA>` ref を `merge SHA` に作成し、同じ ref へ `workflow_dispatch` を送ります。専用 verify run の `github.sha` は必ず merge SHA と一致し、6 gateはその run の SHAを checkout して再実行します。人間が Release PR を merge した main push runは SHA imageだけを通常publishし、versioned image/tag/Releaseを作成せず、この verify ref/runの自己修復だけを行います。
+6. verify runで6 gate、canonical merged PR、merge SHAがmainの祖先であることを確認した後だけ、Release Please を `target-branch: main`、`skip-github-release: false`、`skip-github-pull-request: true` で実行します。厳密な `vX.Y.Z` tagがmerge SHAを指すことを確認してからGitHub Releaseとversioned imageを扱います。matching tag/Releaseが既にあり、PRにpending labelが残る場合は、Release Please v17.6.1の `removeIssueLabels(['autorelease: pending'])` と `addIssueLabels(['autorelease: tagged'])` と同じ順で修復します。
 
-Release Please job は対象 commit が現在の main tip であることも確認します。main が先に進んでいた場合は安全に skip し、新しい push の run が処理します。Release PR が作成・更新された場合は、Release Please の出力にある同一 repository の open PR head branch へ `workflow_dispatch` を送り、quality gate だけを再実行します。手動 dispatch では Release job と publish job は実行しません。
-
-Release PR の merge commit に `autorelease: pending` が付いている場合、Release Please の前にその commit の `lint`、`unit`、`integration`、`build`、`e2e`、`docker` の最新 check run がすべて `completed/success` であり、現在の main の祖先であることを検証します。これにより、別の commit や失敗した merge commit を tag することを防ぎます。main の quality gate が失敗した run は tag、GitHub Release、SemVer image を作成しません。
-
-Release Please が `GITHUB_TOKEN` で作る Release PR には `pull_request` workflow が自動起動しない GitHub の制約があります。Release PR merge 前の任意チェックはこの自動起動に依存せず、上記の手動 dispatch と merge 後の正確な main commit の gate を Release Please より先に必須化します。close/reopen、空 commit、手動整形は不要です。
+Release Please v17.6.1 source は `DEFAULT_LABELS = ['autorelease: pending']` を merged release PR の selectorに使い、release作成後に `removeIssueLabels(this.labels)` と `addIssueLabels(this.releaseLabels)` を実行します（default `releaseLabels = ['autorelease: tagged']`）。merged pending Release PRが残る間は `createPullRequests()` を abortするため、merge済みの `autorelease: pending` PRを新しいRelease PRで迂回してはいけません。mainの成功runごとに、未tagのcanonical merged pending PRの verify ref/runをRESTで確認し、refが無ければ作成、同じSHAなら実行中/成功runが無い場合だけdispatchします。refが別SHAを指す場合は停止します。
 
 ### 失敗した Release merge の復旧
 
-guard は main の現在 tip commit ではなく、merge済み `autorelease: pending` PR の merge commit 自体の check run を検証します。そのため主な復旧手段は、その merge commit を main の tip に留めたまま Actions run を再実行することではなく、次の通常の main push が自然に guard を再評価することです。
+Release PR branch dispatchとverify ref/runはnon-cancellable concurrency groupで動作します。新しいdispatchはpending runだけを置き換えます。古いRelease PR runがPUT merge後に停止しても、次のrunのhead SHA/base tip guardがstale mergeを拒否し、merge成功後のverify handoffを止めません。verify失敗時はrefを削除しないため、同じrefの **Re-run failed jobs** または次の手動dispatchで再実行できます。成功したverify runだけがtag、GitHub Release、versioned GHCR imageを作成します。
 
-- 通常は追加の commit を通常どおり main に push するだけで十分です。その push 自身の run が guard を再実行し、merge commit の check run が既に成功していれば、そのまま Release Please と publish が同じ Release PR merge commit を対象に進みます。close/reopen、空 commit、手動整形は不要です。
-- merge commit がまだ main の tip で、かつ失敗が一時的な runner や外部サービスの問題だった場合に限り、その merge commit の Actions run で **Re-run failed jobs** も使えます。main tip が既に先へ進んでいる場合、この古い run の `main_tip` step は `at_tip=false` になり Release Please も publish も skip するため、古い run の再実行に頼ってはいけません。
-- Release commit 自体が壊れている場合は、まず修正 commit を main に入れます。修正だけでは失敗した merge commit の check run は成功に変わらないため、guard が tag を阻止し続けます。
-- 壊れた merge 済み Release PR を保留から外すときだけ、その PR から `autorelease: pending` label を削除します。`autorelease: tagged` は追加せず、tag や GitHub Release を手動作成・移動しません。次の main push で、manifest の現在値から新しい Release PR が作られます。必要な version を明示する場合は、通常の release commit に `Release-As: <次の SemVer>` footer を付けます。
+- 一時的なquality gate失敗なら、失敗jobをverify ref上でrerunします。手動で同じMを再実行するコマンドは次のとおりです。
+
+  ```sh
+  gh workflow run ci.yml --repo takano536/kobako \
+    --ref release-verify/<full-merge-sha> \
+    -f mode=verify -f merge_sha=<full-merge-sha> -f pr_number=<release-pr-number>
+  ```
+
+- verify dispatch自体がmerge直後に失敗した場合は、上記コマンドを使います。refがまだ作られていない場合は、まず `gh workflow run ci.yml --ref main -f mode=normal` を実行し、全gate成功後の `ensure-main` に自己修復させます。normal main runはversioned image/tag/Releaseを作成しません。
+- Mのgateが恒久的に失敗してM自身を修正できない場合、fix-forwardで別commitをrelease対象に置き換えてはいけません。Mのreleaseを意図的に放棄するmaintainerだけが、canonical merged PRから `autorelease: pending` を削除できます（例: `gh pr edit <number> --remove-label 'autorelease: pending'`）。Release Pleaseはこのlabelをmerged release selectorに要求するため、削除するとMはrelease候補ではなくなり、次のrelease PRを処理できます。tag/Releaseの手動作成やtag移動で穴埋めしてはいけません。
+- verify refが同じSHAで存在し、成功または実行中runがあれば重複dispatchしません。pending labelの失敗runは次の成功main runで再試行できます。tagged recoveryは対象PR番号を指定した同じrefのmaintainer rerun/dispatchだけを許可し、別SHAへrefを移動しません。成功後にrefが削除され、PRが `autorelease: tagged` なら、ensure-mainは再dispatchしません。
+- tag/Release/imageが別revision、欠落label、不明内容の場合は上書きせず停止します。同じversion・同じrevisionで既に存在するものだけ再実行時に再利用します。matching tag/Releaseがありpending labelだけ残っている場合は、verify finalizerがpendingを外してtaggedを付けます。
+- Release PRを人間がmergeしたpush run自身はfinalizeしません。SHA imageだけを通常publishし、versioned image/tag/Releaseはverify runに限定します。close/reopen、空commit、tagの移動・手動再作成は不要です。
 
 ## GHCR image
 
 - `ghcr.io/takano536/kobako-web:X.Y.Z`
 - `ghcr.io/takano536/kobako-migrate:X.Y.Z`
 
-`web` と `migrate` は必ず同じ Release PR merge commit の同じ version で公開します。`migrate` image は既存利用者との互換性を保つ手動保守・外部オーケストレーション向けで、通常の Compose/Dockge Deploy では使用しません。Release image は `^vX.Y.Z$` の Release Please output 以外から作成せず、tag が origin に存在し、保護された merge commit を指すことを公開前に確認します。OCI label の `source`、`revision`、`version` も検証します。同じ version が同じ revision で既に存在する場合は再実行時に再利用し、別 revision または不明な内容なら上書きせず失敗します。
+`web` と `migrate` は必ず同じ verify run の同じ merge SHA・同じ version で公開します。Release imageは `^vX.Y.Z$` のRelease Please outputだけを受け付け、tagがoriginに存在してmerge SHAを指すことを確認します。OCI labelの `source`、`revision`、`version` を厳密に検証し、別revisionや欠落labelの既存tagは上書きしません。
 
-main の quality gate に成功した通常 build では次の tag も更新します。
+main quality gateに成功した通常buildでは次のtagを更新します。
 
-- `sha-<full commit SHA>`: 再現・rollback 用
-- `latest`: 最新の quality gate 成功 main build。可変 tag なので production では使わない
+- `sha-<full commit SHA>`: 再現・rollback用
+- `latest`: 最新のquality gate成功main build。可変tagなのでproductionでは使わない
 
-Release merge commit への main push では `publish_main` と `publish_release` が同じ push で並行して実行されるため、SemVer image (`X.Y.Z`、Release PR merge commit から) に加えて、その merge commit を現在の main commit とする `sha-<full commit SHA>` と `latest` も更新されます。SemVer 以外の通常の main push（Release Please が未作成の場合）は `sha-<full commit SHA>` と `latest` だけを更新します。production と Renovate は完全な `X.Y.Z` を指定し、`X` や `X.Y` は使用しません。GHCR の package visibility は変更しません。
+verify runでも `sha-<merge SHA>` imageを作成します。`latest` promotionは専用の `kobako-latest-promotion` lock（`cancel-in-progress: false`）内でREST APIからmain tipを再確認し、merge SHAと一致する場合だけ更新します。古いrunの再実行でlatestをrollbackしません。worker imageはGHCRへpublishしません。
+
+## 自動化の追加ガードと復旧
+
+- Release PR の provenance は、main checkout の `release-please-config.json` から導出した allowlist（`CHANGELOG.md`、manifest、各 package の `package.json`、`extra-files`）だけを許可します。head の author と committer はともに `github-actions[bot]` の Bot でなければなりません。PR title は `chore(main): release X.Y.Z`（`package.json` と manifest の root version と一致）、body は Release Please の root version section 一つだけであることを確認します。validatorは常に信頼済みの `refs/heads/main` checkoutで実行し、dispatch inputの `main_sha` は比較データとしてだけ扱います。実行前に `git rev-parse HEAD == PR base SHA == live main tip` を確認し、head checkout のファイルをvalidator sourceにしてはいけません。Release Please の変更範囲は pinned action/source に合わせて監査します。ただし、これは悪意ある write-access collaborator への防御ではありません。`workflow_dispatch` は release branch 上の `ci.yml` を実行するため、repository write access を持つ actor が release branch 自体を書き換えれば、この validator を迂回できます。provenance/file checks は意図しない変更や Release Please が生成した内容からの逸脱を検出する guard であり、trust boundary は repository write access です。この境界を harden するのが optional の release-branch ruleset です。
+- provenanceのallowlist内でも、各JSON version fileはbase/headで `version` 以外のparsed fieldを変更できず、manifestは `.` 以外を変更できません。`CHANGELOG.md` はbase内容のpure prependだけを許可します。
+- merge 前には PR の base SHA、main の tip、head commit の sole parent を確認します。GitHub の merge API に base SHA の compare-and-swap はないため、この確認は **TOCTOU に対して原子的ではありません**。merge 後の verify run は commit `M` を checkout し、同じ6 gate、canonical PR、main ancestry、Release metadata、tag/Release targetを再検証します。
+- Release finalize の直前には、Release Please が live main から読む `release-please-config.json`、manifest、各 package version file、`extra-files` の blob SHA が `M` と一致することを確認します。不一致なら Release Please を実行せず、main の metadata を hold または revert してから同じ `M` を recovery dispatch します。
+- title/body/version、tag SHA、GitHub Release（`draft=false`、`prerelease=false`、`tag_name` exact、`target_commitish` は40桁のSHAで `M` と完全一致）に mismatch があれば上書きせず停止します。実在する `v0.3.0` と `v0.3.1` の Release APIも `target_commitish` にそれぞれの40桁commit SHAを返すため、branch名は受け付けません。
+- `release-heal.yml` は main 上で約30分ごと（または手動）に実行されます。これは quality gate を実行せず、canonical merged pending PR の `M` に対して **verify の workflow_dispatch run が一つも存在しない場合だけ** ref 作成と dispatchを行います。成功・実行中 run は dispatchせず、失敗 runも scheduled heal では再 dispatchしません。通常の成功 main run は従来どおり failed verify を一度だけ再試行できます。
+- write accessを持つ actor に限定した残余 window は明示的に受け入れます。`verify-release-inputs` と Release Please action の間の数秒に PR title/body または main の Release Please config が変更される可能性、merge API に base SHA CAS がない merge base TOCTOU、write access actor が文字通りの `release-verify` branchを先に作る namespace conflict です。前二者は後段の metadata/target検証で停止し、conflictは ref 作成を fail closed にして手動復旧します。
+- PR merge 後に `autorelease: tagged` になった後で image publish が失敗しても、ensure-main/heal はその release を自動再試行しません。これは意図した境界です。残った `release-verify/<M>` は未完了 release の印なので、失敗 job を同じ SHA で rerun するか、tag/Release/images を再利用する matching recovery dispatch を maintainer が行います。ref の一覧は次で確認します。
+- pending PRの verify ref を手動削除した後、対象SHAに failed run だけが残っている場合、scheduled heal は「runが存在する」と判断して何もしません。refを同じ `M` で再作成し、上記の exact-SHA `workflow_dispatch` を maintainer が手動実行してください。
+
+  ```sh
+  gh api repos/takano536/kobako/git/matching-refs/heads/release-verify/
+  ```
+
+- `release-verify` という文字列の branch/ref がすでに存在する場合、または別 SHA を指している場合は新規作成を続けず、conflict/mismatch の ref を削除してから recovery dispatch を行います。既存 ref を別 SHA へ repoint してはいけません。
+- Release PR branch を保護する ruleset は **optional hardening（この repository には未適用）** です。適用する場合は `release-please--branches--main--components--kobako` の update/push を GitHub Actions bot（および限定した maintainer）に制限し、通常の workflow が branch を作成・更新できることも検証します。main の ruleset では `strict_required_status_checks_policy: true` も推奨ですが、通常 PR は最新 main を取り込んでからでないと merge できなくなる運用コストがあります。
 
 ## v0.1.0 の扱い
 
