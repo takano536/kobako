@@ -71,7 +71,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
-.type-choice:focus-within {
+.type-choice:has(input:focus-visible) {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
