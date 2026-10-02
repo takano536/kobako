@@ -16,7 +16,7 @@ function pr(login = appBotLogin, type = 'Bot') {
 }
 describe('repository-scoped release App identity', () => {
   it('rejects the GITHUB_TOKEN GitHub Actions bot identity', () => {
-    assert.equal(isReleaseBot({ login: 'github-actions[bot]', type: 'Bot' }), false);
+    assert.equal(isReleaseBot({ login: 'github-actions[bot]', type: 'Bot' }, ''), false);
     assert.equal(
       validateCanonicalReleasePr(pr('github-actions[bot]'), { repository, appBotLogin }).ok,
       false,
@@ -27,7 +27,7 @@ describe('repository-scoped release App identity', () => {
     assert.equal(validateCanonicalReleasePr(pr(), { repository, appBotLogin }).ok, true);
   });
   it('does not trust arbitrary bots or human accounts', () => {
-    assert.equal(isReleaseBot({ login: appBotLogin, type: 'Bot' }), false);
+    assert.equal(isReleaseBot({ login: appBotLogin, type: 'Bot' }, ''), false);
     assert.equal(isReleaseBot({ login: 'other[bot]', type: 'Bot' }, appBotLogin), false);
     assert.equal(isReleaseBot({ login: appBotLogin, type: 'User' }, appBotLogin), false);
     assert.equal(

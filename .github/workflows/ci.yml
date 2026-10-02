@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
-
 concurrency:
   # Push runs are keyed by SHA so a later main push cannot evict a pending release run.
   group: >-
