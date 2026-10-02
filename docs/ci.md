@@ -70,7 +70,7 @@ tag push triggerは追加していません。GITHUB_TOKENで作成したtagは�
 
 ## Release automation invariants
 
-`release_pr_merge` は main checkout の `release-please-config.json` から算出した Release Please 所有ファイルだけを許可し、head commit の author/committer がともに GitHub Actions bot であること、title/body/root version が一致することを確認します。merge 前の base-tip/sole-parent check は GitHub merge API に compare-and-swap がないため非原子的な TOCTOU 防御であり、verify run は `M` に対して完全に再実行します。
+`release_pr_merge` は main checkout の `release-please-config.json` から算出した Release Please 所有ファイルだけを許可し、head commit の author が `github-actions[bot]` の Bot、committer が同 Bot または GitHub API の署名検証が `verified=true`・`reason=valid` の `web-flow` User であること、title/body/root version が一致することを確認します。merge 前の base-tip/sole-parent check は GitHub merge API に compare-and-swap がないため非原子的な TOCTOU 防御であり、verify run は `M` に対して完全に再実行します。
 
 `release_finalize` は Release Please action の直前に、live main の config、manifest、各 package version file、extra-files の blob SHA が `M` と一致することを確認します。main の metadata が先に変わった場合は Release Please を実行せず、hold/revert 後に同じ verify ref を recovery dispatch します。Release object は published (`draft=false`, `prerelease=false`)、exact tag、tag SHA、`target_commitish` が40桁SHAで `M` と完全一致することまで検証します。Read-only APIで確認した既存Releaseも `v0.3.0=f404557eed862e4a8d1428016d25054a3a459cab`、`v0.3.1=c44f2d1694530b62e3c9a2d6c1c94f5c2069f4ed` のSHA値であり、branch名は受け付けません。
 

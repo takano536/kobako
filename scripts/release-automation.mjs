@@ -566,10 +566,21 @@ function validateReleasePrProvenance(repository, pr, mainSha, headSha) {
   }
   const headCommit = getCommit(repository, headSha);
   validateReleasePrFileContents(repository, config, mainSha, headSha);
-  for (const role of ['author', 'committer']) {
-    if (headCommit?.[role]?.login !== 'github-actions[bot]' || headCommit?.[role]?.type !== 'Bot') {
-      throw new Error(`Release PR head ${role} is not github-actions[bot]`);
-    }
+  if (headCommit?.author?.login !== 'github-actions[bot]' || headCommit?.author?.type !== 'Bot') {
+    throw new Error(`Release PR head author is not github-actions[bot]`);
+  }
+  const botCommitter =
+    headCommit?.committer?.login === 'github-actions[bot]' && headCommit?.committer?.type === 'Bot';
+  // GitHub's commit API can preserve the bot author while signing as web-flow.
+  const verifiedGitHubCommitter =
+    headCommit?.committer?.login === 'web-flow' &&
+    headCommit?.committer?.type === 'User' &&
+    headCommit?.commit?.verification?.verified === true &&
+    headCommit?.commit?.verification?.reason === 'valid';
+  if (!botCommitter && !verifiedGitHubCommitter) {
+    throw new Error(
+      `Release PR head committer is not github-actions[bot] or verified GitHub web-flow`,
+    );
   }
   return validateReleasePrMetadata(repository, pr, headSha);
 }
