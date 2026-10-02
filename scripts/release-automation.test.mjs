@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +38,155 @@ const repository = 'takano536/kobako';
 const mainSha = sha('a');
 const headSha = sha('b');
 const mergeSha = sha('c');
+const appBotLogin = 'kobako-release[bot]';
+const webFlowCommitterId = 19864447;
+const realRestHeadCommit = {
+  sha: headSha,
+  node_id: 'C_kwDOUsf1mdoALmV0YWRhdGE',
+  url: `https://api.github.com/repos/${repository}/commits/${headSha}`,
+  html_url: `https://github.com/${repository}/commit/${headSha}`,
+  comments_url: `https://api.github.com/repos/${repository}/commits/${headSha}/comments`,
+  commit: {
+    url: `https://api.github.com/repos/${repository}/git/commits/${headSha}`,
+    author: {
+      name: appBotLogin,
+      email: '337035226+kobako-release[bot]@users.noreply.github.com',
+      date: '2026-10-02T18:02:44Z',
+    },
+    committer: {
+      name: 'GitHub',
+      email: 'noreply@github.com',
+      date: '2026-10-02T18:02:44Z',
+    },
+    message: 'chore(main): release 0.4.1',
+    tree: {
+      sha: sha('1'),
+      url: `https://api.github.com/repos/${repository}/git/trees/${sha('1')}`,
+    },
+    comment_count: 0,
+    verification: {
+      verified: true,
+      reason: 'valid',
+      signature: 'fixture-signature',
+      payload: 'fixture-payload',
+      verified_at: '2026-10-02T18:02:45Z',
+    },
+  },
+  author: {
+    login: appBotLogin,
+    id: 337035226,
+    node_id: 'BOT_kgDOFBa_2g',
+    avatar_url: 'https://avatars.githubusercontent.com/u/337035226?v=4',
+    gravatar_id: '',
+    url: `https://api.github.com/users/${encodeURIComponent(appBotLogin)}`,
+    html_url: 'https://github.com/apps/kobako-release',
+    followers_url: 'https://api.github.com/users/kobako-release[bot]/followers',
+    following_url: 'https://api.github.com/users/kobako-release[bot]/following{/other_user}',
+    gists_url: 'https://api.github.com/users/kobako-release[bot]/gists{/gist_id}',
+    starred_url: 'https://api.github.com/users/kobako-release[bot]/starred{/owner}{/repo}',
+    subscriptions_url: 'https://api.github.com/users/kobako-release/subscriptions',
+    organizations_url: 'https://api.github.com/users/kobako-release/orgs',
+    repos_url: 'https://api.github.com/users/kobako-release/repos',
+    events_url: 'https://api.github.com/users/kobako-release/events{/privacy}',
+    received_events_url: 'https://api.github.com/users/kobako-release/received_events',
+    type: 'Bot',
+    site_admin: false,
+  },
+  committer: {
+    login: 'web-flow',
+    id: webFlowCommitterId,
+    node_id: 'MDQ6VXNlcjE5ODY0NDQ3',
+    avatar_url: 'https://avatars.githubusercontent.com/u/19864447?v=4',
+    gravatar_id: '',
+    url: 'https://api.github.com/users/web-flow',
+    html_url: 'https://github.com/web-flow',
+    followers_url: 'https://api.github.com/users/web-flow/followers',
+    following_url: 'https://api.github.com/users/web-flow/following{/other_user}',
+    gists_url: 'https://api.github.com/users/web-flow/gists{/gist_id}',
+    starred_url: 'https://api.github.com/users/web-flow/starred{/owner}{/repo}',
+    subscriptions_url: 'https://api.github.com/users/web-flow/subscriptions',
+    organizations_url: 'https://api.github.com/users/web-flow/orgs',
+    repos_url: 'https://api.github.com/users/web-flow/repos',
+    events_url: 'https://api.github.com/users/web-flow/events{/privacy}',
+    received_events_url: 'https://api.github.com/users/web-flow/received_events',
+    type: 'User',
+    site_admin: false,
+  },
+  parents: [
+    {
+      sha: mainSha,
+      url: `https://api.github.com/repos/${repository}/commits/${mainSha}`,
+      html_url: `https://github.com/${repository}/commit/${mainSha}`,
+    },
+  ],
+  stats: { additions: 1, deletions: 0, total: 1 },
+  files: [
+    {
+      sha: sha('2'),
+      filename: 'CHANGELOG.md',
+      status: 'modified',
+      additions: 1,
+      deletions: 0,
+      changes: 1,
+      blob_url: `https://github.com/${repository}/blob/${headSha}/CHANGELOG.md`,
+      raw_url: `https://github.com/${repository}/raw/${headSha}/CHANGELOG.md`,
+      contents_url: `https://api.github.com/repos/${repository}/contents/CHANGELOG.md?ref=${headSha}`,
+      patch: '@@ -1 +1 @@',
+    },
+  ],
+};
+
+const clone = (value) => structuredClone(value);
+const realRestMergeCommit = {
+  ...clone(realRestHeadCommit),
+  sha: mergeSha,
+  node_id: 'C_kwDOUsf1mdoALmVyZ2U',
+  url: `https://api.github.com/repos/${repository}/commits/${mergeSha}`,
+  html_url: `https://github.com/${repository}/commit/${mergeSha}`,
+  commit: {
+    ...clone(realRestHeadCommit.commit),
+    url: `https://api.github.com/repos/${repository}/git/commits/${mergeSha}`,
+    author: {
+      name: appBotLogin,
+      email: '337035226+kobako-release[bot]@users.noreply.github.com',
+      date: '2026-10-02T18:10:00Z',
+    },
+    committer: {
+      name: 'GitHub',
+      email: 'noreply@github.com',
+      date: '2026-10-02T18:10:00Z',
+    },
+    message: 'chore(main): release 0.4.1 (#29)',
+    tree: {
+      sha: sha('6'),
+      url: `https://api.github.com/repos/${repository}/git/trees/${sha('6')}`,
+    },
+    verification: {
+      verified: true,
+      reason: 'valid',
+      signature: 'fixture-merge-signature',
+      payload: 'fixture-merge-payload',
+      verified_at: '2026-10-02T18:10:01Z',
+    },
+  },
+  author: clone(realRestHeadCommit.author),
+  committer: clone(realRestHeadCommit.committer),
+  parents: [
+    {
+      sha: mainSha,
+      url: `https://api.github.com/repos/${repository}/commits/${mainSha}`,
+      html_url: `https://github.com/${repository}/commit/${mainSha}`,
+    },
+  ],
+  files: [
+    { filename: 'CHANGELOG.md', status: 'modified' },
+    { filename: '.release-please-manifest.json', status: 'modified' },
+    { filename: 'package.json', status: 'modified' },
+    { filename: 'apps/web/package.json', status: 'modified' },
+    { filename: 'apps/worker/package.json', status: 'modified' },
+    { filename: 'packages/db/package.json', status: 'modified' },
+  ],
+};
 
 function releasePr(overrides = {}) {
   return {
@@ -71,6 +221,53 @@ function mergedReleasePr(overrides = {}) {
     ...overrides,
   });
 }
+function realRestMergedReleasePr(overrides = {}) {
+  const repositoryObject = {
+    id: 123456789,
+    node_id: 'R_kgDOUsf1mdo',
+    name: 'kobako',
+    full_name: repository,
+    private: true,
+    owner: { login: 'takano536', id: 123456, type: 'User' },
+    html_url: `https://github.com/${repository}`,
+    default_branch: 'main',
+  };
+  return mergedReleasePr({
+    id: 3000000029,
+    node_id: 'PR_kwDOUsf1mdo5',
+    number: 29,
+    url: `https://api.github.com/repos/${repository}/pulls/29`,
+    html_url: `https://github.com/${repository}/pull/29`,
+    title: 'chore(main): release 0.4.1',
+    body: '---\n## 0.4.1\n---',
+    user: clone(realRestHeadCommit.author),
+    author_association: 'CONTRIBUTOR',
+    labels: [
+      {
+        id: 4000000029,
+        node_id: 'LA_kwDOUsf1mdo',
+        url: `https://api.github.com/repos/${repository}/labels/autorelease%3A%20pending`,
+        name: 'autorelease: pending',
+        color: 'ededed',
+      },
+    ],
+    head: {
+      label: `${repository}: ${RELEASE_BRANCH}`,
+      ref: RELEASE_BRANCH,
+      sha: headSha,
+      repo: repositoryObject,
+    },
+    base: {
+      label: `${repository}: main`,
+      ref: 'main',
+      sha: mainSha,
+      repo: repositoryObject,
+    },
+    merged: true,
+    merged_by: clone(realRestHeadCommit.author),
+    ...overrides,
+  });
+}
 
 function successfulCheck(name, id, overrides = {}) {
   return {
@@ -87,6 +284,334 @@ function successfulCheck(name, id, overrides = {}) {
 function successfulChecks() {
   return REQUIRED_CHECKS.map((name, index) => successfulCheck(name, index + 1));
 }
+async function makeEvaluatorCommandFake({ checks = successfulChecks() } = {}) {
+  const directory = await mkdtemp(join(tmpdir(), 'kobako-release-evaluator-'));
+  const fixturePath = join(directory, 'fixture.json');
+  const fakeGhPath = join(directory, 'gh');
+  const logPath = join(directory, 'gh.log');
+  const mergedMarker = join(directory, 'merged');
+  const packagePaths = [
+    'package.json',
+    'apps/web/package.json',
+    'apps/worker/package.json',
+    'packages/db/package.json',
+  ];
+  const packageBase = { name: 'fixture', version: '0.4.0', scripts: { test: 'fixture' } };
+  const packageHead = { ...packageBase, version: '0.4.1' };
+  const jsonFile = (value, blob) => ({
+    type: 'file',
+    encoding: 'base64',
+    content: Buffer.from(JSON.stringify(value)).toString('base64'),
+    sha: blob,
+  });
+  const textFile = (value, blob) => ({
+    type: 'file',
+    encoding: 'base64',
+    content: Buffer.from(value).toString('base64'),
+    sha: blob,
+  });
+  const changelogBase = '# Changelog\n\n## 0.4.0\n\nHistory\n';
+  const changelogHead = '# Changelog\n\n## 0.4.1\n\nRelease\n\n## 0.4.0\n\nHistory\n';
+  const contents = {};
+  for (const relativePath of packagePaths) {
+    contents[`${relativePath}:${mainSha}`] = jsonFile(packageBase, sha('1'));
+    contents[`${relativePath}:${headSha}`] = jsonFile(packageHead, sha('2'));
+    contents[`${relativePath}:${mergeSha}`] = jsonFile(packageHead, sha('2'));
+  }
+  for (const ref of [mainSha, headSha, mergeSha]) {
+    contents[`.release-please-manifest.json:${ref}`] = jsonFile(
+      { '.': ref === mainSha ? '0.4.0' : '0.4.1' },
+      sha('3'),
+    );
+  }
+  contents[`CHANGELOG.md:${mainSha}`] = textFile(changelogBase, sha('4'));
+  contents[`CHANGELOG.md:${headSha}`] = textFile(changelogHead, sha('5'));
+  contents[`CHANGELOG.md:${mergeSha}`] = textFile(changelogHead, sha('5'));
+
+  const openPr = releasePr({
+    title: 'chore(main): release 0.4.1',
+    body: '---\n## 0.4.1\n---',
+    user: { login: appBotLogin, id: 337035226, type: 'Bot' },
+  });
+  const mergedPr = {
+    ...openPr,
+    state: 'closed',
+    merged: true,
+    merged_at: '2026-10-02T18:10:00Z',
+    merge_commit_sha: mergeSha,
+  };
+  const fixture = {
+    workflowRun: {
+      name: 'CI',
+      event: 'pull_request',
+      conclusion: 'success',
+      head_branch: RELEASE_BRANCH,
+      head_sha: headSha,
+      head_repository: { full_name: repository },
+    },
+    openPr,
+    mergedPr,
+    headCommit: clone(realRestHeadCommit),
+    compare: {
+      status: 'ahead',
+      merge_base_commit: { sha: mainSha },
+      files: [
+        { filename: 'CHANGELOG.md' },
+        { filename: '.release-please-manifest.json' },
+        { filename: 'package.json' },
+        { filename: 'apps/web/package.json' },
+        { filename: 'apps/worker/package.json' },
+        { filename: 'packages/db/package.json' },
+      ],
+    },
+    checks,
+    contents,
+    merge: { merged: true, sha: mergeSha },
+  };
+  await writeFile(fixturePath, JSON.stringify(fixture), 'utf8');
+  await writeFile(
+    fakeGhPath,
+    `#!/usr/bin/env node
+import fs from 'node:fs';
+
+const fixture = JSON.parse(fs.readFileSync(process.env.FIXTURE_PATH, 'utf8'));
+const args = process.argv.slice(2);
+const endpoint = args[1] || '';
+fs.appendFileSync(process.env.FAKE_GH_LOG, \`\${args.join(' ')}\\n\`);
+const fail = (message) => {
+  process.stderr.write(message + '\\n');
+  process.exit(1);
+};
+const output = (value) => process.stdout.write(JSON.stringify(value));
+if (args[0] !== 'api') fail('unexpected gh invocation');
+
+if (endpoint === 'repos/${repository}/actions/runs/99') {
+  output(fixture.workflowRun);
+} else if (endpoint === 'repos/${repository}/git/ref/heads/main') {
+  output({ object: { sha: '${mainSha}' } });
+} else if (endpoint === 'repos/${repository}/commits/${headSha}') {
+  output(fixture.headCommit);
+} else if (endpoint === 'repos/${repository}/commits/${headSha}/pulls?per_page=100') {
+  output([[fixture.openPr]]);
+} else if (endpoint === 'repos/${repository}/commits/${headSha}/check-runs?per_page=100') {
+  output([{ check_runs: fixture.checks }]);
+} else if (endpoint.startsWith('repos/${repository}/compare/${mainSha}...${headSha}?')) {
+  output(fixture.compare);
+} else if (endpoint === 'repos/${repository}/pulls/42') {
+  output(fs.existsSync(process.env.FAKE_MERGED) ? fixture.mergedPr : fixture.openPr);
+} else if (endpoint === 'repos/${repository}/pulls/42/merge') {
+  if (!args.includes('--method') || !args.includes('PUT')) fail('merge request was not PUT');
+  fs.writeFileSync(process.env.FAKE_MERGED, '');
+  output(fixture.merge);
+} else if (endpoint.startsWith('repos/${repository}/contents/')) {
+  const [relativePath, query = ''] = endpoint
+    .slice('repos/${repository}/contents/'.length)
+    .split('?');
+  const ref = new URLSearchParams(query).get('ref');
+  const value = fixture.contents[\`\${relativePath}:\${ref}\`];
+  if (!value) fail(\`missing content fixture for \${relativePath} at \${ref}\`);
+  output(value);
+} else {
+  fail(\`unexpected GitHub API endpoint: \${endpoint}\`);
+}
+`,
+    'utf8',
+  );
+  await chmod(fakeGhPath, 0o755);
+  return { directory, fixturePath, logPath, mergedMarker };
+}
+async function makeClassificationCommandFake({
+  pullRequest = realRestMergedReleasePr(),
+  mergeCommit = realRestMergeCommit,
+} = {}) {
+  const directory = await mkdtemp(join(tmpdir(), 'kobako-release-classify-'));
+  const fixturePath = join(directory, 'fixture.json');
+  const fakeGhPath = join(directory, 'gh');
+  const githubOutputPath = join(directory, 'github-output');
+  const packagePaths = [
+    'package.json',
+    'apps/web/package.json',
+    'apps/worker/package.json',
+    'packages/db/package.json',
+  ];
+  const packageBase = { name: 'fixture', version: '0.4.0', scripts: { test: 'fixture' } };
+  const packageHead = { ...packageBase, version: '0.4.1' };
+  const jsonFile = (value, blob) => ({
+    type: 'file',
+    encoding: 'base64',
+    content: Buffer.from(JSON.stringify(value)).toString('base64'),
+    sha: blob,
+  });
+  const textFile = (value, blob) => ({
+    type: 'file',
+    encoding: 'base64',
+    content: Buffer.from(value).toString('base64'),
+    sha: blob,
+  });
+  const contents = {};
+  for (const relativePath of packagePaths) {
+    contents[`${relativePath}:${mainSha}`] = jsonFile(packageBase, sha('1'));
+    contents[`${relativePath}:${mergeSha}`] = jsonFile(packageHead, sha('2'));
+  }
+  contents[`.release-please-manifest.json:${mainSha}`] = jsonFile({ '.': '0.4.0' }, sha('3'));
+  contents[`.release-please-manifest.json:${mergeSha}`] = jsonFile({ '.': '0.4.1' }, sha('4'));
+  contents[`CHANGELOG.md:${mainSha}`] = textFile('# Changelog\n\n## 0.4.0\n\nHistory\n', sha('5'));
+  contents[`CHANGELOG.md:${mergeSha}`] = textFile(
+    '# Changelog\n\n## 0.4.1\n\nRelease\n\n## 0.4.0\n\nHistory\n',
+    sha('6'),
+  );
+  const fixture = {
+    mergeCommit,
+    pullRequest,
+    compare: {
+      status: 'ahead',
+      merge_base_commit: { sha: mainSha },
+      files: [
+        { filename: 'CHANGELOG.md' },
+        { filename: '.release-please-manifest.json' },
+        { filename: 'package.json' },
+        { filename: 'apps/web/package.json' },
+        { filename: 'apps/worker/package.json' },
+        { filename: 'packages/db/package.json' },
+      ],
+    },
+    contents,
+  };
+  await writeFile(fixturePath, JSON.stringify(fixture), 'utf8');
+  await writeFile(githubOutputPath, '', 'utf8');
+  await writeFile(
+    fakeGhPath,
+    `#!/usr/bin/env node
+import fs from 'node:fs';
+
+const fixture = JSON.parse(fs.readFileSync(process.env.FIXTURE_PATH, 'utf8'));
+const args = process.argv.slice(2);
+const endpoint = args[1] || '';
+const fail = (message) => {
+  process.stderr.write(message + '\\n');
+  process.exit(1);
+};
+const output = (value) => process.stdout.write(JSON.stringify(value));
+if (args[0] !== 'api' || args.includes('--method')) fail('unexpected non-read GitHub API invocation');
+
+if (endpoint === 'repos/${repository}/commits/${mergeSha}') {
+  output(fixture.mergeCommit);
+} else if (endpoint === 'repos/${repository}/commits/${mergeSha}/pulls?per_page=100') {
+  output([[fixture.pullRequest]]);
+} else if (endpoint === 'repos/${repository}/pulls/${pullRequest.number}') {
+  output(fixture.pullRequest);
+} else if (endpoint.startsWith('repos/${repository}/compare/${mainSha}...${mergeSha}?')) {
+  output(fixture.compare);
+} else if (endpoint.startsWith('repos/${repository}/contents/')) {
+  const [relativePath, query = ''] = endpoint
+    .slice('repos/${repository}/contents/'.length)
+    .split('?');
+  const ref = new URLSearchParams(query).get('ref');
+  const value = fixture.contents[\`\${relativePath}:\${ref}\`];
+  if (!value) fail(\`missing content fixture for \${relativePath} at \${ref}\`);
+  output(value);
+} else {
+  fail(\`unexpected GitHub API endpoint: \${endpoint}\`);
+}
+`,
+    'utf8',
+  );
+  await chmod(fakeGhPath, 0o755);
+  return {
+    directory,
+    fixturePath,
+    githubOutputPath,
+    env: {
+      ...process.env,
+      FIXTURE_PATH: fixturePath,
+      PATH: `${directory}:${process.env.PATH || ''}`,
+      GH_TOKEN: 'fixture-token',
+      GITHUB_REPOSITORY: repository,
+      MERGE_SHA: mergeSha,
+      GITHUB_EVENT_NAME: 'push',
+      RELEASE_APP_BOT_LOGIN: appBotLogin,
+      GITHUB_OUTPUT: githubOutputPath,
+    },
+  };
+}
+
+function evaluatorCommandEnv(fake) {
+  return {
+    ...process.env,
+    PATH: `${fake.directory}:${process.env.PATH || ''}`,
+    FIXTURE_PATH: fake.fixturePath,
+    FAKE_GH_LOG: fake.logPath,
+    FAKE_MERGED: fake.mergedMarker,
+    GH_TOKEN: 'fixture-read-token',
+    MERGE_GH_TOKEN: 'fixture-merge-token',
+    GITHUB_REPOSITORY: repository,
+    WORKFLOW_RUN_ID: '99',
+    WORKFLOW_HEAD_SHA: headSha,
+    WORKFLOW_HEAD_BRANCH: RELEASE_BRANCH,
+    RELEASE_APP_BOT_LOGIN: appBotLogin,
+  };
+}
+
+describe('evaluate-release-pr command API boundary', () => {
+  it('passes the validated head SHA to a squash merge', async () => {
+    const fake = await makeEvaluatorCommandFake();
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL('./release-automation.mjs', import.meta.url)),
+          'evaluate-release-pr',
+        ],
+        {
+          cwd: fileURLToPath(new URL('../', import.meta.url)),
+          encoding: 'utf8',
+          env: evaluatorCommandEnv(fake),
+        },
+      );
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.match(
+        invocations,
+        new RegExp(
+          `pulls/42/merge --method PUT --raw-field sha=${headSha} --raw-field merge_method=squash`,
+        ),
+      );
+      assert.equal(existsSync(fake.mergedMarker), true);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['pending', { status: 'in_progress', conclusion: null }],
+    ['failed', { status: 'completed', conclusion: 'failure' }],
+  ])('does not PUT the merge when the latest lint check is %s', async (_name, override) => {
+    const checks = successfulChecks();
+    checks[0] = successfulCheck('lint', 99, override);
+    const fake = await makeEvaluatorCommandFake({ checks });
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL('./release-automation.mjs', import.meta.url)),
+          'evaluate-release-pr',
+        ],
+        {
+          cwd: fileURLToPath(new URL('../', import.meta.url)),
+          encoding: 'utf8',
+          env: evaluatorCommandEnv(fake),
+        },
+      );
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /required native PR checks are not complete:.*lint/);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.doesNotMatch(invocations, /pulls\/42\/merge/);
+      assert.equal(existsSync(fake.mergedMarker), false);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('workflow-run metadata and App fail-closed policy', () => {
   it('accepts only a successful native pull_request run on the exact release branch and repository', () => {
@@ -420,6 +945,59 @@ describe('canonical Release PR and provenance guards', () => {
     assert.equal(nonCanonical.action, 'refuse');
     assert.match(nonCanonical.errors.join('; '), /base ref/);
   });
+  it('runs post-merge Release PR and commit validation through classify-main-release', async () => {
+    const runClassification = async (pullRequest) => {
+      const fake = await makeClassificationCommandFake({ pullRequest });
+      try {
+        const result = spawnSync(
+          process.execPath,
+          [
+            fileURLToPath(new URL('./release-automation.mjs', import.meta.url)),
+            'classify-main-release',
+          ],
+          {
+            cwd: fileURLToPath(new URL('../', import.meta.url)),
+            encoding: 'utf8',
+            env: fake.env,
+          },
+        );
+        return {
+          result,
+          output: await readFile(fake.githubOutputPath, 'utf8'),
+        };
+      } finally {
+        await rm(fake.directory, { recursive: true, force: true });
+      }
+    };
+
+    const accepted = await runClassification(realRestMergedReleasePr());
+    assert.equal(accepted.result.status, 0, accepted.result.stderr || accepted.result.stdout);
+    assert.match(accepted.output, /^is_release=true$/m);
+    assert.match(accepted.output, /^pr_number=29$/m);
+    assert.match(accepted.output, /^version=0\.4\.1$/m);
+
+    const wrongMergeActor = await runClassification(
+      realRestMergedReleasePr({
+        merged_by: { ...realRestHeadCommit.author, login: 'attacker[bot]' },
+      }),
+    );
+    assert.notEqual(wrongMergeActor.result.status, 0);
+    assert.match(
+      `${wrongMergeActor.result.stderr}${wrongMergeActor.result.stdout}`,
+      /merged Release PR actor is not the configured release App bot: attacker\[bot\]/,
+    );
+
+    const wrongPrAuthor = await runClassification(
+      realRestMergedReleasePr({
+        user: { ...realRestHeadCommit.author, login: 'attacker[bot]' },
+      }),
+    );
+    assert.notEqual(wrongPrAuthor.result.status, 0);
+    assert.match(
+      `${wrongPrAuthor.result.stderr}${wrongPrAuthor.result.stdout}`,
+      /no canonical merged Release PR.*author is not the configured release App bot/,
+    );
+  });
 
   it('accepts only the allowlisted Release Please files', () => {
     const allowlist = [
@@ -435,16 +1013,15 @@ describe('canonical Release PR and provenance guards', () => {
     );
   });
 
-  it('requires a verified web-flow committer when the bot did not sign directly', () => {
-    assert.equal(
-      isVerifiedWebFlowCommitter({
-        login: 'web-flow',
-        type: 'User',
-        commit: { verification: { verified: true, reason: 'valid' } },
-      }),
-      true,
-    );
-    assert.equal(isVerifiedWebFlowCommitter({ login: 'web-flow', type: 'User' }), false);
+  it('accepts the real REST commit shape for a verified web-flow committer', () => {
+    assert.equal(isVerifiedWebFlowCommitter(realRestHeadCommit), true);
+    const oldNestedShape = clone(realRestHeadCommit);
+    delete oldNestedShape.commit.verification;
+    oldNestedShape.committer.commit = {
+      verification: { verified: true, reason: 'valid' },
+    };
+    assert.equal(isVerifiedWebFlowCommitter(oldNestedShape), false);
+    assert.equal(isVerifiedWebFlowCommitter({ ...realRestHeadCommit, committer: null }), false);
   });
 });
 
@@ -456,18 +1033,12 @@ describe('evaluator merge snapshot', () => {
     head_sha: headSha,
     head_repository: { full_name: repository },
   };
-  const headCommit = {
-    author: { login: 'release-bot[bot]', type: 'Bot' },
-    committer: {
-      login: 'web-flow',
-      type: 'User',
-      commit: { verification: { verified: true, reason: 'valid' } },
-    },
-    parents: [{ sha: mainSha }],
-  };
+  const headCommit = clone(realRestHeadCommit);
   const args = (overrides = {}) => ({
     workflowRun,
-    pr: releasePr(),
+    pr: releasePr({
+      user: { login: appBotLogin, id: 337035226, type: 'Bot' },
+    }),
     repository,
     mainSha,
     headSha,
@@ -475,11 +1046,11 @@ describe('evaluator merge snapshot', () => {
     checkRuns: successfulChecks(),
     changedPaths: ['CHANGELOG.md', '.release-please-manifest.json', 'package.json'],
     allowedPaths: ['CHANGELOG.md', '.release-please-manifest.json', 'package.json'],
-    appBotLogin: 'release-bot[bot]',
+    appBotLogin,
     ...overrides,
   });
 
-  it('accepts completed native checks and stops pending, moved, and spoofed inputs', () => {
+  it('accepts the real REST App-author/web-flow commit and rejects a pending check', () => {
     assert.equal(validateReleasePrSnapshot(args()).checks.ok, true);
     const pending = successfulChecks();
     pending[0] = successfulCheck('lint', 99, { status: 'in_progress', conclusion: null });
@@ -487,20 +1058,252 @@ describe('evaluator merge snapshot', () => {
       () => validateReleasePrSnapshot(args({ checkRuns: pending })),
       /required native PR checks are not complete.*lint/,
     );
-    assert.throws(() => validateReleasePrSnapshot(args({ headSha: sha('d') })), /head SHA/);
+  });
+  it.each([
+    [
+      'non-App login',
+      (commit) => {
+        commit.author.login = 'kobako-release';
+      },
+    ],
+    [
+      'lookalike login',
+      (commit) => {
+        commit.author.login = 'kobako-release[bot]-x';
+      },
+    ],
+    [
+      'App login with User type',
+      (commit) => {
+        commit.author.type = 'User';
+      },
+    ],
+  ])('rejects a real REST commit with a spoofed head author: %s', (_name, mutate) => {
+    const invalidCommit = clone(headCommit);
+    mutate(invalidCommit);
     assert.throws(
-      () => validateReleasePrSnapshot(args({ changedPaths: ['CHANGELOG.md', 'evil.ts'] })),
-      /non-Release Please files/,
+      () => validateReleasePrSnapshot(args({ headCommit: invalidCommit })),
+      /head author is not the configured release App bot/,
     );
-    assert.throws(
-      () =>
-        validateReleasePrSnapshot(
-          args({
-            headCommit: { ...headCommit, committer: { login: 'web-flow', type: 'User' } },
-          }),
-        ),
-      /verified GitHub web-flow/,
-    );
+  });
+
+  it.each([
+    [
+      'committer login',
+      (commit) => {
+        commit.committer.login = 'web-flow-bot';
+      },
+      /head committer\.login must be web-flow/,
+    ],
+    [
+      'committer case',
+      (commit) => {
+        commit.committer.login = 'Web-Flow';
+      },
+      /head committer\.login must be web-flow/,
+    ],
+    [
+      'committer id',
+      (commit) => {
+        commit.committer.id = 123;
+      },
+      /head committer\.id must be 19864447/,
+    ],
+    [
+      'committer string id',
+      (commit) => {
+        commit.committer.id = '19864447';
+      },
+      /head committer\.id must be 19864447/,
+    ],
+    [
+      'committer type',
+      (commit) => {
+        commit.committer.type = 'Bot';
+      },
+      /head committer\.type must be User/,
+    ],
+    [
+      'committer array',
+      (commit) => {
+        commit.committer = [];
+      },
+      /head committer object is missing/,
+    ],
+    [
+      'missing committer field',
+      (commit) => {
+        delete commit.committer;
+      },
+      /head committer object is missing/,
+    ],
+    [
+      'missing committer',
+      (commit) => {
+        commit.committer = null;
+      },
+      /head committer object is missing/,
+    ],
+    [
+      'raw committer',
+      (commit) => {
+        delete commit.commit.committer;
+      },
+      /head commit\.committer object is missing/,
+    ],
+    [
+      'raw committer array',
+      (commit) => {
+        commit.commit.committer = [];
+      },
+      /head commit\.committer object is missing/,
+    ],
+    [
+      'missing raw committer name',
+      (commit) => {
+        delete commit.commit.committer.name;
+      },
+      /head commit\.committer\.name must be GitHub/,
+    ],
+    [
+      'missing raw committer email',
+      (commit) => {
+        delete commit.commit.committer.email;
+      },
+      /head commit\.committer\.email must be noreply@github\.com/,
+    ],
+    [
+      'raw committer name',
+      (commit) => {
+        commit.commit.committer.name = 'GitHub ';
+      },
+      /head commit\.committer\.name must be GitHub/,
+    ],
+    [
+      'raw committer email',
+      (commit) => {
+        commit.commit.committer.email = 'noreply@github.com.evil';
+      },
+      /head commit\.committer\.email must be noreply@github\.com/,
+    ],
+    [
+      'verification flag',
+      (commit) => {
+        commit.commit.verification.verified = false;
+      },
+      /head commit\.verification\.verified must be true/,
+    ],
+    [
+      'verification string',
+      (commit) => {
+        commit.commit.verification.verified = 'true';
+      },
+      /head commit\.verification\.verified must be true/,
+    ],
+    [
+      'verification array',
+      (commit) => {
+        commit.commit.verification = [];
+      },
+      /head commit\.verification object is missing/,
+    ],
+    [
+      'verification reason',
+      (commit) => {
+        commit.commit.verification.reason = 'unsigned';
+      },
+      /head commit\.verification\.reason must be valid/,
+    ],
+    [
+      'bad email verification reason',
+      (commit) => {
+        commit.commit.verification.reason = 'bad_email';
+      },
+      /head commit\.verification\.reason must be valid/,
+    ],
+    [
+      'unknown key verification reason',
+      (commit) => {
+        commit.commit.verification.reason = 'unknown_key';
+      },
+      /head commit\.verification\.reason must be valid/,
+    ],
+    [
+      'missing verification',
+      (commit) => {
+        delete commit.commit.verification;
+      },
+      /head commit\.verification object is missing/,
+    ],
+    [
+      'misnested verification',
+      (commit) => {
+        delete commit.commit.verification;
+        commit.committer.commit = { verification: { verified: true, reason: 'valid' } };
+      },
+      /head commit\.verification object is missing/,
+    ],
+  ])('rejects a web-flow commit with an invalid %s condition', (_name, mutate, error) => {
+    const invalidCommit = clone(headCommit);
+    mutate(invalidCommit);
+    assert.throws(() => validateReleasePrSnapshot(args({ headCommit: invalidCommit })), error);
+  });
+  it.each([
+    [
+      'PR author',
+      { pr: releasePr({ user: { login: 'attacker', type: 'User' } }) },
+      /author is not the configured release App bot/,
+    ],
+    [
+      'head repository',
+      {
+        pr: releasePr({
+          user: { login: appBotLogin, type: 'Bot' },
+          head: { ...releasePr().head, repo: { full_name: 'fork/evil' } },
+        }),
+      },
+      /head repository is not the canonical repository/,
+    ],
+    [
+      'base ref',
+      {
+        pr: releasePr({
+          user: { login: appBotLogin, type: 'Bot' },
+          base: { ...releasePr().base, ref: 'develop' },
+        }),
+      },
+      /base ref is not main/,
+    ],
+    [
+      'base repository',
+      {
+        pr: releasePr({
+          user: { login: appBotLogin, type: 'Bot' },
+          base: { ...releasePr().base, repo: { full_name: 'fork/evil' } },
+        }),
+      },
+      /base repository is not the canonical repository/,
+    ],
+    [
+      'App author type',
+      { pr: releasePr({ user: { login: appBotLogin, type: 'User' } }) },
+      /author is not the configured release App bot/,
+    ],
+    [
+      'changed file',
+      { changedPaths: ['CHANGELOG.md', 'evil.ts'] },
+      /non-Release Please files.*evil\.ts/,
+    ],
+    [
+      'head SHA',
+      {
+        headSha: sha('d'),
+        workflowRun: { ...workflowRun, head_sha: sha('d') },
+      },
+      /head SHA does not match expected/,
+    ],
+  ])('rejects a validly signed commit when %s is spoofed', (_name, overrides, error) => {
+    assert.throws(() => validateReleasePrSnapshot(args(overrides)), error);
   });
   it('rejects a newer pending native check rerun before merge', () => {
     const rerun = successfulChecks();
