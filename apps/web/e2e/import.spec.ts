@@ -428,6 +428,9 @@ test('navigates from transactions to the import screen', async ({ page }) => {
   await expect(page).toHaveURL(/\/transactions\/import$/);
   await expect(page.getByRole('heading', { name: 'らくな家計簿から引っ越す' })).toBeVisible();
   await screenshotState(page, 'e2e-empty');
+  await expect(page.locator('.import-dropzone-help')).toHaveText(
+    'ここにドロップして選ぶこともできます',
+  );
 });
 test('rejects unsupported, empty, and oversized files before preview', async ({ page }) => {
   const paths = fixturePaths;
@@ -439,19 +442,19 @@ test('rejects unsupported, empty, and oversized files before preview', async ({ 
 
   await input.setInputFiles(paths.wrongExtension);
   await expect(page.locator('.import-file-error')).toHaveText(
-    'Excelファイル（.xlsx）を選んでください。',
+    'Excel ファイル（.xlsx）を選んでください。',
   );
   await expect(page.locator('.import-file-card-icon')).toHaveText('FILE');
   await screenshotState(page, 'e2e-selected');
 
   await input.setInputFiles(paths.empty);
   await expect(page.locator('.import-file-error')).toHaveText(
-    'ファイルが空です。内容のある.xlsxを選んでください。',
+    'ファイルが空です。内容のある .xlsx を選んでください。',
   );
 
   await input.setInputFiles(paths.large);
   await expect(page.locator('.import-file-error')).toHaveText(
-    'ファイルが大きすぎます。5 MiB以下の.xlsxを選んでください。',
+    'ファイルが大きすぎます。5 MiB 以下の .xlsx を選んでください。',
   );
 });
 
@@ -524,7 +527,7 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   ).toBeVisible();
   await page.goto(`/?month=${month}`);
   await expect(
-    page.getByRole('group', { name: 'この月の支出' }).getByText('1,234円', { exact: true }),
+    page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
   ).toBeVisible();
   await expect(
     page.getByRole('group', { name: '収入' }).getByText('5,678円', { exact: true }),

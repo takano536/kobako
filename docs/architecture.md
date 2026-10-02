@@ -57,6 +57,10 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 
+## UI レイアウト規則
+
+画面の順序、見出しレベル、リンクの役割、共通コンポーネント、余白・行間トークンは [UI レイアウト規則](ui.md) にまとめます。
+
 ## インポート・ファイル読み込み
 
 「らくな家計簿」（Realbyte Money Manager）Android 版の Excel エクスポートからインポートできます。Web の `/transactions/import` では、ファイルを選択してプレビューを確認し、同じファイルをもう一度送信して確定します。JavaScript が無効でも同じフォームを二回送信できます。

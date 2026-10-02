@@ -300,8 +300,8 @@ function fileErrorCopy(error: MoneyManagerNormalizationError): {
 } {
   if (error.code === 'unsupported-header') {
     return {
-      reason: 'らくな家計簿のExcel形式ではありません。',
-      suggestedFix: 'らくな家計簿 Android 日本語版から書き出した.xlsxを選んでください。',
+      reason: 'らくな家計簿の Excel 形式ではありません。',
+      suggestedFix: 'らくな家計簿 Android 日本語版から書き出した .xlsx を選んでください。',
     };
   }
   return {
@@ -363,7 +363,7 @@ function parserMessage(error: unknown): string {
   if (error instanceof MoneyManagerXlsxError) {
     return error.message;
   }
-  return 'Excelファイルを読み込めませんでした。対応形式を確認してください。';
+  return 'Excel ファイルを読み込めませんでした。対応形式を確認してください。';
 }
 
 function successState(

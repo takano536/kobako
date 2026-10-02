@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import {
   currentTokyoDate,
   currentTokyoMonth,
@@ -9,6 +7,7 @@ import {
 } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
+import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
 import { TransactionForm } from '../transaction-form';
 import { createTransactionAction } from '../actions';
 
@@ -50,13 +49,15 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   const backHref = `/transactions?month=${encodeURIComponent(targetMonth)}`;
 
   return (
-    <div className="content-stack content-narrow form-page">
-      <section className="page-heading" aria-labelledby="new-transaction-title">
-        <h1 id="new-transaction-title">新規登録</h1>
-        <Link className="text-link" href={backHref}>
-          取引一覧へ戻る
-        </Link>
-      </section>
+    <PageShell width="narrow">
+      <PageHeader
+        title="新規登録"
+        actions={
+          <ActionLink href={backHref} variant="back">
+            取引一覧へ戻る
+          </ActionLink>
+        }
+      />
       <section className="form-surface" aria-label="取引の入力">
         <TransactionForm
           action={createTransactionAction}
@@ -81,6 +82,6 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
           submitLabel="登録する"
         />
       </section>
-    </div>
+    </PageShell>
   );
 }
