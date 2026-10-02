@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/takano536/kobako/compare/v0.4.0...v0.4.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **release:** require native PR checks and support scoped App auth ([#24](https://github.com/takano536/kobako/issues/24)) ([9046cb0](https://github.com/takano536/kobako/commit/9046cb0136a12332d3a162b9f0421f91b772b35e))
+
 ## [0.4.0](https://github.com/takano536/kobako/compare/v0.3.1...v0.4.0) (2026-10-02)
 
 
