@@ -31,7 +31,6 @@ const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
 
 let databaseClient: DatabaseClient | undefined;
 let month = '';
-let monthLabel = '';
 let nextMonth = '';
 let nextMonthLabel = '';
 
@@ -67,7 +66,6 @@ test.beforeAll(async () => {
     );
     await initializeDefaultLedger(databaseClient.db);
     [month, nextMonth] = await chooseEmptyMonthPair(databaseClient, runId);
-    monthLabel = labelForMonth(month);
     nextMonthLabel = labelForMonth(nextMonth);
   } catch (error) {
     await databaseClient.close();
@@ -101,10 +99,10 @@ test('shows an empty month and reflects an added expense in the list and overvie
 }) => {
   await assertEmptyMonth(month);
   await page.goto(`/?month=${month}`);
-  await expect(page.getByRole('heading', { name: monthLabel })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
   await expect(page.getByText('まだ記録がありません')).toBeVisible();
 
-  await page.getByRole('link', { name: '取引を登録', exact: true }).click();
+  await page.locator('.page-header .action-link-primary').click();
   await expect(page.getByRole('heading', { name: '新規登録' })).toBeVisible();
   await page.getByLabel('金額').fill('1,200');
   await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
@@ -120,6 +118,91 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('group', { name: '収支差額' }).locator('dd')).toHaveText(
     'マイナス−1,200円',
   );
+});
+test('keeps shared chrome aligned across viewports and wraps long content', async ({ page }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+
+  const categoryName = `長いカテゴリ名-${runId}-折り返し確認用`;
+  const memo = `${markerFor('layout-long')} / ${'長いメモ '.repeat(24)}`;
+  const categoryRows = await databaseClient.sql`
+    insert into categories (household_id, type, name, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryName}, 98)
+    returning id
+  `;
+  const categoryId = Number(categoryRows[0]?.id);
+  if (!Number.isInteger(categoryId)) {
+    throw new Error('long layout category fixture was not created');
+  }
+  const transactionRows = await databaseClient.sql`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 9876, ${`${month}-17`}, ${categoryId}, ${memo})
+    returning id
+  `;
+  const transactionId = Number(transactionRows[0]?.id);
+  if (!Number.isInteger(transactionId)) {
+    throw new Error('long layout transaction fixture was not created');
+  }
+
+  const measure = async (selector: string) =>
+    page.locator(selector).evaluate((element) => {
+      const { x, y, width } = element.getBoundingClientRect();
+      return { x, y, width };
+    });
+  const assertNoHorizontalOverflow = async () => {
+    const dimensions = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    }));
+    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  };
+  const assertAligned = (
+    overview: { x: number; y: number; width: number },
+    transactions: { x: number; y: number; width: number },
+  ) => {
+    expect(Math.abs(overview.x - transactions.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(overview.y - transactions.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(overview.width - transactions.width)).toBeLessThanOrEqual(1);
+  };
+
+  try {
+    for (const { width, height } of [
+      { width: 360, height: 780 },
+      { width: 390, height: 844 },
+      { width: 1280, height: 900 },
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/?month=${month}`);
+      await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
+      const overviewHeading = await measure('.page-header h1');
+      const overviewPrimary = await measure('.page-header .action-link-primary');
+      const overviewMonth = await measure('.month-switcher');
+      await assertNoHorizontalOverflow();
+
+      await page.goto(`/transactions?month=${month}`);
+      await expect(page.getByRole('heading', { name: /取引/ })).toBeVisible();
+      const transactionsHeading = await measure('.page-header h1');
+      const transactionsPrimary = await measure('.page-header .action-link-primary');
+      const transactionsMonth = await measure('.month-switcher');
+      for (const [overview, transactions] of [
+        [overviewHeading, transactionsHeading],
+        [overviewPrimary, transactionsPrimary],
+        [overviewMonth, transactionsMonth],
+      ] as const) {
+        assertAligned(overview, transactions);
+      }
+      await assertNoHorizontalOverflow();
+      await expect(page.locator('.transaction-memo').filter({ hasText: memo })).toBeVisible();
+
+      await page.goto(`/transactions?month=${month}&type=expense&category=${categoryId}`);
+      await expect(page.locator('.filter-summary')).toContainText(categoryName);
+      await assertNoHorizontalOverflow();
+    }
+  } finally {
+    await databaseClient.sql`delete from transactions where id = ${transactionId}`;
+    await databaseClient.sql`delete from categories where id = ${categoryId}`;
+  }
 });
 
 test('supports keyboard entry and mobile layout for an ordinary transaction', async ({ page }) => {
@@ -343,7 +426,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(page.getByRole('link', { name: /700円/ })).toHaveCount(0);
 
   await page.goto(`/?month=${nextMonth}`);
-  await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'この月の支出' }).getByText('700円')).toBeVisible();
   await expect(page.getByRole('group', { name: '収入' }).getByText('0円')).toBeVisible();
 
@@ -353,8 +436,8 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(rows.first()).toContainText('700円');
 
   await page.goto(`/?month=${month}`);
-  await page.getByRole('link', { name: '翌月 ›' }).click();
-  await expect(page.getByRole('heading', { name: nextMonthLabel })).toBeVisible();
+  await page.getByRole('link', { name: '翌月' }).click();
+  await expect(page.locator('.month-switcher-label')).toHaveText(nextMonthLabel);
 });
 
 test('filters transactions with a native GET form when JavaScript is disabled', async ({

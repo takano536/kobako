@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import {
   MAX_SUPPORTED_YEAR,
   MIN_SUPPORTED_YEAR,
@@ -11,15 +9,22 @@ import {
   type ListedLedgerEntry,
 } from '@kobako/db';
 
-import { EmptyLedgerMotif } from '../../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
-import { formatJapaneseDateShort, groupTransactionsByDate, monthLabel } from '../../src/lib/format';
+import { formatJapaneseDateShort, groupTransactionsByDate } from '../../src/lib/format';
+import {
+  ActionLink,
+  EmptyState,
+  FilterBar,
+  MonthSwitcher,
+  PageHeader,
+  PageShell,
+  RegisterTransactionAction,
+} from '../_components/ui';
 import {
   firstQueryValue,
   parseTransactionListFilters,
   type TransactionListType,
 } from '../../src/lib/transaction-query';
-import { MonthPickerField } from './date-picker-field';
 import { TransactionRow } from './transaction-row';
 import { TransferRow } from './transfer-row';
 
@@ -39,11 +44,6 @@ function listHref(month: string, type?: TransactionListType, categoryId?: number
   return `/transactions?${params.toString()}`;
 }
 
-function newTransactionHref(month: string): string {
-  const params = new URLSearchParams({ month });
-  return `/transactions/new?${params.toString()}`;
-}
-
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const month = parseMonth(firstQueryValue(query.month), currentTokyoMonth());
@@ -54,12 +54,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     listLedgerEntries(db, householdId, { month, type, categoryId }),
     listCategories(db, householdId),
   ]);
-  const filterCategories =
-    type && type !== 'transfer'
-      ? categories.filter((category) => category.type === type)
-      : type === 'transfer'
-        ? []
-        : categories;
   const hasFilter = Boolean(type || categoryId);
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
@@ -76,114 +70,60 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
 
   return (
-    <div className="content-stack transactions-page">
-      <section className="page-heading" aria-labelledby="transactions-title">
-        <h1 id="transactions-title">
-          <span className="heading-title">取引</span>
-          <span className="heading-count">{rows.length}件</span>
-        </h1>
-        <div className="page-heading-actions">
-          <Link className="import-link" href="/transactions/import">
-            取り込む
-          </Link>
-          <Link className="add-link" href={newTransactionHref(month)}>
-            ＋ 取引を追加
-          </Link>
-        </div>
-      </section>
+    <PageShell>
+      <PageHeader
+        title="取引"
+        count={`${rows.length}件`}
+        actions={
+          <>
+            <ActionLink href="/transactions/import" variant="secondary">
+              取り込む
+            </ActionLink>
+            <RegisterTransactionAction month={month} />
+          </>
+        }
+      />
+      <MonthSwitcher
+        month={month}
+        previousHref={
+          month > `${MIN_SUPPORTED_YEAR}-01`
+            ? listHref(shiftMonth(month, -1), type, categoryId)
+            : undefined
+        }
+        nextHref={
+          month < `${MAX_SUPPORTED_YEAR}-12`
+            ? listHref(shiftMonth(month, 1), type, categoryId)
+            : undefined
+        }
+      />
+      <FilterBar
+        month={month}
+        type={type}
+        categoryId={categoryId}
+        categories={categories}
+        summary={filterSummary}
+      />
 
-      <section className="transaction-controls" aria-labelledby="filter-title">
-        <nav className="month-strip" aria-label="月を移動">
-          {month > `${MIN_SUPPORTED_YEAR}-01` ? (
-            <Link href={listHref(shiftMonth(month, -1), type, categoryId)} aria-label="‹ 前月">
-              <span aria-hidden="true">‹</span>
-            </Link>
-          ) : (
-            <span aria-hidden="true" />
-          )}
-          <span>{monthLabel(month)}</span>
-          {month < `${MAX_SUPPORTED_YEAR}-12` ? (
-            <Link href={listHref(shiftMonth(month, 1), type, categoryId)} aria-label="翌月 ›">
-              <span aria-hidden="true">›</span>
-            </Link>
-          ) : (
-            <span aria-hidden="true" />
-          )}
-        </nav>
-        <details className="filter-details">
-          <summary>
-            <span className="filter-summary" id="filter-title">
-              {filterSummary}
-            </span>
-            <span className="filter-summary-action">条件を変更する</span>
-          </summary>
-          <form className="filter-form" method="get">
-            <label id="filter-month-label" htmlFor="filter-month">
-              月
-              <MonthPickerField
-                id="filter-month"
-                name="month"
-                value={month}
-                labelId="filter-month-label"
-              />
-            </label>
-            <label>
-              種別
-              <select name="type" defaultValue={type ?? ''}>
-                <option value="">すべて</option>
-                <option value="expense">支出</option>
-                <option value="income">収入</option>
-                <option value="transfer">振替</option>
-              </select>
-            </label>
-            <label>
-              カテゴリ
-              <select
-                name="category"
-                defaultValue={categoryId ? String(categoryId) : ''}
-                disabled={type === 'transfer'}
-                aria-describedby={type === 'transfer' ? 'transfer-category-note' : undefined}
-              >
-                <option value="">すべて</option>
-                {filterCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}（{category.type === 'income' ? '収入' : '支出'}）
-                  </option>
-                ))}
-              </select>
-              {type === 'transfer' ? (
-                <span id="transfer-category-note" className="sr-only">
-                  振替にはカテゴリがありません
-                </span>
-              ) : null}
-            </label>
-            <button className="button button-primary" type="submit">
-              適用
-            </button>
-          </form>
-        </details>
-      </section>
-
-      <section className="transaction-groups" aria-labelledby="transactions-title">
+      <section className="transaction-groups" aria-label="取引一覧">
         {rows.length === 0 ? (
-          <div className="empty-state">
-            <EmptyLedgerMotif />
-            <h2>{hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}</h2>
-            <p>
-              {hasFilter
+          <EmptyState
+            size="page"
+            title={hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}
+            description={
+              hasFilter
                 ? '条件を変えるか、条件をクリアしてください。'
-                : '最初の取引を記録すると、ここに並びます。'}
-            </p>
-            {hasFilter ? (
-              <Link className="text-link" href={`/transactions?month=${month}`}>
-                条件をクリアする
-              </Link>
-            ) : (
-              <Link className="text-link" href={newTransactionHref(month)}>
-                取引を登録する
-              </Link>
-            )}
-          </div>
+                : '最初の取引を記録すると、ここに並びます。'
+            }
+            action={
+              hasFilter ? (
+                <ActionLink href={`/transactions?month=${month}`} variant="quiet">
+                  条件をクリアする
+                </ActionLink>
+              ) : (
+                <RegisterTransactionAction month={month} variant="quiet" />
+              )
+            }
+          />
         ) : (
           <ul className="transaction-list transaction-list-full" aria-label="取引">
             {groupedRows.flatMap((group) =>
@@ -213,6 +153,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           </ul>
         )}
       </section>
-    </div>
+    </PageShell>
   );
 }
