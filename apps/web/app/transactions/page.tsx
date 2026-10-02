@@ -10,7 +10,7 @@ import {
 } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
-import { formatJapaneseDateShort, groupTransactionsByDate } from '../../src/lib/format';
+import { formatJapaneseDate, groupTransactionsByDate } from '../../src/lib/format';
 import {
   ActionLink,
   EmptyState,
@@ -110,9 +110,17 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             size="page"
             title={hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}
             description={
-              hasFilter
-                ? '条件を変えるか、条件をクリアしてください。'
-                : '最初の取引を記録すると、ここに並びます。'
+              hasFilter ? (
+                <>
+                  <span className="phrase-wrap">条件を変えるか、</span>
+                  <span className="phrase-wrap">条件をクリアしてください。</span>
+                </>
+              ) : (
+                <>
+                  <span className="phrase-wrap">最初の取引を記録すると、</span>
+                  <span className="phrase-wrap">ここに並びます。</span>
+                </>
+              )
             }
             action={
               hasFilter ? (
@@ -133,9 +141,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                     key={`transfer-${transaction.id}`}
                     transfer={transaction}
                     showMemo
-                    dateHeading={
-                      index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined
-                    }
+                    dateHeading={index === 0 ? formatJapaneseDate(group.occurredOn) : undefined}
                   />
                 ) : (
                   <TransactionRow
@@ -143,9 +149,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                     transaction={transaction}
                     showMemo
                     showDate={false}
-                    dateHeading={
-                      index === 0 ? formatJapaneseDateShort(group.occurredOn) : undefined
-                    }
+                    dateHeading={index === 0 ? formatJapaneseDate(group.occurredOn) : undefined}
                   />
                 ),
               ),

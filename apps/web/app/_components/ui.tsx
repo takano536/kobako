@@ -63,11 +63,13 @@ export function PageShell({
 
 export function PageHeader({
   title,
+  titleAriaLabel,
   count,
   actions,
   className,
 }: {
-  title: string;
+  title: ReactNode;
+  titleAriaLabel?: string;
   count?: string;
   actions?: ReactNode;
   className?: string;
@@ -75,7 +77,7 @@ export function PageHeader({
   const classes = ['page-header', className].filter(Boolean).join(' ');
   return (
     <header className={classes}>
-      <h1>
+      <h1 aria-label={titleAriaLabel}>
         <span className="heading-title">{title}</span>
         {count ? <span className="heading-count">{count}</span> : null}
       </h1>
@@ -140,7 +142,7 @@ export function EmptyState({
   headingLevel = 2,
 }: {
   title: string;
-  description: string;
+  description: ReactNode;
   action?: ReactNode;
   size?: 'page' | 'section';
   headingLevel?: 2 | 3;
@@ -150,7 +152,7 @@ export function EmptyState({
     <div className={`empty-state empty-state-${size}`}>
       <EmptyLedgerMotif />
       <Heading>{title}</Heading>
-      <p>{description}</p>
+      <p className="empty-state-description">{description}</p>
       {action ? <div className="empty-state-action">{action}</div> : null}
     </div>
   );

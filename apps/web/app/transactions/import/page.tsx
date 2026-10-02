@@ -13,7 +13,13 @@ export default function MoneyManagerImportPage() {
   return (
     <PageShell width="import" className="import-page">
       <PageHeader
-        title="らくな家計簿から引っ越す"
+        title={
+          <>
+            <span className="heading-title-chunk">らくな家計簿</span>
+            <span className="heading-title-chunk">から引っ越す</span>
+          </>
+        }
+        titleAriaLabel="らくな家計簿から引っ越す"
         className="import-heading"
         actions={
           <ActionLink href="/transactions" variant="back">
@@ -22,7 +28,10 @@ export default function MoneyManagerImportPage() {
         }
       />
       <p className="import-lead">
-        エクスポートしたExcelファイルから、取引と振替をまとめて取り込みます。
+        <span className="phrase-wrap">エクスポートした Excel ファイルから、</span>
+        <span className="phrase-wrap">
+          <span className="import-lead-chunk">取引と振替</span>をまとめて取り込みます。
+        </span>
       </p>
 
       <MoneyManagerImportForm

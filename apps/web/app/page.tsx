@@ -63,27 +63,29 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         }
       />
 
-      <section className="overview-lead" role="group" aria-labelledby="expense-label">
-        <h2 id="expense-label" className="eyebrow">
-          この月の支出
-        </h2>
-        <p className="lead-amount">{formatYen(totals.expense)}</p>
-      </section>
+      <section className="overview-summary" role="group" aria-labelledby="expense-label">
+        <div className="overview-lead">
+          <h2 id="expense-label" className="eyebrow">
+            この月の支出
+          </h2>
+          <p className="lead-amount">{formatYen(totals.expense)}</p>
+        </div>
 
-      <dl className="summary-inline" aria-label={`${monthLabel(month)}の収入と差額`}>
-        <div role="group" aria-labelledby="income-total-label">
-          <dt id="income-total-label">収入</dt>
-          <dd>{formatYen(totals.income)}</dd>
-        </div>
-        <div role="group" aria-labelledby="difference-total-label">
-          <dt id="difference-total-label">収支差額</dt>
-          <dd>
-            {differenceIsNegative ? <span className="sr-only">マイナス</span> : null}
-            <span aria-hidden="true">{differenceIsNegative ? '−' : ''}</span>
-            {formatYen(differenceAmount)}
-          </dd>
-        </div>
-      </dl>
+        <dl className="summary-inline" aria-label={`${monthLabel(month)}の収入と差額`}>
+          <div role="group" aria-labelledby="income-total-label">
+            <dt id="income-total-label">収入</dt>
+            <dd>{formatYen(totals.income)}</dd>
+          </div>
+          <div role="group" aria-labelledby="difference-total-label">
+            <dt id="difference-total-label">収支差額</dt>
+            <dd>
+              {differenceIsNegative ? <span className="sr-only">マイナス</span> : null}
+              <span aria-hidden="true">{differenceIsNegative ? '−' : ''}</span>
+              {formatYen(differenceAmount)}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section className="section" aria-labelledby="breakdown-title">
         <SectionHeading
@@ -140,7 +142,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             size="section"
             headingLevel={3}
             title="まだ記録がありません"
-            description="この月の記録を、ひとつずつ残しましょう。"
+            description={
+              <>
+                <span className="phrase-wrap">この月の記録を、</span>
+                <span className="phrase-wrap">ひとつずつ残しましょう。</span>
+              </>
+            }
             action={<RegisterTransactionAction month={month} variant="quiet" />}
           />
         ) : (

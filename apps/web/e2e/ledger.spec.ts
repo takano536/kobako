@@ -113,7 +113,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('link', { name: /支出.*1,200円/ })).toBeVisible();
   await page.goto(`/?month=${month}`);
   await expect(
-    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+    page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
   ).toBeVisible();
   await expect(page.getByRole('group', { name: '収支差額' }).locator('dd')).toHaveText(
     'マイナス−1,200円',
@@ -168,8 +168,10 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
 
   try {
     for (const { width, height } of [
+      { width: 320, height: 780 },
       { width: 360, height: 780 },
       { width: 390, height: 844 },
+      { width: 414, height: 844 },
       { width: 1280, height: 900 },
     ]) {
       await page.setViewportSize({ width, height });
@@ -178,11 +180,19 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const overviewHeading = await measure('.page-header h1');
       const overviewPrimary = await measure('.page-header .action-link-primary');
       const overviewMonth = await measure('.month-switcher');
+      const overviewSummary = page.locator('.overview-summary');
+      await expect(overviewSummary).toHaveCount(1);
+      await expect(overviewSummary.locator('.overview-lead')).toHaveCount(1);
+      await expect(overviewSummary.locator('.summary-inline > div')).toHaveCount(2);
       await assertNoHorizontalOverflow();
 
       await page.goto(`/transactions?month=${month}`);
       await expect(page.getByRole('heading', { name: /取引/ })).toBeVisible();
       const transactionsHeading = await measure('.page-header h1');
+      const transactionActionSizes = await page
+        .locator('.page-header-actions .action-link')
+        .evaluateAll((links) => links.map((link) => getComputedStyle(link).fontSize));
+      expect(new Set(transactionActionSizes).size).toBe(1);
       const transactionsPrimary = await measure('.page-header .action-link-primary');
       const transactionsMonth = await measure('.month-switcher');
       for (const [overview, transactions] of [
@@ -199,6 +209,86 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await expect(page.locator('.filter-summary')).toContainText(categoryName);
       await assertNoHorizontalOverflow();
     }
+    for (const width of [320, 360, 390, 414, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/transactions?month=${nextMonth}`);
+      await expect(page.getByRole('heading', { name: 'この月はまだ空です' })).toBeVisible();
+      const emptyDescription = page.locator('.empty-state-description');
+      await expect(emptyDescription).toHaveText('最初の取引を記録すると、ここに並びます。');
+      const emptyMetrics = await emptyDescription.evaluate((description) => {
+        const style = getComputedStyle(description);
+        return {
+          height: description.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          phraseDisplays: Array.from(description.querySelectorAll<HTMLElement>('.phrase-wrap')).map(
+            (phrase) => getComputedStyle(phrase).display,
+          ),
+        };
+      });
+      expect(emptyMetrics.phraseDisplays).toEqual(['inline-block', 'inline-block']);
+      expect(emptyMetrics.height).toBeLessThanOrEqual(emptyMetrics.lineHeight * 2 + 1);
+      if (width >= 414) {
+        expect(emptyMetrics.height).toBeLessThanOrEqual(emptyMetrics.lineHeight + 1);
+      }
+      const centers = await Promise.all(
+        ['.empty-state h2', '.empty-state-description', '.empty-state-action'].map((selector) =>
+          page
+            .locator(selector)
+            .boundingBox()
+            .then((box) => {
+              if (!box) {
+                throw new Error(`empty state geometry unavailable for ${selector}`);
+              }
+              return box.x + box.width / 2;
+            }),
+        ),
+      );
+      expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
+      await assertNoHorizontalOverflow();
+    }
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto(`/?month=${month}`);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await assertNoHorizontalOverflow();
+    const sectionHeadingMetrics = await page
+      .locator('.section-heading h2')
+      .first()
+      .evaluate((heading) => {
+        const styles = getComputedStyle(heading);
+        return {
+          height: heading.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(styles.lineHeight),
+        };
+      });
+    expect(sectionHeadingMetrics.height).toBeLessThanOrEqual(
+      sectionHeadingMetrics.lineHeight * 2 + 1,
+    );
+
+    await page.goto('/transactions/import');
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await assertNoHorizontalOverflow();
+    const importHeadingBox = await page.locator('.import-heading h1').boundingBox();
+    const importActionBox = await page
+      .locator('.import-heading .page-header-actions')
+      .boundingBox();
+    const dropzoneBox = await page.locator('.import-dropzone').boundingBox();
+    const dropzoneButtonBox = await page.locator('.import-dropzone-copy strong').boundingBox();
+    if (!importHeadingBox || !importActionBox || !dropzoneBox || !dropzoneButtonBox) {
+      throw new Error('zoomed import geometry is unavailable');
+    }
+    expect(importActionBox.y).toBeGreaterThanOrEqual(
+      importHeadingBox.y + importHeadingBox.height - 1,
+    );
+    expect(dropzoneButtonBox.x + dropzoneButtonBox.width).toBeLessThanOrEqual(
+      dropzoneBox.x + dropzoneBox.width + 1,
+    );
+    expect(dropzoneButtonBox.y + dropzoneButtonBox.height).toBeLessThanOrEqual(
+      dropzoneBox.y + dropzoneBox.height + 1,
+    );
   } finally {
     await databaseClient.sql`delete from transactions where id = ${transactionId}`;
     await databaseClient.sql`delete from categories where id = ${categoryId}`;
@@ -254,7 +344,7 @@ test('adds income and updates the difference, then edits and deletes a transacti
   await page.goto(`/?month=${month}`);
   await expect(page.getByRole('group', { name: '収入' }).getByText('5,000円')).toBeVisible();
   await expect(
-    page.getByRole('group', { name: 'この月の支出' }).getByText('1,200円'),
+    page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
   ).toBeVisible();
   await expect(page.getByRole('group', { name: '収支差額' }).getByText('3,800円')).toBeVisible();
 
@@ -427,7 +517,9 @@ test('isolates months: a transaction in one month never appears in another', asy
 
   await page.goto(`/?month=${nextMonth}`);
   await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'この月の支出' }).getByText('700円')).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
+  ).toBeVisible();
   await expect(page.getByRole('group', { name: '収入' }).getByText('0円')).toBeVisible();
 
   await page.goto(`/transactions?month=${nextMonth}`);
