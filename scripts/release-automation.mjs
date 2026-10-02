@@ -9,7 +9,6 @@ export const REQUIRED_CHECKS = ['lint', 'unit', 'integration', 'build', 'e2e', '
 export const GITHUB_ACTIONS_APP_ID = 15368;
 export const GITHUB_ACTIONS_APP_SLUG = 'github-actions';
 export const RELEASE_BRANCH = 'release-please--branches--main--components--kobako';
-export const VERIFY_REF_PREFIX = 'release-verify/';
 export const PENDING_LABEL = 'autorelease: pending';
 export const TAGGED_LABEL = 'autorelease: tagged';
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
@@ -25,7 +24,6 @@ function asSha(value) {
 }
 export function isReleaseBot(user, appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '') {
   if (user?.type !== 'Bot') return false;
-  if (user?.login === 'github-actions[bot]') return true;
   return /^[a-z0-9][a-z0-9-]*\[bot\]$/.test(appBotLogin) && user?.login === appBotLogin;
 }
 
@@ -123,6 +121,10 @@ function releaseJsonVersionPaths(config) {
   return paths;
 }
 
+function releaseOwnedVersionPaths(config) {
+  return new Set(['.release-please-manifest.json', ...releaseJsonVersionPaths(config)]);
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return value.map(canonicalJson);
   if (value && typeof value === 'object') {
@@ -204,9 +206,7 @@ export function validateCanonicalReleasePr(
   if (
     !isReleaseBot({ login: authorLogin, type: pr?.user?.type || pr?.author?.type }, appBotLogin)
   ) {
-    errors.push(
-      `author is not github-actions[bot] or the configured release App bot: ${authorLogin || 'missing'}`,
-    );
+    errors.push(`author is not the configured release App bot: ${authorLogin || 'missing'}`);
   }
   if (pr?.user?.type && pr.user.type !== 'Bot') {
     errors.push(`author type is not Bot: ${pr.user.type}`);
@@ -241,6 +241,45 @@ export function validateCanonicalReleasePr(
     baseRef,
     labels: [...labels],
     isMerged,
+  };
+}
+
+export function validateReleasePrBeforeMerge(
+  pr,
+  { repository = 'takano536/kobako', expectedHeadSha = '', appBotLogin = '' } = {},
+) {
+  const identity = validateCanonicalReleasePr(pr, {
+    repository,
+    state: 'open',
+    expectedHeadSha,
+    appBotLogin,
+  });
+  if (!identity.ok) throw new Error(identity.errors.join('; '));
+  return identity;
+}
+
+export function decideReleasePrLabelRepair(
+  pr,
+  { repository = 'takano536/kobako', expectedMergeSha = '', appBotLogin = '' } = {},
+) {
+  const identity = validateCanonicalReleasePr(pr, {
+    repository,
+    state: 'merged',
+    expectedMergeSha,
+    allowTaggedRecovery: true,
+    appBotLogin,
+  });
+  const labels = new Set(identity.labels);
+  if (!identity.ok) {
+    return { action: 'refuse', errors: identity.errors, labels: [...labels] };
+  }
+  const add = labels.has(TAGGED_LABEL) ? [] : [TAGGED_LABEL];
+  const remove = labels.has(PENDING_LABEL) ? [PENDING_LABEL] : [];
+  return {
+    action: add.length || remove.length ? 'repair' : 'noop',
+    add,
+    remove,
+    labels: [...labels],
   };
 }
 
@@ -291,38 +330,94 @@ export function selectLatestRequiredChecks(checkRuns, requiredChecks = REQUIRED_
   return { ok: errors.length === 0, errors, selected };
 }
 
-export function verifyRefForSha(ref, sha) {
-  const expectedSha = asSha(sha);
-  const match = /^refs\/heads\/release-verify\/([0-9a-f]{40})$/.exec(asString(ref));
-  return Boolean(expectedSha && match && match[1] === expectedSha);
+export function validateWorkflowRunMetadata(
+  run,
+  { repository = 'takano536/kobako', headSha = '', headBranch = RELEASE_BRANCH } = {},
+) {
+  const errors = [];
+  const expectedSha = asSha(headSha);
+  if (run?.event !== 'pull_request')
+    errors.push(`workflow_run event must be pull_request, got ${run?.event || 'missing'}`);
+  if (run?.conclusion !== 'success') {
+    errors.push(`workflow_run conclusion is not success: ${run?.conclusion || 'missing'}`);
+  }
+  if (asString(run?.head_branch) !== headBranch) {
+    errors.push(`workflow_run head branch changed: ${run?.head_branch || 'missing'}`);
+  }
+  if (expectedSha && asSha(run?.head_sha) !== expectedSha) {
+    errors.push(
+      `workflow_run head SHA ${run?.head_sha || 'missing'} does not match event head ${headSha}`,
+    );
+  }
+  const headRepository = repositoryOf(run?.head_repository);
+  if (headRepository && headRepository !== repositoryName(repository)) {
+    errors.push(`workflow_run head repository is not canonical: ${headRepository}`);
+  }
+  return { ok: errors.length === 0, errors };
 }
 
-export function classifyVerifyRef(existingSha, expectedSha) {
-  const current = asSha(existingSha);
-  const expected = asSha(expectedSha);
-  if (!expected) return 'invalid';
-  if (!current) return 'create';
-  return current === expected ? 'reuse' : 'mismatch';
+export function validateReleaseAppConfiguration({ clientId, botLogin, privateKey } = {}) {
+  if (!asString(clientId) || !asString(botLogin) || !asString(privateKey)) {
+    throw new Error(
+      'Release App is required: set RELEASE_APP_CLIENT_ID, RELEASE_APP_BOT_LOGIN, and RELEASE_APP_PRIVATE_KEY; refusing GITHUB_TOKEN fallback',
+    );
+  }
+  return true;
 }
 
-export function verifyRefNameForSha(sha) {
-  const expectedSha = asSha(sha);
-  if (!expectedSha) throw new Error(`invalid merge SHA: ${sha || 'missing'}`);
-  return `${VERIFY_REF_PREFIX}${expectedSha}`;
+export function formatGitHubApiError(path, status, tokenEnv = 'GH_TOKEN') {
+  if (Number(status) === 403) {
+    return `GitHub API returned 403 for ${path}; ${tokenEnv} is missing the required permission for this repository`;
+  }
+  return `GitHub API request failed for ${path} with status ${status}`;
 }
 
-export function classifyVerifyRuns(runs, sha) {
-  const expectedSha = asSha(sha);
-  const relevant = (Array.isArray(runs) ? runs : []).filter(
-    (run) => asSha(run?.head_sha || run?.headSha) === expectedSha,
-  );
-  const successful = relevant.some(
-    (run) => run?.status === 'completed' && run?.conclusion === 'success',
-  );
-  const active = relevant.some((run) =>
-    ['queued', 'in_progress', 'waiting', 'requested', 'pending'].includes(run?.status),
-  );
-  return { relevant, successful, active };
+/**
+ * Select exactly one merged Release PR for a merge commit. The caller passes
+ * only API results for that commit; no historical PR can accidentally win.
+ */
+export function selectCanonicalMergedReleasePr(
+  pullRequests,
+  mergeSha,
+  { repository = 'takano536/kobako', appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '' } = {},
+) {
+  const expectedSha = asSha(mergeSha);
+  if (!expectedSha) throw new Error(`invalid merge SHA: ${mergeSha || 'missing'}`);
+  const candidates = [];
+  for (const pr of Array.isArray(pullRequests) ? pullRequests : []) {
+    if (asSha(pr?.merge_commit_sha || pr?.mergeCommit?.oid) !== expectedSha) continue;
+    const identity = validateCanonicalReleasePr(pr, {
+      repository,
+      state: 'merged',
+      expectedMergeSha: expectedSha,
+      allowTaggedRecovery: true,
+      appBotLogin,
+    });
+    if (identity.ok) {
+      validateReleaseMergeActor(pr, appBotLogin);
+      candidates.push({ pr, identity });
+    }
+  }
+  if (candidates.length > 1) {
+    throw new Error(
+      `expected one canonical merged Release PR for ${expectedSha}, found ${candidates.length}`,
+    );
+  }
+  return candidates[0] || null;
+}
+
+export function validateReleaseMergeActor(
+  pr,
+  appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '',
+) {
+  const mergedBy = pr?.merged_by || pr?.mergedBy;
+  if (!mergedBy?.login) throw new Error('merged Release PR merged_by is missing');
+  if (!isReleaseBot(mergedBy, appBotLogin)) {
+    throw new Error(
+      `merged Release PR actor is not the configured release App bot: ${mergedBy.login}`,
+    );
+  }
+  return true;
 }
 
 function requireEnvironment(name) {
@@ -339,10 +434,10 @@ function repositoryEnvironment() {
   return repository;
 }
 
-function runCommand(command, args, { allowFailure = false } = {}) {
+function runCommand(command, args, { allowFailure = false, env = process.env } = {}) {
   const result = spawnSync(command, args, {
     encoding: 'utf8',
-    env: process.env,
+    env,
     maxBuffer: 10 * 1024 * 1024,
   });
   if (result.error) throw result.error;
@@ -369,16 +464,25 @@ function apiPath(repository, path) {
 function ghApi(
   repository,
   apiPathValue,
-  { method, fields = [], allowNotFound = false, paginate = false } = {},
+  { method, fields = [], allowNotFound = false, paginate = false, tokenEnv = 'GH_TOKEN' } = {},
 ) {
+  const token = process.env[tokenEnv];
+  if (!token) throw new Error(`${tokenEnv} is required for GitHub API reads and writes`);
   const args = ['api', apiPath(repository, apiPathValue)];
   if (method) args.push('--method', method);
   if (paginate) args.push('--paginate', '--slurp');
   for (const field of fields) args.push('--raw-field', field);
-  const result = runCommand('gh', args, { allowFailure: allowNotFound });
+  const result = runCommand('gh', args, {
+    allowFailure: allowNotFound,
+    env: { ...process.env, GH_TOKEN: token },
+  });
   if (result.status !== 0) {
-    const message = `${result.stdout}\n${result.stderr}`;
+    const message = `${result.stdout}
+${result.stderr}`.trim();
     if (allowNotFound && /(?:404|not found)/i.test(message)) return null;
+    if (result.status === 403 || /\b403\b|forbidden|resource not accessible/i.test(message)) {
+      throw new Error(formatGitHubApiError(apiPathValue, 403, tokenEnv));
+    }
     throw new Error(`gh api ${apiPathValue} failed: ${message}`);
   }
   if (!result.stdout.trim()) return {};
@@ -387,6 +491,23 @@ function ghApi(
   return Array.isArray(parsed)
     ? parsed.flatMap((page) => (Array.isArray(page) ? page : [page]))
     : [parsed];
+}
+
+function getBlobShaAtCommit(repository, relativePath, sha) {
+  const response = ghApi(
+    repository,
+    `contents/${relativePath
+      .split('/')
+      .map((part) => encodeURIComponent(part))
+      .join('/')}?ref=${encodeURIComponent(sha)}`,
+    { allowNotFound: true },
+  );
+  if (response === null) return '';
+  const blobSha = asSha(response?.sha);
+  if (!blobSha) {
+    throw new Error(`${relativePath} at ${sha} did not return a valid blob SHA`);
+  }
+  return blobSha;
 }
 
 function getFileAtCommit(repository, relativePath, sha) {
@@ -426,25 +547,32 @@ function releaseVersionAtCommit(repository, sha) {
   return version;
 }
 
-function validateReleasePrMetadata(repository, pr, sha) {
-  const version = releaseVersionAtCommit(repository, sha);
-  const expectedTitle = `chore(main): release ${version}`;
+export function validateReleasePrMetadataSnapshot(pr, version) {
+  const expectedVersion = asVersion(version);
+  if (!expectedVersion) throw new Error('Release PR metadata requires a valid version');
+  const expectedTitle = `chore(main): release ${expectedVersion}`;
   if (pr?.title !== expectedTitle) {
-    throw new Error(`Release PR title does not match the expected ${version} title`);
+    throw new Error(`Release PR title does not match the expected ${expectedVersion} title`);
   }
   const releases = parseReleasePleaseBody(pr?.body);
   if (
     releases.length !== 1 ||
     releases.some(
-      (release) => release.component || release.version !== version || !asVersion(release.version),
+      (release) =>
+        release.component || release.version !== expectedVersion || !asVersion(release.version),
     )
   ) {
-    throw new Error(`Release PR body does not contain exactly the root release ${version}`);
+    throw new Error(`Release PR body does not contain exactly the root release ${expectedVersion}`);
   }
-  return { version };
+  return { version: expectedVersion };
 }
 
-function compareReleaseFiles(repository, baseSha, headSha) {
+function validateReleasePrMetadata(repository, pr, sha) {
+  const version = releaseVersionAtCommit(repository, sha);
+  return validateReleasePrMetadataSnapshot(pr, version);
+}
+
+function compareRelease(repository, baseSha, headSha) {
   const response = ghApi(repository, `compare/${baseSha}...${headSha}?per_page=300`);
   if (!Array.isArray(response?.files)) {
     throw new Error('Release PR compare response did not include a complete file list');
@@ -455,7 +583,21 @@ function compareReleaseFiles(repository, baseSha, headSha) {
       'Release PR diff has too many files; refusing to merge without a complete allowlist',
     );
   }
-  return files.flatMap((file) => [file?.filename, file?.previous_filename]).filter(Boolean);
+  return {
+    files: files.flatMap((file) => [file?.filename, file?.previous_filename]).filter(Boolean),
+    mergeBaseSha: asSha(response?.merge_base_commit?.sha),
+    status: asString(response?.status),
+  };
+}
+
+function compareCommitRelation(repository, baseSha, headSha) {
+  const response = ghApi(repository, `compare/${baseSha}...${headSha}?per_page=1`);
+  const mergeBaseSha = asSha(response?.merge_base_commit?.sha);
+  const status = asString(response?.status);
+  if (!mergeBaseSha || !status) {
+    throw new Error(`compare response for ${baseSha}...${headSha} is incomplete`);
+  }
+  return { mergeBaseSha, status };
 }
 
 function assertJsonVersionOnly(repository, relativePath, baseSha, headSha, field = 'version') {
@@ -567,118 +709,110 @@ function readReleasePleaseConfig() {
   }
 }
 
-function validateReleasePrProvenance(repository, pr, mainSha, headSha) {
-  const config = readReleasePleaseConfig();
-  const ownedPaths = releaseOwnedPaths(config);
-  const changedPaths = compareReleaseFiles(repository, mainSha, headSha);
-  const disallowed = [...new Set(changedPaths)].filter((file) => !ownedPaths.has(file));
+export function validateReleaseChangedPaths(changedPaths, allowedPaths) {
+  const allowlist = new Set(Array.isArray(allowedPaths) ? allowedPaths : []);
+  const disallowed = [...new Set(Array.isArray(changedPaths) ? changedPaths : [])].filter(
+    (file) => !allowlist.has(file),
+  );
   if (disallowed.length > 0) {
     throw new Error(`Release PR changes non-Release Please files: ${disallowed.join(', ')}`);
   }
-  const headCommit = getCommit(repository, headSha);
-  validateReleasePrFileContents(repository, config, mainSha, headSha);
-  if (!isReleaseBot(headCommit?.author)) {
-    throw new Error(
-      `Release PR head author is not github-actions[bot] or configured release App bot`,
-    );
-  }
-  const botCommitter = isReleaseBot(headCommit?.committer);
-  // GitHub's commit API can preserve the bot author while signing as web-flow.
-  const verifiedGitHubCommitter =
-    headCommit?.committer?.login === 'web-flow' &&
-    headCommit?.committer?.type === 'User' &&
-    headCommit?.commit?.verification?.verified === true &&
-    headCommit?.commit?.verification?.reason === 'valid';
-  if (!botCommitter && !verifiedGitHubCommitter) {
-    throw new Error(
-      `Release PR head committer is not github-actions[bot] or verified GitHub web-flow`,
-    );
-  }
-  return validateReleasePrMetadata(repository, pr, headSha);
+  return true;
 }
 
-function getTagCommitSha(repository, tag) {
-  let ref = ghApi(repository, `git/ref/tags/${encodeURIComponent(tag)}`, {
-    allowNotFound: true,
-  });
-  if (!ref) return null;
-  for (let depth = 0; depth < 3; depth += 1) {
-    const sha = asSha(ref?.object?.sha);
-    if (!sha) throw new Error(`tag ${tag} returned an invalid object SHA`);
-    if (ref.object.type !== 'tag') return sha;
-    ref = ghApi(repository, `git/tags/${sha}`);
-  }
-  throw new Error(`tag ${tag} is nested too deeply`);
-}
-function releaseInputPathsAtCommit(repository, sha) {
-  const config = getJsonAtCommit(repository, 'release-please-config.json', sha);
-  const paths = new Set([
-    'release-please-config.json',
-    '.release-please-manifest.json',
-    'package.json',
-  ]);
-  for (const [packagePath, packageConfig] of Object.entries(config?.packages || {})) {
-    paths.add(
-      normalizeReleasePath(
-        packagePath === '.' ? 'package.json' : path.posix.join(packagePath, 'package.json'),
-      ),
-    );
-    for (const extraFile of packageConfig?.['extra-files'] || []) {
-      const extraPath = typeof extraFile === 'string' ? extraFile : extraFile?.path;
-      if (extraPath) paths.add(normalizeReleasePath(extraPath));
-    }
-  }
-  return [...paths];
+export function decideReleaseAssociation({
+  changedPaths = [],
+  releaseVersionPaths = [],
+  hasCanonical = false,
+} = {}) {
+  const ownedVersionPaths = new Set(
+    (Array.isArray(releaseVersionPaths) ? releaseVersionPaths : [])
+      .map((relativePath) => asString(relativePath))
+      .filter(Boolean),
+  );
+  const touchesVersionPath = (Array.isArray(changedPaths) ? changedPaths : []).some(
+    (relativePath) => ownedVersionPaths.has(asString(relativePath)),
+  );
+  return {
+    action: hasCanonical ? 'release' : touchesVersionPath ? 'refuse' : 'ordinary',
+    touchesVersionPath,
+  };
 }
 
-function getBlobShaAtCommit(repository, relativePath, sha) {
-  const response = ghApi(
+export function isVerifiedWebFlowCommitter(commit) {
+  return (
+    commit?.login === 'web-flow' &&
+    commit?.type === 'User' &&
+    commit?.commit?.verification?.verified === true &&
+    commit?.commit?.verification?.reason === 'valid'
+  );
+}
+
+export function isSafeMergeConflict(message) {
+  return /\b(?:405|409)\b|conflict|head.*changed|base.*changed/i.test(asString(message));
+}
+
+export function validateReleasePrSnapshot({
+  workflowRun,
+  pr,
+  repository = 'takano536/kobako',
+  mainSha,
+  mergeBaseSha = mainSha,
+  allowStaleBase = false,
+  headSha,
+  headCommit,
+  checkRuns,
+  changedPaths = [],
+  allowedPaths = [],
+  appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '',
+} = {}) {
+  const runValidation = validateWorkflowRunMetadata(workflowRun, {
     repository,
-    `contents/${relativePath
-      .split('/')
-      .map((part) => encodeURIComponent(part))
-      .join('/')}?ref=${encodeURIComponent(sha)}`,
-  );
-  const blobSha = asSha(response?.sha);
-  if (!blobSha) throw new Error(`${relativePath} at ${sha} returned no blob SHA`);
-  return blobSha;
-}
-
-function assertReleaseInputsMatchMain(repository, mergeSha) {
-  const mainSha = getMainSha(repository);
-  for (const relativePath of releaseInputPathsAtCommit(repository, mergeSha)) {
-    const mergeBlob = getBlobShaAtCommit(repository, relativePath, mergeSha);
-    const mainBlob = getBlobShaAtCommit(repository, relativePath, mainSha);
-    if (mergeBlob !== mainBlob) {
-      throw new Error(
-        `${relativePath} at main ${mainSha} differs from merge ${mergeSha}; hold or revert main metadata before finalizing`,
-      );
-    }
-  }
-  return mainSha;
-}
-
-function removeIssueLabel(repository, prNumber, label) {
-  ghApi(repository, `issues/${prNumber}/labels/${encodeURIComponent(label)}`, {
-    method: 'DELETE',
+    headSha,
+    headBranch: RELEASE_BRANCH,
   });
-}
-
-function addIssueLabel(repository, prNumber, label) {
-  ghApi(repository, `issues/${prNumber}/labels`, {
-    method: 'POST',
-    fields: [`labels[]=${label}`],
-  });
-}
-function ghRunList(repository, ref, sha) {
-  const pages = ghApi(
+  if (!runValidation.ok) throw new Error(runValidation.errors.join('; '));
+  const identity = validateCanonicalReleasePr(pr, {
     repository,
-    `actions/workflows/ci.yml/runs?event=workflow_dispatch&branch=${encodeURIComponent(ref)}&head_sha=${sha}&per_page=100`,
-    { paginate: true },
-  );
-  return (Array.isArray(pages) ? pages : []).flatMap((page) =>
-    Array.isArray(page?.workflow_runs) ? page.workflow_runs : [],
-  );
+    state: 'open',
+    expectedHeadSha: headSha,
+    appBotLogin,
+  });
+  if (!identity.ok) throw new Error(identity.errors.join('; '));
+  if (asString(pr?.base?.ref) !== 'main') {
+    throw new Error(`Release PR base ref must be main, got ${pr?.base?.ref || 'missing'}`);
+  }
+  const parents = Array.isArray(headCommit?.parents)
+    ? headCommit.parents.map((parent) => asSha(parent?.sha)).filter(Boolean)
+    : [];
+  const parentSha = parents[0];
+  const liveMainSha = asSha(mainSha);
+  const verifiedMergeBase = asSha(mergeBaseSha);
+  const isLiveMainParent = parents.length === 1 && parentSha === liveMainSha;
+  const isAllowedStaleParent =
+    allowStaleBase &&
+    parents.length === 1 &&
+    parentSha &&
+    verifiedMergeBase &&
+    parentSha === verifiedMergeBase &&
+    parentSha !== liveMainSha;
+  if (!isLiveMainParent && !isAllowedStaleParent) {
+    throw new Error(
+      `Release PR head must have live main ${mainSha} as its sole parent or the verified merge base ${verifiedMergeBase || 'missing'}`,
+    );
+  }
+  validateReleaseChangedPaths(changedPaths, allowedPaths);
+  if (!isReleaseBot(headCommit?.author, appBotLogin)) {
+    throw new Error('Release PR head author is not the configured release App bot');
+  }
+  if (!isVerifiedWebFlowCommitter(headCommit?.committer)) {
+    throw new Error('Release PR head committer is not verified GitHub web-flow');
+  }
+  const checks = selectLatestRequiredChecks(checkRuns);
+  if (!checks.ok) {
+    throw new Error(`required native PR checks are not complete: ${checks.errors.join('; ')}`);
+  }
+  return { identity, checks };
 }
 
 function emit(key, value) {
@@ -715,433 +849,179 @@ function getCheckRuns(repository, sha) {
   );
 }
 
-function getRefSha(repository, ref) {
-  const encodedRef = ref
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-  const response = ghApi(repository, `git/ref/heads/${encodedRef}`, { allowNotFound: true });
-  if (!response) return null;
-  const sha = asSha(response?.object?.sha);
-  if (!sha) throw new Error(`ref ${ref} returned an invalid object SHA`);
-  return sha;
+function workflowRun(repository, id) {
+  if (!/^[0-9]+$/.test(id)) throw new Error(`invalid workflow run id: ${id || 'missing'}`);
+  return ghApi(repository, `actions/runs/${id}`);
 }
 
-function createVerifyRef(repository, ref, sha) {
-  try {
-    const response = ghApi(repository, 'git/refs', {
-      method: 'POST',
-      fields: [`ref=refs/heads/${ref}`, `sha=${sha}`],
-    });
-    const createdSha = asSha(response?.object?.sha);
-    if (createdSha && createdSha !== sha) {
-      throw new Error(`verify ref ${ref} was created at ${createdSha}, expected ${sha}`);
-    }
-  } catch (error) {
-    // A merge job and the main self-heal job can race to create the same ref.
-    // Accept the race only when the ref now points to this exact SHA.
-    if (getRefSha(repository, ref) === sha) return;
-    throw error;
-  }
+function workflowRunJobs(repository, id) {
+  if (!/^[0-9]+$/.test(String(id))) throw new Error(`invalid workflow run id: ${id || 'missing'}`);
+  const response = ghApi(repository, `actions/runs/${id}/jobs?per_page=100`);
+  return Array.isArray(response?.jobs) ? response.jobs : [];
 }
 
-function dispatchVerify(repository, ref, sha, prNumber) {
-  runCommand('gh', [
-    'workflow',
-    'run',
-    'ci.yml',
-    '--repo',
-    repository,
-    '--ref',
-    ref,
-    '--field',
-    'mode=verify',
-    '--field',
-    `merge_sha=${sha}`,
-    '--field',
-    `pr_number=${prNumber}`,
-  ]);
+function workflowRunsForHead(repository, sha, { event, branch } = {}) {
+  const params = new URLSearchParams({ head_sha: sha, per_page: '100' });
+  if (event) params.set('event', event);
+  if (branch) params.set('branch', branch);
+  const response = ghApi(repository, `actions/runs?${params.toString()}`);
+  return Array.isArray(response?.workflow_runs) ? response.workflow_runs : [];
 }
 
-function ensureVerifyRun(repository, mergeSha, prNumber, { missingOnly = false } = {}) {
-  const sha = asSha(mergeSha);
-  if (!sha) throw new Error(`invalid merge SHA for verify run: ${mergeSha || 'missing'}`);
-  const ref = verifyRefNameForSha(sha);
-  const existingSha = getRefSha(repository, ref);
-  const refDecision = classifyVerifyRef(existingSha, sha);
-  if (refDecision === 'mismatch') {
-    throw new Error(`verify ref ${ref} points at ${existingSha}, expected ${sha}`);
-  }
-
-  const runs = ghRunList(repository, ref, sha);
-  const classification = classifyVerifyRuns(runs, sha);
-  let requested = false;
-  let refCreated = false;
-  if (missingOnly) {
-    if (runs.length === 0) {
-      if (refDecision === 'create') {
-        createVerifyRef(repository, ref, sha);
-        refCreated = true;
-      }
-      dispatchVerify(repository, ref, sha, prNumber);
-      requested = true;
-    }
-  } else {
-    if (refDecision === 'create') {
-      createVerifyRef(repository, ref, sha);
-      refCreated = true;
-    }
-    if (!classification.successful && !classification.active) {
-      dispatchVerify(repository, ref, sha, prNumber);
-      requested = true;
-    }
-  }
-  emit('verify_ref', ref);
-  emit('merge_sha', sha);
-  emit('verify_run_requested', String(requested));
-  emit('verify_ref_created', String(refCreated));
-  emit('verify_run_existing_success', String(classification.successful));
-  return {
-    ref,
-    requested,
-    refCreated,
-    successful: classification.successful,
-    active: classification.active,
-    runs,
-  };
+function compareWorkflowRuns(left, right) {
+  const leftAttempt = Number(left?.run_attempt) || 0;
+  const rightAttempt = Number(right?.run_attempt) || 0;
+  if (leftAttempt !== rightAttempt) return leftAttempt - rightAttempt;
+  const leftUpdated = asString(left?.updated_at || left?.created_at);
+  const rightUpdated = asString(right?.updated_at || right?.created_at);
+  if (leftUpdated !== rightUpdated) return leftUpdated < rightUpdated ? -1 : 1;
+  return (Number(left?.id) || 0) - (Number(right?.id) || 0);
 }
 
-function isListedReleasePr(pr, { allowTaggedRecovery = false } = {}) {
-  const labels = labelNames(pr);
+export function selectLatestWorkflowRun(
+  runs,
+  { repository = 'takano536/kobako', event, headSha, headBranch } = {},
+) {
+  const expectedSha = asSha(headSha);
+  const expectedRepository = repositoryName(repository);
   return (
-    pr?.head?.ref === RELEASE_BRANCH &&
-    pr?.base?.ref === 'main' &&
-    (labels.has(PENDING_LABEL) || (allowTaggedRecovery && labels.has(TAGGED_LABEL)))
+    (Array.isArray(runs) ? runs : [])
+      .filter(
+        (run) =>
+          run?.name === 'CI' &&
+          (!event || run.event === event) &&
+          (!expectedSha || asSha(run.head_sha) === expectedSha) &&
+          (!headBranch || asString(run.head_branch) === headBranch) &&
+          (!run.head_repository || repositoryOf(run.head_repository) === expectedRepository),
+      )
+      .sort(compareWorkflowRuns)
+      .at(-1) || null
   );
 }
 
-function canonicalMergedCandidates(
-  repository,
-  { allowTaggedRecovery = false, expectedMergeSha = '', prNumber = '' } = {},
-) {
-  const requestedNumber = asString(prNumber);
-  if (requestedNumber && !/^[0-9]+$/.test(requestedNumber)) {
-    throw new Error(`invalid pull request number: ${prNumber}`);
-  }
-  const requestedSha = expectedMergeSha ? asSha(expectedMergeSha) : '';
-  if (expectedMergeSha && !requestedSha) {
-    throw new Error(`invalid merge SHA target: ${expectedMergeSha}`);
-  }
-  const targeted = Boolean(requestedNumber || requestedSha);
-  const listed = ghApi(
-    repository,
-    'pulls?state=closed&base=main&head=takano536:release-please--branches--main--components--kobako&sort=updated&direction=desc&per_page=100',
-    { paginate: true },
-  );
-  const candidates = [];
-  for (const listedPr of Array.isArray(listed) ? listed : []) {
-    if (!targeted) {
-      if (!isListedReleasePr(listedPr, { allowTaggedRecovery }) || !listedPr?.merged_at) {
-        continue;
-      }
-      const pr = getPullRequest(repository, listedPr.number);
-      const identity = validateCanonicalReleasePr(pr, {
-        repository,
-        state: 'merged',
-        allowTaggedRecovery,
-      });
-      if (identity.ok) candidates.push({ pr, identity });
-      continue;
-    }
-
-    if (requestedNumber && String(listedPr?.number) !== requestedNumber) continue;
-    const listedMergeSha = asSha(listedPr?.merge_commit_sha || listedPr?.mergeCommit?.oid);
-    if (!requestedNumber && requestedSha && listedMergeSha && listedMergeSha !== requestedSha) {
-      continue;
-    }
-
-    const pr = getPullRequest(repository, listedPr.number);
-    if (requestedNumber && String(pr?.number) !== requestedNumber) {
-      throw new Error(`PR #${requestedNumber} response did not identify the requested PR`);
-    }
-    const actualMergeShaValue = asString(pr?.merge_commit_sha || pr?.mergeCommit?.oid);
-    const actualMergeSha = asSha(actualMergeShaValue);
-    if (requestedSha && actualMergeSha !== requestedSha) {
-      const actual = actualMergeSha || actualMergeShaValue || 'missing';
-      if (requestedNumber) {
-        throw new Error(
-          `PR #${requestedNumber} merge SHA ${actual} does not match requested ${expectedMergeSha}`,
-        );
-      }
-      if (listedMergeSha !== requestedSha) continue;
-      throw new Error(
-        `merged Release PR merge SHA ${actual} does not match requested ${expectedMergeSha}`,
-      );
-    }
-    const identity = validateCanonicalReleasePr(pr, {
-      repository,
-      state: 'merged',
-      allowTaggedRecovery,
+export function validateReleasePleaseJob(jobs) {
+  const candidates = (Array.isArray(jobs) ? jobs : [])
+    .filter((job) => job?.name === 'release-please')
+    .sort((left, right) => {
+      const leftAttempt = Number(left?.run_attempt) || 0;
+      const rightAttempt = Number(right?.run_attempt) || 0;
+      if (leftAttempt !== rightAttempt) return leftAttempt - rightAttempt;
+      const leftCompleted = asString(left?.completed_at || left?.started_at);
+      const rightCompleted = asString(right?.completed_at || right?.started_at);
+      if (leftCompleted !== rightCompleted) return leftCompleted < rightCompleted ? -1 : 1;
+      return (Number(left?.id) || 0) - (Number(right?.id) || 0);
     });
-    if (!identity.ok) throw new Error(identity.errors.join('; '));
-    candidates.push({ pr, identity });
+  const job = candidates.at(-1);
+  if (!job) return { ok: false, error: 'release-please job is missing' };
+  if (job.status !== 'completed' || job.conclusion !== 'success') {
+    return {
+      ok: false,
+      error: `release-please job is ${job.status || 'missing'}/${job.conclusion || 'missing'}`,
+    };
   }
-  return candidates;
+  return { ok: true, error: '', job };
 }
 
-function findMergedCandidate(
-  repository,
-  expectedMergeSha = '',
-  prNumber = '',
-  { allowTaggedRecovery = false } = {},
+export function selectCanonicalOpenReleasePr(
+  pullRequests,
+  { repository = 'takano536/kobako', appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '' } = {},
 ) {
-  const candidates = canonicalMergedCandidates(repository, {
-    allowTaggedRecovery,
-    expectedMergeSha,
-    prNumber,
-  });
-  if (candidates.length === 0) return null;
-  if (candidates.length !== 1) {
-    throw new Error(
-      `expected one canonical merged ${allowTaggedRecovery ? 'Release PR candidate' : 'pending Release PR'}, found ${candidates.length}`,
-    );
-  }
-  return candidates[0];
-}
-
-function canonicalOpenCandidates(repository) {
-  const listed = ghApi(
-    repository,
-    'pulls?state=open&base=main&head=takano536:release-please--branches--main--components--kobako&sort=updated&direction=desc&per_page=100',
-    { paginate: true },
+  const matching = (Array.isArray(pullRequests) ? pullRequests : []).filter(
+    (pr) => pr?.head?.ref === RELEASE_BRANCH,
   );
   const candidates = [];
-  for (const listedPr of Array.isArray(listed) ? listed : []) {
-    if (!isListedReleasePr(listedPr) || listedPr?.state !== 'open') continue;
-    const pr = getPullRequest(repository, listedPr.number);
+  const errors = [];
+  for (const pr of matching) {
     const identity = validateCanonicalReleasePr(pr, {
       repository,
       state: 'open',
+      appBotLogin,
     });
     if (identity.ok) candidates.push({ pr, identity });
+    else errors.push(identity.errors.join('; '));
   }
-  return candidates;
-}
-
-function commandDispatchReleasePr() {
-  const repository = repositoryEnvironment();
-  const candidates = canonicalOpenCandidates(repository);
-  if (candidates.length === 0) {
-    emit('candidate_found', 'false');
-    emit('dispatch_requested', 'false');
-    return;
-  }
-  if (candidates.length !== 1) {
+  if (candidates.length > 1) {
     throw new Error(`expected one canonical open Release PR, found ${candidates.length}`);
   }
-  const candidate = candidates[0];
-  const mainSha = getMainSha(repository);
-  if (asSha(candidate.pr?.base?.sha) !== mainSha) {
-    throw new Error(
-      `Release PR base SHA ${candidate.pr?.base?.sha || 'missing'} does not equal main tip ${mainSha}`,
-    );
+  if (candidates.length === 0 && errors.length > 0) {
+    throw new Error(`no canonical open Release PR: ${errors.join('; ')}`);
   }
-  runCommand('gh', [
-    'workflow',
-    'run',
-    'ci.yml',
-    '--repo',
-    repository,
-    '--ref',
-    RELEASE_BRANCH,
-    '--field',
-    'mode=release-pr',
-    '--field',
-    `pr_number=${candidate.pr.number}`,
-    '--field',
-    `expected_head_sha=${candidate.identity.headSha}`,
-    '--field',
-    `main_sha=${mainSha}`,
-  ]);
-  emit('candidate_found', 'true');
-  emit('dispatch_requested', 'true');
-  emit('pr_number', String(candidate.pr.number));
-  emit('head_sha', candidate.identity.headSha);
-  emit('main_sha', mainSha);
+  return candidates[0] || null;
 }
 
-function commandValidateReleasePr() {
-  const repository = repositoryEnvironment();
-  if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
-    throw new Error('Release PR merge validation requires workflow_dispatch');
-  }
-  if (process.env.GITHUB_REF !== `refs/heads/${RELEASE_BRANCH}`) {
-    throw new Error(`unexpected Release PR ref: ${process.env.GITHUB_REF || 'missing'}`);
-  }
-  if (process.env.GATES_OK !== 'true') throw new Error('quality gate needs are not all successful');
+function openReleasePullRequests(repository) {
+  const head = encodeURIComponent(`${repository}:${RELEASE_BRANCH}`);
+  return ghApi(repository, `pulls?state=open&head=${head}&per_page=100`);
+}
 
-  const prNumber = requireEnvironment('PR_NUMBER');
-  const expectedHeadSha = asSha(requireEnvironment('GITHUB_SHA'));
-  if (!expectedHeadSha) throw new Error('GITHUB_SHA is not a full commit SHA');
-  let pr = getPullRequest(repository, prNumber);
+function pullRequestsForCommit(repository, sha) {
+  return ghApi(repository, `commits/${sha}/pulls?per_page=100`, { paginate: true });
+}
 
-  if (pr?.merged_at || pr?.merged) {
-    const mergedIdentity = validateCanonicalReleasePr(pr, {
-      repository,
-      state: 'merged',
-      allowTaggedRecovery: true,
-    });
-    if (!mergedIdentity.ok) throw new Error(mergedIdentity.errors.join('; '));
-    validateReleasePrMetadata(repository, pr, mergedIdentity.mergeSha);
-    ensureVerifyRun(repository, mergedIdentity.mergeSha, prNumber);
-    emit('validated', 'true');
-    emit('already_merged', 'true');
-    emit('merge_sha', mergedIdentity.mergeSha);
-    emit('pr_number', String(prNumber));
-    return;
-  }
-  const expectedInputSha = process.env.EXPECTED_HEAD_SHA
-    ? asSha(process.env.EXPECTED_HEAD_SHA)
-    : '';
-  if (process.env.EXPECTED_HEAD_SHA && expectedInputSha !== expectedHeadSha) {
-    throw new Error(
-      `dispatch expected head ${process.env.EXPECTED_HEAD_SHA} does not equal github.sha ${expectedHeadSha}`,
-    );
-  }
-
-  const identity = validateCanonicalReleasePr(pr, {
-    repository,
-    state: 'open',
-    expectedHeadSha,
-  });
-  if (!identity.ok) throw new Error(identity.errors.join('; '));
-  const mainSha = getMainSha(repository);
-  const expectedMainSha = process.env.MAIN_SHA ? asSha(process.env.MAIN_SHA) : '';
-  if (process.env.MAIN_SHA && expectedMainSha !== mainSha) {
-    throw new Error(
-      `dispatch expected main ${process.env.MAIN_SHA} does not equal live main ${mainSha}`,
-    );
-  }
-  if (asSha(pr?.base?.sha) !== mainSha) {
-    throw new Error(`PR base SHA ${pr?.base?.sha || 'missing'} does not equal main tip ${mainSha}`);
-  }
-  validateReleasePrProvenance(repository, pr, mainSha, expectedHeadSha);
-  const headCommit = getCommit(repository, expectedHeadSha);
-  const parents = Array.isArray(headCommit?.parents)
-    ? headCommit.parents.map((parent) => asSha(parent?.sha))
+function commitParents(commit) {
+  return Array.isArray(commit?.parents)
+    ? commit.parents.map((parent) => asSha(parent?.sha)).filter(Boolean)
     : [];
-  if (parents.length !== 1 || parents[0] !== mainSha) {
-    throw new Error(`Release PR head must have main tip ${mainSha} as its sole parent`);
-  }
-
-  const checks = selectLatestRequiredChecks(getCheckRuns(repository, expectedHeadSha));
-  if (!checks.ok) throw new Error(checks.errors.join('; '));
-
-  const title = asString(pr?.title);
-  if (!title || /[\r\n]/.test(title))
-    throw new Error('Release PR title is missing or contains a newline');
-  const commitTitle = `${title} (#${prNumber})`;
-  let mergedPr;
-  try {
-    const mergeResponse = ghApi(repository, `pulls/${prNumber}/merge`, {
-      method: 'PUT',
-      fields: [`sha=${expectedHeadSha}`, 'merge_method=squash', `commit_title=${commitTitle}`],
-    });
-    if (mergeResponse?.merged === true) {
-      mergedPr = getPullRequest(repository, prNumber);
-    } else {
-      mergedPr = getPullRequest(repository, prNumber);
-      if (!(mergedPr?.merged_at || mergedPr?.merged)) {
-        throw new Error(
-          `Release PR merge was not accepted: ${mergeResponse?.message || 'unknown response'}`,
-        );
-      }
-    }
-  } catch (mergeError) {
-    try {
-      const recoveredPr = getPullRequest(repository, prNumber);
-      if (!(recoveredPr?.merged_at || recoveredPr?.merged)) {
-        throw new Error('PR is not merged after merge API failure', { cause: mergeError });
-      }
-      mergedPr = recoveredPr;
-    } catch (recoveryError) {
-      throw new Error(`Release PR merge failed: ${mergeError.message}`, {
-        cause: recoveryError,
-      });
-    }
-  }
-  const mergedIdentity = validateCanonicalReleasePr(mergedPr, {
-    repository,
-    state: 'merged',
-    allowTaggedRecovery: true,
-  });
-  if (!mergedIdentity.ok) throw new Error(mergedIdentity.errors.join('; '));
-  validateReleasePrMetadata(repository, mergedPr, mergedIdentity.mergeSha);
-  ensureVerifyRun(repository, mergedIdentity.mergeSha, prNumber);
-  emit('validated', 'true');
-  emit('already_merged', 'false');
-  emit('merge_sha', mergedIdentity.mergeSha);
-  emit('pr_number', String(prNumber));
 }
 
-function commandVerifyGuard() {
-  const repository = repositoryEnvironment();
-  const mergeSha = asSha(requireEnvironment('GITHUB_SHA'));
-  if (process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
-    throw new Error('verify guard requires workflow_dispatch');
-  }
-  if (!mergeSha || !verifyRefForSha(process.env.GITHUB_REF, mergeSha)) {
-    throw new Error(
-      `verify ref does not identify github.sha: ${process.env.GITHUB_REF || 'missing'}`,
+function releasePullRequestsForCommit(repository, sha) {
+  return pullRequestsForCommit(repository, sha).filter(
+    (pr) =>
+      pr?.head?.ref === RELEASE_BRANCH || pr?.base?.ref === 'main' || pr?.merge_commit_sha === sha,
+  );
+}
+
+function releaseChangedPathsForCommit(repository, mergeSha, releasePaths) {
+  const parents = commitParents(getCommit(repository, mergeSha));
+  const paths = Array.isArray(releasePaths) ? releasePaths : [];
+  return paths.filter((relativePath) => {
+    const mergeBlobSha = getBlobShaAtCommit(repository, relativePath, mergeSha);
+    return parents.some(
+      (parentSha) => getBlobShaAtCommit(repository, relativePath, parentSha) !== mergeBlobSha,
     );
-  }
-  const candidate = findMergedCandidate(repository, mergeSha, process.env.PR_NUMBER || '', {
-    allowTaggedRecovery: true,
   });
-  if (!candidate) throw new Error(`no canonical merged Release PR points to ${mergeSha}`);
-  const { version } = validateReleasePrMetadata(repository, candidate.pr, mergeSha);
-  const tagSha = getTagCommitSha(repository, `v${version}`);
-  if (tagSha && tagSha !== mergeSha) {
-    throw new Error(`release tag v${version} points at ${tagSha}, expected ${mergeSha}`);
-  }
-  const mainSha = assertReleaseInputsMatchMain(repository, mergeSha);
-  const comparison = ghApi(repository, `compare/${mergeSha}...${mainSha}`);
-  if (!['ahead', 'identical'].includes(comparison?.status)) {
-    throw new Error(`${mergeSha} is not an ancestor of main ${mainSha}`);
-  }
-  emit('validated', 'true');
-  emit('pr_number', String(candidate.pr.number));
-  emit('merge_sha', mergeSha);
-  emit('version', version);
-  emit('label_state', candidate.identity.labels.includes(PENDING_LABEL) ? 'pending' : 'tagged');
 }
 
-function commandVerifyReleaseInputs() {
-  const repository = repositoryEnvironment();
-  const mergeSha = asSha(requireEnvironment('MERGE_SHA'));
-  if (!mergeSha) throw new Error('MERGE_SHA is not a full commit SHA');
-  const candidate = findMergedCandidate(repository, mergeSha, process.env.PR_NUMBER || '', {
-    allowTaggedRecovery: true,
-  });
-  if (!candidate) throw new Error(`no canonical merged Release PR points to ${mergeSha}`);
-  const { version } = validateReleasePrMetadata(repository, candidate.pr, mergeSha);
-  const tagSha = getTagCommitSha(repository, `v${version}`);
-  if (tagSha && tagSha !== mergeSha) {
-    throw new Error(`release tag v${version} points at ${tagSha}, expected ${mergeSha}`);
+function retryCanonicalMergedReleaseForCommit(repository, mergeSha, attempts = 3) {
+  for (let attempt = 1; attempt < attempts; attempt += 1) {
+    runCommand('sleep', [String(attempt)]);
+    const pullRequests = releasePullRequestsForCommit(repository, mergeSha);
+    const candidate = canonicalMergedReleaseForCommit(repository, mergeSha, pullRequests);
+    if (candidate) return candidate;
   }
-  const mainSha = assertReleaseInputsMatchMain(repository, mergeSha);
-  emit('validated', 'true');
-  emit('main_sha', mainSha);
-  emit('merge_sha', mergeSha);
-  emit('version', version);
+  return null;
 }
 
-function commandEnsureTaggedLabel() {
-  const repository = repositoryEnvironment();
-  const prNumber = requireEnvironment('PR_NUMBER');
-  const mergeSha = asSha(requireEnvironment('MERGE_SHA'));
-  if (!mergeSha) throw new Error('MERGE_SHA is not a full commit SHA');
-  const pr = getPullRequest(repository, prNumber);
+function detailedPullRequests(repository, pullRequests) {
+  return (Array.isArray(pullRequests) ? pullRequests : []).map((pr) =>
+    pr?.number ? getPullRequest(repository, pr.number) : pr,
+  );
+}
+function canonicalMergedReleaseForCommit(repository, mergeSha, pullRequests) {
+  const detailed = detailedPullRequests(repository, pullRequests);
+  const candidates = selectCanonicalMergedReleasePr(detailed, mergeSha, {
+    repository,
+  });
+  if (candidates) return candidates;
+  const releasePullRequests = detailed.filter(
+    (pr) => pr?.head?.ref === RELEASE_BRANCH || pr?.merge_commit_sha === mergeSha,
+  );
+  if (releasePullRequests.length > 0) {
+    const reasons = releasePullRequests.flatMap((pr) => {
+      const identity = validateCanonicalReleasePr(pr, {
+        repository,
+        state: 'merged',
+        expectedMergeSha: mergeSha,
+        allowTaggedRecovery: true,
+      });
+      return identity.errors;
+    });
+    throw new Error(`no canonical merged Release PR for ${mergeSha}: ${reasons.join('; ')}`);
+  }
+  return null;
+}
+
+function validateMergedRelease(repository, pr, mergeSha) {
   const identity = validateCanonicalReleasePr(pr, {
     repository,
     state: 'merged',
@@ -1149,107 +1029,448 @@ function commandEnsureTaggedLabel() {
     allowTaggedRecovery: true,
   });
   if (!identity.ok) throw new Error(identity.errors.join('; '));
-
-  const labels = new Set(identity.labels);
-  const hadPending = labels.has(PENDING_LABEL);
-  const hadTagged = labels.has(TAGGED_LABEL);
-  if (hadPending) removeIssueLabel(repository, prNumber, PENDING_LABEL);
-  if (!hadTagged) addIssueLabel(repository, prNumber, TAGGED_LABEL);
-  emit('label_state', 'tagged');
-  emit('label_updated', String(hadPending || !hadTagged));
-  emit('pr_number', prNumber);
-  emit('merge_sha', mergeSha);
+  validateReleaseMergeActor(pr);
+  const { version } = validateReleasePrMetadata(repository, pr, mergeSha);
+  return { identity, version };
 }
 
-function commandEnsureMain() {
+function validateMergedReleaseCommit(repository, mergeSha) {
+  const parents = commitParents(getCommit(repository, mergeSha));
+  if (parents.length !== 1) {
+    throw new Error(`release merge ${mergeSha} must be a squash commit with one sole parent`);
+  }
+  const baseSha = parents[0];
+  const config = readReleasePleaseConfig();
+  const comparison = compareRelease(repository, baseSha, mergeSha);
+  if (comparison.mergeBaseSha !== baseSha) {
+    throw new Error(`release merge ${mergeSha} is not directly based on ${baseSha}`);
+  }
+  validateReleaseChangedPaths(comparison.files, [...releaseOwnedPaths(config)]);
+  validateReleasePrFileContents(repository, config, baseSha, mergeSha);
+  return { baseSha };
+}
+
+export function validateMainReleaseAncestry({ mergeSha, mainSha, mergeBaseSha, status } = {}) {
+  const expectedMergeSha = asSha(mergeSha);
+  const liveMainSha = asSha(mainSha);
+  const relationMergeBaseSha = asSha(mergeBaseSha);
+  if (!expectedMergeSha || !liveMainSha) {
+    throw new Error('main release ancestry requires full merge and main SHAs');
+  }
+  if (
+    relationMergeBaseSha !== expectedMergeSha ||
+    !['ahead', 'identical'].includes(asString(status))
+  ) {
+    throw new Error(
+      `live main ${liveMainSha} must be identical to or ahead of release merge ${expectedMergeSha}`,
+    );
+  }
+  if (asString(status) === 'identical' && liveMainSha !== expectedMergeSha) {
+    throw new Error(`identical main ancestry has different SHA ${liveMainSha}`);
+  }
+  return true;
+}
+
+function commandClassifyMainRelease() {
   const repository = repositoryEnvironment();
-  const candidates = canonicalMergedCandidates(repository);
-  if (candidates.length === 0) {
-    emit('candidate_found', 'false');
-    emit('verify_run_requested', 'false');
+  const mergeSha = asSha(process.env.MERGE_SHA || process.env.GITHUB_SHA);
+  if (!mergeSha) throw new Error('MERGE_SHA is not a full commit SHA');
+  if (process.env.GITHUB_EVENT_NAME && process.env.GITHUB_EVENT_NAME !== 'push') {
+    throw new Error(`release candidate requires push, got ${process.env.GITHUB_EVENT_NAME}`);
+  }
+  const releaseVersionPaths = [...releaseOwnedVersionPaths(readReleasePleaseConfig())];
+  const changedPaths = releaseChangedPathsForCommit(repository, mergeSha, releaseVersionPaths);
+  const pullRequests = releasePullRequestsForCommit(repository, mergeSha);
+  let candidate = canonicalMergedReleaseForCommit(repository, mergeSha, pullRequests);
+  const association = decideReleaseAssociation({
+    changedPaths,
+    releaseVersionPaths,
+    hasCanonical: Boolean(candidate),
+  });
+  if (!candidate && association.action === 'refuse') {
+    candidate = retryCanonicalMergedReleaseForCommit(repository, mergeSha);
+    if (!candidate) {
+      throw new Error(
+        `release-owned version files changed in ${mergeSha}, but no canonical merged Release PR was found after bounded association retries; rerun this job`,
+      );
+    }
+  }
+  if (!candidate) {
+    emit('is_release', 'false');
+    emit('pr_number', '');
+    emit('version', '');
     return;
   }
-  if (candidates.length !== 1) {
-    throw new Error(`expected one canonical merged pending Release PR, found ${candidates.length}`);
-  }
-  const candidate = candidates[0];
-  const result = ensureVerifyRun(repository, candidate.identity.mergeSha, candidate.pr.number);
-  emit('candidate_found', 'true');
+  const { version } = validateMergedRelease(repository, candidate.pr, mergeSha);
+  validateMergedReleaseCommit(repository, mergeSha);
+  emit('is_release', 'true');
   emit('pr_number', String(candidate.pr.number));
-  emit('merge_sha', candidate.identity.mergeSha);
-  emit('verify_ref', result.ref);
-  emit('validated', 'true');
-}
-function commandHealMain() {
-  const repository = repositoryEnvironment();
-  const candidates = canonicalMergedCandidates(repository);
-  if (candidates.length === 0) {
-    emit('candidate_found', 'false');
-    emit('verify_run_requested', 'false');
-    return;
-  }
-  if (candidates.length !== 1) {
-    throw new Error(`expected one canonical merged pending Release PR, found ${candidates.length}`);
-  }
-  const candidate = candidates[0];
-  const result = ensureVerifyRun(repository, candidate.identity.mergeSha, candidate.pr.number, {
-    missingOnly: true,
-  });
-  emit('candidate_found', 'true');
-  emit('pr_number', String(candidate.pr.number));
-  emit('merge_sha', candidate.identity.mergeSha);
-  emit('verify_ref', result.ref);
-  emit('validated', 'true');
+  emit('version', version);
 }
 
-function commandCleanupVerify() {
+function commandValidateMainRelease() {
   const repository = repositoryEnvironment();
-  const verifyRef = requireEnvironment('VERIFY_REF');
-  const verifiedSha = asSha(requireEnvironment('VERIFIED_SHA'));
-  if (!verifiedSha || !verifyRefForSha(`refs/heads/${verifyRef}`, verifiedSha)) {
-    throw new Error(`cleanup ref does not identify verified SHA: ${verifyRef}`);
-  }
-  const encodedRef = verifyRef
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-  ghApi(repository, `git/refs/heads/${encodedRef}`, {
-    method: 'DELETE',
-    allowNotFound: true,
-  });
+  const mergeSha = asSha(requireEnvironment('MERGE_SHA'));
+  const prNumber = requireEnvironment('PR_NUMBER');
+  if (!mergeSha) throw new Error('MERGE_SHA is not a full commit SHA');
+  const pr = getPullRequest(repository, prNumber);
+  const { version } = validateMergedRelease(repository, pr, mergeSha);
   const mainSha = getMainSha(repository);
-  let dispatchRequested = false;
-  if (mainSha !== verifiedSha) {
-    runCommand('gh', [
-      'workflow',
-      'run',
-      'ci.yml',
-      '--repo',
-      repository,
-      '--ref',
-      'main',
-      '--field',
-      'mode=normal',
-    ]);
-    dispatchRequested = true;
+  const mainRelation = compareCommitRelation(repository, mergeSha, mainSha);
+  validateMainReleaseAncestry({
+    mergeSha,
+    mainSha,
+    mergeBaseSha: mainRelation.mergeBaseSha,
+    status: mainRelation.status,
+  });
+  validateMergedReleaseCommit(repository, mergeSha);
+  emit('validated', 'true');
+  emit('pr_number', String(pr.number));
+  emit('merge_sha', mergeSha);
+  emit('version', version);
+}
+
+function commandRepairReleaseLabel() {
+  const repository = repositoryEnvironment();
+  const mergeSha = asSha(requireEnvironment('MERGE_SHA'));
+  const prNumber = requireEnvironment('PR_NUMBER');
+  if (!mergeSha) throw new Error('MERGE_SHA is not a full commit SHA');
+  const pr = getPullRequest(repository, prNumber);
+  validateMergedRelease(repository, pr, mergeSha);
+  const decision = decideReleasePrLabelRepair(pr, {
+    repository,
+    expectedMergeSha: mergeSha,
+    appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
+  });
+  if (decision.action === 'refuse') {
+    throw new Error(`refusing Release PR label repair: ${decision.errors.join('; ')}`);
   }
-  emit('verify_ref_deleted', 'true');
-  emit('main_sha', mainSha);
-  emit('main_dispatch_requested', String(dispatchRequested));
+  if (decision.action === 'noop') {
+    emit('label_repair', 'noop');
+    return;
+  }
+  for (const label of decision.add) {
+    ghApi(repository, `issues/${pr.number}/labels`, {
+      method: 'POST',
+      fields: [`labels[]=${label}`],
+    });
+  }
+  for (const label of decision.remove) {
+    ghApi(repository, `issues/${pr.number}/labels/${encodeURIComponent(label)}`, {
+      method: 'DELETE',
+    });
+  }
+  emit('label_repair', 'repaired');
+}
+
+function alreadyMergedForHead(repository, headSha, pullRequests) {
+  for (const pr of detailedPullRequests(repository, pullRequests)) {
+    if (asSha(pr?.head?.sha) !== headSha || !(pr?.merged_at || pr?.merged)) continue;
+    const mergeSha = asSha(pr?.merge_commit_sha || pr?.mergeCommit?.oid);
+    if (!mergeSha) continue;
+    const identity = validateCanonicalReleasePr(pr, {
+      repository,
+      state: 'merged',
+      expectedMergeSha: mergeSha,
+      allowTaggedRecovery: true,
+    });
+    if (identity.ok) return { pr, identity };
+  }
+  return null;
+}
+
+export function validateMainPushWorkflowRun(
+  run,
+  { repository = 'takano536/kobako', headSha = '', headBranch = 'main' } = {},
+) {
+  const errors = [];
+  const expectedSha = asSha(headSha);
+  if (run?.name !== 'CI')
+    errors.push(`workflow_run workflow must be CI, got ${run?.name || 'missing'}`);
+  if (run?.event !== 'push')
+    errors.push(`workflow_run event must be push, got ${run?.event || 'missing'}`);
+  if (run?.status !== 'completed') {
+    errors.push(`workflow_run status is not completed: ${run?.status || 'missing'}`);
+  }
+  if (run?.conclusion !== 'success') {
+    errors.push(`workflow_run conclusion is not success: ${run?.conclusion || 'missing'}`);
+  }
+  if (asString(run?.head_branch) !== headBranch) {
+    errors.push(`workflow_run head branch changed: ${run?.head_branch || 'missing'}`);
+  }
+  if (expectedSha && asSha(run?.head_sha) !== expectedSha) {
+    errors.push(
+      `workflow_run head SHA ${run?.head_sha || 'missing'} does not match event head ${headSha}`,
+    );
+  }
+  const headRepository = repositoryOf(run?.head_repository);
+  if (headRepository && headRepository !== repositoryName(repository)) {
+    errors.push(`workflow_run head repository is not canonical: ${headRepository}`);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+export function validateMainPushReleasePleaseEvidence({
+  run,
+  jobs,
+  repository = 'takano536/kobako',
+  headSha = '',
+} = {}) {
+  const runValidation = validateMainPushWorkflowRun(run, { repository, headSha });
+  if (!runValidation.ok) return { ok: false, error: runValidation.errors.join('; ') };
+  const releasePlease = validateReleasePleaseJob(jobs);
+  if (!releasePlease.ok) return { ok: false, error: releasePlease.error };
+  return { ok: true, error: '' };
+}
+
+function requireMainPushReleasePleaseSuccess(repository, mainSha) {
+  const runs = workflowRunsForHead(repository, mainSha, { event: 'push', branch: 'main' });
+  const latest = selectLatestWorkflowRun(runs, {
+    repository,
+    event: 'push',
+    headSha: mainSha,
+    headBranch: 'main',
+  });
+  if (!latest) {
+    throw new Error(
+      `live main ${mainSha} has no completed CI push run to prove Release Please evaluated it`,
+    );
+  }
+  const evidence = validateMainPushReleasePleaseEvidence({
+    run: latest,
+    jobs: workflowRunJobs(repository, latest.id),
+    repository,
+    headSha: mainSha,
+  });
+  if (!evidence.ok) {
+    throw new Error(
+      `live main ${mainSha} Release Please evaluation is not successful: ${evidence.error}`,
+    );
+  }
+  return latest;
+}
+
+function latestSuccessfulReleasePrWorkflowRun(repository, headSha) {
+  const runs = workflowRunsForHead(repository, headSha, {
+    event: 'pull_request',
+    branch: RELEASE_BRANCH,
+  });
+  const latest = selectLatestWorkflowRun(runs, {
+    repository,
+    event: 'pull_request',
+    headSha,
+    headBranch: RELEASE_BRANCH,
+  });
+  if (!latest) {
+    throw new Error(`Release PR head ${headSha} has no native pull_request CI run`);
+  }
+  if (latest.status !== 'completed' || latest.conclusion !== 'success') {
+    throw new Error(
+      `latest native pull_request CI run for ${headSha} is ${
+        latest.status || 'missing'
+      }/${latest.conclusion || 'missing'}`,
+    );
+  }
+  return latest;
+}
+
+function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }) {
+  const mainSha = getMainSha(repository);
+  const headSha = asSha(expectedHeadSha);
+  const headCommit = getCommit(repository, headSha);
+  const config = readReleasePleaseConfig();
+  const comparison = compareRelease(repository, mainSha, headSha);
+  const diffBaseSha = comparison.mergeBaseSha;
+  if (!diffBaseSha) {
+    throw new Error(`Release PR compare did not return a merge base for ${mainSha}...${headSha}`);
+  }
+  let releaseComparison = comparison;
+  let allowStaleBase = false;
+  if (diffBaseSha !== mainSha) {
+    requireMainPushReleasePleaseSuccess(repository, mainSha);
+    const baseToMain = compareCommitRelation(repository, diffBaseSha, mainSha);
+    allowStaleBase = baseToMain.status === 'ahead' || baseToMain.status === 'identical';
+    if (!allowStaleBase) {
+      throw new Error(
+        `Release PR merge base ${diffBaseSha} is not an ancestor of live main ${mainSha}`,
+      );
+    }
+    releaseComparison = compareRelease(repository, diffBaseSha, headSha);
+    if (releaseComparison.mergeBaseSha !== diffBaseSha) {
+      throw new Error(
+        `Release PR head ${headSha} does not descend directly from merge base ${diffBaseSha}`,
+      );
+    }
+  }
+  validateReleasePrSnapshot({
+    workflowRun: run,
+    pr,
+    repository,
+    mainSha,
+    mergeBaseSha: diffBaseSha,
+    allowStaleBase,
+    headSha,
+    headCommit,
+    checkRuns: getCheckRuns(repository, headSha),
+    changedPaths: releaseComparison.files,
+    allowedPaths: [...releaseOwnedPaths(config)],
+    appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
+  });
+  validateReleasePrFileContents(repository, config, diffBaseSha, headSha);
+  validateReleasePrMetadata(repository, pr, headSha);
+  const mergeMainSha = getMainSha(repository);
+  if (mergeMainSha !== mainSha) {
+    throw new Error(
+      `live main moved from ${mainSha} to ${mergeMainSha} during evaluator validation`,
+    );
+  }
+  const currentPr = getPullRequest(repository, pr.number);
+  validateReleasePrBeforeMerge(currentPr, {
+    repository,
+    expectedHeadSha: headSha,
+    appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
+  });
+  const currentChecks = selectLatestRequiredChecks(getCheckRuns(repository, headSha));
+  if (!currentChecks.ok) {
+    throw new Error(
+      `required native PR checks changed before merge: ${currentChecks.errors.join('; ')}`,
+    );
+  }
+  validateReleasePrMetadata(repository, currentPr, headSha);
+  const title = asString(currentPr?.title);
+  if (!title || /[\r\n]/.test(title))
+    throw new Error('Release PR title is missing or contains a newline');
+  const commitTitle = `${title} (#${currentPr.number})`;
+  let mergeResponse;
+  try {
+    mergeResponse = ghApi(repository, `pulls/${pr.number}/merge`, {
+      method: 'PUT',
+      fields: [`sha=${headSha}`, 'merge_method=squash', `commit_title=${commitTitle}`],
+      tokenEnv: 'MERGE_GH_TOKEN',
+    });
+  } catch (error) {
+    if (isSafeMergeConflict(error.message)) {
+      throw new Error(
+        `Release PR merge stopped safely due to conflict or stale base: ${error.message}`,
+        { cause: error },
+      );
+    }
+    throw new Error(`Release PR merge failed: ${error.message}`, { cause: error });
+  }
+  if (mergeResponse?.merged !== true) {
+    const current = getPullRequest(repository, pr.number);
+    if (!(current?.merged_at || current?.merged)) {
+      throw new Error(
+        `Release PR merge was not accepted: ${mergeResponse?.message || 'unknown response'}`,
+      );
+    }
+  }
+  const mergedPr = getPullRequest(repository, pr.number);
+  const mergedIdentity = validateCanonicalReleasePr(mergedPr, {
+    repository,
+    state: 'merged',
+    allowTaggedRecovery: true,
+  });
+  if (!mergedIdentity.ok) throw new Error(mergedIdentity.errors.join('; '));
+  validateReleasePrMetadata(repository, mergedPr, mergedIdentity.mergeSha);
+  emit('already_merged', 'false');
+  emit('merged', 'true');
+  emit('pr_number', String(pr.number));
+  emit('head_sha', headSha);
+  emit('merge_sha', mergedIdentity.mergeSha);
+}
+function commandEvaluateReleasePr() {
+  const repository = repositoryEnvironment();
+  const runId = requireEnvironment('WORKFLOW_RUN_ID');
+  const expectedHeadSha = asSha(requireEnvironment('WORKFLOW_HEAD_SHA'));
+  const expectedBranch = requireEnvironment('WORKFLOW_HEAD_BRANCH');
+  if (!expectedHeadSha) throw new Error('workflow_run head SHA is not a full commit SHA');
+  const run = workflowRun(repository, runId);
+  validateReleaseAppConfiguration({
+    clientId: process.env.RELEASE_APP_CLIENT_ID || 'configured-by-workflow',
+    botLogin: process.env.RELEASE_APP_BOT_LOGIN,
+    privateKey: process.env.RELEASE_APP_PRIVATE_KEY || 'provided-by-workflow',
+  });
+
+  if (run?.event === 'push' && expectedBranch === 'main') {
+    const runValidation = validateMainPushWorkflowRun(run, {
+      repository,
+      headSha: expectedHeadSha,
+      headBranch: 'main',
+    });
+    if (!runValidation.ok) throw new Error(runValidation.errors.join('; '));
+    const mainSha = getMainSha(repository);
+    if (mainSha !== expectedHeadSha) {
+      throw new Error(`live main moved to ${mainSha} after push run ${expectedHeadSha}`);
+    }
+    requireMainPushReleasePleaseSuccess(repository, mainSha);
+    const openPullRequests = detailedPullRequests(repository, openReleasePullRequests(repository));
+    const candidate = selectCanonicalOpenReleasePr(openPullRequests, {
+      repository,
+      appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
+    });
+    if (!candidate) {
+      emit('no_open_release_pr', 'true');
+      return;
+    }
+    const headSha = asSha(candidate.pr?.head?.sha);
+    if (!headSha) throw new Error('canonical open Release PR has no head SHA');
+    const prRun = latestSuccessfulReleasePrWorkflowRun(repository, headSha);
+    return evaluateCanonicalOpenReleasePr(repository, {
+      run: prRun,
+      pr: candidate.pr,
+      expectedHeadSha: headSha,
+    });
+  }
+
+  if (run?.event !== 'pull_request' || expectedBranch !== RELEASE_BRANCH) {
+    throw new Error(
+      `unsupported evaluator workflow run event/branch: ${run?.event || 'missing'}/${expectedBranch}`,
+    );
+  }
+  const runValidation = validateWorkflowRunMetadata(run, {
+    repository,
+    headSha: expectedHeadSha,
+    headBranch: RELEASE_BRANCH,
+  });
+  if (!runValidation.ok) throw new Error(runValidation.errors.join('; '));
+  const pullRequests = pullRequestsForCommit(repository, expectedHeadSha);
+  const open = pullRequests.filter(
+    (pr) =>
+      pr?.state === 'open' &&
+      pr?.head?.ref === RELEASE_BRANCH &&
+      asSha(pr?.head?.sha) === expectedHeadSha,
+  );
+  const merged = alreadyMergedForHead(repository, expectedHeadSha, pullRequests);
+  if (open.length === 0) {
+    if (merged) {
+      validateMergedRelease(repository, merged.pr, merged.identity.mergeSha);
+      emit('already_merged', 'true');
+      emit('pr_number', String(merged.pr.number));
+      emit('merge_sha', merged.identity.mergeSha);
+      return;
+    }
+    throw new Error(`no open canonical Release PR has head ${expectedHeadSha}`);
+  }
+  if (open.length !== 1) {
+    throw new Error(`expected one open Release PR for ${expectedHeadSha}, found ${open.length}`);
+  }
+  const pr = getPullRequest(repository, open[0].number);
+  return evaluateCanonicalOpenReleasePr(repository, {
+    run,
+    pr,
+    expectedHeadSha,
+  });
 }
 
 function main() {
   const command = process.argv[2];
-  if (command === 'ensure-main') return commandEnsureMain();
-  if (command === 'heal-main') return commandHealMain();
-  if (command === 'cleanup-verify') return commandCleanupVerify();
-  if (command === 'ensure-tagged-label') return commandEnsureTaggedLabel();
-  if (command === 'dispatch-release-pr') return commandDispatchReleasePr();
-  if (command === 'validate-release-pr') return commandValidateReleasePr();
-  if (command === 'verify-guard') return commandVerifyGuard();
-  if (command === 'verify-release-inputs') return commandVerifyReleaseInputs();
+  if (command === 'classify-main-release') return commandClassifyMainRelease();
+  if (command === 'validate-main-release') return commandValidateMainRelease();
+  if (command === 'repair-release-label') return commandRepairReleaseLabel();
+  if (command === 'evaluate-release-pr') return commandEvaluateReleasePr();
   throw new Error(
-    'usage: release-automation.mjs <ensure-main|heal-main|cleanup-verify|ensure-tagged-label|dispatch-release-pr|validate-release-pr|verify-guard|verify-release-inputs>',
+    'usage: release-automation.mjs <classify-main-release|validate-main-release|repair-release-label|evaluate-release-pr>',
   );
 }
 

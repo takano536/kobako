@@ -15,8 +15,12 @@ function pr(login = appBotLogin, type = 'Bot') {
   };
 }
 describe('repository-scoped release App identity', () => {
-  it('keeps the existing GitHub Actions bot identity', () => {
-    assert.equal(isReleaseBot({ login: 'github-actions[bot]', type: 'Bot' }), true);
+  it('rejects the GITHUB_TOKEN GitHub Actions bot identity', () => {
+    assert.equal(isReleaseBot({ login: 'github-actions[bot]', type: 'Bot' }), false);
+    assert.equal(
+      validateCanonicalReleasePr(pr('github-actions[bot]'), { repository, appBotLogin }).ok,
+      false,
+    );
   });
   it('accepts only the explicitly configured App bot', () => {
     assert.equal(isReleaseBot({ login: appBotLogin, type: 'Bot' }, appBotLogin), true);
