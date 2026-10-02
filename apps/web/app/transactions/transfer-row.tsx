@@ -25,7 +25,13 @@ export function TransferRow({
         <span className="category-dot transfer-dot" aria-hidden="true" />
         <span className="transaction-main">
           <span className="transaction-category transfer-category">
-            {transfer.fromAccountName} <span aria-hidden="true">→</span> {transfer.toAccountName}
+            <span className="transfer-account">{transfer.fromAccountName}</span>
+            <span className="transfer-destination">
+              <span className="transfer-arrow" aria-hidden="true">
+                →
+              </span>
+              <span className="transfer-account">{transfer.toAccountName}</span>
+            </span>
           </span>
           {showMemo && transfer.memo ? (
             <span className="transaction-memo" title={transfer.memo}>

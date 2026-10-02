@@ -98,13 +98,13 @@ function previousImportDateLabel(value: string | undefined): string {
 
 function validationMessage(file: File, maxFileBytes: number): string | undefined {
   if (!/\.xlsx$/i.test(file.name)) {
-    return 'Excelファイル（.xlsx）を選んでください。';
+    return 'Excel ファイル（.xlsx）を選んでください。';
   }
   if (file.size === 0) {
-    return 'ファイルが空です。内容のある.xlsxを選んでください。';
+    return 'ファイルが空です。内容のある .xlsx を選んでください。';
   }
   if (file.size > maxFileBytes) {
-    return `ファイルが大きすぎます。${formatFileSize(maxFileBytes)}以下の.xlsxを選んでください。`;
+    return `ファイルが大きすぎます。${formatFileSize(maxFileBytes)} 以下の .xlsx を選んでください。`;
   }
   return undefined;
 }
@@ -166,7 +166,7 @@ function FileSelection({
   return (
     <section className="import-file-section" aria-labelledby="import-file-title">
       <h2 id="import-file-title" className="sr-only">
-        Excelファイルを選ぶ
+        Excel ファイルを選ぶ
       </h2>
       <input
         ref={inputRef}
@@ -175,7 +175,7 @@ function FileSelection({
         name="file"
         type="file"
         accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        aria-label="Excelファイルを選ぶ"
+        aria-label="Excel ファイルを選ぶ"
         aria-describedby={describedBy}
         aria-invalid={fileError || fileMessage ? true : undefined}
         onChange={onChange}
@@ -218,7 +218,7 @@ function FileSelection({
           htmlFor="money-manager-file"
           role="button"
           tabIndex={pending ? -1 : 0}
-          aria-label="Excelファイルを選ぶ"
+          aria-label="Excel ファイルを選ぶ"
           aria-describedby="import-file-note"
           aria-disabled={pending || undefined}
           onKeyDown={(event: KeyboardEvent<HTMLLabelElement>) => {
@@ -237,14 +237,30 @@ function FileSelection({
             ↑
           </span>
           <span className="import-dropzone-copy">
-            <strong className="button button-primary">Excelファイルを選ぶ</strong>
-            <span className="import-dropzone-help">ここにドロップして選ぶこともできます</span>
+            <strong className="button button-primary">
+              <span className="import-dropzone-label-chunk">Excel</span>{' '}
+              <span className="import-dropzone-label-chunk">ファイル</span>
+              <wbr />
+              <span className="import-dropzone-label-chunk">を選ぶ</span>
+            </strong>
+            <span className="import-dropzone-help">
+              <span className="phrase-wrap phrase-wrap-keep">
+                ここにドロップ
+                <wbr />
+                して
+              </span>
+              <span className="phrase-wrap phrase-wrap-keep">
+                選ぶこと
+                <wbr />
+                もできます
+              </span>
+            </span>
           </span>
         </label>
       )}
       {!selectedFile ? (
         <p id="import-file-note" className="import-file-note">
-          .xlsx・{formatFileSize(maxFileBytes)}まで・{maxRows.toLocaleString('ja-JP')}件まで
+          .xlsx・{formatFileSize(maxFileBytes)} まで・{maxRows.toLocaleString('ja-JP')}件まで
         </p>
       ) : null}
       <p className="import-file-status sr-only" role="status" aria-live="polite">
@@ -323,19 +339,22 @@ function SummarySection({ preview }: { preview: MoneyManagerImportPreview }) {
       <dl className="import-kind-summary">
         <div className="is-income">
           <dt>
-            収入 <small>{preview.counts.income.count.toLocaleString('ja-JP')}件</small>
+            <span>収入</span>
+            <small>{preview.counts.income.count.toLocaleString('ja-JP')}件</small>
           </dt>
           <dd>{formatTransactionAmount('income', preview.counts.income.total)}</dd>
         </div>
         <div className="is-expense">
           <dt>
-            支出 <small>{preview.counts.expense.count.toLocaleString('ja-JP')}件</small>
+            <span>支出</span>
+            <small>{preview.counts.expense.count.toLocaleString('ja-JP')}件</small>
           </dt>
           <dd>{formatTransactionAmount('expense', preview.counts.expense.total)}</dd>
         </div>
         <div className="is-transfer">
           <dt>
-            振替 <small>{preview.counts.transfer.count.toLocaleString('ja-JP')}件</small>
+            <span>振替</span>
+            <small>{preview.counts.transfer.count.toLocaleString('ja-JP')}件</small>
           </dt>
           <dd>{formatYen(preview.counts.transfer.total)}</dd>
         </div>
@@ -609,7 +628,8 @@ function SuccessView({
         {kinds.map((kind) => (
           <div key={kind.label} className={`is-${kind.tone}`}>
             <dt>
-              {kind.label} <small>{kind.count.toLocaleString('ja-JP')}件</small>
+              <span>{kind.label}</span>
+              <small>{kind.count.toLocaleString('ja-JP')}件</small>
             </dt>
             <dd>{kind.amount}</dd>
           </div>
@@ -836,10 +856,16 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
           <details className="import-details">
             <summary>取り込まれる内容を確認</summary>
             <div className="import-details-content">
-              <p>らくな家計簿 Android 日本語版から出力したExcel（.xlsx）に対応しています。</p>
+              <p>
+                <span className="phrase-wrap">らくな家計簿 Android 日本語版から</span>
+                <span className="phrase-wrap">出力した Excel（.xlsx）に対応しています。</span>
+              </p>
               <ul>
                 <li>収入・支出・振替を取り込みます。</li>
-                <li>日付・金額・カテゴリ・小分類・内容・メモ・資産を使います。</li>
+                <li>
+                  <span className="phrase-wrap">日付・金額・カテゴリ・小分類・</span>
+                  <span className="phrase-wrap">内容・メモ・資産を使います。</span>
+                </li>
                 <li>ファイルそのものは保存しません。</li>
                 <li>確認するまで、家計簿は変わりません。</li>
               </ul>
