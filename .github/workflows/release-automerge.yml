@@ -1,0 +1,85 @@
+name: Release PR Automerge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kobako-release-pr-run-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: evaluate-release-pr
+    if: >-
+      github.repository == 'takano536/kobako' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (
+        (
+          github.event.workflow_run.event == 'pull_request' &&
+          github.event.workflow_run.head_branch == 'release-please--branches--main--components--kobako'
+        ) ||
+        (
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out trusted validator from main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Require Release App configuration
+        env:
+          APP_CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
+          APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_CLIENT_ID" || -z "$APP_BOT_LOGIN" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo '::error::Release App is required for unattended merge. Set RELEASE_APP_CLIENT_ID and RELEASE_APP_BOT_LOGIN variables plus RELEASE_APP_PRIVATE_KEY secret; no GITHUB_TOKEN fallback is permitted.'
+            exit 1
+          fi
+      - name: Create repository-scoped Release App token
+        id: release_app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: takano536
+          repositories: kobako
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Verify Release App identity
+        env:
+          APP_SLUG: ${{ steps.release_app.outputs.app-slug }}
+          EXPECTED_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
+        run: |
+          node --input-type=module -e '
+            if (!process.env.APP_SLUG || process.env.APP_SLUG + "[bot]" !== process.env.EXPECTED_BOT_LOGIN) {
+              throw new Error("RELEASE_APP_BOT_LOGIN must match the configured App slug");
+            }
+          '
+      - name: Evaluate and squash merge canonical Release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_GH_TOKEN: ${{ steps.release_app.outputs.token }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
+        run: node scripts/release-automation.mjs evaluate-release-pr
