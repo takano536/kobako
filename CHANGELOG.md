@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/takano536/kobako/compare/v0.3.1...v0.4.0) (2026-10-02)
+
+
+### Features
+
+* **web:** unify ledger page layout ([#19](https://github.com/takano536/kobako/issues/19)) ([420fa47](https://github.com/takano536/kobako/commit/420fa4748f0f9fd15228b61c915c997e0f8ff77c))
+
+
+### Bug Fixes
+
+* **release:** accept verified GitHub web-flow committer ([#23](https://github.com/takano536/kobako/issues/23)) ([0222239](https://github.com/takano536/kobako/commit/0222239e244828aa181e95baa2b82133cb293a47))
+* **release:** isolate target verification tests from package version ([#21](https://github.com/takano536/kobako/issues/21)) ([fb94a3d](https://github.com/takano536/kobako/commit/fb94a3d9a9a2e35d9106a555c6ca556718f7a766))
+
 ## [0.3.1](https://github.com/takano536/kobako/compare/v0.3.0...v0.3.1) (2026-10-01)
 
 
