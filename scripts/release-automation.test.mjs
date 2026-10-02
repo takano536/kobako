@@ -1739,6 +1739,34 @@ describe('targeted merged Release PR candidate selection', () => {
     assert.match(invocations, /pulls\/7\n/);
     assert.doesNotMatch(invocations, /pulls\/9\n/);
   });
+  it('selects a SHA-only target when every listed row omits merge_commit_sha', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, mergeSha);
+    const taggedSeventeen = mergedPr(17, recoveryShaTwo);
+    const fake = await makeReleaseCommandFake({
+      list: [
+        { ...listedPr(taggedSeven), merge_commit_sha: undefined },
+        { ...listedPr(taggedNine), merge_commit_sha: undefined },
+        { ...listedPr(taggedSeventeen), merge_commit_sha: undefined },
+      ],
+      prByNumber: { 7: taggedSeven, 9: taggedNine, 17: taggedSeventeen },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaTwo,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaTwo}`,
+          PR_NUMBER: '',
+        }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(await readFile(fake.log, 'utf8'), /pulls\/17\n/);
+  });
 
   it('rejects ambiguous recovery when two PRs share the requested merge SHA', async () => {
     const taggedSeven = mergedPr(7, recoveryShaOne);

@@ -850,6 +850,7 @@ function canonicalMergedCandidates(
           `PR #${requestedNumber} merge SHA ${actual} does not match requested ${expectedMergeSha}`,
         );
       }
+      if (listedMergeSha !== requestedSha) continue;
       throw new Error(
         `merged Release PR merge SHA ${actual} does not match requested ${expectedMergeSha}`,
       );
