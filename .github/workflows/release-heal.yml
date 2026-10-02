@@ -32,4 +32,5 @@ jobs:
       - name: Heal only a missing verify handoff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
         run: node scripts/release-automation.mjs heal-main

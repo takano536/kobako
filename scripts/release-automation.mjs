@@ -23,6 +23,12 @@ function asSha(value) {
   const sha = asString(value).toLowerCase();
   return SHA_PATTERN.test(sha) ? sha : '';
 }
+export function isReleaseBot(user, appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '') {
+  if (user?.type !== 'Bot') return false;
+  if (user?.login === 'github-actions[bot]') return true;
+  return /^[a-z0-9][a-z0-9-]*\[bot\]$/.test(appBotLogin) && user?.login === appBotLogin;
+}
+
 function asVersion(value) {
   const version = asString(value);
   return VERSION_PATTERN.test(version) ? version : '';
@@ -169,6 +175,7 @@ export function validateCanonicalReleasePr(
     expectedMergeSha = '',
     state = 'open',
     allowTaggedRecovery = false,
+    appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '',
   } = {},
 ) {
   const errors = [];
@@ -194,8 +201,12 @@ export function validateCanonicalReleasePr(
   if (headRef !== RELEASE_BRANCH) {
     errors.push(`head ref is not the Release Please branch: ${headRef || 'missing'}`);
   }
-  if (authorLogin !== 'github-actions[bot]') {
-    errors.push(`author is not github-actions[bot]: ${authorLogin || 'missing'}`);
+  if (
+    !isReleaseBot({ login: authorLogin, type: pr?.user?.type || pr?.author?.type }, appBotLogin)
+  ) {
+    errors.push(
+      `author is not github-actions[bot] or the configured release App bot: ${authorLogin || 'missing'}`,
+    );
   }
   if (pr?.user?.type && pr.user.type !== 'Bot') {
     errors.push(`author type is not Bot: ${pr.user.type}`);
@@ -566,11 +577,12 @@ function validateReleasePrProvenance(repository, pr, mainSha, headSha) {
   }
   const headCommit = getCommit(repository, headSha);
   validateReleasePrFileContents(repository, config, mainSha, headSha);
-  if (headCommit?.author?.login !== 'github-actions[bot]' || headCommit?.author?.type !== 'Bot') {
-    throw new Error(`Release PR head author is not github-actions[bot]`);
+  if (!isReleaseBot(headCommit?.author)) {
+    throw new Error(
+      `Release PR head author is not github-actions[bot] or configured release App bot`,
+    );
   }
-  const botCommitter =
-    headCommit?.committer?.login === 'github-actions[bot]' && headCommit?.committer?.type === 'Bot';
+  const botCommitter = isReleaseBot(headCommit?.committer);
   // GitHub's commit API can preserve the bot author while signing as web-flow.
   const verifiedGitHubCommitter =
     headCommit?.committer?.login === 'web-flow' &&
