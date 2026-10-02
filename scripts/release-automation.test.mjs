@@ -22,6 +22,8 @@ const sha = (letter) => letter.repeat(40);
 const mainSha = sha('a');
 const headSha = sha('b');
 const mergeSha = sha('c');
+const recoveryShaOne = sha('4');
+const recoveryShaTwo = sha('5');
 const packageBlobSha = sha('d');
 const manifestBlobSha = sha('e');
 const configBlobSha = sha('f');
@@ -50,12 +52,110 @@ const extraJsonMutated = Buffer.from(
     scripts: { test: 'noop', prepare: 'curl attacker.invalid' },
   }),
 ).toString('base64');
-const changelogBase = '# Changelog\n\n## [0.3.0]\n\nOld notes\n';
-const changelogHead = `# Changelog\n\n## [0.3.1]\n\nNew notes\n\n${changelogBase}`;
-const changelogMutated = '# Changelog\n\n## [0.3.1]\n\nNew notes\n\nOld notes edited\n';
+const changelogRelease031 =
+  `## [0.3.1](https://github.com/takano536/kobako/compare/v0.3.0...v0.3.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **web:** show type choice focus ring only for keyboard focus ([#16](https://github.com/takano536/kobako/issues/16)) ([76cc3b1](https://github.com/takano536/kobako/commit/76cc3b1e699122be1c69b7c75a8d2b09d1bb80a3))
+`.trimEnd();
+const changelogRelease030 =
+  `## [0.3.0](https://github.com/takano536/kobako/compare/v0.2.1...v0.3.0) (2026-10-01)
+
+
+### Features
+
+* 振替の作成・編集・削除に対応 ([#14](https://github.com/takano536/kobako/issues/14)) ([3f1df80](https://github.com/takano536/kobako/commit/3f1df804bee0c7a3ebab343735f95fdf142b4c37))
+`.trimEnd();
+const changelogRelease021 =
+  `## [0.2.1](https://github.com/takano536/kobako/compare/v0.2.0...v0.2.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* web 起動前に DB migration を自動適用する ([#12](https://github.com/takano536/kobako/issues/12)) ([d8453b1](https://github.com/takano536/kobako/commit/d8453b107938f837b917db9f6f30dfa4ed88eaf3))
+`.trimEnd();
+const changelogRelease020 =
+  `## [0.2.0](https://github.com/takano536/kobako/compare/v0.1.1...v0.2.0) (2026-09-30)
+
+
+### Features
+
+* らくな家計簿 Android Excel の取り込み ([#10](https://github.com/takano536/kobako/issues/10)) ([ca8b88d](https://github.com/takano536/kobako/commit/ca8b88d09c29b0dc16613f4ed10dfffd654b3a2f))
+`.trimEnd();
+const changelogRelease011 =
+  `## [0.1.1](https://github.com/takano536/kobako/compare/v0.1.0...v0.1.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* gate releases on successful quality checks ([#8](https://github.com/takano536/kobako/issues/8)) ([1454d47](https://github.com/takano536/kobako/commit/1454d4728000d2cd56a8441048ca09c310b3b4d5))
+`.trimEnd();
+const changelogRelease010 = `## 0.1.0 (2026-09-28)
+
+
+### Features
+
+* add minimal household ledger ([#2](https://github.com/takano536/kobako/issues/2)) ([e36f420](https://github.com/takano536/kobako/commit/e36f4201406fdfae9ea6745bf19e709f225f778e))
+* publish versioned private GHCR images with Release Please ([87f8a6c](https://github.com/takano536/kobako/commit/87f8a6cfc71498e791769fa3a38f13986060dcfc))
+* **web:** redesign household ledger as a minimal notebook ([#3](https://github.com/takano536/kobako/issues/3)) ([408314b](https://github.com/takano536/kobako/commit/408314b8c0da197fe6fd3abdc719353758edc385))
+`.trimEnd();
+const changelogHistory = [
+  changelogRelease030,
+  changelogRelease021,
+  changelogRelease020,
+  changelogRelease011,
+  changelogRelease010,
+].join('\n\n');
+const changelogBase = `# Changelog\n\n${changelogHistory}\n`;
+// This is the exact insertion shape used by the historical Release PR #17.
+const changelogHead = `# Changelog\n\n${changelogRelease031}\n\n${changelogHistory}\n`;
+const changelogMutated = `# Changelog\n\n${changelogRelease031}\n\n${changelogHistory.replace(
+  'web 起動前に DB migration を自動適用する',
+  'edited history',
+)}\n`;
+const changelogDeleted = `# Changelog\n\n${changelogRelease031}\n\n${[
+  changelogRelease030,
+  changelogRelease020,
+  changelogRelease011,
+  changelogRelease010,
+].join('\n\n')}\n`;
+const changelogReordered = `# Changelog\n\n${changelogRelease031}\n\n${[
+  changelogRelease021,
+  changelogRelease030,
+  changelogRelease020,
+  changelogRelease011,
+  changelogRelease010,
+].join('\n\n')}\n`;
+const changelogDuplicateHeading = `# Changelog\n\n${changelogRelease031}\n\n# Changelog\n\n${changelogHistory}\n`;
+const changelogWrongPosition = `# Changelog\n\n${changelogRelease030}\n\n${changelogRelease031}\n\n${[
+  changelogRelease021,
+  changelogRelease020,
+  changelogRelease011,
+  changelogRelease010,
+].join('\n\n')}\n`;
+const changelogWrongVersion = `# Changelog\n\n${changelogRelease020}\n\n${changelogHistory}\n`;
+const changelogCrlfBase = changelogBase.replaceAll('\n', '\r\n');
+const changelogCrlfHead = changelogHead.replaceAll('\n', '\r\n');
+const changelogNoBlankBase = `# Changelog\n${changelogRelease030}\n`;
+const changelogNoBlankHead = `# Changelog\n${changelogRelease031}\n${changelogRelease030}\n`;
+const changelogSplicedHistory = `# Changelog\n${changelogRelease031}${changelogRelease030}\n`;
+const changelogHeadingOnlyBase = '# Changelog\n';
+const changelogHeadingOnlyBaseNoNewline = '# Changelog';
+const changelogHeadingOnlyHead = `# Changelog\n${changelogRelease031}\n`;
+const changelogBareExtraSection = `# Changelog\n\n${changelogRelease031}\n\n##\n\nExtra notes\n\n${changelogHistory}\n`;
+const changelogDuplicateHeadingWhitespace = `# Changelog\n\n${changelogRelease031}\n\n   # Changelog \t\n\n${changelogHistory}\n`;
+const changelogVersionCollision = `# Changelog\n\n${changelogRelease031.replace(
+  '[0.3.1]',
+  '[0.3.10]',
+)}\n\n${changelogHistory}\n`;
+const changelogVersionCollisionPlain = `# Changelog\n\n${changelogRelease031.replace(
+  /^## \[0\.3\.1\]\([^)]*\)/,
+  '## 0.3.10',
+)}\n\n${changelogHistory}\n`;
 const changelogBaseAtRelease = Buffer.from(changelogBase).toString('base64');
 const changelogHeadAtRelease = Buffer.from(changelogHead).toString('base64');
-const changelogMutatedAtRelease = Buffer.from(changelogMutated).toString('base64');
 const configAtRelease = Buffer.from(
   JSON.stringify({
     packages: {
@@ -102,6 +202,7 @@ async function makeReleaseCommandFake({
     merged_at: '2026-10-01T10:02:00Z',
     merge_commit_sha: mergeSha,
   }),
+  prByNumber = {},
   checks = { check_runs: allSuccessfulChecks() },
   commit = {
     parents: [{ sha: mainSha }],
@@ -144,6 +245,29 @@ async function makeReleaseCommandFake({
     changelogBase: path.join(directory, 'changelog-base.txt'),
     changelogHead: path.join(directory, 'changelog-head.txt'),
     changelogMutated: path.join(directory, 'changelog-mutated.txt'),
+    changelogDeleted: path.join(directory, 'changelog-deleted.txt'),
+    changelogReordered: path.join(directory, 'changelog-reordered.txt'),
+    changelogDuplicateHeading: path.join(directory, 'changelog-duplicate-heading.txt'),
+    changelogWrongPosition: path.join(directory, 'changelog-wrong-position.txt'),
+    changelogWrongVersion: path.join(directory, 'changelog-wrong-version.txt'),
+    changelogCrlfBase: path.join(directory, 'changelog-crlf-base.txt'),
+    changelogCrlfHead: path.join(directory, 'changelog-crlf-head.txt'),
+    changelogNoBlankBase: path.join(directory, 'changelog-no-blank-base.txt'),
+    changelogNoBlankHead: path.join(directory, 'changelog-no-blank-head.txt'),
+    changelogSplicedHistory: path.join(directory, 'changelog-spliced-history.txt'),
+    changelogHeadingOnlyBase: path.join(directory, 'changelog-heading-only-base.txt'),
+    changelogHeadingOnlyBaseNoNewline: path.join(
+      directory,
+      'changelog-heading-only-base-no-newline.txt',
+    ),
+    changelogHeadingOnlyHead: path.join(directory, 'changelog-heading-only-head.txt'),
+    changelogBareExtraSection: path.join(directory, 'changelog-bare-extra-section.txt'),
+    changelogDuplicateHeadingWhitespace: path.join(
+      directory,
+      'changelog-duplicate-heading-whitespace.txt',
+    ),
+    changelogVersionCollision: path.join(directory, 'changelog-version-collision.txt'),
+    changelogVersionCollisionPlain: path.join(directory, 'changelog-version-collision-plain.txt'),
   };
   await Promise.all([
     writeFile(files.prOpen, JSON.stringify(prOpen)),
@@ -185,7 +309,33 @@ async function makeReleaseCommandFake({
     writeFile(files.changelogBase, changelogBase),
     writeFile(files.changelogHead, changelogHead),
     writeFile(files.changelogMutated, changelogMutated),
+    writeFile(files.changelogDeleted, changelogDeleted),
+    writeFile(files.changelogReordered, changelogReordered),
+    writeFile(files.changelogDuplicateHeading, changelogDuplicateHeading),
+    writeFile(files.changelogWrongPosition, changelogWrongPosition),
+    writeFile(files.changelogWrongVersion, changelogWrongVersion),
+    writeFile(files.changelogCrlfBase, changelogCrlfBase),
+    writeFile(files.changelogCrlfHead, changelogCrlfHead),
+    writeFile(files.changelogNoBlankBase, changelogNoBlankBase),
+    writeFile(files.changelogNoBlankHead, changelogNoBlankHead),
+    writeFile(files.changelogSplicedHistory, changelogSplicedHistory),
+    writeFile(files.changelogHeadingOnlyBase, changelogHeadingOnlyBase),
+    writeFile(files.changelogHeadingOnlyBaseNoNewline, changelogHeadingOnlyBaseNoNewline),
+    writeFile(files.changelogHeadingOnlyHead, changelogHeadingOnlyHead),
+    writeFile(files.changelogBareExtraSection, changelogBareExtraSection),
+    writeFile(files.changelogDuplicateHeadingWhitespace, changelogDuplicateHeadingWhitespace),
+    writeFile(files.changelogVersionCollision, changelogVersionCollision),
+    writeFile(files.changelogVersionCollisionPlain, changelogVersionCollisionPlain),
   ]);
+  const pullRequestFiles = Object.fromEntries(
+    await Promise.all(
+      Object.entries(prByNumber).map(async ([number, pr]) => {
+        const file = path.join(directory, `pr-${number}.json`);
+        await writeFile(file, JSON.stringify(pr));
+        return [String(number), file];
+      }),
+    ),
+  );
   await writeFile(
     fakeGh,
     `#!/usr/bin/env bash
@@ -196,12 +346,16 @@ if [[ "$1" == api ]]; then
   case "$path" in
     repos/takano536/kobako/pulls?state=closed*) cat "$FAKE_LIST" ;;
     repos/takano536/kobako/pulls/7)
-      if [[ -n "\${FAKE_ALWAYS_MERGED:-}" || -f "\${FAKE_GH_LOG}.merged" ]]; then cat "$FAKE_PR_MERGED"; else cat "$FAKE_PR_OPEN"; fi
+      if [[ -n "\${FAKE_PR_7:-}" ]]; then cat "$FAKE_PR_7"
+      elif [[ -n "\${FAKE_ALWAYS_MERGED:-}" || -f "\${FAKE_GH_LOG}.merged" ]]; then cat "$FAKE_PR_MERGED"
+      else cat "$FAKE_PR_OPEN"
+      fi
       ;;
     repos/takano536/kobako/git/ref/heads/main) if [[ -n "\${FAKE_MAIN_SHA:-}" ]]; then printf '{"object":{"sha":"%s"}}' "$FAKE_MAIN_SHA"; else printf '%s' '{"object":{"sha":"${mainSha}"}}'; fi ;;
     repos/takano536/kobako/commits/${headSha}) cat "$FAKE_COMMIT" ;;
     repos/takano536/kobako/commits/${headSha}/check-runs*) cat "$FAKE_CHECKS" ;;
-    repos/takano536/kobako/compare/*) cat "$FAKE_COMPARE" ;;
+    repos/takano536/kobako/compare/${mainSha}...${headSha}*) cat "$FAKE_COMPARE" ;;
+    repos/takano536/kobako/compare/*...*) printf '%s' '{"status":"ahead"}' ;;
     repos/takano536/kobako/contents/package.json?*)
       if [[ -n "\${FAKE_PACKAGE_MUTATION:-}" && "$path" == *"ref=${headSha}"* ]]; then
         cat "$FAKE_PACKAGE_MUTATED"
@@ -224,12 +378,36 @@ if [[ "$1" == api ]]; then
       fi
       ;;
     repos/takano536/kobako/contents/CHANGELOG.md?*)
+      fixture=''
+      base_fixture=''
+      case "\${FAKE_CHANGELOG_FIXTURE:-}" in
+        mutated) fixture="$FAKE_CHANGELOG_MUTATED" ;;
+        deleted) fixture="$FAKE_CHANGELOG_DELETED" ;;
+        reordered) fixture="$FAKE_CHANGELOG_REORDERED" ;;
+        duplicate-heading) fixture="$FAKE_CHANGELOG_DUPLICATE_HEADING" ;;
+        wrong-position) fixture="$FAKE_CHANGELOG_WRONG_POSITION" ;;
+        wrong-version) fixture="$FAKE_CHANGELOG_WRONG_VERSION" ;;
+        crlf) fixture="$FAKE_CHANGELOG_CRLF_HEAD"; base_fixture="$FAKE_CHANGELOG_CRLF_BASE" ;;
+        no-blank) fixture="$FAKE_CHANGELOG_NO_BLANK_HEAD"; base_fixture="$FAKE_CHANGELOG_NO_BLANK_BASE" ;;
+        splice-history) fixture="$FAKE_CHANGELOG_SPLICED_HISTORY"; base_fixture="$FAKE_CHANGELOG_NO_BLANK_BASE" ;;
+        heading-only) fixture="$FAKE_CHANGELOG_HEADING_ONLY_HEAD"; base_fixture="$FAKE_CHANGELOG_HEADING_ONLY_BASE" ;;
+        heading-only-no-newline)
+          fixture="$FAKE_CHANGELOG_HEADING_ONLY_HEAD"
+          base_fixture="$FAKE_CHANGELOG_HEADING_ONLY_BASE_NO_NEWLINE"
+          ;;
+        bare-extra) fixture="$FAKE_CHANGELOG_BARE_EXTRA_SECTION" ;;
+        duplicate-heading-whitespace) fixture="$FAKE_CHANGELOG_DUPLICATE_HEADING_WHITESPACE" ;;
+        version-collision) fixture="$FAKE_CHANGELOG_VERSION_COLLISION" ;;
+        version-collision-plain) fixture="$FAKE_CHANGELOG_VERSION_COLLISION_PLAIN" ;;
+      esac
       if [[ "$path" == *"ref=${headSha}"* ]]; then
-        if [[ -n "\${FAKE_CHANGELOG_MUTATION:-}" ]]; then
-          printf '%s' '{"type":"file","content":"${changelogMutatedAtRelease}"}'
+        if [[ -n "$fixture" ]]; then
+          printf '{"type":"file","content":"%s"}' "$(base64 -w0 "$fixture")"
         else
           printf '%s' '{"type":"file","content":"${changelogHeadAtRelease}"}'
         fi
+      elif [[ -n "$base_fixture" ]]; then
+        printf '{"type":"file","content":"%s"}' "$(base64 -w0 "$base_fixture")"
       else
         printf '%s' '{"type":"file","content":"${changelogBaseAtRelease}"}'
       fi
@@ -247,13 +425,18 @@ if [[ "$1" == api ]]; then
       touch "\${FAKE_GH_LOG}.merged"
       cat "$FAKE_MERGE"
       ;;
+    repos/takano536/kobako/pulls/*)
+      number="\${path##*/}"
+      variable="FAKE_PR_\${number}"
+      if [[ -n "\${!variable:-}" ]]; then cat "\${!variable}"; else printf '%s\\n' "unknown pull request: $number" >&2; exit 1; fi
+      ;;
     repos/takano536/kobako/git/ref/heads/release-verify/*)
       if [[ -n "\${FAKE_REF_SHA:-}" ]]; then printf '{"object":{"sha":"%s"}}' "$FAKE_REF_SHA"; else printf '%s\\n' 'not found' >&2; exit 1; fi
       ;;
     repos/takano536/kobako/git/ref/tags/*)
       if [[ -n "\${FAKE_TAG_SHA:-}" ]]; then printf '{"object":{"type":"commit","sha":"%s"}}' "$FAKE_TAG_SHA"; else printf '%s\\n' 'not found' >&2; exit 1; fi
       ;;
-    repos/takano536/kobako/git/refs) printf '%s' '{"object":{"sha":"${mergeSha}"}}' ;;
+    repos/takano536/kobako/git/refs) if [[ -n "\${FAKE_VERIFY_CREATE_SHA:-}" ]]; then printf '{"object":{"sha":"%s"}}' "$FAKE_VERIFY_CREATE_SHA"; else printf '%s' '{"object":{"sha":"${mergeSha}"}}'; fi ;;
     repos/takano536/kobako/git/refs/heads/release-verify/*)
       if [[ -n "\${FAKE_DELETE_404:-}" ]]; then printf '%s\\n' 'HTTP 404 Not Found' >&2; exit 1; fi
       printf '%s' '{}'
@@ -270,7 +453,7 @@ fi
 `,
   );
   await chmod(fakeGh, 0o755);
-  return { directory, log, files };
+  return { directory, log, files, pullRequestFiles };
 }
 function releaseCommandEnv(fake, extra = {}) {
   return {
@@ -279,6 +462,9 @@ function releaseCommandEnv(fake, extra = {}) {
     FAKE_GH_LOG: fake.log,
     FAKE_PR_OPEN: fake.files.prOpen,
     FAKE_PR_MERGED: fake.files.prMerged,
+    ...Object.fromEntries(
+      Object.entries(fake.pullRequestFiles).map(([number, file]) => [`FAKE_PR_${number}`, file]),
+    ),
     FAKE_CHECKS: fake.files.checks,
     FAKE_COMMIT: fake.files.commit,
     FAKE_COMPARE: fake.files.compare,
@@ -294,6 +480,23 @@ function releaseCommandEnv(fake, extra = {}) {
     FAKE_CHANGELOG_BASE: fake.files.changelogBase,
     FAKE_CHANGELOG_HEAD: fake.files.changelogHead,
     FAKE_CHANGELOG_MUTATED: fake.files.changelogMutated,
+    FAKE_CHANGELOG_DELETED: fake.files.changelogDeleted,
+    FAKE_CHANGELOG_REORDERED: fake.files.changelogReordered,
+    FAKE_CHANGELOG_DUPLICATE_HEADING: fake.files.changelogDuplicateHeading,
+    FAKE_CHANGELOG_WRONG_POSITION: fake.files.changelogWrongPosition,
+    FAKE_CHANGELOG_WRONG_VERSION: fake.files.changelogWrongVersion,
+    FAKE_CHANGELOG_CRLF_BASE: fake.files.changelogCrlfBase,
+    FAKE_CHANGELOG_CRLF_HEAD: fake.files.changelogCrlfHead,
+    FAKE_CHANGELOG_NO_BLANK_BASE: fake.files.changelogNoBlankBase,
+    FAKE_CHANGELOG_NO_BLANK_HEAD: fake.files.changelogNoBlankHead,
+    FAKE_CHANGELOG_SPLICED_HISTORY: fake.files.changelogSplicedHistory,
+    FAKE_CHANGELOG_HEADING_ONLY_BASE: fake.files.changelogHeadingOnlyBase,
+    FAKE_CHANGELOG_HEADING_ONLY_BASE_NO_NEWLINE: fake.files.changelogHeadingOnlyBaseNoNewline,
+    FAKE_CHANGELOG_HEADING_ONLY_HEAD: fake.files.changelogHeadingOnlyHead,
+    FAKE_CHANGELOG_BARE_EXTRA_SECTION: fake.files.changelogBareExtraSection,
+    FAKE_CHANGELOG_DUPLICATE_HEADING_WHITESPACE: fake.files.changelogDuplicateHeadingWhitespace,
+    FAKE_CHANGELOG_VERSION_COLLISION: fake.files.changelogVersionCollision,
+    FAKE_CHANGELOG_VERSION_COLLISION_PLAIN: fake.files.changelogVersionCollisionPlain,
     GITHUB_REPOSITORY: 'takano536/kobako',
     GITHUB_EVENT_NAME: 'workflow_dispatch',
     FAKE_LIST: fake.files.list,
@@ -487,7 +690,7 @@ if [[ "$1" == api ]]; then
     repos/takano536/kobako/contents/package.json?*) printf '%s' '{"type":"file","content":"${packageJsonAtRelease}"}' ;;
     repos/takano536/kobako/contents/.release-please-manifest.json?*) printf '%s' '{"type":"file","content":"${manifestAtRelease}"}' ;;
     repos/takano536/kobako/contents/release-please-config.json?*) printf '%s' '{"type":"file","content":"${configAtRelease}"}' ;;
-    repos/takano536/kobako/contents/CHANGELOG.md?*) printf '%s' '{"type":"file","content":"${changelogBaseAtRelease}"}' ;;
+    repos/takano536/kobako/contents/CHANGELOG.md?*) if [[ "$path" == *"ref=${headSha}"* ]]; then printf '%s' '{"type":"file","content":"${changelogHeadAtRelease}"}'; else printf '%s' '{"type":"file","content":"${changelogBaseAtRelease}"}'; fi ;;
     repos/takano536/kobako/contents/*?) printf '%s' '{"type":"file","content":"${extraJsonAtRelease}","sha":"${extraBlobSha}"}' ;;
     repos/takano536/kobako/pulls/7/merge) printf '%s' '${merge}' ;;
     repos/takano536/kobako/actions/workflows/ci.yml/runs?*) printf '%s' '{"workflow_runs":[]}' ;;
@@ -876,7 +1079,7 @@ describe('merge command fail-closed API boundary', () => {
       { FAKE_EXTRA_MUTATION: '1' },
       /apps\/web\/package\.json changes fields other than version/,
     ],
-    ['changelog edit', { FAKE_CHANGELOG_MUTATION: '1' }, /CHANGELOG\.md must be a pure prepend/],
+    ['changelog edit', { FAKE_CHANGELOG_FIXTURE: 'mutated' }, /CHANGELOG\.md/],
   ])('does not PUT for a non-version-only %s change', async (_name, extra, message) => {
     const fake = await makeReleaseCommandFake();
     const result = spawnSync(
@@ -890,6 +1093,61 @@ describe('merge command fail-closed API boundary', () => {
     );
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, message);
+    assert.doesNotMatch(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
+  });
+
+  it('accepts the historical Release Please #17 insertion with one shared heading', async () => {
+    const fake = await makeReleaseCommandFake();
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      { cwd: path.resolve('.'), encoding: 'utf8', env: releaseCommandEnv(fake) },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  });
+  it.each([
+    ['CRLF line endings', 'crlf'],
+    ['no blank line before the new section', 'no-blank'],
+    ['heading-only base with a trailing newline', 'heading-only'],
+    ['heading-only base without a trailing newline', 'heading-only-no-newline'],
+  ])('accepts a %s changelog update', async (_name, fixture) => {
+    const fake = await makeReleaseCommandFake();
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, { FAKE_CHANGELOG_FIXTURE: fixture }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  });
+
+  it.each([
+    ['edited history', 'mutated'],
+    ['deleted history', 'deleted'],
+    ['reordered history', 'reordered'],
+    ['duplicate heading', 'duplicate-heading'],
+    ['duplicate heading with indentation and trailing whitespace', 'duplicate-heading-whitespace'],
+    ['wrong insertion position', 'wrong-position'],
+    ['wrong target version', 'wrong-version'],
+    ['bare extra release section', 'bare-extra'],
+    ['version-prefix collision', 'version-collision'],
+    ['version-prefix collision with a plain heading', 'version-collision-plain'],
+    ['spliced history without a line terminator', 'splice-history'],
+  ])('rejects a changelog %s', async (_name, fixture) => {
+    const fake = await makeReleaseCommandFake();
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, { FAKE_CHANGELOG_FIXTURE: fixture }),
+      },
+    );
+    assert.notEqual(result.status, 0);
     assert.doesNotMatch(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
   });
 
@@ -1138,17 +1396,30 @@ describe('paginated release checks and self-healing', () => {
   });
 
   it('rejects a noncanonical verify candidate', async () => {
+    const noncanonical = releasePr({
+      state: 'closed',
+      merged: true,
+      merged_at: '2026-10-01T10:02:00Z',
+      merge_commit_sha: mergeSha,
+      head: {
+        ref: 'attacker-branch',
+        sha: headSha,
+        repo: { full_name: 'takano536/kobako', id: 1 },
+      },
+    });
     const fake = await makeReleaseCommandFake({
       list: [
         {
           number: 7,
           state: 'closed',
           merged_at: '2026-10-01T10:02:00Z',
+          merge_commit_sha: mergeSha,
           head: { ref: 'attacker-branch' },
           base: { ref: 'main' },
           labels: [{ name: 'autorelease: pending' }],
         },
       ],
+      prByNumber: { 7: noncanonical },
     });
     const result = spawnSync(
       process.execPath,
@@ -1163,7 +1434,7 @@ describe('paginated release checks and self-healing', () => {
       },
     );
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /no canonical merged/);
+    assert.match(result.stderr, /head ref is not the Release Please branch/);
   });
 });
 
@@ -1315,6 +1586,204 @@ describe('verify guard candidate uniqueness', () => {
       },
     );
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /input PR number 8/);
+    assert.match(result.stderr, /no canonical merged|input PR number 8/);
+  });
+});
+
+describe('targeted merged Release PR candidate selection', () => {
+  const mergedPr = (number, mergeCommitSha, label = 'autorelease: tagged') =>
+    releasePr({
+      number,
+      state: 'closed',
+      merged: true,
+      merged_at: '2026-10-01T10:02:00Z',
+      merge_commit_sha: mergeCommitSha,
+      labels: [{ name: label }],
+    });
+  const listedPr = (pr) => ({
+    number: pr.number,
+    state: 'closed',
+    merged_at: pr.merged_at,
+    merge_commit_sha: pr.merge_commit_sha,
+    head: { ref: RELEASE_BRANCH },
+    base: { ref: 'main' },
+    labels: pr.labels,
+  });
+
+  it('selects a specified pending PR without counting unrelated tagged history', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, mergeSha);
+    const pendingSeventeen = mergedPr(17, recoveryShaTwo, 'autorelease: pending');
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven), listedPr(taggedNine), listedPr(pendingSeventeen)],
+      prByNumber: { 7: taggedSeven, 9: taggedNine, 17: pendingSeventeen },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaTwo,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaTwo}`,
+          PR_NUMBER: '17',
+        }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const invocations = await readFile(fake.log, 'utf8');
+    assert.match(invocations, /pulls\/17/);
+    assert.doesNotMatch(invocations, /pulls\/7\n/);
+    assert.doesNotMatch(invocations, /pulls\/9\n/);
+  });
+
+  it('selects one tagged recovery PR by matching both number and merge SHA', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, recoveryShaTwo);
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven), listedPr(taggedNine)],
+      prByNumber: { 7: taggedSeven, 9: taggedNine },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaTwo,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaTwo}`,
+          PR_NUMBER: '9',
+        }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const invocations = await readFile(fake.log, 'utf8');
+    assert.match(invocations, /pulls\/9\n/);
+    assert.doesNotMatch(invocations, /pulls\/7\n/);
+  });
+
+  it('rejects a PR number and merge SHA that point to different PRs', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, recoveryShaTwo);
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven), listedPr(taggedNine)],
+      prByNumber: { 7: taggedSeven, 9: taggedNine },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaTwo,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaTwo}`,
+          PR_NUMBER: '7',
+        }),
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      new RegExp(`PR #7 merge SHA ${recoveryShaOne} does not match requested ${recoveryShaTwo}`),
+    );
+  });
+
+  it('rejects an invalid requested PR number instead of discovering another candidate', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven)],
+      prByNumber: { 7: taggedSeven },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaOne,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaOne}`,
+          PR_NUMBER: '999',
+        }),
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /no canonical merged/);
+  });
+
+  it('fetches a SHA-only target whose list row omits merge_commit_sha', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, recoveryShaTwo);
+    const fake = await makeReleaseCommandFake({
+      list: [{ ...listedPr(taggedSeven), merge_commit_sha: undefined }, listedPr(taggedNine)],
+      prByNumber: { 7: taggedSeven, 9: taggedNine },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaOne,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaOne}`,
+          PR_NUMBER: '',
+        }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const invocations = await readFile(fake.log, 'utf8');
+    assert.match(invocations, /pulls\/7\n/);
+    assert.doesNotMatch(invocations, /pulls\/9\n/);
+  });
+
+  it('rejects ambiguous recovery when two PRs share the requested merge SHA', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const taggedNine = mergedPr(9, recoveryShaOne);
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven), listedPr(taggedNine)],
+      prByNumber: { 7: taggedSeven, 9: taggedNine },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'verify-guard'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          GITHUB_SHA: recoveryShaOne,
+          GITHUB_REF: `refs/heads/release-verify/${recoveryShaOne}`,
+          PR_NUMBER: '',
+        }),
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /expected one canonical merged/);
+  });
+
+  it('keeps unspecified pending discovery independent of unrelated tagged PRs', async () => {
+    const taggedSeven = mergedPr(7, recoveryShaOne);
+    const pendingSeventeen = mergedPr(17, recoveryShaTwo, 'autorelease: pending');
+    const fake = await makeReleaseCommandFake({
+      list: [listedPr(taggedSeven), listedPr(pendingSeventeen)],
+      prByNumber: { 7: taggedSeven, 17: pendingSeventeen },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'ensure-main'],
+      {
+        cwd: path.resolve('.'),
+        encoding: 'utf8',
+        env: releaseCommandEnv(fake, {
+          FAKE_ALWAYS_MERGED: '1',
+          FAKE_VERIFY_CREATE_SHA: recoveryShaTwo,
+        }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(await readFile(fake.log, 'utf8'), new RegExp(`sha=${recoveryShaTwo}`));
   });
 });

@@ -473,13 +473,67 @@ function assertManifestVersionOnly(repository, baseSha, headSha) {
   }
 }
 
-function assertChangelogPrepend(repository, baseSha, headSha) {
+function assertChangelogUpdate(repository, baseSha, headSha, targetVersion) {
   const baseChangelog = getFileAtCommit(repository, 'CHANGELOG.md', baseSha);
   const headChangelog = getFileAtCommit(repository, 'CHANGELOG.md', headSha);
-  if (!headChangelog.endsWith(baseChangelog)) {
+  const splitHeading = (content, sha) => {
+    const firstLineMatch = /^([^\r\n]*)(?:\r\n|\n|\r|$)/.exec(content);
+    if (firstLineMatch?.[1] !== '# Changelog') {
+      throw new Error(`CHANGELOG.md at ${sha} must start with the # Changelog heading`);
+    }
+    const lines = content.split(/\r\n|\n|\r/);
+    const headingPattern = /^ {0,3}#\s+Changelog\s*$/i;
+    if (lines.filter((line) => headingPattern.test(line)).length !== 1) {
+      throw new Error(`CHANGELOG.md at ${sha} must contain exactly one # Changelog heading`);
+    }
+    return { rest: content.slice(firstLineMatch[0].length) };
+  };
+  const base = splitHeading(baseChangelog, baseSha);
+  const head = splitHeading(headChangelog, headSha);
+  if (head.rest === base.rest || !head.rest.endsWith(base.rest)) {
     throw new Error(
-      `CHANGELOG.md must be a pure prepend with base content as a suffix between ${baseSha} and ${headSha}`,
+      `CHANGELOG.md must insert a new release section immediately after the shared heading while preserving history between ${baseSha} and ${headSha}`,
     );
+  }
+  const inserted = head.rest.slice(0, head.rest.length - base.rest.length);
+  if (base.rest !== '' && !/^(?:\r\n|\n|\r)/.test(base.rest) && !/(?:\r\n|\n|\r)$/.test(inserted)) {
+    throw new Error(
+      `CHANGELOG.md new release section must end with a line terminator before existing history between ${baseSha} and ${headSha}`,
+    );
+  }
+  const insertedLines = inserted.split(/\r\n|\n|\r/);
+  if (insertedLines.at(-1) === '') insertedLines.pop();
+  const firstSectionLine = insertedLines.findIndex((line) => line.trim() !== '');
+  if (firstSectionLine === -1) {
+    throw new Error(
+      `CHANGELOG.md must contain exactly one new top-level release section immediately after the shared heading`,
+    );
+  }
+  const sectionLines = insertedLines.slice(firstSectionLine);
+  const levelOneHeadingPattern = /^ {0,3}#(?!#)(?:[ \t]+|$)/;
+  if (sectionLines.some((line) => levelOneHeadingPattern.test(line))) {
+    throw new Error(`CHANGELOG.md new release section must not contain a level-1 heading`);
+  }
+  const releaseHeadingPattern = /^ {0,3}##(?:[ \t]+|$)/;
+  const releaseHeadingIndexes = sectionLines.flatMap((line, index) =>
+    releaseHeadingPattern.test(line) ? [index] : [],
+  );
+  if (releaseHeadingIndexes.length !== 1 || releaseHeadingIndexes[0] !== 0) {
+    throw new Error(
+      `CHANGELOG.md must contain exactly one new top-level release section immediately after the shared heading`,
+    );
+  }
+  const escapedVersion = asString(targetVersion).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const targetHeadingPattern = new RegExp(
+    `^ {0,3}##[ \\t]+(?:\\[${escapedVersion}\\]|${escapedVersion})(?=$|[ \\t(])`,
+  );
+  if (!targetHeadingPattern.test(sectionLines[0])) {
+    throw new Error(
+      `CHANGELOG.md new release section must target version ${targetVersion || 'missing'}`,
+    );
+  }
+  if (!sectionLines.slice(1).some((line) => line.trim() !== '')) {
+    throw new Error(`CHANGELOG.md new release section for ${targetVersion} has no body`);
   }
 }
 
@@ -488,7 +542,8 @@ function validateReleasePrFileContents(repository, config, baseSha, headSha) {
     assertJsonVersionOnly(repository, relativePath, baseSha, headSha);
   }
   assertManifestVersionOnly(repository, baseSha, headSha);
-  assertChangelogPrepend(repository, baseSha, headSha);
+  const targetVersion = releaseVersionAtCommit(repository, headSha);
+  assertChangelogUpdate(repository, baseSha, headSha, targetVersion);
 }
 function readReleasePleaseConfig() {
   try {
@@ -742,7 +797,19 @@ function isListedReleasePr(pr, { allowTaggedRecovery = false } = {}) {
   );
 }
 
-function canonicalMergedCandidates(repository, { allowTaggedRecovery = false } = {}) {
+function canonicalMergedCandidates(
+  repository,
+  { allowTaggedRecovery = false, expectedMergeSha = '', prNumber = '' } = {},
+) {
+  const requestedNumber = asString(prNumber);
+  if (requestedNumber && !/^[0-9]+$/.test(requestedNumber)) {
+    throw new Error(`invalid pull request number: ${prNumber}`);
+  }
+  const requestedSha = expectedMergeSha ? asSha(expectedMergeSha) : '';
+  if (expectedMergeSha && !requestedSha) {
+    throw new Error(`invalid merge SHA target: ${expectedMergeSha}`);
+  }
+  const targeted = Boolean(requestedNumber || requestedSha);
   const listed = ghApi(
     repository,
     'pulls?state=closed&base=main&head=takano536:release-please--branches--main--components--kobako&sort=updated&direction=desc&per_page=100',
@@ -750,14 +817,50 @@ function canonicalMergedCandidates(repository, { allowTaggedRecovery = false } =
   );
   const candidates = [];
   for (const listedPr of Array.isArray(listed) ? listed : []) {
-    if (!isListedReleasePr(listedPr, { allowTaggedRecovery }) || !listedPr?.merged_at) continue;
+    if (!targeted) {
+      if (!isListedReleasePr(listedPr, { allowTaggedRecovery }) || !listedPr?.merged_at) {
+        continue;
+      }
+      const pr = getPullRequest(repository, listedPr.number);
+      const identity = validateCanonicalReleasePr(pr, {
+        repository,
+        state: 'merged',
+        allowTaggedRecovery,
+      });
+      if (identity.ok) candidates.push({ pr, identity });
+      continue;
+    }
+
+    if (requestedNumber && String(listedPr?.number) !== requestedNumber) continue;
+    const listedMergeSha = asSha(listedPr?.merge_commit_sha || listedPr?.mergeCommit?.oid);
+    if (!requestedNumber && requestedSha && listedMergeSha && listedMergeSha !== requestedSha) {
+      continue;
+    }
+
     const pr = getPullRequest(repository, listedPr.number);
+    if (requestedNumber && String(pr?.number) !== requestedNumber) {
+      throw new Error(`PR #${requestedNumber} response did not identify the requested PR`);
+    }
+    const actualMergeShaValue = asString(pr?.merge_commit_sha || pr?.mergeCommit?.oid);
+    const actualMergeSha = asSha(actualMergeShaValue);
+    if (requestedSha && actualMergeSha !== requestedSha) {
+      const actual = actualMergeSha || actualMergeShaValue || 'missing';
+      if (requestedNumber) {
+        throw new Error(
+          `PR #${requestedNumber} merge SHA ${actual} does not match requested ${expectedMergeSha}`,
+        );
+      }
+      throw new Error(
+        `merged Release PR merge SHA ${actual} does not match requested ${expectedMergeSha}`,
+      );
+    }
     const identity = validateCanonicalReleasePr(pr, {
       repository,
       state: 'merged',
       allowTaggedRecovery,
     });
-    if (identity.ok) candidates.push({ pr, identity });
+    if (!identity.ok) throw new Error(identity.errors.join('; '));
+    candidates.push({ pr, identity });
   }
   return candidates;
 }
@@ -768,25 +871,18 @@ function findMergedCandidate(
   prNumber = '',
   { allowTaggedRecovery = false } = {},
 ) {
-  const candidates = canonicalMergedCandidates(repository, { allowTaggedRecovery });
+  const candidates = canonicalMergedCandidates(repository, {
+    allowTaggedRecovery,
+    expectedMergeSha,
+    prNumber,
+  });
   if (candidates.length === 0) return null;
   if (candidates.length !== 1) {
     throw new Error(
       `expected one canonical merged ${allowTaggedRecovery ? 'Release PR candidate' : 'pending Release PR'}, found ${candidates.length}`,
     );
   }
-  const candidate = candidates[0];
-  if (prNumber && String(candidate.pr.number) !== String(prNumber)) {
-    throw new Error(
-      `input PR number ${prNumber} does not identify the canonical merged Release PR ${candidate.pr.number}`,
-    );
-  }
-  if (expectedMergeSha && candidate.identity.mergeSha !== asSha(expectedMergeSha)) {
-    throw new Error(
-      `canonical Release PR merge SHA ${candidate.identity.mergeSha} does not equal ${expectedMergeSha}`,
-    );
-  }
-  return candidate;
+  return candidates[0];
 }
 
 function canonicalOpenCandidates(repository) {
