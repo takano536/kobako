@@ -31,7 +31,7 @@ merge は GITHUB_TOKEN の push workflow suppression を受けるため、merge 
 
 verify ref/runとRelease PR branch dispatchはnon-cancellable groupで動き、pending runだけを新しいdispatchに置き換えます。PUT merge後に古いRelease PR runが止まっても、SHA/base-tip guardがstale mergeを拒否し、merge成功runのverify handoffを妨げません。
 
-Release PR の title は Release Please v17.6.1 の default pattern に従う `chore(main): release X.Y.Z` とし、body の root release section、root `package.json` version、manifest versionを automation が照合します。Release PR の変更は `release-please-config.json` から導出した CHANGELOG/manifest/package version/extra-files の allowlist 内だけで、head の author と committer は GitHub Actions bot である必要があります。
+Release PR の title は Release Please v17.6.1 の default pattern に従う `chore(main): release X.Y.Z` とし、body の root release section、root `package.json` version、manifest versionを automation が照合します。Release PR の変更は `release-please-config.json` から導出した CHANGELOG/manifest/package version/extra-files の allowlist 内だけで、head の author は `github-actions[bot]` の Bot、committer は同 Bot または GitHub API の署名検証が `verified=true`・`reason=valid` の `web-flow` User である必要があります。
 
 main の base-tip check は merge API の compare-and-swap ではないため原子的ではありません。merge 後の `release-verify/<M>` run が `M` を checkout し、6 required checks、canonical PR、main ancestry、Release metadata、tag/Release target を全て再検証します。Release PR branch の update を bot と限定する ruleset、および main の `strict_required_status_checks_policy: true` は optional hardening（未適用）です。後者は通常 PR に最新 main の取り込みを要求する運用コストがあります。
 
