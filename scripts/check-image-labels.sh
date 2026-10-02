@@ -21,7 +21,6 @@ emit() {
 : "${EXPECTED_REVISION:?EXPECTED_REVISION is required}"
 : "${EXPECTED_VERSION:?EXPECTED_VERSION is required}"
 
-strict_inspect="${STRICT_INSPECT:-false}"
 require_version="${REQUIRE_VERSION:-false}"
 inspect_file="$(mktemp)"
 trap 'rm -f "$inspect_file"' EXIT
@@ -54,17 +53,21 @@ if docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Image}}' >"$
   fail "existing image tag has unexpected OCI labels: $IMAGE:$TAG"
 fi
 
-if grep -Eiq 'manifest unknown|name unknown|no such manifest|not found|404' "$inspect_file"; then
+not_found_reference="${IMAGE}:${TAG}: not found"
+reference_not_found=false
+while IFS= read -r line; do
+  if [[ "$line" == "$not_found_reference" || "$line" == "ERROR: $not_found_reference" ]]; then
+    reference_not_found=true
+    break
+  fi
+done <"$inspect_file"
+
+if [[ "$reference_not_found" == true ]] ||
+  grep -Eiq 'manifest unknown|name unknown|no such manifest|(^|[^0-9])404([^0-9]|$)' "$inspect_file"; then
   emit exists false
   printf 'image tag does not exist: %s:%s\n' "$IMAGE" "$TAG"
   exit 0
 fi
 
-if [[ "$strict_inspect" == true ]]; then
-  cat "$inspect_file" >&2
-  fail "could not determine whether image tag exists: $IMAGE:$TAG"
-fi
-
-echo "::notice title=Image tag inspect failed::Inspecting $IMAGE:$TAG failed; build/push will be attempted."
 cat "$inspect_file" >&2
-emit exists false
+fail "could not determine whether image tag exists: $IMAGE:$TAG"
