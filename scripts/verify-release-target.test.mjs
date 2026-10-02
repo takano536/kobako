@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -80,17 +80,20 @@ describe('published Release metadata', () => {
   });
 });
 
-async function makeVerifyTargetFake(release, tagSha = expectedSha) {
+const verifyTargetScript = path.resolve('scripts/verify-release-target.mjs');
+
+async function makeVerifyTargetFake(release, tagSha = expectedSha, version = '0.3.1') {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'kobako-release-target-'));
   const bin = path.join(directory, 'bin');
   await mkdir(bin);
+  await writeFile(path.join(directory, 'package.json'), JSON.stringify({ version }));
   await writeFile(path.join(directory, 'release.json'), JSON.stringify(release));
   await writeFile(path.join(bin, 'gh'), '#!/bin/sh\ncat "$FAKE_RELEASE_FILE"\n', 'utf8');
   await writeFile(
     path.join(bin, 'git'),
     `#!/bin/sh
 case "$1" in
-  ls-remote) printf '%s\\trefs/tags/v0.3.1\\n' "$FAKE_TAG_SHA" ;;
+  ls-remote) printf '%s\\t%s\\n' "$FAKE_TAG_SHA" "$4" ;;
   fetch) exit 0 ;;
   rev-parse) printf '%s\\n' "$FAKE_TAG_SHA" ;;
   *) echo "unexpected git invocation: $*" >&2; exit 2 ;;
@@ -103,32 +106,45 @@ esac
   return { directory, releaseFile: path.join(directory, 'release.json'), tagSha };
 }
 
-describe('verify command metadata validation', () => {
-  it('accepts a matching Release object from command-level fake gh/git tools', async () => {
-    const fake = await makeVerifyTargetFake({
-      draft: false,
-      prerelease: false,
-      tag_name: 'v0.3.1',
-      target_commitish: expectedSha,
-    });
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('scripts/verify-release-target.mjs'), 'verify'],
-      {
-        cwd: path.resolve('.'),
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${path.join(fake.directory, 'bin')}:${process.env.PATH}`,
-          FAKE_RELEASE_FILE: fake.releaseFile,
-          FAKE_TAG_SHA: expectedSha,
-          GITHUB_REPOSITORY: 'takano536/kobako',
-          EXPECTED_SHA: expectedSha,
-        },
+async function runVerifyTarget(fake) {
+  try {
+    return spawnSync(process.execPath, [verifyTargetScript, 'verify'], {
+      cwd: fake.directory,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${path.join(fake.directory, 'bin')}:${process.env.PATH}`,
+        FAKE_RELEASE_FILE: fake.releaseFile,
+        FAKE_TAG_SHA: fake.tagSha,
+        GITHUB_REPOSITORY: 'takano536/kobako',
+        EXPECTED_SHA: expectedSha,
+        RELEASE_TAG: '',
+        GITHUB_OUTPUT: '',
       },
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-  });
+    });
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+}
+
+describe('verify command metadata validation', () => {
+  it.each(['0.3.1', '0.4.0', '1.2.3'])(
+    'accepts matching Release metadata for isolated package version %s',
+    async (version) => {
+      const fake = await makeVerifyTargetFake(
+        {
+          draft: false,
+          prerelease: false,
+          tag_name: `v${version}`,
+          target_commitish: expectedSha,
+        },
+        expectedSha,
+        version,
+      );
+      const result = await runVerifyTarget(fake);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    },
+  );
 
   it.each([
     ['draft', { draft: true, prerelease: false, tag_name: 'v0.3.1' }],
@@ -145,23 +161,15 @@ describe('verify command metadata validation', () => {
     ],
   ])('fails closed for %s Release object', async (_name, release) => {
     const fake = await makeVerifyTargetFake(release);
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('scripts/verify-release-target.mjs'), 'verify'],
-      {
-        cwd: path.resolve('.'),
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${path.join(fake.directory, 'bin')}:${process.env.PATH}`,
-          FAKE_RELEASE_FILE: fake.releaseFile,
-          FAKE_TAG_SHA: expectedSha,
-          GITHUB_REPOSITORY: 'takano536/kobako',
-          EXPECTED_SHA: expectedSha,
-        },
-      },
-    );
+    const result = await runVerifyTarget(fake);
     assert.notEqual(result.status, 0);
+    const expectedError = {
+      draft: /must be published/,
+      prerelease: /must be published/,
+      'tag mismatch': /release tag_name v9\.9\.9 does not equal v0\.3\.1/,
+      'target SHA mismatch': /target_commitish .* does not equal/,
+    }[_name];
+    assert.match(result.stderr, expectedError);
   });
 
   it('rejects a matching Release when the tag itself points elsewhere', async () => {
@@ -174,22 +182,8 @@ describe('verify command metadata validation', () => {
       },
       'd'.repeat(40),
     );
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('scripts/verify-release-target.mjs'), 'verify'],
-      {
-        cwd: path.resolve('.'),
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${path.join(fake.directory, 'bin')}:${process.env.PATH}`,
-          FAKE_RELEASE_FILE: fake.releaseFile,
-          FAKE_TAG_SHA: fake.tagSha,
-          GITHUB_REPOSITORY: 'takano536/kobako',
-          EXPECTED_SHA: expectedSha,
-        },
-      },
-    );
+    const result = await runVerifyTarget(fake);
     assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /release tag v0\.3\.1 points at .* expected/);
   });
 });
