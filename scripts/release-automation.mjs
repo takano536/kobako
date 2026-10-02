@@ -739,13 +739,39 @@ export function decideReleaseAssociation({
   };
 }
 
-export function isVerifiedWebFlowCommitter(commit) {
-  return (
-    commit?.login === 'web-flow' &&
-    commit?.type === 'User' &&
-    commit?.commit?.verification?.verified === true &&
-    commit?.commit?.verification?.reason === 'valid'
-  );
+const WEB_FLOW_COMMITTER_ID = 19864447;
+
+function webFlowCommitterValidationError(headCommit) {
+  const committer = headCommit?.committer;
+  if (!committer || typeof committer !== 'object' || Array.isArray(committer)) {
+    return 'committer object is missing';
+  }
+  if (committer.login !== 'web-flow') return 'committer.login must be web-flow';
+  if (committer.id !== WEB_FLOW_COMMITTER_ID) {
+    return `committer.id must be ${WEB_FLOW_COMMITTER_ID}`;
+  }
+  if (committer.type !== 'User') return 'committer.type must be User';
+
+  const gitCommitter = headCommit?.commit?.committer;
+  if (!gitCommitter || typeof gitCommitter !== 'object' || Array.isArray(gitCommitter)) {
+    return 'commit.committer object is missing';
+  }
+  if (gitCommitter.name !== 'GitHub') return 'commit.committer.name must be GitHub';
+  if (gitCommitter.email !== 'noreply@github.com') {
+    return 'commit.committer.email must be noreply@github.com';
+  }
+
+  const verification = headCommit?.commit?.verification;
+  if (!verification || typeof verification !== 'object' || Array.isArray(verification)) {
+    return 'commit.verification object is missing';
+  }
+  if (verification.verified !== true) return 'commit.verification.verified must be true';
+  if (verification.reason !== 'valid') return 'commit.verification.reason must be valid';
+  return null;
+}
+
+export function isVerifiedWebFlowCommitter(headCommit) {
+  return webFlowCommitterValidationError(headCommit) === null;
 }
 
 export function isSafeMergeConflict(message) {
@@ -805,8 +831,9 @@ export function validateReleasePrSnapshot({
   if (!isReleaseBot(headCommit?.author, appBotLogin)) {
     throw new Error('Release PR head author is not the configured release App bot');
   }
-  if (!isVerifiedWebFlowCommitter(headCommit?.committer)) {
-    throw new Error('Release PR head committer is not verified GitHub web-flow');
+  const committerError = webFlowCommitterValidationError(headCommit);
+  if (committerError) {
+    throw new Error(`Release PR head ${committerError}`);
   }
   const checks = selectLatestRequiredChecks(checkRuns);
   if (!checks.ok) {
