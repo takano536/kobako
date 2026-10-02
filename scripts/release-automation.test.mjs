@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it } from 'vitest';
 import {
   GITHUB_ACTIONS_APP_ID,
@@ -613,6 +616,96 @@ describe('merged Release PR selection and idempotency', () => {
       appBotLogin: 'release-bot[bot]',
     });
     assert.equal(result.identity.isMerged, true);
+  });
+  it('treats an ordinary merged PR API response as a non-release push', async () => {
+    const mergeSha = sha('d');
+    const parentSha = sha('e');
+    const headSha = sha('f');
+    const pullRequest = {
+      number: 27,
+      state: 'closed',
+      draft: false,
+      merged_at: '2026-10-02T17:39:04Z',
+      title: 'fix(ci): isolate release tests from repository variables',
+      body: '',
+      user: { login: 'takano536', type: 'User' },
+      labels: [],
+      head: {
+        ref: 'fix/release-tests-env-isolation',
+        sha: headSha,
+        repo: { full_name: repository },
+      },
+      base: { ref: 'main', sha: parentSha, repo: { full_name: repository } },
+      merge_commit_sha: mergeSha,
+    };
+    const blobs = {
+      '.release-please-manifest.json': sha('1'),
+      'package.json': sha('2'),
+      'apps/web/package.json': sha('3'),
+      'apps/worker/package.json': sha('4'),
+      'packages/db/package.json': sha('5'),
+    };
+    const fixture = { mergeSha, parentSha, pullRequest, blobs };
+    const tempDirectory = await mkdtemp(join(tmpdir(), 'kobako-release-candidate-'));
+    const fakeGhPath = join(tempDirectory, 'gh');
+    const githubOutputPath = join(tempDirectory, 'github-output');
+    await writeFile(githubOutputPath, '', 'utf8');
+    const fakeGh = `#!/usr/bin/env node
+const fixture = ${JSON.stringify(fixture)};
+const args = process.argv.slice(2);
+const endpoint = args[1] || '';
+const fail = (message) => {
+  console.error(message);
+  process.exit(1);
+};
+if (args[0] !== 'api' || args.includes('--method')) {
+  fail('unexpected non-read GitHub API invocation');
+}
+const contentPrefix = 'repos/takano536/kobako/contents/';
+const endpointPath = endpoint.split('?')[0];
+if (endpointPath.startsWith(contentPrefix)) {
+  const relativePath = decodeURIComponent(endpointPath.slice(contentPrefix.length));
+  const blob = fixture.blobs[relativePath];
+  if (!blob) fail('unexpected contents path: ' + relativePath);
+  console.log(JSON.stringify({ sha: blob }));
+} else if (endpoint === 'repos/takano536/kobako/commits/' + fixture.mergeSha) {
+  console.log(JSON.stringify({ sha: fixture.mergeSha, parents: [{ sha: fixture.parentSha }] }));
+} else if (endpoint === 'repos/takano536/kobako/commits/' + fixture.mergeSha + '/pulls?per_page=100') {
+  console.log(JSON.stringify([[fixture.pullRequest]]));
+} else if (endpoint === 'repos/takano536/kobako/pulls/27') {
+  console.log(JSON.stringify(fixture.pullRequest));
+} else {
+  fail('unexpected GitHub API endpoint: ' + endpoint);
+}
+`;
+    await writeFile(fakeGhPath, fakeGh, 'utf8');
+    await chmod(fakeGhPath, 0o755);
+    const env = {
+      ...process.env,
+      GH_TOKEN: 'fixture-token',
+      GITHUB_REPOSITORY: repository,
+      MERGE_SHA: mergeSha,
+      GITHUB_EVENT_NAME: 'push',
+      RELEASE_APP_BOT_LOGIN: 'kobako-release[bot]',
+      GITHUB_OUTPUT: githubOutputPath,
+      PATH: `${tempDirectory}:${process.env.PATH || ''}`,
+    };
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL('./release-automation.mjs', import.meta.url)),
+          'classify-main-release',
+        ],
+        { cwd: fileURLToPath(new URL('../', import.meta.url)), encoding: 'utf8', env },
+      );
+      const output = await readFile(githubOutputPath, 'utf8');
+      assert.match(output, /^is_release=false$/m);
+      assert.match(output, /^pr_number=$/m);
+      assert.match(output, /^version=$/m);
+    } finally {
+      await rm(tempDirectory, { recursive: true, force: true });
+    }
   });
   it('fails closed when a release version path lacks a canonical PR association', () => {
     assert.deepEqual(
