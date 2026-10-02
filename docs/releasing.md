@@ -29,6 +29,26 @@ git commit --allow-empty \
 `CHANGELOG.md` と `.release-please-manifest.json` は Release Please が所有する生成物です。Release Please の出力を更新のたびに手動で Prettier 整形すると、次の更新で同じ差分が発生するため、両ファイルだけを `.prettierignore` に追加しています。これはレビュー対象から除外する意味ではありません。quality gate では JSON、version 整合性、generic marker、Changelog の見出しを別の validator で確認します。
 Release Please が使う `autorelease: pending` と `autorelease: tagged` label は事前に repository へ作成しておきます。削除された場合も権限を広げず、同じ名前の label を再作成してください。
 
+## 無人実行の認証と PR CI
+
+GitHub は2026年6月以降、`GITHUB_TOKEN` が作成・更新した PR の `pull_request` workflow を承認待ちにします。同一 repository の branch でも対象です。head への `workflow_dispatch` が成功しても、PR の required-check rollup が空なら merge できません。main の6 required checksやGitHub Actions app制約を外して解決してはいけません。
+
+無人運用では Release Please に repository 限定の GitHub App installation token を使用します。App は **kobako のみに install** し、repository permissions は Contents: write、Pull requests: write、Metadata: read に限定します。Administration、Workflows、Packages の権限や ruleset bypass は不要です。
+
+設定する repository variable / secret:
+
+- variable `RELEASE_APP_CLIENT_ID`: App の Client ID。
+- variable `RELEASE_APP_BOT_LOGIN`: App slug に `[bot]` を付けた正確な login。
+- secret `RELEASE_APP_PRIVATE_KEY`: App の秘密鍵。ファイルや Git に commit しません。
+
+App 作成・install は所有者の承認操作が必要です。秘密鍵は安全な場所で管理し、repository Actions secretへ登録します。workflow は SHA pin した `actions/create-github-app-token` で kobako のみに限定した短命 token を発行し、App slug と設定済み bot login を照合します。この token は main の Release Please にだけ渡し、merge、verify、finalize、publish は引き続き job 単位の `GITHUB_TOKEN` を使います。token は job 終了時に revoke されます。
+
+未設定の場合は既存の `GITHUB_TOKEN` 運用を維持しますが、**完全自動ではありません**。maintainer は Release PR の変更を確認して、通常の `pull_request` CI の **Approve workflows to run** を承認してください。6 gateが成功してから release branch dispatch の失敗jobを再実行します。merge job は PR required checks を最大10分待ち、6 gateの欠落・重複・skipped・neutral等を含む非SUCCESSは停止します。承認待ちでチェック自体が無い場合も停止します。
+
+設定後は成功した main CI から Release Please に PR を更新させ、最新 head の native PR CI と dispatch CI の双方を確認してください。既存の bot PR を App が更新しても承認待ちが残る場合は、その最新 native PR runを内容確認後に承認してください。既存の author `github-actions[bot]` と、正確に設定された App Botのみを許可するため、過去のリリースと recovery の互換性を維持します。
+
+公式仕様: [GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)、[bot-created PR workflow approval](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved)。
+
 ## リリース順序
 
 すべての quality gate は、workflow run の `github.sha` と同じ commit を明示的に checkout します。別の SHA を checkout して run の check として扱うことは禁止です。
@@ -36,7 +56,7 @@ Release Please が使う `autorelease: pending` と `autorelease: tagged` label 
 1. normal PR では format、Release Please 生成物 validator、lint、typecheck、unit、integration、production build、E2E、Docker の6 gateだけを実行する。
 2. main の push（または main への normal `workflow_dispatch`）で6 gateが成功した場合だけ、Release Please を `target-branch: main` と `skip-github-release: true` で実行し、Release PR を作成・更新する。
 3. main run は REST API で canonical な open Release PR（bot author、同一 repository head、base=`main`、正確な head branch、`autorelease: pending`、非 draft）を再取得し、その head ref へ `workflow_dispatch` を送ります。Release Please の action output だけを PR identity の根拠にしません。
-4. Release PR dispatch の6 gateが同じ head SHAで成功した後、Checks API の各最新 record（GitHub Actions app id `15368` / slug `github-actions`）を確認し、`completed/success` の6個がそろった場合だけ、head SHAを指定して squash merge します。PR更新、main先行、fork、author/base/label/state違い、missing/pending/failure/cancelled/skipped/neutral checkは停止します。merge APIにはRelease PR titleと ` (#<number>)` を組み合わせた `commit_title` を明示し、既存の `chore(main): release 0.3.1 (#17)` と同じ履歴形式にします。
+4. Release PR dispatch の6 gateが同じ head SHAで成功し、GitHub の PR required-check rollup の6 gateも全てSUCCESSであることを確認した後、Checks API の各最新 record（GitHub Actions app id `15368` / slug `github-actions`）を確認し、`completed/success` の6個がそろった場合だけ、head SHAを指定して squash merge します。PR更新、main先行、fork、author/base/label/state違い、missing/pending/failure/cancelled/skipped/neutral checkは停止します。merge APIにはRelease PR titleと ` (#<number>)` を組み合わせた `commit_title` を明示し、既存の `chore(main): release 0.3.1 (#17)` と同じ履歴形式にします。
 5. merge 後は `release-verify/<merge SHA>` ref を `merge SHA` に作成し、同じ ref へ `workflow_dispatch` を送ります。専用 verify run の `github.sha` は必ず merge SHA と一致し、6 gateはその run の SHAを checkout して再実行します。人間が Release PR を merge した main push runは SHA imageだけを通常publishし、versioned image/tag/Releaseを作成せず、この verify ref/runの自己修復だけを行います。
 6. verify runで6 gate、canonical merged PR、merge SHAがmainの祖先であることを確認した後だけ、Release Please を `target-branch: main`、`skip-github-release: false`、`skip-github-pull-request: true` で実行します。厳密な `vX.Y.Z` tagがmerge SHAを指すことを確認してからGitHub Releaseとversioned imageを扱います。matching tag/Releaseが既にあり、PRにpending labelが残る場合は、Release Please v17.6.1の `removeIssueLabels(['autorelease: pending'])` と `addIssueLabels(['autorelease: tagged'])` と同じ順で修復します。
 
@@ -76,7 +96,7 @@ verify runでも `sha-<merge SHA>` imageを作成します。`latest` promotion�
 
 ## 自動化の追加ガードと復旧
 
-- Release PR の provenance は、main checkout の `release-please-config.json` から導出した allowlist（`CHANGELOG.md`、manifest、各 package の `package.json`、`extra-files`）だけを許可します。head の author は `github-actions[bot]` の Bot でなければなりません。committer は同 Bot、または GitHub API の署名検証が `verified=true`・`reason=valid` の `web-flow` User だけを許可します。署名検証の欠落・失敗や他の committer は停止します。PR title は `chore(main): release X.Y.Z`（`package.json` と manifest の root version と一致）、body は Release Please の root version section 一つだけであることを確認します。validatorは常に信頼済みの `refs/heads/main` checkoutで実行し、dispatch inputの `main_sha` は比較データとしてだけ扱います。実行前に `git rev-parse HEAD == PR base SHA == live main tip` を確認し、head checkout のファイルをvalidator sourceにしてはいけません。Release Please の変更範囲は pinned action/source に合わせて監査します。ただし、これは悪意ある write-access collaborator への防御ではありません。`workflow_dispatch` は release branch 上の `ci.yml` を実行するため、repository write access を持つ actor が release branch 自体を書き換えれば、この validator を迂回できます。provenance/file checks は意図しない変更や Release Please が生成した内容からの逸脱を検出する guard であり、trust boundary は repository write access です。この境界を harden するのが optional の release-branch ruleset です。
+- Release PR の provenance は、main checkout の `release-please-config.json` から導出した allowlist（`CHANGELOG.md`、manifest、各 package の `package.json`、`extra-files`）だけを許可します。head の author は `github-actions[bot]` または設定済み release App の Bot でなければなりません。committer は同 Bot、または GitHub API の署名検証が `verified=true`・`reason=valid` の `web-flow` User だけを許可します。署名検証の欠落・失敗や他の committer は停止します。PR title は `chore(main): release X.Y.Z`（`package.json` と manifest の root version と一致）、body は Release Please の root version section 一つだけであることを確認します。validatorは常に信頼済みの `refs/heads/main` checkoutで実行し、dispatch inputの `main_sha` は比較データとしてだけ扱います。実行前に `git rev-parse HEAD == PR base SHA == live main tip` を確認し、head checkout のファイルをvalidator sourceにしてはいけません。Release Please の変更範囲は pinned action/source に合わせて監査します。ただし、これは悪意ある write-access collaborator への防御ではありません。`workflow_dispatch` は release branch 上の `ci.yml` を実行するため、repository write access を持つ actor が release branch 自体を書き換えれば、この validator を迂回できます。provenance/file checks は意図しない変更や Release Please が生成した内容からの逸脱を検出する guard であり、trust boundary は repository write access です。この境界を harden するのが optional の release-branch ruleset です。
 - provenanceのallowlist内でも、各JSON version fileはbase/headで `version` 以外のparsed fieldを変更できず、manifestは `.` 以外を変更できません。`CHANGELOG.md` は共有する先頭の `# Changelog` 見出しを維持し、その直後にtarget versionのwell-formedな新release sectionだけを挿入できます。既存履歴は挿入後にbyte-identicalでなければならず、見出し重複・編集・削除・並べ替え・誤った挿入位置は停止します。
 - merge 前には PR の base SHA、main の tip、head commit の sole parent を確認します。GitHub の merge API に base SHA の compare-and-swap はないため、この確認は **TOCTOU に対して原子的ではありません**。merge 後の verify run は commit `M` を checkout し、同じ6 gate、canonical PR、main ancestry、Release metadata、tag/Release targetを再検証します。
 - Release finalize の直前には、Release Please が live main から読む `release-please-config.json`、manifest、各 package version file、`extra-files` の blob SHA が `M` と一致することを確認します。不一致なら Release Please を実行せず、main の metadata を hold または revert してから同じ `M` を recovery dispatch します。
