@@ -24,7 +24,6 @@ function asSha(value) {
 }
 export function isReleaseBot(user, appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '') {
   if (user?.type !== 'Bot') return false;
-  if (user?.login === 'github-actions[bot]') return true;
   return /^[a-z0-9][a-z0-9-]*\[bot\]$/.test(appBotLogin) && user?.login === appBotLogin;
 }
 
@@ -207,9 +206,7 @@ export function validateCanonicalReleasePr(
   if (
     !isReleaseBot({ login: authorLogin, type: pr?.user?.type || pr?.author?.type }, appBotLogin)
   ) {
-    errors.push(
-      `author is not github-actions[bot] or the configured release App bot: ${authorLogin || 'missing'}`,
-    );
+    errors.push(`author is not the configured release App bot: ${authorLogin || 'missing'}`);
   }
   if (pr?.user?.type && pr.user.type !== 'Bot') {
     errors.push(`author type is not Bot: ${pr.user.type}`);
@@ -417,7 +414,7 @@ export function validateReleaseMergeActor(
   if (!mergedBy?.login) throw new Error('merged Release PR merged_by is missing');
   if (!isReleaseBot(mergedBy, appBotLogin)) {
     throw new Error(
-      `merged Release PR actor is not github-actions[bot] or configured release App bot: ${mergedBy.login}`,
+      `merged Release PR actor is not the configured release App bot: ${mergedBy.login}`,
     );
   }
   return true;
@@ -806,9 +803,7 @@ export function validateReleasePrSnapshot({
   }
   validateReleaseChangedPaths(changedPaths, allowedPaths);
   if (!isReleaseBot(headCommit?.author, appBotLogin)) {
-    throw new Error(
-      'Release PR head author is not github-actions[bot] or configured release App bot',
-    );
+    throw new Error('Release PR head author is not the configured release App bot');
   }
   if (!isVerifiedWebFlowCommitter(headCommit?.committer)) {
     throw new Error('Release PR head committer is not verified GitHub web-flow');

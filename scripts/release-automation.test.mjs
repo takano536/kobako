@@ -43,7 +43,7 @@ function releasePr(overrides = {}) {
     merged_at: null,
     title: 'chore(main): release 9.8.7',
     body: '---\n## 9.8.7\n---',
-    user: { login: 'github-actions[bot]', type: 'Bot' },
+    user: { login: 'release-bot[bot]', type: 'Bot' },
     labels: [{ name: 'autorelease: pending' }],
     head: {
       ref: RELEASE_BRANCH,
@@ -64,7 +64,7 @@ function mergedReleasePr(overrides = {}) {
     state: 'closed',
     merged_at: '2026-01-01T00:00:00Z',
     merge_commit_sha: mergeSha,
-    merged_by: { login: 'github-actions[bot]', type: 'Bot' },
+    merged_by: { login: 'release-bot[bot]', type: 'Bot' },
     ...overrides,
   });
 }
@@ -390,6 +390,7 @@ describe('canonical Release PR and provenance guards', () => {
     const pending = decideReleasePrLabelRepair(mergedReleasePr(), {
       repository,
       expectedMergeSha: mergeSha,
+      appBotLogin: 'release-bot[bot]',
     });
     assert.deepEqual(pending, {
       action: 'repair',
@@ -400,7 +401,7 @@ describe('canonical Release PR and provenance guards', () => {
 
     const tagged = decideReleasePrLabelRepair(
       mergedReleasePr({ labels: [{ name: 'autorelease: tagged' }] }),
-      { repository, expectedMergeSha: mergeSha },
+      { repository, expectedMergeSha: mergeSha, appBotLogin: 'release-bot[bot]' },
     );
     assert.deepEqual(tagged, {
       action: 'noop',
@@ -411,7 +412,7 @@ describe('canonical Release PR and provenance guards', () => {
 
     const nonCanonical = decideReleasePrLabelRepair(
       mergedReleasePr({ base: { ...releasePr().base, ref: 'develop' } }),
-      { repository, expectedMergeSha: mergeSha },
+      { repository, expectedMergeSha: mergeSha, appBotLogin: 'release-bot[bot]' },
     );
     assert.equal(nonCanonical.action, 'refuse');
     assert.match(nonCanonical.errors.join('; '), /base ref/);
@@ -453,7 +454,7 @@ describe('evaluator merge snapshot', () => {
     head_repository: { full_name: repository },
   };
   const headCommit = {
-    author: { login: 'github-actions[bot]', type: 'Bot' },
+    author: { login: 'release-bot[bot]', type: 'Bot' },
     committer: {
       login: 'web-flow',
       type: 'User',

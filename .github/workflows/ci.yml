@@ -313,6 +313,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_SHA: ${{ github.sha }}
+          RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
         run: node scripts/release-automation.mjs classify-main-release
 
   release_please:
@@ -451,6 +452,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_SHA: ${{ github.sha }}
           PR_NUMBER: ${{ needs.release_candidate.outputs.pr_number }}
+          RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
         run: node scripts/release-automation.mjs validate-main-release
       - name: Check existing immutable tag and Release
         id: existing
@@ -481,6 +483,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_SHA: ${{ github.sha }}
           PR_NUMBER: ${{ needs.release_candidate.outputs.pr_number }}
+          RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
         run: node scripts/release-automation.mjs repair-release-label
 
   publish_main:
