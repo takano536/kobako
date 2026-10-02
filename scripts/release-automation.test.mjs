@@ -1169,6 +1169,85 @@ describe('merge command fail-closed API boundary', () => {
     assert.doesNotMatch(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
   });
 
+  it('merges a bot-authored Release PR committed by verified GitHub web-flow', async () => {
+    const fake = await makeReleaseCommandFake({
+      commit: {
+        parents: [{ sha: mainSha }],
+        author: { login: 'github-actions[bot]', type: 'Bot' },
+        committer: { login: 'web-flow', type: 'User' },
+        commit: { verification: { verified: true, reason: 'valid' } },
+      },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      { cwd: path.resolve('.'), encoding: 'utf8', env: releaseCommandEnv(fake) },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
+  });
+
+  it.each([
+    ['missing verification', undefined],
+    ['unverified signature', { verified: false, reason: 'valid' }],
+    ['invalid signature', { verified: true, reason: 'invalid' }],
+    ['missing reason', { verified: true }],
+    ['non-boolean verified flag', { verified: 'true', reason: 'valid' }],
+  ])('does not PUT for web-flow with %s', async (_name, verification) => {
+    const fake = await makeReleaseCommandFake({
+      commit: {
+        parents: [{ sha: mainSha }],
+        author: { login: 'github-actions[bot]', type: 'Bot' },
+        committer: { login: 'web-flow', type: 'User' },
+        commit: { verification },
+      },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      { cwd: path.resolve('.'), encoding: 'utf8', env: releaseCommandEnv(fake) },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /head committer/);
+    assert.doesNotMatch(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
+  });
+
+  it.each([
+    ['human author', { login: 'human', type: 'User' }, { login: 'web-flow', type: 'User' }],
+    [
+      'wrong bot author type',
+      { login: 'github-actions[bot]', type: 'User' },
+      { login: 'web-flow', type: 'User' },
+    ],
+    [
+      'different signed committer',
+      { login: 'github-actions[bot]', type: 'Bot' },
+      { login: 'human', type: 'User' },
+    ],
+    [
+      'wrong web-flow type',
+      { login: 'github-actions[bot]', type: 'Bot' },
+      { login: 'web-flow', type: 'Bot' },
+    ],
+  ])('does not PUT for a verified signature with %s', async (_name, author, committer) => {
+    const fake = await makeReleaseCommandFake({
+      commit: {
+        parents: [{ sha: mainSha }],
+        author,
+        committer,
+        commit: { verification: { verified: true, reason: 'valid' } },
+      },
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release-automation.mjs'), 'validate-release-pr'],
+      { cwd: path.resolve('.'), encoding: 'utf8', env: releaseCommandEnv(fake) },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /head (author|committer)/);
+    assert.doesNotMatch(await readFile(fake.log, 'utf8'), /pulls\/7\/merge/);
+  });
+
   it('does not PUT when the Release PR head commit is not bot-committed', async () => {
     const fake = await makeReleaseCommandFake({
       commit: {
