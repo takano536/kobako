@@ -1081,7 +1081,15 @@ function commandClassifyMainRelease() {
   const releaseVersionPaths = [...releaseOwnedVersionPaths(readReleasePleaseConfig())];
   const changedPaths = releaseChangedPathsForCommit(repository, mergeSha, releaseVersionPaths);
   const pullRequests = releasePullRequestsForCommit(repository, mergeSha);
-  let candidate = canonicalMergedReleaseForCommit(repository, mergeSha, pullRequests);
+  const associationWithoutCandidate = decideReleaseAssociation({
+    changedPaths,
+    releaseVersionPaths,
+    hasCanonical: false,
+  });
+  let candidate = null;
+  if (associationWithoutCandidate.touchesVersionPath) {
+    candidate = canonicalMergedReleaseForCommit(repository, mergeSha, pullRequests);
+  }
   const association = decideReleaseAssociation({
     changedPaths,
     releaseVersionPaths,
