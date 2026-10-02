@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/takano536/kobako/compare/v0.3.1...v0.4.0) (2026-10-02)
+
+
+### Features
+
+* **web:** unify ledger page layout ([#19](https://github.com/takano536/kobako/issues/19)) ([420fa47](https://github.com/takano536/kobako/commit/420fa4748f0f9fd15228b61c915c997e0f8ff77c))
+
 ## [0.3.1](https://github.com/takano536/kobako/compare/v0.3.0...v0.3.1) (2026-10-01)
 
 
