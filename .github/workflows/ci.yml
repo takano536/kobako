@@ -5,22 +5,49 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: CI execution mode
+        required: false
+        default: normal
+        type: string
+      pr_number:
+        description: Release PR number selected by REST validation
+        required: false
+        type: string
+      expected_head_sha:
+        description: Release PR head SHA selected by REST validation
+        required: false
+        type: string
+      main_sha:
+        description: Main tip SHA selected with the canonical Release PR
+        required: false
+        type: string
+      merge_sha:
+        description: Release merge SHA for verify dispatch
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  # Keep main release runs serialized. Pull request and manually dispatched
-  # checks may be cancelled while queued, but an in-progress main release is
-  # never cancelled.
+  # Main and verify refs are non-cancellable; release PR dispatches are also
+  # non-cancellable because a stale run may already have merged the PR before
+  # its verify handoff. Pull request runs may cancel older in-progress checks.
+  # Every group still replaces one pending run with the newest dispatch.
   group: >-
     kobako-ci-${{
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-        && 'main-release'
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        && 'main'
+        || startsWith(github.ref, 'refs/heads/release-verify/')
+        && format('verify-{0}', github.ref)
+        || github.ref == 'refs/heads/release-please--branches--main--components--kobako'
+        && 'release-pr'
         || format('{0}-{1}', github.event_name, github.ref)
     }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
-
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   lint:
     name: lint
@@ -30,6 +57,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm format:check
       - run: node scripts/validate-release-files.mjs
@@ -44,6 +72,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm test:unit
 
@@ -73,6 +102,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Create isolated test database
         run: PGPASSWORD=ci_kobako_password psql -h localhost -U ci_kobako -d kobako_dev -c 'CREATE DATABASE kobako_test'
@@ -87,6 +117,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build
 
@@ -116,6 +147,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
       - run: pnpm build
@@ -139,6 +171,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build web image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -281,8 +314,10 @@ jobs:
     name: release-please
     needs: [lint, unit, integration, build, e2e, docker]
     if: >-
-      github.event_name == 'push' &&
+      github.repository == 'takano536/kobako' &&
       github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'normal')) &&
       needs.lint.result == 'success' &&
       needs.unit.result == 'success' &&
       needs.integration.result == 'success' &&
@@ -294,20 +329,14 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      checks: read
     outputs:
       at_tip: ${{ steps.main_tip.outputs.at_tip }}
-      release_created: ${{ steps.release.outputs.release_created }}
-      release_tag: ${{ steps.release.outputs.tag_name }}
-      release_target_sha: ${{ steps.release.outputs.sha }}
-      release_merge_sha: ${{ steps.pending_release.outputs.release_merge_sha }}
-      prs_created: ${{ steps.release.outputs.prs_created }}
-      release_pr: ${{ steps.release.outputs.pr }}
     steps:
       - name: Check out the exact main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
           fetch-depth: 0
       - name: Confirm this run is still the main tip
         id: main_tip
@@ -323,101 +352,312 @@ jobs:
             echo "main moved to $main_sha while this run targets $EXPECTED_SHA; skipping Release Please"
             echo 'at_tip=false' >>"$GITHUB_OUTPUT"
           fi
-      - name: Verify merged Release PR and required checks
-        id: pending_release
-        if: steps.main_tip.outputs.at_tip == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/verify-release-merge.sh
-      - name: Create or update Release PR
+      - name: Create or update Release PR without releasing
         id: release
-        if: >-
-          steps.main_tip.outputs.at_tip == 'true' &&
-          steps.pending_release.outputs.validated == 'true'
+        if: steps.main_tip.outputs.at_tip == 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          # Fail closed: only let the action tag/release a merged pending PR
-          # when our own guard freshly found and validated it via the Checks
-          # API. `gh pr list --label` can read from a lagging search index,
-          # so a false "no pending release" from the guard must not let the
-          # action's own (more current) internal lookup create a release for
-          # a commit whose required checks this workflow never confirmed.
-          skip-github-release: ${{ steps.pending_release.outputs.pending_release != 'true' }}
+          target-branch: main
+          skip-github-release: true
+
+  ensure_verify_main:
+    name: ensure-verify
+    needs: [lint, unit, integration, build, e2e, docker]
+    if: >-
+      github.repository == 'takano536/kobako' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'normal')) &&
+      needs.lint.result == 'success' &&
+      needs.unit.result == 'success' &&
+      needs.integration.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.e2e.result == 'success' &&
+      needs.docker.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Check out the exact main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Ensure a verify ref/run for a merged pending Release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release-automation.mjs ensure-main
 
   release_pr_checks:
     name: release-pr-checks
     needs: release_please
     if: >-
       needs.release_please.result == 'success' &&
-      needs.release_please.outputs.prs_created == 'true'
+      needs.release_please.outputs.at_tip == 'true' &&
+      github.repository == 'takano536/kobako' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'normal'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: write
       contents: read
+      pull-requests: read
     steps:
-      - name: Dispatch quality gate for Release PR
+      - name: Check out the exact main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Select canonical Release PR through REST and dispatch checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_JSON: ${{ needs.release_please.outputs.release_pr }}
-          REPOSITORY: ${{ github.repository }}
+        run: node scripts/release-automation.mjs dispatch-release-pr
+
+  release_pr_merge:
+    name: release-pr-merge
+    needs: [lint, unit, integration, build, e2e, docker]
+    if: >-
+      github.repository == 'takano536/kobako' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/release-please--branches--main--components--kobako' &&
+      inputs.mode == 'release-pr' &&
+      needs.lint.result == 'success' &&
+      needs.unit.result == 'success' &&
+      needs.integration.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.e2e.result == 'success' &&
+      needs.docker.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      checks: read
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the exact Release PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+          path: release-pr
+      - name: Check out the validator from live main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+          fetch-depth: 0
+          path: release-main
+      - name: Assert validator checkout, PR base, and live main are identical
+        working-directory: release-main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "$PR_JSON" ]]; then
-            echo 'Release Please reported prs_created but returned no pr output' >&2
+          validator_sha="$(git rev-parse HEAD)"
+          base_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .base.sha)"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          for sha in "$validator_sha" "$base_sha" "$main_sha"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          done
+          if [[ "$validator_sha" != "$base_sha" || "$base_sha" != "$main_sha" ]]; then
+            echo "validator=$validator_sha base=$base_sha main=$main_sha are not identical" >&2
             exit 1
           fi
-          # v5 emits release-please's PullRequest shape, not a REST pull object.
-          # The action's default fork=false means this is an open PR in this repo.
-          pr_number="$(jq -r '.number // empty' <<<"$PR_JSON")"
-          pr_base="$(jq -r '.baseBranchName // empty' <<<"$PR_JSON")"
-          pr_ref="$(jq -r '.headBranchName // empty' <<<"$PR_JSON")"
-          if [[ ! "$pr_number" =~ ^[0-9]+$ || "$pr_base" != main ]]; then
-            echo "Release Please returned an invalid Release PR object: number=$pr_number base=$pr_base" >&2
-            exit 1
-          fi
-          if [[ "$pr_ref" != release-please--branches--main* ]]; then
-            echo "Unexpected Release Please head branch: $pr_ref" >&2
-            exit 1
-          fi
-          echo "Dispatching quality gate for Release PR #$pr_number on $pr_ref"
-          gh workflow run ci.yml --repo "$REPOSITORY" --ref "$pr_ref"
+      - name: Validate latest head checks and squash merge canonical Release PR
+        working-directory: release-main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATES_OK: true
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          MAIN_SHA: ${{ inputs.main_sha }}
+        run: node scripts/release-automation.mjs validate-release-pr
 
-  publish_main:
-    name: publish-main
-    needs: [lint, unit, integration, build, e2e, docker, release_please]
+  verify_guard:
+    name: verify-release
+    needs: [lint, unit, integration, build, e2e, docker]
+    if: >-
+      github.repository == 'takano536/kobako' &&
+      github.event_name == 'workflow_dispatch' &&
+      startsWith(github.ref, 'refs/heads/release-verify/') &&
+      needs.lint.result == 'success' &&
+      needs.unit.result == 'success' &&
+      needs.integration.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.e2e.result == 'success' &&
+      needs.docker.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      validated: ${{ steps.guard.outputs.validated }}
+      pr_number: ${{ steps.guard.outputs.pr_number }}
+      merge_sha: ${{ steps.guard.outputs.merge_sha }}
+      label_state: ${{ steps.guard.outputs.label_state }}
+    steps:
+      - name: Check out the exact verify commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact ref, canonical merged PR, ancestry, and in-run gates
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATES_OK: true
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: node scripts/release-automation.mjs verify-guard
+
+  release_finalize:
+    name: release-finalize
+    needs: [lint, unit, integration, build, e2e, docker, verify_guard]
     if: >-
       always() &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      github.repository == 'takano536/kobako' &&
+      github.event_name == 'workflow_dispatch' &&
+      startsWith(github.ref, 'refs/heads/release-verify/') &&
       needs.lint.result == 'success' &&
       needs.unit.result == 'success' &&
       needs.integration.result == 'success' &&
       needs.build.result == 'success' &&
       needs.e2e.result == 'success' &&
       needs.docker.result == 'success' &&
-      needs.release_please.result != 'cancelled' &&
-      needs.release_please.outputs.at_tip == 'true'
+      needs.verify_guard.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_tag: ${{ steps.target.outputs.release_tag }}
+      version: ${{ steps.target.outputs.version }}
+      target_sha: ${{ steps.target.outputs.target_sha }}
+    steps:
+      - name: Check out the exact verify commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check existing immutable tag and Release
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: node scripts/verify-release-target.mjs probe
+      - name: Repair the Release Please tagged label after matching release recovery
+        if: steps.existing.outputs.target_state == 'matching' && needs.verify_guard.outputs.label_state == 'pending'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.verify_guard.outputs.pr_number }}
+          MERGE_SHA: ${{ github.sha }}
+        run: node scripts/release-automation.mjs ensure-tagged-label
+      - name: Verify Release Please inputs still match the merge and live main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ needs.verify_guard.outputs.pr_number }}
+        run: node scripts/release-automation.mjs verify-release-inputs
+      - name: Create tag and GitHub Release through Release Please
+        id: release
+        if: steps.existing.outputs.target_state == 'absent'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+          skip-github-release: false
+          skip-github-pull-request: true
+      - name: Verify tag and Release target
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: node scripts/verify-release-target.mjs verify
+
+  publish_main:
+    name: publish-main
+    needs:
+      [
+        lint,
+        unit,
+        integration,
+        build,
+        e2e,
+        docker,
+        release_please,
+        ensure_verify_main,
+        verify_guard,
+        release_finalize,
+      ]
+    if: >-
+      always() &&
+      github.repository == 'takano536/kobako' &&
+      (
+        (
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' ||
+           (github.event_name == 'workflow_dispatch' && inputs.mode == 'normal')) &&
+          needs.lint.result == 'success' &&
+          needs.unit.result == 'success' &&
+          needs.integration.result == 'success' &&
+          needs.build.result == 'success' &&
+          needs.e2e.result == 'success' &&
+          needs.docker.result == 'success' &&
+          needs.release_please.result == 'success' &&
+          needs.release_please.outputs.at_tip == 'true' &&
+          needs.ensure_verify_main.result == 'success'
+        ) ||
+        (
+          startsWith(github.ref, 'refs/heads/release-verify/') &&
+          github.event_name == 'workflow_dispatch' &&
+          needs.lint.result == 'success' &&
+          needs.unit.result == 'success' &&
+          needs.integration.result == 'success' &&
+          needs.build.result == 'success' &&
+          needs.e2e.result == 'success' &&
+          needs.docker.result == 'success' &&
+          needs.verify_guard.result == 'success' &&
+          needs.release_finalize.result == 'success'
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+    outputs:
+      web_tag: ${{ steps.tags.outputs.web_tag }}
+      migrate_tag: ${{ steps.tags.outputs.migrate_tag }}
     steps:
-      - name: Check out the exact main commit
+      - name: Check out the exact main/verify commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
           fetch-depth: 0
       - name: Compute main image tags
         id: tags
         env:
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_REF: ${{ github.ref }}
+          GITHUB_EVENT_NAME: push
+          GITHUB_REF: refs/heads/main
           GITHUB_SHA: ${{ github.sha }}
           RELEASE_CREATED: false
           RELEASE_TAG: ''
@@ -489,14 +729,45 @@ jobs:
             OCI_VERSION=${{ steps.tags.outputs.version }}
           cache-from: type=gha,scope=kobako-migrate
           cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
-      - name: Re-confirm main tip before promoting latest
+
+  promote_latest:
+    name: promote-latest
+    needs: publish_main
+    if: >-
+      always() &&
+      github.repository == 'takano536/kobako' &&
+      needs.publish_main.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: kobako-latest-promotion
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the exact main/verify commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Re-confirm main tip inside the promotion lock
         id: promote_tip
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          main_sha="$(git ls-remote --refs origin refs/heads/main | cut -f1)"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
           if [[ "$main_sha" == "$EXPECTED_SHA" ]]; then
             echo 'at_tip=true' >>"$GITHUB_OUTPUT"
           else
@@ -505,72 +776,53 @@ jobs:
           fi
       - name: Promote web image to latest
         if: steps.promote_tip.outputs.at_tip == 'true'
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:${{ needs.publish_main.outputs.web_tag }}
       - name: Promote migration image to latest
         if: steps.promote_tip.outputs.at_tip == 'true'
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:${{ needs.publish_main.outputs.migrate_tag }}
 
   publish_release:
     name: publish-release
-    needs: [lint, unit, integration, build, e2e, docker, release_please]
+    needs: [lint, unit, integration, build, e2e, docker, verify_guard, release_finalize]
     if: >-
       always() &&
+      github.repository == 'takano536/kobako' &&
+      github.event_name == 'workflow_dispatch' &&
+      startsWith(github.ref, 'refs/heads/release-verify/') &&
       needs.lint.result == 'success' &&
       needs.unit.result == 'success' &&
       needs.integration.result == 'success' &&
       needs.build.result == 'success' &&
       needs.e2e.result == 'success' &&
       needs.docker.result == 'success' &&
-      needs.release_please.result != 'cancelled' &&
-      needs.release_please.outputs.at_tip == 'true' &&
-      needs.release_please.outputs.release_created == 'true'
+      needs.verify_guard.result == 'success' &&
+      needs.release_finalize.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Check out the Release PR merge commit
+      - name: Check out the exact verified merge commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release_please.outputs.release_merge_sha }}
+          ref: ${{ github.sha }}
+          persist-credentials: false
           fetch-depth: 0
-      - name: Compute release image tags
+      - name: Verify release target and compute immutable image tags
         id: tags
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ needs.release_finalize.outputs.release_tag }}
           GITHUB_EVENT_NAME: push
           GITHUB_REF: refs/heads/main
-          GITHUB_SHA: ${{ needs.release_please.outputs.release_merge_sha }}
-          RELEASE_CREATED: true
-          RELEASE_TAG: ${{ needs.release_please.outputs.release_tag }}
-        run: ./scripts/compute-release-tags.sh
-      - name: Verify Release Please tag points at the Release PR merge commit
-        env:
-          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
-          EXPECTED_REVISION: ${{ needs.release_please.outputs.release_merge_sha }}
-          RELEASE_TARGET_SHA: ${{ needs.release_please.outputs.release_target_sha }}
-        shell: bash
+          GITHUB_SHA: ${{ github.sha }}
+          RELEASE_CREATED: 'true'
         run: |
           set -euo pipefail
-          remote_tag="$(git ls-remote --refs origin "refs/tags/${RELEASE_TAG}" | cut -f1)"
-          if [[ -z "$remote_tag" ]]; then
-            echo "Release tag $RELEASE_TAG does not exist on origin" >&2
-            exit 1
-          fi
-          if [[ -n "$RELEASE_TARGET_SHA" && "$RELEASE_TARGET_SHA" != "$EXPECTED_REVISION" ]]; then
-            echo "Release Please reported target $RELEASE_TARGET_SHA, expected $EXPECTED_REVISION" >&2
-            exit 1
-          fi
-          git fetch --force --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          tagged_revision="$(git rev-parse "${RELEASE_TAG}^{commit}")"
-          if [[ "$tagged_revision" != "$EXPECTED_REVISION" ]]; then
-            echo "Release tag $RELEASE_TAG points at $tagged_revision, expected $EXPECTED_REVISION" >&2
-            exit 1
-          fi
-      - name: Check out the verified Release tag commit
-        env:
-          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
-        run: git checkout --detach "$RELEASE_TAG"
+          node scripts/verify-release-target.mjs verify
+          ./scripts/compute-release-tags.sh
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -584,7 +836,7 @@ jobs:
           IMAGE: ghcr.io/takano536/kobako-web
           TAG: ${{ steps.tags.outputs.web_tag }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
-          EXPECTED_REVISION: ${{ needs.release_please.outputs.release_merge_sha }}
+          EXPECTED_REVISION: ${{ github.sha }}
           EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
           STRICT_INSPECT: true
           REQUIRE_VERSION: true
@@ -599,12 +851,12 @@ jobs:
           tags: ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
-            org.opencontainers.image.revision=${{ needs.release_please.outputs.release_merge_sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
             org.opencontainers.image.description=kobako production web image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
-            OCI_REVISION=${{ needs.release_please.outputs.release_merge_sha }}
+            OCI_REVISION=${{ github.sha }}
             OCI_VERSION=${{ steps.tags.outputs.version }}
           cache-from: type=gha,scope=kobako-web
           cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
@@ -614,7 +866,7 @@ jobs:
           IMAGE: ghcr.io/takano536/kobako-migrate
           TAG: ${{ steps.tags.outputs.migrate_tag }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
-          EXPECTED_REVISION: ${{ needs.release_please.outputs.release_merge_sha }}
+          EXPECTED_REVISION: ${{ github.sha }}
           EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
           STRICT_INSPECT: true
           REQUIRE_VERSION: true
@@ -629,12 +881,42 @@ jobs:
           tags: ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
-            org.opencontainers.image.revision=${{ needs.release_please.outputs.release_merge_sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
             org.opencontainers.image.description=kobako production migrate image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
-            OCI_REVISION=${{ needs.release_please.outputs.release_merge_sha }}
+            OCI_REVISION=${{ github.sha }}
             OCI_VERSION=${{ steps.tags.outputs.version }}
           cache-from: type=gha,scope=kobako-migrate
           cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
+
+  cleanup_verify:
+    name: cleanup-verify
+    needs: [verify_guard, release_finalize, publish_main, publish_release]
+    if: >-
+      always() &&
+      github.repository == 'takano536/kobako' &&
+      github.event_name == 'workflow_dispatch' &&
+      startsWith(github.ref, 'refs/heads/release-verify/') &&
+      needs.verify_guard.result == 'success' &&
+      needs.release_finalize.result == 'success' &&
+      needs.publish_main.result == 'success' &&
+      needs.publish_release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+    steps:
+      - name: Check out trusted cleanup script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - name: Delete the successful verify ref and dispatch main follow-up
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERIFY_REF: ${{ github.ref_name }}
+          VERIFIED_SHA: ${{ github.sha }}
+        run: node scripts/release-automation.mjs cleanup-verify
