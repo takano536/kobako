@@ -52,7 +52,7 @@ Client ID、bot login、秘密鍵のいずれかが未設定の場合、Release 
    - canonical repository、許可された bot author、`autorelease: pending` label
    - head commit が live main の sole parentを持つ、または live main の verified merge-base を sole parentに持つ（後者は merge-base が live main の祖先で、merge-base から head までの diff が Release Please allowlistだけの場合に限る）
    - Release Please の allowlist（`CHANGELOG.md`、manifest、各 configured package の version file / `extra-files`）以外の変更がない
-   - committer が `web-flow` User の `verified=true` / `reason=valid` signature
+   - committer が REST `GET /repos/{owner}/{repo}/commits/{sha}` の top-level `committer.login=web-flow`・`id=19864447`・`type=User`、nested `commit.committer.name=GitHub`・`email=noreply@github.com`、sibling `commit.verification.verified=true`・`reason=valid` に全て完全一致する（欠落、型違い、name/emailだけの一致、substringは停止）
    - GitHub Actions app (`id=15368`, slug `github-actions`) の6 checkを head SHA ごとに最新1件だけ選び、全て `completed/success`
 
    main が docs/chore など release なしの commit だけ進んだ場合、Release Please v17.6.0 は body が変わらなければ branch を force-update しないため、stale base の verified merge-base 条件で deterministic に評価します。repository ruleset は Release PR に「branch を最新にする」strict status check を要求しない設定にし、merge 後の main push 6 gate が実際の squash SHA `M` を再テストします。
