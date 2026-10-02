@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.1](https://github.com/takano536/kobako/compare/v0.4.0...v0.4.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ci:** isolate release tests from repository variables ([#27](https://github.com/takano536/kobako/issues/27)) ([7d03a33](https://github.com/takano536/kobako/commit/7d03a3367a33e10bb880fcde6d63d03900ae74ff))
+* **release:** classify ordinary main pushes before PR validation ([#28](https://github.com/takano536/kobako/issues/28)) ([697d8f8](https://github.com/takano536/kobako/commit/697d8f8b4b88b7135091cc06efed56d0a2e6c018))
+* **release:** require native PR checks and support scoped App auth ([#24](https://github.com/takano536/kobako/issues/24)) ([9046cb0](https://github.com/takano536/kobako/commit/9046cb0136a12332d3a162b9f0421f91b772b35e))
+* **release:** run Release PR automation with native CI ([#26](https://github.com/takano536/kobako/issues/26)) ([3584db7](https://github.com/takano536/kobako/commit/3584db711efb6f421ea76515a1abd52073baa556))
+* **release:** validate web-flow committer against REST commit shape ([#30](https://github.com/takano536/kobako/issues/30)) ([d7f3fa0](https://github.com/takano536/kobako/commit/d7f3fa0aeb108b33d62c70effc91a0494e1732c9))
+
 ## [0.4.0](https://github.com/takano536/kobako/compare/v0.3.1...v0.4.0) (2026-10-02)
 
 
