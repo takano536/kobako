@@ -61,9 +61,9 @@ Client ID、bot login、秘密鍵のいずれかが未設定の場合、Release 
 6. App token の merge により `push` CI が実際の squash merge SHA `M` で起動します。6 gate後に `commits/M/pulls` から canonical merged Release PR を一つだけ選び、`merge_commit_sha == M`、許可された `merged_by`、base/head/label/metadata/provenance、sole-parent、main ancestry を再検証します。live main が M より先へ進んでいても、M が live main の祖先であることを compare APIで確認して finalizeし、versioned/`sha-M` imageは M 固定で公開します。
 7. canonical releaseの `release_finalize` だけが Release Please を `GITHUB_TOKEN`（job permission は `contents: write`、`issues: write`、`pull-requests: write`）/ `skip-github-release: false` / `skip-github-pull-request: true` で実行し、strict SemVer tag と GitHub Release を `M == GITHUB_SHA` に作成します。Release Please がコメント投稿後に失敗しても、後続の immutable target verification が tag と Release の両方が `M` を指すことを確認した場合だけ続行し、missing / mismatched / partial target は hard fail します。target検証後は同じ canonical merged PRだけを再取得し、`autorelease: tagged` を付与して `autorelease: pending` を削除します。既にtaggedならno-opで、finalize途中失敗後の再実行でも冪等です。finalize成功後、同じ main push の Release Please jobが repository-scoped App token / `skip-github-release: true` で live mainを再計算し、次の Release PRを作成または更新します。
    通常の main push `N` が `M` の merged pending Release PR を検出した場合、`M` の push run の `release_finalize` が active なら pre-check は `deferred` を返して `N` の Release Please だけを skip します。`M` の `release_please` は `release_finalize` 完了後に live main を再計算するため、後続の `N` の pre-check が `M` を stale と誤判定して block することはありません。
-8. 通常の main push は `publish_main`、canonical release push M は `publish_release` が `ghcr.io/takano536/kobako-web` と `kobako-migrate` の version tag と `sha-M` tagを公開します。`latest` は promotion lock 内でlive main tipを確認してから更新する eventual-consistency設計で、後続runはlock待ちの後により新しいtipだけをpromoteします。web/migrateの片方だけ更新された場合は、対象runの `promote_latest` jobを再実行して不足側を修復します。
+8. 通常の main push は `publish_main`、canonical release push M は `publish_release` が単一の `ghcr.io/takano536/kobako` image の version tag と `sha-M` tagを公開します。`latest` は promotion lock 内でlive main tipを確認してから更新する eventual-consistency設計で、後続runはlock待ちの後により新しいtipだけをpromoteします。
 
-canonical release でない通常の main push は、従来どおり `sha-M` image と `latest` だけを公開します。worker image は GHCR に公開しません。
+worker image はローカル Compose/CI 専用で、GHCR には公開しません。
 
 ## 失敗と復旧
 
@@ -98,10 +98,8 @@ Conventional Commits と SemVer を使います。
 
 ## GHCR
 
-- `ghcr.io/takano536/kobako-web:X.Y.Z`
-- `ghcr.io/takano536/kobako-migrate:X.Y.Z`
-- `ghcr.io/takano536/kobako-web:sha-<full SHA>`
-- `ghcr.io/takano536/kobako-migrate:sha-<full SHA>`
-- `latest`（live main tip と一致した quality-gated pushだけ）
+- `ghcr.io/takano536/kobako:X.Y.Z`
+- `ghcr.io/takano536/kobako:sha-<full SHA>`
+- `ghcr.io/takano536/kobako:latest`（live main tip と一致した quality-gated pushだけ）
 
-`web` と `migrate` は同じ `M`、同じ version、同じ OCI `source` / `revision` / `version` label で公開します。
+versioned tag と `sha-<full SHA>` tag は同じ `M`、同じ OCI `source` / `revision` / `version` label を持つ単一 image を指します。

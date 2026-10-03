@@ -2084,7 +2084,8 @@ describe('release target and image decisions use synthetic fixture versions', ()
       },
     });
     assert.match(release, /mode=release/);
-    assert.match(release, /web_tag=9\.8\.7/);
+    assert.match(release, /image_tag=9\.8\.7/);
+    assert.doesNotMatch(release, /(?:web|migrate)_tag=/);
     assert.match(release, /sha_tag=sha-c{40}/);
     const ordinary = execFileSync('bash', [script], {
       encoding: 'utf8',
