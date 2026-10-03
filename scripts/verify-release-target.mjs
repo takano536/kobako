@@ -22,6 +22,12 @@ export function classifyReleaseTarget({ tagSha, releaseExists, expectedSha }) {
   if (hasTag && releaseExists) return 'matching';
   return 'incomplete';
 }
+export function decideReleaseFinalizeOutcome({ actionOutcome = 'success', targetState } = {}) {
+  if (targetState !== 'matching') return 'fail';
+  if (actionOutcome === 'failure') return 'tolerated-failure';
+  if (actionOutcome === 'success' || actionOutcome === 'skipped') return 'success';
+  return 'fail';
+}
 export function validateReleaseObject(release, tag, expectedSha) {
   if (!release || release.draft !== false || release.prerelease !== false) {
     throw new Error(`release ${tag} must be published (draft=false, prerelease=false)`);
@@ -153,10 +159,25 @@ function main() {
     throw new Error(`EXPECTED_SHA is not a full SHA: ${expectedSha}`);
   const parsed = resolveTag();
   const target = targetState(repository, parsed.tag, expectedSha);
-  if (mode === 'verify' && target.state !== 'matching') {
-    throw new Error(
-      `release target ${parsed.tag} is not present at the expected SHA: ${target.state}`,
-    );
+  if (mode === 'verify') {
+    const actionOutcome = process.env.RELEASE_ACTION_OUTCOME || 'success';
+    const finalizeOutcome = decideReleaseFinalizeOutcome({
+      actionOutcome,
+      targetState: target.state,
+    });
+    if (finalizeOutcome === 'fail') {
+      if (actionOutcome === 'failure' && target.state !== 'matching') {
+        throw new Error(
+          `release finalize action failed and immutable target verification found ${target.state}`,
+        );
+      }
+      throw new Error(
+        `release target ${parsed.tag} is not present at the expected SHA: ${target.state}`,
+      );
+    }
+    if (finalizeOutcome === 'tolerated-failure') {
+      emit('release_action_failure', 'tolerated');
+    }
   }
   emit('release_tag', parsed.tag);
   emit('version', parsed.version);
