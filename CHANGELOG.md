@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/takano536/kobako/compare/v0.5.1...v0.6.0) (2026-10-03)
+
+
+### Features
+
+* publish a single image with bundled migration ([#35](https://github.com/takano536/kobako/issues/35)) ([79d98a1](https://github.com/takano536/kobako/commit/79d98a12294302bfdf5a5fd73dcf30bc019105e4))
+
 ## [0.5.1](https://github.com/takano536/kobako/compare/v0.5.0...v0.5.1) (2026-10-03)
 
 
