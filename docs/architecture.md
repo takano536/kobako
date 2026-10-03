@@ -55,7 +55,7 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 通常取引の編集フォームは口座欄を持たないため、入力の `accountId` が `undefined` の場合は既存の口座を保持します。DB API に `null` を明示した場合だけ口座を解除し、取込取引の編集で残高が変わらないようにします。
 表示側は signed amount を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
 
-`getAccountBalances` は口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、口座を持たない手入力の取引を除外します。
+`getAccountBalances` は全期間の取引から口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、未来日付の取引も含めます。初期残高は持たず、口座を持たない手入力の取引を除外します。
 
 日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 

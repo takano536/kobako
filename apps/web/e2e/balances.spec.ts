@@ -35,6 +35,30 @@ function balanceList(page: Page): Locator {
   return page.getByRole('list', { name: '口座別残高' });
 }
 
+function summaryAmount(page: Page, label: string): Locator {
+  return page
+    .locator('.balance-summary-item')
+    .filter({ has: page.locator('.balance-summary-label', { hasText: new RegExp(`^${label}$`) }) })
+    .locator('.balance-summary-value');
+}
+
+async function expectBalanceSummary(
+  page: Page,
+  values: { assets: string; liabilities: string; net: string },
+): Promise<void> {
+  for (const [label, value] of Object.entries({
+    資産: values.assets,
+    負債: values.liabilities,
+    純資産: values.net,
+  })) {
+    const amount = summaryAmount(page, label);
+    await expect(amount).toContainText(`${value.replace(/^−/, '')}円`);
+    if (value.startsWith('−')) {
+      await expect(amount.locator('.sr-only')).toHaveText('マイナス');
+    }
+  }
+}
+
 async function captureSharedGeometry(page: Page, name: string): Promise<void> {
   const geometry = await page.evaluate(() => {
     const rectangle = (selector: string) => {
@@ -195,6 +219,7 @@ test('reaches balances from navigation and shows a deterministic empty state', a
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: '口座がありません' })).toBeVisible();
   await expect(page.getByText('Excel ファイルを取り込むと、口座が追加されます。')).toBeVisible();
+  await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
   await page.screenshot({
     path: `${screenshotDirectory}/balances-empty-desktop.png`,
     fullPage: true,
@@ -213,6 +238,8 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await page.goto(`/transactions?month=${month}`);
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '−500円');
+  await expectBalanceSummary(page, { assets: '0', liabilities: '500', net: '−500' });
+  await expect(accountRow(page, longAccountName).locator('a, button')).toHaveCount(0);
   await expectAccountBalance(page, destinationAccountName, '0円');
 
   await page.goto(`/transactions?month=${month}`);
@@ -225,6 +252,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '−700円');
+  await expectBalanceSummary(page, { assets: '0', liabilities: '700', net: '−700' });
   const editedTransaction = await database().sql<{ accountId: number | null; amount: number }[]>`
     select account_id as "accountId", amount
     from transactions
@@ -242,6 +270,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '0円');
+  await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
 
   await page.goto(`/transactions/new?month=${month}&type=transfer`);
   await page.locator('#transaction-amount').fill('300');
@@ -252,6 +281,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '−300円');
+  await expectBalanceSummary(page, { assets: '300', liabilities: '300', net: '0' });
   await expectAccountBalance(page, destinationAccountName, '300円');
 
   await page.goto(`/transactions?month=${month}`);
@@ -265,6 +295,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '−400円');
   await expectAccountBalance(page, destinationAccountName, '400円');
+  await expectBalanceSummary(page, { assets: '400', liabilities: '400', net: '0' });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.screenshot({
     path: `${screenshotDirectory}/balances-data-desktop.png`,
@@ -294,6 +325,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '0円');
   await expectAccountBalance(page, destinationAccountName, '0円');
+  await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
 });
 
 test('captures shared chrome geometry for overview, transactions, and balances', async ({
