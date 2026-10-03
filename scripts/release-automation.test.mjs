@@ -16,7 +16,6 @@ import {
   isVerifiedWebFlowCommitter,
   selectCanonicalMergedReleasePr,
   selectCanonicalOpenReleasePr,
-  decideReleasePrSearchPage,
   decideReleaseFinalizeState,
   decideReleasePleaseState,
   decideStaleReleaseState,
@@ -752,14 +751,43 @@ describe('check-stale-release command API boundary', () => {
     conclusion: 'success',
   };
 
-  it('fails explicitly when bounded merged Release PR pagination is exhausted', async () => {
+  it('uses the upstream 200-merged-PR window without treating its end as exhaustion', async () => {
+    const mergedRows = Array.from({ length: 100 }, (_, index) => ({
+      number: index + 1,
+      state: 'closed',
+      merged_at: '2026-01-01T00:00:00Z',
+    }));
     const fake = await makeStaleReleaseCommandFake({
-      pages: Array.from({ length: 3 }, () => Array.from({ length: 100 }, () => ({}))),
+      pages: [mergedRows, mergedRows, [mergedReleasePr()]],
     });
     try {
       const result = runStaleReleaseCommand(fake);
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /merged Release PR search bound exhausted after 3 pages/);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^release_state=clear$/m);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.match(invocations, /pulls\?state=closed.*page=1/);
+      assert.match(invocations, /pulls\?state=closed.*page=2/);
+      assert.doesNotMatch(invocations, /pulls\?state=closed.*page=3/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['an empty body', ''],
+    ['an overflow body marker', '<!-- release notes are available in the overflow endpoint -->'],
+  ])('recognizes a merged pending Release PR with %s', async (_description, body) => {
+    const fake = await makeStaleReleaseCommandFake({
+      closedPullRequests: [mergedReleasePr({ body })],
+      workflowRuns: [activeRun],
+      jobsByRun: { 100: [] },
+      runId: '999',
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^release_state=deferred$/m);
+      assert.match(result.stdout, /deferring Release Please/);
     } finally {
       await rm(fake.directory, { recursive: true, force: true });
     }
@@ -866,6 +894,33 @@ describe('check-stale-release command API boundary', () => {
       const invocations = await readFile(fake.logPath, 'utf8');
       assert.match(invocations, /actions\/runs\/101\/jobs/);
       assert.doesNotMatch(invocations, /actions\/runs\/100\/jobs/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers the current run over a newer duplicate-SHA run', async () => {
+    const newerRun = {
+      ...activeRun,
+      id: 101,
+      status: 'queued',
+      run_attempt: 1,
+      created_at: '2026-01-02T00:00:00Z',
+    };
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [activeRun, newerRun],
+      jobsByRun: { 100: [terminalFinalizer], 101: [] },
+      pullRequestsByNumber: { 42: [mergedReleasePr()] },
+      runId: '100',
+    });
+    try {
+      const result = runStaleReleaseCommand(fake, { GITHUB_SHA: mergeSha });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /stale merged canonical Release PR/);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.match(invocations, /actions\/runs\/100\/jobs/);
+      assert.doesNotMatch(invocations, /actions\/runs\/101\/jobs/);
+      assert.doesNotMatch(result.stdout, /deferring Release Please/);
     } finally {
       await rm(fake.directory, { recursive: true, force: true });
     }
@@ -1380,15 +1435,6 @@ describe('canonical Release PR and provenance guards', () => {
       }).state,
       'stale',
     );
-  });
-
-  it('stops bounded Release PR pagination before silently dropping pages', () => {
-    assert.equal(decideReleasePrSearchPage({ page: 1, resultCount: 100, maxPages: 3 }), 'continue');
-    assert.equal(
-      decideReleasePrSearchPage({ page: 3, resultCount: 100, maxPages: 3 }),
-      'exhausted',
-    );
-    assert.equal(decideReleasePrSearchPage({ page: 3, resultCount: 99, maxPages: 3 }), 'complete');
   });
 
   it('runs post-merge Release PR and commit validation through classify-main-release', async () => {

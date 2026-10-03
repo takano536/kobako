@@ -13,20 +13,10 @@ export const PENDING_LABEL = 'autorelease: pending';
 export const TAGGED_LABEL = 'autorelease: tagged';
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-export const MAX_RELEASE_PR_PAGES = 3;
+export const MAX_MERGED_RELEASE_PR_RESULTS = 200;
 export const RELEASE_FINALIZE_JOB = 'release-finalize';
 export const MAX_WORKFLOW_LOOKUP_ATTEMPTS = 3;
 export const MAX_LABEL_LOOKUP_ATTEMPTS = 3;
-export function decideReleasePrSearchPage({
-  page,
-  resultCount,
-  pageSize = 100,
-  maxPages = MAX_RELEASE_PR_PAGES,
-} = {}) {
-  if (resultCount < pageSize) return 'complete';
-  if (page >= maxPages) return 'exhausted';
-  return 'continue';
-}
 
 function asString(value) {
   return typeof value === 'string' ? value : '';
@@ -1064,8 +1054,7 @@ function isMergedPendingReleasePr(pr) {
     Boolean(pr?.merged_at || pr?.merged) &&
     asString(pr?.state) === 'closed' &&
     asString(pr?.base?.ref) === 'main' &&
-    labelNames(pr).has(PENDING_LABEL) &&
-    parseReleasePleaseBody(pr?.body).length > 0
+    labelNames(pr).has(PENDING_LABEL)
   );
 }
 
@@ -1140,7 +1129,8 @@ function openReleasePullRequests(repository) {
 
 function closedReleasePullRequests(repository) {
   const pullRequests = [];
-  for (let page = 1; page <= MAX_RELEASE_PR_PAGES; page += 1) {
+  let mergedCount = 0;
+  for (let page = 1; mergedCount < MAX_MERGED_RELEASE_PR_RESULTS; page += 1) {
     const response = ghApi(
       repository,
       `pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100&page=${page}`,
@@ -1148,19 +1138,15 @@ function closedReleasePullRequests(repository) {
     if (!Array.isArray(response)) {
       throw new Error(`merged Release PR search page ${page} did not return an array`);
     }
-    pullRequests.push(...response);
-    const pageState = decideReleasePrSearchPage({
-      page,
-      resultCount: response.length,
-    });
-    if (pageState === 'complete') return pullRequests;
-    if (pageState === 'exhausted') {
-      throw new Error(
-        `merged Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`,
-      );
+    for (const pullRequest of response) {
+      if (!pullRequest?.merged_at && !pullRequest?.merged) continue;
+      pullRequests.push(pullRequest);
+      mergedCount += 1;
+      if (mergedCount >= MAX_MERGED_RELEASE_PR_RESULTS) return pullRequests;
     }
+    if (response.length < 100) return pullRequests;
   }
-  throw new Error(`merged Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`);
+  return pullRequests;
 }
 
 function releaseTargetPresence(repository, tag, expectedSha) {
@@ -1312,12 +1298,19 @@ function latestMainPushWorkflowRun(repository, mergeSha) {
     branch: 'main',
     tokenEnv: 'ACTIONS_GH_TOKEN',
   });
-  return selectLatestWorkflowRun(runs, {
+  const selection = {
     repository,
     event: 'push',
     headSha: mergeSha,
     headBranch: 'main',
-  });
+  };
+  const currentRunId = asString(process.env.GITHUB_RUN_ID);
+  if (currentRunId) {
+    const currentRuns = runs.filter((run) => String(run?.id) === currentRunId);
+    const validatedCurrentRun = selectLatestWorkflowRun(currentRuns, selection);
+    if (validatedCurrentRun) return validatedCurrentRun;
+  }
+  return selectLatestWorkflowRun(runs, selection);
 }
 
 function releaseFinalizeEvidence(repository, mergeSha) {
