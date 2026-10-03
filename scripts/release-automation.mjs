@@ -16,6 +16,7 @@ const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 export const MAX_RELEASE_PR_PAGES = 3;
 export const RELEASE_FINALIZE_JOB = 'release-finalize';
 export const MAX_WORKFLOW_LOOKUP_ATTEMPTS = 3;
+export const MAX_LABEL_LOOKUP_ATTEMPTS = 3;
 export function decideReleasePrSearchPage({
   page,
   resultCount,
@@ -914,13 +915,27 @@ function workflowRunsForHead(repository, sha, { event, branch, tokenEnv = 'GH_TO
 }
 
 function compareWorkflowRuns(left, right) {
+  const leftId = Number(left?.id) || 0;
+  const rightId = Number(right?.id) || 0;
   const leftAttempt = Number(left?.run_attempt) || 0;
   const rightAttempt = Number(right?.run_attempt) || 0;
+  if (leftId && rightId) {
+    if (leftId !== rightId) return leftId - rightId;
+    if (leftAttempt !== rightAttempt) return leftAttempt - rightAttempt;
+  }
+  const leftCreated = asString(left?.created_at);
+  const rightCreated = asString(right?.created_at);
+  if (leftCreated !== rightCreated) return leftCreated < rightCreated ? -1 : 1;
   if (leftAttempt !== rightAttempt) return leftAttempt - rightAttempt;
-  const leftUpdated = asString(left?.updated_at || left?.created_at);
-  const rightUpdated = asString(right?.updated_at || right?.created_at);
+  const leftUpdated = asString(left?.updated_at || left?.completed_at || left?.started_at);
+  const rightUpdated = asString(right?.updated_at || right?.completed_at || right?.started_at);
   if (leftUpdated !== rightUpdated) return leftUpdated < rightUpdated ? -1 : 1;
-  return (Number(left?.id) || 0) - (Number(right?.id) || 0);
+  return leftId - rightId;
+}
+
+function workflowRunIsCurrent(run) {
+  const currentRunId = asString(process.env.GITHUB_RUN_ID);
+  return Boolean(currentRunId && String(run?.id) === currentRunId);
 }
 
 export function selectLatestWorkflowRun(
@@ -951,14 +966,17 @@ const ACTIVE_WORKFLOW_STATUSES = new Set([
   'pending',
 ]);
 
-export function decideReleaseFinalizeState({ run, releaseFinalizeJob } = {}) {
+export function decideReleaseFinalizeState({ run, releaseFinalizeJob, currentRun = false } = {}) {
+  if (releaseFinalizeJob?.status === 'completed') return 'stale';
+  if (currentRun) return 'stale';
   if (!run || typeof run !== 'object') return 'unknown';
-  if (ACTIVE_WORKFLOW_STATUSES.has(run.status)) return 'deferred';
+  if (ACTIVE_WORKFLOW_STATUSES.has(run.status)) {
+    return !releaseFinalizeJob || ACTIVE_WORKFLOW_STATUSES.has(releaseFinalizeJob.status)
+      ? 'deferred'
+      : 'unknown';
+  }
   if (run.status !== 'completed') return 'unknown';
-  if (!releaseFinalizeJob) return run.conclusion === 'success' ? 'unknown' : 'stale';
-  if (ACTIVE_WORKFLOW_STATUSES.has(releaseFinalizeJob.status)) return 'deferred';
-  if (releaseFinalizeJob.status !== 'completed') return 'unknown';
-  return 'stale';
+  return 'unknown';
 }
 
 export function decideReleasePleaseState({ pendingMerged = [], workflowStates = [] } = {}) {
@@ -977,6 +995,7 @@ export function decideReleasePleaseState({ pendingMerged = [], workflowStates = 
       decideReleaseFinalizeState({
         run: evidence?.run,
         releaseFinalizeJob: evidence?.releaseFinalizeJob,
+        currentRun: evidence?.currentRun,
       });
     return { ...item, state };
   });
@@ -1040,6 +1059,55 @@ export function selectCanonicalOpenReleasePr(
   }
   return candidates[0] || null;
 }
+function isMergedPendingReleasePr(pr) {
+  return (
+    Boolean(pr?.merged_at || pr?.merged) &&
+    asString(pr?.state) === 'closed' &&
+    asString(pr?.base?.ref) === 'main' &&
+    labelNames(pr).has(PENDING_LABEL) &&
+    parseReleasePleaseBody(pr?.body).length > 0
+  );
+}
+
+function scanPendingMergedReleasePullRequests(
+  pullRequests,
+  { repository = 'takano536/kobako', appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '' } = {},
+) {
+  const canonical = [];
+  const nonCanonical = [];
+  for (const pr of Array.isArray(pullRequests) ? pullRequests : []) {
+    if (!isMergedPendingReleasePr(pr)) continue;
+    const identity = validateCanonicalReleasePr(pr, {
+      repository,
+      state: 'merged',
+      allowTaggedRecovery: true,
+      appBotLogin,
+    });
+    if (identity.ok) {
+      canonical.push({ pr, identity });
+    } else {
+      nonCanonical.push({
+        number: pr?.number,
+        mergeSha: identity.mergeSha,
+        errors: identity.errors,
+      });
+    }
+  }
+  return { canonical, nonCanonical };
+}
+
+function nonCanonicalPendingReleaseError(nonCanonical) {
+  const details = nonCanonical
+    .map(
+      (item) =>
+        `#${item.number || 'unknown'}${item.mergeSha ? ` (${item.mergeSha})` : ''}: ${item.errors.join('; ')}`,
+    )
+    .join(', ');
+  return new Error(
+    `non-canonical merged Release PR still has ${PENDING_LABEL}: ${details}. Release Please cannot safely create the next release; repair or remove the pending label only after validating the same merge SHA`,
+  );
+}
+
 export function decideStaleReleaseState(
   pullRequests,
   { repository = 'takano536/kobako', appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '' } = {},
@@ -1071,15 +1139,14 @@ function openReleasePullRequests(repository) {
 }
 
 function closedReleasePullRequests(repository) {
-  const head = encodeURIComponent(`${repository}:${RELEASE_BRANCH}`);
   const pullRequests = [];
   for (let page = 1; page <= MAX_RELEASE_PR_PAGES; page += 1) {
     const response = ghApi(
       repository,
-      `pulls?state=closed&head=${head}&base=main&per_page=100&page=${page}`,
+      `pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100&page=${page}`,
     );
     if (!Array.isArray(response)) {
-      throw new Error(`closed Release PR search page ${page} did not return an array`);
+      throw new Error(`merged Release PR search page ${page} did not return an array`);
     }
     pullRequests.push(...response);
     const pageState = decideReleasePrSearchPage({
@@ -1089,13 +1156,11 @@ function closedReleasePullRequests(repository) {
     if (pageState === 'complete') return pullRequests;
     if (pageState === 'exhausted') {
       throw new Error(
-        `closed canonical Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`,
+        `merged Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`,
       );
     }
   }
-  throw new Error(
-    `closed canonical Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`,
-  );
+  throw new Error(`merged Release PR search bound exhausted after ${MAX_RELEASE_PR_PAGES} pages`);
 }
 
 function releaseTargetPresence(repository, tag, expectedSha) {
@@ -1108,11 +1173,18 @@ function releaseTargetPresence(repository, tag, expectedSha) {
   });
   const tagSha = asSha(tagRef?.object?.sha);
   const releaseSha = asSha(release?.target_commitish);
+  const releaseExists = Boolean(release && typeof release === 'object' && !Array.isArray(release));
+  const releaseMetadataMatches =
+    release?.tag_name === tag && release?.draft === false && release?.prerelease === false;
   return {
     tagExists: Boolean(tagRef),
-    releaseExists: Boolean(release),
+    releaseExists,
     targetMatches: Boolean(
-      tagSha && releaseSha && tagSha === expectedSha && releaseSha === expectedSha,
+      tagSha &&
+      releaseSha &&
+      tagSha === expectedSha &&
+      releaseSha === expectedSha &&
+      releaseMetadataMatches,
     ),
   };
 }
@@ -1255,24 +1327,63 @@ function releaseFinalizeEvidence(repository, mergeSha) {
     if (run) break;
     if (attempt < MAX_WORKFLOW_LOOKUP_ATTEMPTS) runCommand('sleep', [String(attempt)]);
   }
-  if (!run || run.status !== 'completed') {
-    return { mergeSha, run, releaseFinalizeJob: null };
-  }
+  if (!run) return { mergeSha, run: null, releaseFinalizeJob: null, currentRun: false };
   const jobs = workflowRunJobs(repository, run.id, { tokenEnv: 'ACTIONS_GH_TOKEN' });
   const releaseFinalizeJob =
     jobs
       .filter((job) => job?.name === RELEASE_FINALIZE_JOB)
       .sort(compareWorkflowRuns)
       .at(-1) || null;
-  return { mergeSha, run, releaseFinalizeJob };
+  return {
+    mergeSha,
+    run,
+    releaseFinalizeJob,
+    currentRun: workflowRunIsCurrent(run),
+  };
+}
+
+function refreshCurrentRunReleasePullRequests(
+  repository,
+  candidates,
+  { appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '' } = {},
+) {
+  let refreshed = [];
+  for (let attempt = 1; attempt <= MAX_LABEL_LOOKUP_ATTEMPTS; attempt += 1) {
+    refreshed = candidates.map((candidate) => getPullRequest(repository, candidate.pr.number));
+    const scan = scanPendingMergedReleasePullRequests(refreshed, {
+      repository,
+      appBotLogin,
+    });
+    if (scan.nonCanonical.length > 0) throw nonCanonicalPendingReleaseError(scan.nonCanonical);
+    if (scan.canonical.length === 0) return refreshed;
+    if (attempt < MAX_LABEL_LOOKUP_ATTEMPTS) runCommand('sleep', [String(attempt)]);
+  }
+  return refreshed;
+}
+
+function staleReleaseDecision(repository, pullRequests, appBotLogin) {
+  const scan = scanPendingMergedReleasePullRequests(pullRequests, {
+    repository,
+    appBotLogin,
+  });
+  if (scan.nonCanonical.length > 0) throw nonCanonicalPendingReleaseError(scan.nonCanonical);
+  return {
+    scan,
+    decision: decideStaleReleaseState(
+      scan.canonical.map((candidate) => candidate.pr),
+      { repository, appBotLogin },
+    ),
+  };
 }
 
 function commandCheckStaleRelease() {
   const repository = repositoryEnvironment();
-  const prDecision = decideStaleReleaseState(closedReleasePullRequests(repository), {
+  const appBotLogin = process.env.RELEASE_APP_BOT_LOGIN || '';
+  let { scan, decision: prDecision } = staleReleaseDecision(
     repository,
-    appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
-  });
+    closedReleasePullRequests(repository),
+    appBotLogin,
+  );
   if (prDecision.action === 'clear') {
     emit('release_state', 'clear');
     emit('stale_release', 'false');
@@ -1282,9 +1393,35 @@ function commandCheckStaleRelease() {
     throw new Error('ACTIONS_GH_TOKEN is required to determine Release finalize state');
   }
 
-  const workflowStates = prDecision.pendingMerged.map((pending) =>
+  let workflowStates = prDecision.pendingMerged.map((pending) =>
     releaseFinalizeEvidence(repository, pending.mergeSha),
   );
+  const evidenceBySha = new Map(workflowStates.map((evidence) => [evidence.mergeSha, evidence]));
+  const currentCandidates = scan.canonical.filter(
+    (candidate) => evidenceBySha.get(candidate.identity.mergeSha)?.currentRun,
+  );
+  if (currentCandidates.length > 0) {
+    const refreshed = refreshCurrentRunReleasePullRequests(repository, currentCandidates, {
+      appBotLogin,
+    });
+    const refreshedByNumber = new Map(
+      refreshed.map((pullRequest) => [String(pullRequest?.number), pullRequest]),
+    );
+    const mergedPullRequests = scan.canonical.map(
+      (candidate) => refreshedByNumber.get(String(candidate.pr.number)) || candidate.pr,
+    );
+    const refreshedDecision = staleReleaseDecision(repository, mergedPullRequests, appBotLogin);
+    prDecision = refreshedDecision.decision;
+    if (prDecision.action === 'clear') {
+      emit('release_state', 'clear');
+      emit('stale_release', 'false');
+      return;
+    }
+    workflowStates = prDecision.pendingMerged.map((pending) =>
+      releaseFinalizeEvidence(repository, pending.mergeSha),
+    );
+  }
+
   const releaseDecision = decideReleasePleaseState({
     pendingMerged: prDecision.pendingMerged,
     workflowStates,
@@ -1325,8 +1462,10 @@ function commandCheckStaleRelease() {
     }
     const evidence = workflowStates.find((item) => item.mergeSha === pending.mergeSha);
     const runSummary = evidence?.run
-      ? `CI run ${evidence.run.id} is terminal`
-      : 'the M CI run is terminal';
+      ? `CI run ${evidence.run.id} is ${evidence.run.status || 'unknown'}; release-finalize job is ${
+          evidence.releaseFinalizeJob?.status || 'missing'
+        }`
+      : 'the M CI run is missing';
     return `#${pending.number} (${pending.mergeSha}; ${runSummary}; ${targetSummary})`;
   });
   emit('release_state', 'stale');

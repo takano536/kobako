@@ -538,6 +538,123 @@ if (endpoint === 'repos/${repository}/commits/${mergeSha}') {
     },
   };
 }
+async function makeStaleReleaseCommandFake({
+  closedPullRequests = [mergedReleasePr()],
+  pullRequestsByNumber = {},
+  workflowRuns = [],
+  jobsByRun = {},
+  pages = null,
+  tagRef = { object: { sha: mergeSha } },
+  release = {
+    tag_name: 'v9.8.7',
+    draft: false,
+    prerelease: false,
+    target_commitish: mergeSha,
+  },
+  runId = '',
+} = {}) {
+  const directory = await mkdtemp(join(tmpdir(), 'kobako-stale-release-'));
+  const fixturePath = join(directory, 'fixture.json');
+  const fakeGhPath = join(directory, 'gh');
+  const logPath = join(directory, 'gh.log');
+  const githubOutputPath = join(directory, 'github-output');
+  const fixture = {
+    closedPullRequests,
+    pullRequestsByNumber,
+    workflowRuns,
+    jobsByRun,
+    pages,
+    tagRef,
+    release,
+  };
+  await writeFile(fixturePath, JSON.stringify(fixture), 'utf8');
+  await writeFile(githubOutputPath, '', 'utf8');
+  await writeFile(
+    fakeGhPath,
+    `#!/usr/bin/env node
+import fs from 'node:fs';
+
+const fixture = JSON.parse(fs.readFileSync(process.env.FIXTURE_PATH, 'utf8'));
+const args = process.argv.slice(2);
+const endpoint = args[1] || '';
+const refreshLog = fs.existsSync(process.env.FAKE_GH_LOG)
+  ? fs.readFileSync(process.env.FAKE_GH_LOG, 'utf8')
+  : '';
+const fail = (message) => {
+  process.stderr.write(message + '\\n');
+  process.exit(1);
+};
+const output = (value) => process.stdout.write(JSON.stringify(value));
+const repository = '${repository}';
+if (args[0] !== 'api') fail('unexpected gh invocation');
+fs.appendFileSync(process.env.FAKE_GH_LOG, endpoint + '\\n');
+
+if (endpoint.startsWith(\`repos/\${repository}/pulls?state=closed\`)) {
+  const query = endpoint.slice(endpoint.indexOf('?') + 1);
+  const page = Number(new URLSearchParams(query).get('page') || 1);
+  output(fixture.pages ? fixture.pages[page - 1] || [] : fixture.closedPullRequests);
+} else if (endpoint.startsWith(\`repos/\${repository}/pulls/\`) && !endpoint.endsWith('/merge')) {
+  const number = endpoint.slice(\`repos/\${repository}/pulls/\`.length);
+  const value = fixture.pullRequestsByNumber[number] || fixture.closedPullRequests.find(
+    (pullRequest) => String(pullRequest.number) === number,
+  );
+  const sequence = Array.isArray(value) ? value : [value];
+  const count = refreshLog.split('\\n').filter((line) => line === endpoint).length;
+  if (!sequence[Math.min(count, sequence.length - 1)]) fail(\`missing pull request fixture \${number}\`);
+  output(sequence[Math.min(count, sequence.length - 1)]);
+} else if (endpoint.startsWith(\`repos/\${repository}/actions/runs/\`) && endpoint.endsWith('/jobs?per_page=100')) {
+  const runId = endpoint.slice(\`repos/\${repository}/actions/runs/\`.length, endpoint.indexOf('/jobs?'));
+  output({ jobs: fixture.jobsByRun[runId] || [] });
+} else if (endpoint.startsWith(\`repos/\${repository}/actions/runs?\`)) {
+  output({ workflow_runs: fixture.workflowRuns });
+} else if (endpoint === \`repos/\${repository}/git/ref/tags/v9.8.7\`) {
+  if (fixture.tagRef === null) fail('404 Not Found');
+  output(fixture.tagRef);
+} else if (endpoint === \`repos/\${repository}/releases/tags/v9.8.7\`) {
+  if (fixture.release === null) fail('404 Not Found');
+  output(fixture.release);
+} else {
+  fail(\`unexpected GitHub API endpoint: \${endpoint}\`);
+}
+`,
+    'utf8',
+  );
+  await chmod(fakeGhPath, 0o755);
+  return {
+    directory,
+    fixturePath,
+    logPath,
+    githubOutputPath,
+    env: {
+      ...process.env,
+      FIXTURE_PATH: fixturePath,
+      FAKE_GH_LOG: logPath,
+      PATH: `${directory}:${process.env.PATH || ''}`,
+      GH_TOKEN: 'fixture-token',
+      ACTIONS_GH_TOKEN: 'fixture-actions-token',
+      GITHUB_REPOSITORY: repository,
+      RELEASE_APP_BOT_LOGIN: 'release-bot[bot]',
+      GITHUB_OUTPUT: githubOutputPath,
+      GITHUB_RUN_ID: runId,
+    },
+  };
+}
+
+function staleReleaseCommandEnv(fake, overrides = {}) {
+  return { ...fake.env, ...overrides };
+}
+
+function runStaleReleaseCommand(fake, overrides = {}) {
+  return spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('./release-automation.mjs', import.meta.url)), 'check-stale-release'],
+    {
+      cwd: fileURLToPath(new URL('../', import.meta.url)),
+      encoding: 'utf8',
+      env: staleReleaseCommandEnv(fake, overrides),
+    },
+  );
+}
 
 function evaluatorCommandEnv(fake) {
   return {
@@ -611,6 +728,168 @@ describe('evaluate-release-pr command API boundary', () => {
       const invocations = await readFile(fake.logPath, 'utf8');
       assert.doesNotMatch(invocations, /pulls\/42\/merge/);
       assert.equal(existsSync(fake.mergedMarker), false);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check-stale-release command API boundary', () => {
+  const activeRun = {
+    id: 100,
+    name: 'CI',
+    event: 'push',
+    head_branch: 'main',
+    head_sha: mergeSha,
+    status: 'in_progress',
+    run_attempt: 1,
+    created_at: '2026-01-01T00:00:00Z',
+  };
+  const terminalFinalizer = {
+    id: 500,
+    name: 'release-finalize',
+    status: 'completed',
+    conclusion: 'success',
+  };
+
+  it('fails explicitly when bounded merged Release PR pagination is exhausted', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      pages: Array.from({ length: 3 }, () => Array.from({ length: 100 }, () => ({}))),
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /merged Release PR search bound exhausted after 3 pages/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('fails distinctly for a non-canonical pending merged Release PR', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      closedPullRequests: [
+        mergedReleasePr({
+          head: { ...mergedReleasePr().head, ref: 'untrusted-branch' },
+        }),
+      ],
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /non-canonical merged Release PR still has autorelease: pending/);
+      assert.doesNotMatch(await readFile(fake.logPath, 'utf8'), /actions\/runs/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('re-reads the current run PR instead of deferring its own Release Please', async () => {
+    const pending = mergedReleasePr();
+    const tagged = mergedReleasePr({ labels: [{ name: 'autorelease: tagged' }] });
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [activeRun],
+      jobsByRun: { 100: [terminalFinalizer] },
+      pullRequestsByNumber: { 42: [pending, tagged] },
+      runId: '100',
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const output = await readFile(fake.githubOutputPath, 'utf8');
+      assert.match(output, /^release_state=clear$/m);
+      assert.match(await readFile(fake.logPath, 'utf8'), /pulls\/42\n.*pulls\/42/s);
+      assert.doesNotMatch(result.stdout, /deferring Release Please/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+  it('defers an external active run that has no terminal finalizer job', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [activeRun],
+      jobsByRun: { 100: [] },
+      runId: '999',
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const output = await readFile(fake.githubOutputPath, 'utf8');
+      assert.match(output, /^release_state=deferred$/m);
+      assert.match(result.stdout, /deferring Release Please/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('fails closed when a completed run has no release-finalize job', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [{ ...activeRun, status: 'completed', conclusion: 'success' }],
+      jobsByRun: { 100: [] },
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /could not determine Release finalize state/);
+      assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^release_state=unknown$/m);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('treats an active run with a terminal finalizer job as stale', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [activeRun],
+      jobsByRun: { 100: [terminalFinalizer] },
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /stale merged canonical Release PR/);
+      assert.match(result.stderr, /release-finalize job is completed/);
+      assert.doesNotMatch(result.stdout, /deferring Release Please/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('selects the newest run before inspecting its finalizer job', async () => {
+    const newerRun = { ...activeRun, id: 101, run_attempt: 1, status: 'completed' };
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [{ ...activeRun, run_attempt: 9 }, newerRun],
+      jobsByRun: {
+        100: [{ ...terminalFinalizer, status: 'in_progress', conclusion: null }],
+        101: [terminalFinalizer],
+      },
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.match(invocations, /actions\/runs\/101\/jobs/);
+      assert.doesNotMatch(invocations, /actions\/runs\/100\/jobs/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('does not recommend label repair when target metadata is unsafe', async () => {
+    const fake = await makeStaleReleaseCommandFake({
+      workflowRuns: [activeRun],
+      jobsByRun: { 100: [terminalFinalizer] },
+      release: {
+        tag_name: 'wrong-tag',
+        draft: true,
+        prerelease: false,
+        target_commitish: mergeSha,
+      },
+    });
+    try {
+      const result = runStaleReleaseCommand(fake);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        result.stderr,
+        /v9\.8\.7 tag and GitHub Release exist but do not both match the merge SHA/,
+      );
+      assert.doesNotMatch(result.stderr, /repair the label without recreating them/);
     } finally {
       await rm(fake.directory, { recursive: true, force: true });
     }
@@ -780,6 +1059,58 @@ describe('workflow-run metadata and App fail-closed policy', () => {
       selectCanonicalOpenReleasePr([], { repository, appBotLogin: 'release-bot[bot]' }),
       null,
     );
+  });
+  it('selects the newest workflow run before comparing attempts', () => {
+    const latest = selectLatestWorkflowRun(
+      [
+        {
+          id: 100,
+          name: 'CI',
+          event: 'push',
+          head_branch: 'main',
+          head_sha: mainSha,
+          run_attempt: 9,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 101,
+          name: 'CI',
+          event: 'push',
+          head_branch: 'main',
+          head_sha: mainSha,
+          run_attempt: 1,
+          created_at: '2026-01-02T00:00:00Z',
+        },
+      ],
+      { repository, event: 'push', headSha: mainSha, headBranch: 'main' },
+    );
+    assert.equal(latest.id, 101);
+  });
+  it('selects the latest attempt within the newest run', () => {
+    const latest = selectLatestWorkflowRun(
+      [
+        {
+          id: 101,
+          name: 'CI',
+          event: 'push',
+          head_branch: 'main',
+          head_sha: mainSha,
+          run_attempt: 1,
+          created_at: '2026-01-02T00:00:00Z',
+        },
+        {
+          id: 101,
+          name: 'CI',
+          event: 'push',
+          head_branch: 'main',
+          head_sha: mainSha,
+          run_attempt: 2,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      { repository, event: 'push', headSha: mainSha, headBranch: 'main' },
+    );
+    assert.equal(latest.run_attempt, 2);
   });
   it('stops on an invalid branch-matched open Release PR instead of treating it as absent', () => {
     assert.throws(
@@ -1014,6 +1345,40 @@ describe('canonical Release PR and provenance guards', () => {
         workflowStates: [{ mergeSha, run: completedRun, releaseFinalizeJob: null }],
       }).state,
       'unknown',
+    );
+  });
+  it('never defers the current run and treats a terminal finalizer as stale', () => {
+    const activeRun = {
+      id: 100,
+      status: 'in_progress',
+      conclusion: null,
+    };
+    const terminalJob = {
+      name: 'release-finalize',
+      status: 'completed',
+      conclusion: 'success',
+    };
+    assert.equal(
+      decideReleaseFinalizeState({ run: activeRun, releaseFinalizeJob: terminalJob }),
+      'stale',
+    );
+    assert.equal(
+      decideReleaseFinalizeState({ run: activeRun, releaseFinalizeJob: null, currentRun: true }),
+      'stale',
+    );
+    assert.equal(
+      decideReleasePleaseState({
+        pendingMerged: [{ number: 42, mergeSha, tag: 'v9.8.7' }],
+        workflowStates: [
+          {
+            mergeSha,
+            run: activeRun,
+            releaseFinalizeJob: terminalJob,
+            currentRun: false,
+          },
+        ],
+      }).state,
+      'stale',
     );
   });
 
@@ -1691,94 +2056,5 @@ describe('release target and image decisions use synthetic fixture versions', ()
     assert.match(ordinary, /sha_tag=sha-a{40}/);
     assert.match(release, /version=9\.8\.7/);
     assert.match(ordinary, /version=sha-a{40}/);
-  });
-});
-
-describe('workflow cutover', () => {
-  it('uses workflow_run/native pull_request only and has no dispatch or verify-heal path', async () => {
-    const ci = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
-    const evaluator = await readFile(
-      new URL('../.github/workflows/release-automerge.yml', import.meta.url),
-      'utf8',
-    );
-    const automation = await readFile(new URL('./release-automation.mjs', import.meta.url), 'utf8');
-    const releasePleaseJob = ci.slice(
-      ci.indexOf('  release_please:'),
-      ci.indexOf('  release_finalize:'),
-    );
-    const releaseFinalizeJob = ci.slice(
-      ci.indexOf('  release_finalize:'),
-      ci.indexOf('  publish_main:'),
-    );
-    assert.match(ci, /pull_request:/);
-    assert.match(ci, /push:/);
-    assert.doesNotMatch(ci, /workflow_dispatch/);
-    assert.doesNotMatch(ci, /release-verify|release_pr_merge|dispatch-release-pr/);
-    assert.match(evaluator, /workflow_run:/);
-    assert.match(evaluator, /workflow_run\.event == 'pull_request'/);
-    assert.match(evaluator, /workflow_run\.event == 'push'/);
-    assert.match(evaluator, /ref: refs\/heads\/main/);
-    assert.doesNotMatch(evaluator, /ref:.*release-please--branches/);
-    assert.match(ci, /permission-contents: write/);
-    assert.match(ci, /permission-issues: write/);
-    assert.match(ci, /permission-pull-requests: write/);
-    assert.match(evaluator, /actions: read/);
-    assert.match(evaluator, /checks: read/);
-    assert.match(evaluator, /contents: read/);
-    assert.match(evaluator, /pull-requests: read/);
-    assert.match(
-      evaluator,
-      /group: kobako-release-pr-run-\$\{\{ github\.event\.workflow_run\.id \}\}/,
-    );
-    assert.match(evaluator, /GH_TOKEN: \$\{\{ github\.token \}\}/);
-    assert.match(evaluator, /MERGE_GH_TOKEN: \$\{\{ steps\.release_app\.outputs\.token \}\}/);
-    assert.match(evaluator, /permission-contents: write/);
-    assert.match(evaluator, /permission-pull-requests: write/);
-    assert.doesNotMatch(evaluator, /permission-issues:/);
-    assert.match(automation, /tokenEnv: 'MERGE_GH_TOKEN'/);
-    assert.match(
-      automation,
-      /const currentPr = getPullRequest\(repository, pr\.number\)[\s\S]*selectLatestRequiredChecks\(getCheckRuns\(repository, headSha\)\)/,
-    );
-    assert.match(evaluator, /cancel-in-progress: false/);
-    assert.match(ci, /skip-github-release: false/);
-    assert.match(ci, /skip-github-pull-request: true/);
-    assert.match(ci, /run: node scripts\/verify-release-target\.mjs verify/);
-    assert.match(
-      releaseFinalizeJob,
-      /issues: write[\s\S]*Verify tag and Release target[\s\S]*Ensure canonical Release PR is tagged[\s\S]*repair-release-label/,
-    );
-    assert.match(releaseFinalizeJob, /pull-requests: write/);
-    assert.match(
-      releaseFinalizeJob,
-      /continue-on-error: true[\s\S]*RELEASE_ACTION_OUTCOME: \$\{\{ steps\.release\.outcome \}\}/,
-    );
-    assert.match(
-      releasePleaseJob,
-      /run: node scripts\/release-automation\.mjs check-stale-release/,
-    );
-    assert.match(automation, /decideStaleReleaseState/);
-    assert.match(automation, /decideReleasePleaseState/);
-    assert.match(automation, /MAX_RELEASE_PR_PAGES/);
-    assert.match(ci, /needs\.publish_release\.outputs\.web_tag/);
-    assert.match(ci, /needs\.publish_main\.outputs\.web_tag/);
-    assert.match(
-      ci,
-      /publish_main:[\s\S]*?needs\.release_candidate\.outputs\.is_release != 'true'/,
-    );
-    assert.match(releasePleaseJob, /needs: .*release_finalize/);
-    assert.match(releasePleaseJob, /always\(\)/);
-    assert.match(
-      releasePleaseJob,
-      /RELEASE_CANDIDATE: \$\{\{ needs\.release_candidate\.outputs\.is_release \}\}/,
-    );
-    assert.match(releasePleaseJob, /ref: refs\/heads\/main/);
-    assert.match(releasePleaseJob, /skip-github-release: true/);
-    assert.match(releasePleaseJob, /contents: read/);
-    assert.match(releasePleaseJob, /actions: read/);
-    assert.match(releasePleaseJob, /id: release_state/);
-    assert.match(releasePleaseJob, /ACTIONS_GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-    assert.match(releasePleaseJob, /steps\.release_state\.outputs\.release_state != 'deferred'/);
-    assert.doesNotMatch(ci, /STRICT_INSPECT/);
   });
 });

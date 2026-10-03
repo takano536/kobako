@@ -337,6 +337,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
     outputs:
       at_tip: ${{ steps.main_tip.outputs.at_tip }}
     steps:
@@ -406,7 +407,7 @@ jobs:
         id: release_state
         if: steps.main_tip.outputs.at_tip == 'true'
         env:
-          GH_TOKEN: ${{ steps.release_app.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTIONS_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_APP_BOT_LOGIN: ${{ vars.RELEASE_APP_BOT_LOGIN }}
         run: node scripts/release-automation.mjs check-stale-release
