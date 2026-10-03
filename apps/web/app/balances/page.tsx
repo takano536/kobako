@@ -35,13 +35,13 @@ export default async function BalancesPage() {
           <div className="balance-summary-item">
             <dt className="balance-summary-label">資産</dt>
             <dd className="balance-summary-value">
-              <SignedYen value={summary.assets} />
+              <SignedYen value={summary.assets} tone="positive" />
             </dd>
           </div>
           <div className="balance-summary-item">
             <dt className="balance-summary-label">負債</dt>
             <dd className="balance-summary-value">
-              <SignedYen value={summary.liabilities} />
+              <SignedYen value={summary.liabilities} tone="negative" />
             </dd>
           </div>
           <div className="balance-summary-item">

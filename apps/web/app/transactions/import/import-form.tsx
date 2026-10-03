@@ -14,7 +14,13 @@ import {
   type RefObject,
 } from 'react';
 
-import { formatTransactionAmount, formatYen, transactionAmountTone } from '../../../src/lib/format';
+import {
+  formatTransactionAmount,
+  formatYen,
+  moneyToneClass,
+  transactionAmountTone,
+  type MoneyTone,
+} from '../../../src/lib/format';
 import { moneyManagerImportAction } from './actions';
 import {
   initialMoneyManagerImportState,
@@ -115,7 +121,7 @@ function previewAmount(row: MoneyManagerPreviewRow): string {
     : formatTransactionAmount(row.kind, row.amount);
 }
 
-function previewAmountTone(row: MoneyManagerPreviewRow): 'positive' | 'negative' | 'neutral' {
+function previewAmountTone(row: MoneyManagerPreviewRow): MoneyTone {
   return row.kind === 'transfer' ? 'neutral' : transactionAmountTone(row.kind, row.amount);
 }
 
@@ -342,21 +348,31 @@ function SummarySection({ preview }: { preview: MoneyManagerImportPreview }) {
             <span>収入</span>
             <small>{preview.counts.income.count.toLocaleString('ja-JP')}件</small>
           </dt>
-          <dd>{formatTransactionAmount('income', preview.counts.income.total)}</dd>
+          <dd
+            className={moneyToneClass(transactionAmountTone('income', preview.counts.income.total))}
+          >
+            {formatTransactionAmount('income', preview.counts.income.total)}
+          </dd>
         </div>
         <div className="is-expense">
           <dt>
             <span>支出</span>
             <small>{preview.counts.expense.count.toLocaleString('ja-JP')}件</small>
           </dt>
-          <dd>{formatTransactionAmount('expense', preview.counts.expense.total)}</dd>
+          <dd
+            className={moneyToneClass(
+              transactionAmountTone('expense', preview.counts.expense.total),
+            )}
+          >
+            {formatTransactionAmount('expense', preview.counts.expense.total)}
+          </dd>
         </div>
         <div className="is-transfer">
           <dt>
             <span>振替</span>
             <small>{preview.counts.transfer.count.toLocaleString('ja-JP')}件</small>
           </dt>
-          <dd>{formatYen(preview.counts.transfer.total)}</dd>
+          <dd className={moneyToneClass('neutral')}>{formatYen(preview.counts.transfer.total)}</dd>
         </div>
       </dl>
       <div className="import-new-names-list">
@@ -467,7 +483,7 @@ function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
                     <strong>{main}</strong>
                     {sub ? <span>{sub}</span> : null}
                   </span>
-                  <span className={`record-amount ${previewAmountTone(row)}`}>
+                  <span className={`record-amount ${moneyToneClass(previewAmountTone(row))}`}>
                     {previewAmount(row)}
                   </span>
                 </div>
@@ -592,13 +608,13 @@ function SuccessView({
       label: '収入',
       count: success.counts.income.count,
       amount: formatTransactionAmount('income', success.counts.income.total),
-      tone: 'positive',
+      tone: transactionAmountTone('income', success.counts.income.total),
     },
     {
       label: '支出',
       count: success.counts.expense.count,
       amount: formatTransactionAmount('expense', success.counts.expense.total),
-      tone: 'negative',
+      tone: transactionAmountTone('expense', success.counts.expense.total),
     },
     {
       label: '振替',
@@ -631,7 +647,7 @@ function SuccessView({
               <span>{kind.label}</span>
               <small>{kind.count.toLocaleString('ja-JP')}件</small>
             </dt>
-            <dd>{kind.amount}</dd>
+            <dd className={moneyToneClass(kind.tone)}>{kind.amount}</dd>
           </div>
         ))}
       </dl>

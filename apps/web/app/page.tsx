@@ -12,7 +12,7 @@ import {
 
 import { CategoryDot } from '../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../src/lib/ledger-data';
-import { expenseBarWidth, formatExpenseShare, formatYen, monthLabel } from '../src/lib/format';
+import { expenseBarWidth, formatExpenseShare, monthLabel } from '../src/lib/format';
 import {
   ActionLink,
   EmptyState,
@@ -67,13 +67,17 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <h2 id="expense-label" className="eyebrow">
             この月の支出
           </h2>
-          <p className="lead-amount">{formatYen(totals.expense)}</p>
+          <p className="lead-amount">
+            <SignedYen value={totals.expense} tone="negative" />
+          </p>
         </div>
 
         <dl className="summary-inline" aria-label={`${monthLabel(month)}の収入と差額`}>
           <div role="group" aria-labelledby="income-total-label">
             <dt id="income-total-label">収入</dt>
-            <dd>{formatYen(totals.income)}</dd>
+            <dd>
+              <SignedYen value={totals.income} tone="positive" />
+            </dd>
           </div>
           <div role="group" aria-labelledby="difference-total-label">
             <dt id="difference-total-label">収支差額</dt>
@@ -112,7 +116,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                     <span className="category-bar" aria-hidden="true">
                       <span />
                     </span>
-                    <span className="category-amount">{formatYen(category.total)}</span>
+                    <span className="category-amount">
+                      <SignedYen value={category.total} tone="negative" />
+                    </span>
                     <small className="category-share">
                       {formatExpenseShare(category.total, totals.expense)}
                     </small>

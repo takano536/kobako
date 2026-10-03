@@ -8,6 +8,7 @@ import {
   formatTransactionAmount,
   formatYen,
   groupTransactionsByDate,
+  moneyTone,
   transactionAmountTone,
 } from './format';
 
@@ -23,6 +24,16 @@ describe('amount display', () => {
     expect(transactionAmountTone('expense', -500)).toBe('positive');
     expect(transactionAmountTone('income', -500)).toBe('negative');
     expect(transactionAmountTone('income', 0)).toBe('neutral');
+  });
+
+  it('classifies signed, zero, and very large money values', () => {
+    expect(moneyTone('123')).toBe('positive');
+    expect(moneyTone('−123')).toBe('negative');
+    expect(moneyTone('-123', 'positive')).toBe('negative');
+    expect(moneyTone('0')).toBe('neutral');
+    expect(moneyTone('-0')).toBe('neutral');
+    expect(moneyTone('999999999999999999999999999999999999')).toBe('positive');
+    expect(moneyTone('123', 'negative')).toBe('negative');
   });
 });
 
