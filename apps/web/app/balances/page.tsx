@@ -78,10 +78,6 @@ export default async function BalancesPage() {
           </ul>
         )}
       </section>
-
-      <p className="balances-note">
-        集計条件：全期間の取引を集計し、未来日付の取引も含みます。初期残高は反映されません。口座未指定の取引は除外します。
-      </p>
     </PageShell>
   );
 }

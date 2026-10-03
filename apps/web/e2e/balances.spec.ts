@@ -109,6 +109,52 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   );
 }
 
+async function expectStickyBalanceSummary(page: Page): Promise<void> {
+  const summary = page.locator('.balance-summary');
+  await expect(summary).toHaveCSS('position', 'sticky');
+  await expect(page.locator('.balances-note')).toHaveCount(0);
+
+  const initialGeometry = await page.evaluate(() => {
+    const header = document.querySelector<HTMLElement>('.site-header');
+    const summary = document.querySelector<HTMLElement>('.balance-summary');
+    if (!header || !summary) {
+      throw new Error('balance summary geometry elements are missing');
+    }
+    return {
+      headerBottom: header.getBoundingClientRect().bottom,
+      summaryTop: summary.getBoundingClientRect().top,
+    };
+  });
+  expect(initialGeometry.summaryTop).toBeGreaterThanOrEqual(initialGeometry.headerBottom);
+
+  await page.evaluate(() => {
+    document.body.style.minHeight = '200vh';
+    const summary = document.querySelector<HTMLElement>('.balance-summary');
+    if (!summary) {
+      throw new Error('balance summary is missing');
+    }
+    window.scrollTo(0, summary.getBoundingClientRect().top + window.scrollY);
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.querySelector<HTMLElement>('.balance-summary')?.getBoundingClientRect().top,
+      ),
+    )
+    .toBeGreaterThanOrEqual(-1);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.querySelector<HTMLElement>('.balance-summary')?.getBoundingClientRect().top,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
+  await page.evaluate(() => {
+    document.body.style.minHeight = '';
+    window.scrollTo(0, 0);
+  });
+}
+
 async function seedAccounts(): Promise<{ longAccountId: number; destinationAccountId: number }> {
   const client = database();
   const rows = await client.sql<{ id: number; name: string }[]>`
@@ -220,6 +266,7 @@ test('reaches balances from navigation and shows a deterministic empty state', a
   await expect(page.getByRole('heading', { name: '口座がありません' })).toBeVisible();
   await expect(page.getByText('Excel ファイルを取り込むと、口座が追加されます。')).toBeVisible();
   await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
+  await expectStickyBalanceSummary(page);
   await page.screenshot({
     path: `${screenshotDirectory}/balances-empty-desktop.png`,
     fullPage: true,
@@ -239,6 +286,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await openBalances(page);
   await expectAccountBalance(page, longAccountName, '−500円');
   await expectBalanceSummary(page, { assets: '0', liabilities: '500', net: '−500' });
+  await expectStickyBalanceSummary(page);
   await expect(accountRow(page, longAccountName).locator('a, button')).toHaveCount(0);
   await expectAccountBalance(page, destinationAccountName, '0円');
 
@@ -304,6 +352,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await assertNoHorizontalOverflow(page);
+  await expectStickyBalanceSummary(page);
   await expect(accountRow(page, longAccountName)).toBeVisible();
   await expect(
     accountRow(page, longAccountName).getByText(longAccountName, { exact: true }),
