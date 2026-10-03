@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/takano536/kobako/compare/v0.4.1...v0.5.0) (2026-10-03)
+
+
+### Features
+
+* **web:** add balances page with asset/liability summary ([#31](https://github.com/takano536/kobako/issues/31)) ([b0b61f2](https://github.com/takano536/kobako/commit/b0b61f2b50ae93a6613b951e3e8c6e57b34ed949))
+
 ## [0.4.1](https://github.com/takano536/kobako/compare/v0.4.0...v0.4.1) (2026-10-02)
 
 
