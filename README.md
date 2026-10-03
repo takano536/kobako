@@ -49,11 +49,11 @@ docker compose up --build
 
 ### DB migration
 
-Compose は PostgreSQL が healthy になってから `web` を起動し、`web` コンテナ内の migration を Next.js の起動前に自動適用します。`worker` は `web` の health check 後に起動するため、通常構成に終了済みの `migrate` サービスは残りません。`web` と PostgreSQL だけの構成でも、公開 image の `web` タグを更新して通常の Deploy を実行すれば動作し、既存の DB volume を削除する必要はありません。
+Compose は PostgreSQL が healthy になってから `web` を起動し、単一の公開 image (`ghcr.io/takano536/kobako:<tag>`) に同梱した migration を Next.js の起動前に自動適用します。`worker` は `web` の health check 後に起動するため、通常構成に終了済みの `migrate` サービスは残りません。`web` と PostgreSQL だけの構成でも、公開 image tag を更新して通常の Deploy を実行すれば動作し、既存の DB volume を削除する必要はありません。
 
-古い Compose をコピーした既存の Dockge スタックは、`migrate` サービスを削除し、`web` の `depends_on` を `postgres: condition: service_healthy`、`worker` の `depends_on` を `web: condition: service_healthy` に新しい `compose.yaml` と合わせてください。古い `migrate` サービスを残しても害はありませんが、もう必要ありません。
+既存の Dockge スタックを更新する場合は、`migrate` サービスを削除し、`web` の `depends_on` を `postgres: condition: service_healthy`、`worker` の `depends_on` を `web: condition: service_healthy` に新しい `compose.yaml` と合わせてください。新構成では別の migration サービスを使用しません。
 
-migration に失敗した場合は `web` は起動せず、コンテナログに `[web] migration failed` が出力されます。ログを確認して原因を解消してください。migration はスキーマを自動 downgrade しないため、バージョンダウン前にはバックアップを取得し、アプリと DB スキーマの互換性を確認してください。`kobako-migrate` image は通常の Compose/Dockge Deploy には不要で、手動保守や外部オーケストレーション向けの高度な用途に残されています。
+Migration に失敗した場合は `web` は起動せず、コンテナログに `[web] migration failed` が出力されます。ログを確認して原因を解消してください。migration はスキーマを自動 downgrade しないため、バージョンダウン前にはバックアップを取得し、アプリと DB スキーマの互換性を確認してください。公開 image は migration を同梱しているため、通常の Compose/Dockge Deploy に別 image は不要です。
 
 データは Docker volume に保存されます。通常の停止には次のコマンドを使います。
 

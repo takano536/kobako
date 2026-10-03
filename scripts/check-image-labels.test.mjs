@@ -20,8 +20,8 @@ async function runCheck(mode, inspectOutput = '') {
     `#!/bin/sh
 case "${mode}" in
   not-found) echo 'manifest unknown' >&2; exit 1 ;;
-  reference-not-found) echo 'ERROR: ghcr.io/takano536/kobako-web:sha-a: not found' >&2; exit 1 ;;
-  other-reference-not-found) echo 'ERROR: ghcr.io/takano536/kobako-web:other: not found' >&2; exit 1 ;;
+  reference-not-found) echo 'ERROR: ghcr.io/takano536/kobako:sha-a: not found' >&2; exit 1 ;;
+  other-reference-not-found) echo 'ERROR: ghcr.io/takano536/kobako:other: not found' >&2; exit 1 ;;
   transient) echo 'HTTP 403 Forbidden' >&2; exit 1 ;;
   *) printf '%s\\n' "$FAKE_INSPECT_OUTPUT" ;;
 esac
@@ -37,7 +37,7 @@ esac
       PATH: `${bin}:${process.env.PATH}`,
       FAKE_INSPECT_OUTPUT: inspectOutput,
       GITHUB_OUTPUT: output,
-      IMAGE: 'ghcr.io/takano536/kobako-web',
+      IMAGE: 'ghcr.io/takano536/kobako',
       TAG: 'sha-a',
       EXPECTED_SOURCE: source,
       EXPECTED_REVISION: revision,

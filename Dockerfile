@@ -47,12 +47,6 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD ["nod
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "apps/web/server.js"]
 
-FROM runtime AS migrate
-COPY --from=build --chown=node:node /out/db ./
-USER node
-STOPSIGNAL SIGTERM
-CMD ["node", "dist/migrate.js"]
-
 FROM runtime AS worker
 COPY --from=build --chown=node:node /out/worker ./
 USER node
