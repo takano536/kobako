@@ -2,7 +2,13 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { EmptyLedgerMotif } from '../../src/lib/category';
-import { monthLabel } from '../../src/lib/format';
+import {
+  formatYen,
+  moneyTone,
+  moneyToneClass,
+  type MoneyDirection,
+  monthLabel,
+} from '../../src/lib/format';
 import type { TransactionListType } from '../../src/lib/transaction-query';
 import { MonthPickerField } from '../transactions/date-picker-field';
 
@@ -28,6 +34,22 @@ export function ActionLink({ href, children, variant = 'quiet', icon }: ActionLi
     </Link>
   );
 }
+
+export function SignedYen({ value, tone }: { value: string | number; tone?: MoneyDirection }) {
+  const source =
+    typeof value === 'number' ? Math.trunc(value).toString() : value.trim().replace(/^−/, '-');
+  const resolvedTone = moneyTone(value, tone);
+  const negative = source.startsWith('-') && resolvedTone === 'negative';
+  const absoluteValue = negative ? source.slice(1) : source;
+  return (
+    <span className={moneyToneClass(resolvedTone)}>
+      {negative ? <span className="sr-only">マイナス</span> : null}
+      <span aria-hidden="true">{negative ? '−' : ''}</span>
+      {formatYen(absoluteValue)}
+    </span>
+  );
+}
+
 export function RegisterTransactionAction({
   month,
   variant = 'primary',

@@ -4,8 +4,10 @@
   --ink: #292e2b;
   --muted: #737b74;
   --accent: #4f7867;
-  --negative: #8a5b5b;
-  --positive: #4f7867;
+  --status-negative: #8a5b5b;
+  --status-positive: #4f7867;
+  --money-positive: #245c9c;
+  --money-negative: #a33a36;
   --rule: #dfe1da;
   --bar: #dfe5dd;
   --text-title: 1.375rem;
@@ -445,6 +447,90 @@ h3 {
   margin-top: var(--space-section);
 }
 
+.balance-summary {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+}
+
+.balance-summary-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--rule);
+}
+
+.balance-summary-item {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-within);
+  justify-items: end;
+  padding-block: var(--space-group);
+  padding-inline: var(--space-group);
+  text-align: right;
+}
+
+.balance-summary-item + .balance-summary-item {
+  border-inline-start: 1px solid var(--rule);
+}
+
+.balance-summary-item:last-child {
+  padding-inline-end: 0;
+}
+
+.balance-summary-label {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+}
+
+.balance-summary-value {
+  min-width: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+
+.balance-summary-net {
+  font-weight: 600;
+}
+
+.balance-list {
+  --balance-amount-column: minmax(0, 12rem);
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.balance-row {
+  display: flex;
+  gap: var(--space-group);
+  align-items: baseline;
+  min-width: 0;
+  min-height: 44px;
+  padding-block: var(--space-item);
+  border-bottom: 1px solid var(--rule);
+}
+
+.balance-account-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: var(--leading-body);
+}
+
+.balance-amount {
+  flex: 0 0 auto;
+  width: var(--balance-amount-column);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .section-heading {
   display: flex;
   flex-wrap: wrap;
@@ -609,23 +695,25 @@ h3 {
   line-height: var(--leading-body);
 }
 
+.money-amount {
+  color: var(--ink);
+}
+.money-amount.money-neutral {
+  color: var(--ink);
+}
+
+.money-amount.money-positive {
+  color: var(--money-positive);
+}
+
+.money-amount.money-negative {
+  color: var(--money-negative);
+}
 .record-amount {
   font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
-}
-
-.record-amount.negative {
-  color: var(--negative);
-}
-
-.record-amount.positive {
-  color: var(--positive);
-}
-
-.record-amount.neutral {
-  color: var(--muted);
 }
 
 .filter-bar {
@@ -1237,8 +1325,8 @@ h3 {
 
 .ledger-form .amount-field.has-error,
 .ledger-form .entry-detail-grid .field.has-error {
-  border-bottom-color: var(--negative);
-  box-shadow: inset 0 -1px 0 var(--negative);
+  border-bottom-color: var(--status-negative);
+  box-shadow: inset 0 -1px 0 var(--status-negative);
 }
 
 .optional-label {
@@ -1652,12 +1740,12 @@ h3 {
 
 .import-file-error {
   margin-top: 10px;
-  color: var(--negative);
+  color: var(--status-negative);
   font-size: var(--text-small);
 }
 .import-file-error-card:focus-visible,
 .import-file-error:focus-visible {
-  outline: 3px solid var(--negative);
+  outline: 3px solid var(--status-negative);
   outline-offset: 3px;
 }
 
@@ -1830,21 +1918,6 @@ h3 {
   font-weight: 700;
 }
 
-.import-kind-summary .is-income dd,
-.import-success-counts .is-income dd {
-  color: var(--positive);
-}
-
-.import-kind-summary .is-expense dd,
-.import-success-counts .is-expense dd {
-  color: var(--negative);
-}
-
-.import-kind-summary .is-transfer dd,
-.import-success-counts .is-neutral dd {
-  color: var(--muted);
-}
-
 .import-secondary-stats {
   display: flex;
   flex-wrap: wrap;
@@ -1861,7 +1934,7 @@ h3 {
 }
 
 .import-secondary-stats .is-error {
-  color: var(--negative);
+  color: var(--status-negative);
 }
 
 .import-new-names-list {
@@ -2048,12 +2121,12 @@ h3 {
 
 .kind-income .import-kind-badge {
   background: #e9f2e9;
-  color: var(--positive);
+  color: var(--status-positive);
 }
 
 .kind-expense .import-kind-badge {
   background: #f8eae7;
-  color: var(--negative);
+  color: var(--status-negative);
 }
 
 .import-transaction-date {
@@ -2127,7 +2200,7 @@ h3 {
 }
 
 .import-confirm-note {
-  color: var(--negative);
+  color: var(--status-negative);
   font-size: var(--text-small);
 }
 
@@ -2407,6 +2480,101 @@ h3 {
 
   .summary-inline > div {
     justify-items: start;
+  }
+
+  .balance-summary > .section-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    border: 0;
+    white-space: nowrap;
+  }
+
+  .balance-summary-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .balance-summary-item {
+    display: flex;
+    gap: var(--space-within);
+    align-items: baseline;
+    justify-content: space-between;
+    padding-block: var(--space-item);
+    padding-inline: var(--space-item);
+    text-align: right;
+  }
+
+  .balance-summary-item + .balance-summary-item {
+    padding-inline-start: var(--space-item);
+    border-inline-start: 1px solid var(--rule);
+    border-top: 0;
+  }
+
+  .balance-summary-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .balance-summary-item:nth-child(2) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .balance-summary-item:nth-child(3) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-inline-end: 0;
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .balance-summary-item:nth-child(1),
+  .balance-summary-item:nth-child(2) {
+    flex-direction: column;
+    gap: 0;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-block: var(--space-within);
+    padding-inline-end: 0;
+  }
+
+  .balance-summary-item:nth-child(2) {
+    padding-inline-start: 0;
+  }
+
+  .balance-summary-label {
+    font-size: var(--text-small);
+    white-space: nowrap;
+  }
+
+  .balance-summary-value {
+    width: auto;
+    max-width: 100%;
+    font-size: var(--text-body);
+    letter-spacing: normal;
+    text-align: right;
+  }
+
+  .balance-summary-item:nth-child(1) .balance-summary-value,
+  .balance-summary-item:nth-child(2) .balance-summary-value {
+    font-size: var(--text-small);
+  }
+
+  .balance-list {
+    --balance-amount-column: 52%;
+  }
+
+  .balance-row {
+    gap: var(--space-item);
+  }
+
+  .balance-amount {
+    font-size: var(--text-body);
+    letter-spacing: normal;
   }
 
   .category-list {

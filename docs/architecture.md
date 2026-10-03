@@ -50,10 +50,12 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 `/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜ、同じ通常行レイアウトで振替を `振替元 → 振替先` として表示します。種別で「振替」を選ぶと振替だけを表示し、カテゴリ filter は振替では無効です。振替は収入・支出の全 totals から除外します。
 
-登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。保存時に種別を変更した場合、`convertTransactionToTransfer` または `convertTransferToTransaction` が一つの DB transaction 内で新しい行を作成して元行を削除します。成功時は対象月へ redirect し、`/` と `/transactions` を `revalidatePath` して読み取りを新しくします。振替の DB mutation は household と両口座を明示的に照合し、別家計の口座や同一口座を拒否します。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。保存時に種別を変更した場合、`convertTransactionToTransfer` または `convertTransferToTransaction` が一つの DB transaction 内で新しい行を作成して元行を削除します。成功時は対象月へ redirect し、`/`、`/transactions`、`/balances` を `revalidatePath` して読み取りを新しくします。振替の DB mutation は household と両口座を明示的に照合し、別家計の口座や同一口座を拒否します。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+
+通常取引の編集フォームは口座欄を持たないため、入力の `accountId` が `undefined` の場合は既存の口座を保持します。DB API に `null` を明示した場合だけ口座を解除し、取込取引の編集で残高が変わらないようにします。
 表示側は signed amount を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
 
-`getAccountBalances` は口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、口座を持たない手入力の取引を除外します。
+`getAccountBalances` は全期間の取引から口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、未来日付の取引も含めます。初期残高は持たず、口座を持たない手入力の取引を除外します。
 
 日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 

@@ -12,6 +12,23 @@ function integerText(value: string | number): string {
   const digits = (negative ? source.slice(1) : source).replace(/^0+(?=\d)/, '');
   return digits === '0' ? '0' : `${negative ? '-' : ''}${digits}`;
 }
+export type MoneyTone = 'positive' | 'negative' | 'neutral';
+
+export type MoneyDirection = Exclude<MoneyTone, 'neutral'>;
+export function moneyToneClass(tone: MoneyTone): string {
+  return `money-amount money-${tone}`;
+}
+
+export function moneyTone(value: string | number, direction?: MoneyDirection): MoneyTone {
+  const text = integerText(value);
+  if (text === '0') {
+    return 'neutral';
+  }
+  if (text.startsWith('-')) {
+    return 'negative';
+  }
+  return direction ?? 'positive';
+}
 
 export function formatYen(value: string | number): string {
   const text = integerText(value);
@@ -34,11 +51,10 @@ export function formatTransactionAmount(
   const isNegativeCashflow = type === 'expense' ? !negativeAmount : negativeAmount;
   return `${isNegativeCashflow ? '−' : '＋'}${formatYen(magnitude)}`;
 }
-
 export function transactionAmountTone(
   type: 'expense' | 'income',
   value: string | number,
-): 'positive' | 'negative' | 'neutral' {
+): MoneyTone {
   const text = integerText(value);
   const negativeAmount = text.startsWith('-');
   const magnitude = negativeAmount ? text.slice(1) : text;

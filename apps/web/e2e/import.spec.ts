@@ -175,6 +175,7 @@ async function writeFixtures(): Promise<void> {
   const keyboardBytes = buildMoneyManagerWorkbook({
     rows: [
       {
+        account: markerFor(runMarkerPrefix, 'keyboard-expense-account'),
         dateSerial: date,
         category: markerFor(runMarkerPrefix, 'keyboard-expense-category'),
         content: markerFor(runMarkerPrefix, 'keyboard-expense-content'),
@@ -185,6 +186,7 @@ async function writeFixtures(): Promise<void> {
       },
       {
         dateSerial: nextDate,
+        account: markerFor(runMarkerPrefix, 'keyboard-income-account'),
         category: markerFor(runMarkerPrefix, 'keyboard-income-category'),
         content: markerFor(runMarkerPrefix, 'keyboard-income-content'),
         memo: markerFor(runMarkerPrefix, 'keyboard-income-memo'),
@@ -197,6 +199,7 @@ async function writeFixtures(): Promise<void> {
   const mobileBytes = buildMoneyManagerWorkbook({
     rows: [
       {
+        account: markerFor(runMarkerPrefix, 'mobile-account'),
         dateSerial: date,
         category: markerFor(runMarkerPrefix, 'mobile-category'),
         content: markerFor(runMarkerPrefix, 'mobile-content'),
@@ -210,6 +213,7 @@ async function writeFixtures(): Promise<void> {
   const multiMonthBytes = buildMoneyManagerWorkbook({
     rows: [
       {
+        account: markerFor(runMarkerPrefix, 'multi-old-account'),
         dateSerial: excelSerial(month, 7),
         category: markerFor(runMarkerPrefix, 'multi-old-category'),
         content: markerFor(runMarkerPrefix, 'multi-old-content'),
@@ -220,6 +224,7 @@ async function writeFixtures(): Promise<void> {
       },
       {
         dateSerial: excelSerial(nextMonth, 7),
+        account: markerFor(runMarkerPrefix, 'multi-new-account'),
         category: markerFor(runMarkerPrefix, 'multi-new-category'),
         content: markerFor(runMarkerPrefix, 'multi-new-content'),
         memo: markerFor(runMarkerPrefix, 'multi-new-memo'),
@@ -532,6 +537,18 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   await expect(
     page.getByRole('group', { name: '収入' }).getByText('5,678円', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('link', { name: '残高', exact: true }).click();
+  await expect(page).toHaveURL(/\/balances$/);
+  const balanceList = page.getByRole('list', { name: '口座別残高' });
+  const expenseBalanceRow = balanceList.getByRole('listitem').filter({
+    hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
+  });
+  await expect(expenseBalanceRow.locator('.balance-amount')).toContainText('1,234円');
+  await expect(expenseBalanceRow.locator('.balance-amount .sr-only')).toHaveText('マイナス');
+  const incomeBalanceRow = balanceList.getByRole('listitem').filter({
+    hasText: markerFor(runMarkerPrefix, 'valid-income-account'),
+  });
+  await expect(incomeBalanceRow.locator('.balance-amount')).toContainText('5,678円');
 });
 
 test('warns on re-import and disables confirmation without new rows', async ({ page }) => {
