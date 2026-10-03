@@ -19,6 +19,32 @@ const month = '9998-12';
 const longAccountName = `${markerPrefix}very long account name that wraps`;
 const destinationAccountName = `${markerPrefix}destination account`;
 const screenshotDirectory = '.tmp/screenshots';
+const summaryFixtureUnit = 999_999_999;
+const summaryFixtureAssetRows = 1_001;
+const summaryFixtureLiabilityRows = 3_003;
+const summaryFixtureAssetAccountName = `${markerPrefix}trillion-scale asset account`;
+const summaryFixtureSecondAssetAccountName = `${markerPrefix}trillion-scale second asset`;
+const summaryFixtureLiabilityAccountName = `${markerPrefix}trillion-scale liability account`;
+const summaryFixtureFillerAccountNames = Array.from(
+  { length: 24 },
+  (_, index) => `${markerPrefix}filler account ${String(index + 1).padStart(2, '0')}`,
+);
+const summaryFixtureAssetBalance = (
+  BigInt(summaryFixtureUnit) * BigInt(summaryFixtureAssetRows)
+).toString();
+const summaryFixtureAssets = (BigInt(summaryFixtureAssetBalance) * 2n).toString();
+const summaryFixtureLiabilities = (
+  BigInt(summaryFixtureUnit) * BigInt(summaryFixtureLiabilityRows)
+).toString();
+const summaryFixtureNet = (
+  BigInt(summaryFixtureAssets) - BigInt(summaryFixtureLiabilities)
+).toString();
+const formatFixtureAmount = (value: string): string => value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const summaryFixtureAssetsDisplay = formatFixtureAmount(summaryFixtureAssets);
+const summaryFixtureLiabilitiesDisplay = formatFixtureAmount(summaryFixtureLiabilities);
+const summaryFixtureNetMagnitudeDisplay = formatFixtureAmount(
+  (-BigInt(summaryFixtureNet)).toString(),
+);
 
 let databaseClient: DatabaseClient | undefined;
 let developmentUrl: string | undefined;
@@ -126,6 +152,12 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
     };
   });
   expect(initialGeometry.summaryTop).toBeGreaterThanOrEqual(initialGeometry.headerBottom);
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  const stickyHeight = await summary.evaluate((element) => element.getBoundingClientRect().height);
+  console.log(`BALANCE_STICKY_HEIGHT ${viewportWidth} ${stickyHeight}`);
+  if (viewportWidth <= 390) {
+    expect(stickyHeight).toBeLessThanOrEqual(90);
+  }
 
   await page.evaluate(() => {
     document.body.style.minHeight = '200vh';
@@ -153,6 +185,37 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
     document.body.style.minHeight = '';
     window.scrollTo(0, 0);
   });
+}
+async function expectSummaryValuesFit(page: Page): Promise<void> {
+  const values = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-value')).map((value) => ({
+      clientWidth: value.clientWidth,
+      scrollWidth: value.scrollWidth,
+      height: value.getBoundingClientRect().height,
+      lineHeight: Number.parseFloat(getComputedStyle(value).lineHeight),
+      whiteSpace: getComputedStyle(value).whiteSpace,
+    })),
+  );
+  expect(values).toHaveLength(3);
+  for (const value of values) {
+    expect(value.whiteSpace).toBe('nowrap');
+    expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
+    expect(value.height).toBeLessThanOrEqual(value.lineHeight + 1);
+  }
+}
+async function expectAccountValuesFit(page: Page): Promise<void> {
+  const values = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('.balance-amount')).map((value) => ({
+      clientWidth: value.clientWidth,
+      scrollWidth: value.scrollWidth,
+      whiteSpace: getComputedStyle(value).whiteSpace,
+    })),
+  );
+  expect(values.length).toBeGreaterThan(0);
+  for (const value of values) {
+    expect(value.whiteSpace).toBe('nowrap');
+    expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
+  }
 }
 
 async function seedAccounts(): Promise<{ longAccountId: number; destinationAccountId: number }> {
@@ -211,6 +274,110 @@ async function seedOrdinaryTransaction(accountId: number): Promise<number> {
     throw new Error('balances E2E ordinary transaction fixture was not created');
   }
   return transaction.id;
+}
+async function seedTrillionScaleBalances(): Promise<void> {
+  const client = database();
+  const accountNames = [
+    summaryFixtureAssetAccountName,
+    summaryFixtureSecondAssetAccountName,
+    summaryFixtureLiabilityAccountName,
+    ...summaryFixtureFillerAccountNames,
+  ];
+  const accountIds = new Map<string, number>();
+  for (const accountName of accountNames) {
+    const rows = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, ${accountName})
+      returning id
+    `;
+    const account = rows[0];
+    if (!account) {
+      throw new Error(`balances E2E account fixture was not created: ${accountName}`);
+    }
+    accountIds.set(accountName, account.id);
+  }
+
+  const categories = await client.sql<{ id: number; type: 'expense' | 'income' }[]>`
+    select id, type
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and type in ('expense', 'income')
+    order by id
+  `;
+  const incomeCategory = categories.find((category) => category.type === 'income');
+  const expenseCategory = categories.find((category) => category.type === 'expense');
+  const firstAssetAccountId = accountIds.get(summaryFixtureAssetAccountName);
+  const secondAssetAccountId = accountIds.get(summaryFixtureSecondAssetAccountName);
+  const liabilityAccountId = accountIds.get(summaryFixtureLiabilityAccountName);
+  if (
+    !incomeCategory ||
+    !expenseCategory ||
+    !firstAssetAccountId ||
+    !secondAssetAccountId ||
+    !liabilityAccountId
+  ) {
+    throw new Error('balances E2E trillion-scale fixtures were not created');
+  }
+
+  await client.sql`
+    insert into transactions (
+      household_id,
+      type,
+      amount,
+      occurred_on,
+      category_id,
+      account_id,
+      memo
+    )
+    select
+      ${DEFAULT_HOUSEHOLD_ID},
+      'income',
+      ${summaryFixtureUnit},
+      ${`${month}-01`},
+      ${incomeCategory.id},
+      ${firstAssetAccountId},
+      ${`${markerPrefix}trillion-asset-a-`} || series.row_number::text
+    from generate_series(1, ${summaryFixtureAssetRows}) as series(row_number)
+  `;
+  await client.sql`
+    insert into transactions (
+      household_id,
+      type,
+      amount,
+      occurred_on,
+      category_id,
+      account_id,
+      memo
+    )
+    select
+      ${DEFAULT_HOUSEHOLD_ID},
+      'income',
+      ${summaryFixtureUnit},
+      ${`${month}-02`},
+      ${incomeCategory.id},
+      ${secondAssetAccountId},
+      ${`${markerPrefix}trillion-asset-b-`} || series.row_number::text
+    from generate_series(1, ${summaryFixtureAssetRows}) as series(row_number)
+  `;
+  await client.sql`
+    insert into transactions (
+      household_id,
+      type,
+      amount,
+      occurred_on,
+      category_id,
+      account_id,
+      memo
+    )
+    select
+      ${DEFAULT_HOUSEHOLD_ID},
+      'expense',
+      ${summaryFixtureUnit},
+      ${`${month}-03`},
+      ${expenseCategory.id},
+      ${liabilityAccountId},
+      ${`${markerPrefix}trillion-liability-`} || series.row_number::text
+    from generate_series(1, ${summaryFixtureLiabilityRows}) as series(row_number)
+  `;
 }
 
 async function cleanupBalances(): Promise<void> {
@@ -398,6 +565,29 @@ test('captures shared chrome geometry for overview, transactions, and balances',
       });
       await assertNoHorizontalOverflow(page);
     }
+  }
+});
+test('keeps trillion-scale summary values on one line at narrow mobile widths', async ({
+  page,
+}) => {
+  await seedTrillionScaleBalances();
+
+  for (const width of [390, 360]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/balances');
+    await expectBalanceSummary(page, {
+      assets: summaryFixtureAssetsDisplay,
+      liabilities: summaryFixtureLiabilitiesDisplay,
+      net: `−${summaryFixtureNetMagnitudeDisplay}`,
+    });
+    await expectSummaryValuesFit(page);
+    await expectAccountValuesFit(page);
+    await expectStickyBalanceSummary(page);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-trillion-mobile-${width}.png`,
+      fullPage: true,
+    });
   }
 });
 

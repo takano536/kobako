@@ -466,12 +466,16 @@ h3 {
   gap: var(--space-within);
   justify-items: end;
   padding-block: var(--space-group);
+  padding-inline: var(--space-group);
   text-align: right;
 }
 
 .balance-summary-item + .balance-summary-item {
-  padding-inline-start: var(--space-group);
   border-inline-start: 1px solid var(--rule);
+}
+
+.balance-summary-item:last-child {
+  padding-inline-end: 0;
 }
 
 .balance-summary-label {
@@ -486,7 +490,7 @@ h3 {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: var(--leading-tight);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .balance-summary-net {
@@ -501,8 +505,7 @@ h3 {
 }
 
 .balance-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--balance-amount-column);
+  display: flex;
   gap: var(--space-group);
   align-items: baseline;
   min-width: 0;
@@ -512,18 +515,20 @@ h3 {
 }
 
 .balance-account-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: var(--leading-body);
 }
 
 .balance-amount {
-  min-width: 0;
+  flex: 0 0 auto;
+  width: var(--balance-amount-column);
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: var(--leading-body);
   text-align: right;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .section-heading {
@@ -2477,14 +2482,29 @@ h3 {
     justify-items: start;
   }
 
+  .balance-summary > .section-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    border: 0;
+    white-space: nowrap;
+  }
+
   .balance-summary-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .balance-summary-item {
+    display: flex;
     gap: var(--space-within);
-    justify-items: end;
+    align-items: baseline;
+    justify-content: space-between;
     padding-block: var(--space-item);
+    padding-inline: var(--space-item);
     text-align: right;
   }
 
@@ -2494,22 +2514,67 @@ h3 {
     border-top: 0;
   }
 
-  .balance-summary-label,
-  .balance-summary-value {
+  .balance-summary-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .balance-summary-item:nth-child(2) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .balance-summary-item:nth-child(3) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-inline-end: 0;
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .balance-summary-item:nth-child(1),
+  .balance-summary-item:nth-child(2) {
+    flex-direction: column;
+    gap: 0;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-block: var(--space-within);
+    padding-inline-end: 0;
+  }
+
+  .balance-summary-item:nth-child(2) {
+    padding-inline-start: 0;
+  }
+
+  .balance-summary-label {
     font-size: var(--text-small);
+    white-space: nowrap;
   }
 
   .balance-summary-value {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    font-size: var(--text-body);
+    letter-spacing: normal;
     text-align: right;
   }
 
+  .balance-summary-item:nth-child(1) .balance-summary-value,
+  .balance-summary-item:nth-child(2) .balance-summary-value {
+    font-size: var(--text-small);
+  }
+
   .balance-list {
-    --balance-amount-column: minmax(0, 44%);
+    --balance-amount-column: 52%;
   }
 
   .balance-row {
     gap: var(--space-item);
+  }
+
+  .balance-amount {
+    font-size: var(--text-body);
+    letter-spacing: normal;
   }
 
   .category-list {
