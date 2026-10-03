@@ -7,6 +7,7 @@ import { describe, it } from 'vitest';
 
 import {
   classifyReleaseTarget,
+  decideReleaseFinalizeOutcome,
   parseReleaseTag,
   validateReleaseObject,
 } from './verify-release-target.mjs';
@@ -39,6 +40,22 @@ describe('immutable release target states', () => {
     assert.equal(
       classifyReleaseTarget({ tagSha: 'd'.repeat(40), releaseExists: true, expectedSha }),
       'mismatch',
+    );
+  });
+});
+describe('Release finalize action outcome', () => {
+  it('tolerates an action failure only after a matching immutable target is verified', () => {
+    assert.equal(
+      decideReleaseFinalizeOutcome({ actionOutcome: 'failure', targetState: 'matching' }),
+      'tolerated-failure',
+    );
+    assert.equal(
+      decideReleaseFinalizeOutcome({ actionOutcome: 'failure', targetState: 'absent' }),
+      'fail',
+    );
+    assert.equal(
+      decideReleaseFinalizeOutcome({ actionOutcome: 'failure', targetState: 'mismatch' }),
+      'fail',
     );
   });
 });
@@ -93,7 +110,9 @@ async function makeVerifyTargetFake(release, tagSha = expectedSha, version = '0.
     path.join(bin, 'git'),
     `#!/bin/sh
 case "$1" in
-  ls-remote) printf '%s\\t%s\\n' "$FAKE_TAG_SHA" "$4" ;;
+  ls-remote)
+    if [ -n "$FAKE_TAG_SHA" ]; then printf '%s\\t%s\\n' "$FAKE_TAG_SHA" "$4"; fi
+    ;;
   fetch) exit 0 ;;
   rev-parse) printf '%s\\n' "$FAKE_TAG_SHA" ;;
   *) echo "unexpected git invocation: $*" >&2; exit 2 ;;
@@ -106,7 +125,7 @@ esac
   return { directory, releaseFile: path.join(directory, 'release.json'), tagSha };
 }
 
-async function runVerifyTarget(fake) {
+async function runVerifyTarget(fake, actionOutcome = '') {
   try {
     return spawnSync(process.execPath, [verifyTargetScript, 'verify'], {
       cwd: fake.directory,
@@ -120,6 +139,7 @@ async function runVerifyTarget(fake) {
         EXPECTED_SHA: expectedSha,
         RELEASE_TAG: '',
         GITHUB_OUTPUT: '',
+        RELEASE_ACTION_OUTCOME: actionOutcome,
       },
     });
   } finally {
@@ -185,5 +205,30 @@ describe('verify command metadata validation', () => {
     const result = await runVerifyTarget(fake);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /release tag v0\.3\.1 points at .* expected/);
+  });
+  it('tolerates a Release Please action failure after the immutable target matches', async () => {
+    const fake = await makeVerifyTargetFake({
+      draft: false,
+      prerelease: false,
+      tag_name: 'v0.3.1',
+      target_commitish: expectedSha,
+    });
+    const result = await runVerifyTarget(fake, 'failure');
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  });
+
+  it('fails an action failure when the immutable target is partial', async () => {
+    const fake = await makeVerifyTargetFake(
+      {
+        draft: false,
+        prerelease: false,
+        tag_name: 'v0.3.1',
+        target_commitish: expectedSha,
+      },
+      '',
+    );
+    const result = await runVerifyTarget(fake, 'failure');
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /only partially present/);
   });
 });

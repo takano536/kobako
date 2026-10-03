@@ -16,6 +16,10 @@ import {
   isVerifiedWebFlowCommitter,
   selectCanonicalMergedReleasePr,
   selectCanonicalOpenReleasePr,
+  decideReleasePrSearchPage,
+  decideReleaseFinalizeState,
+  decideReleasePleaseState,
+  decideStaleReleaseState,
   selectLatestRequiredChecks,
   selectLatestWorkflowRun,
   validateCanonicalReleasePr,
@@ -945,6 +949,83 @@ describe('canonical Release PR and provenance guards', () => {
     assert.equal(nonCanonical.action, 'refuse');
     assert.match(nonCanonical.errors.join('; '), /base ref/);
   });
+  it('distinguishes a stale merged pending Release PR from a normal no-change state', () => {
+    const stale = decideStaleReleaseState([mergedReleasePr()], {
+      repository,
+      appBotLogin: 'release-bot[bot]',
+    });
+    assert.deepEqual(stale, {
+      action: 'stale',
+      pendingMerged: [{ number: 42, mergeSha, tag: 'v9.8.7' }],
+    });
+
+    const clear = decideStaleReleaseState(
+      [mergedReleasePr({ labels: [{ name: 'autorelease: tagged' }] })],
+      { repository, appBotLogin: 'release-bot[bot]' },
+    );
+    assert.deepEqual(clear, { action: 'clear', pendingMerged: [] });
+  });
+  it('classifies clear, deferred, stale, and unknown finalization states', () => {
+    const pending = decideStaleReleaseState([mergedReleasePr()], {
+      repository,
+      appBotLogin: 'release-bot[bot]',
+    }).pendingMerged;
+    const activeRun = {
+      name: 'CI',
+      event: 'push',
+      head_branch: 'main',
+      head_sha: mergeSha,
+      status: 'in_progress',
+    };
+    assert.equal(
+      decideReleasePleaseState({
+        pendingMerged: [],
+        workflowStates: [],
+      }).state,
+      'clear',
+    );
+    assert.equal(
+      decideReleaseFinalizeState({ run: activeRun, releaseFinalizeJob: null }),
+      'deferred',
+    );
+    assert.equal(
+      decideReleasePleaseState({
+        pendingMerged: pending,
+        workflowStates: [{ mergeSha, run: activeRun, releaseFinalizeJob: null }],
+      }).state,
+      'deferred',
+    );
+    const completedRun = { ...activeRun, status: 'completed', conclusion: 'success' };
+    const completedJob = { name: 'release-finalize', status: 'completed', conclusion: 'success' };
+    assert.equal(
+      decideReleaseFinalizeState({ run: completedRun, releaseFinalizeJob: completedJob }),
+      'stale',
+    );
+    assert.equal(
+      decideReleasePleaseState({
+        pendingMerged: pending,
+        workflowStates: [{ mergeSha, run: completedRun, releaseFinalizeJob: completedJob }],
+      }).state,
+      'stale',
+    );
+    assert.equal(
+      decideReleasePleaseState({
+        pendingMerged: pending,
+        workflowStates: [{ mergeSha, run: completedRun, releaseFinalizeJob: null }],
+      }).state,
+      'unknown',
+    );
+  });
+
+  it('stops bounded Release PR pagination before silently dropping pages', () => {
+    assert.equal(decideReleasePrSearchPage({ page: 1, resultCount: 100, maxPages: 3 }), 'continue');
+    assert.equal(
+      decideReleasePrSearchPage({ page: 3, resultCount: 100, maxPages: 3 }),
+      'exhausted',
+    );
+    assert.equal(decideReleasePrSearchPage({ page: 3, resultCount: 99, maxPages: 3 }), 'complete');
+  });
+
   it('runs post-merge Release PR and commit validation through classify-main-release', async () => {
     const runClassification = async (pullRequest) => {
       const fake = await makeClassificationCommandFake({ pullRequest });
@@ -1667,6 +1748,18 @@ describe('workflow cutover', () => {
       releaseFinalizeJob,
       /issues: write[\s\S]*Verify tag and Release target[\s\S]*Ensure canonical Release PR is tagged[\s\S]*repair-release-label/,
     );
+    assert.match(releaseFinalizeJob, /pull-requests: write/);
+    assert.match(
+      releaseFinalizeJob,
+      /continue-on-error: true[\s\S]*RELEASE_ACTION_OUTCOME: \$\{\{ steps\.release\.outcome \}\}/,
+    );
+    assert.match(
+      releasePleaseJob,
+      /run: node scripts\/release-automation\.mjs check-stale-release/,
+    );
+    assert.match(automation, /decideStaleReleaseState/);
+    assert.match(automation, /decideReleasePleaseState/);
+    assert.match(automation, /MAX_RELEASE_PR_PAGES/);
     assert.match(ci, /needs\.publish_release\.outputs\.web_tag/);
     assert.match(ci, /needs\.publish_main\.outputs\.web_tag/);
     assert.match(
@@ -1682,8 +1775,10 @@ describe('workflow cutover', () => {
     assert.match(releasePleaseJob, /ref: refs\/heads\/main/);
     assert.match(releasePleaseJob, /skip-github-release: true/);
     assert.match(releasePleaseJob, /contents: read/);
-    assert.doesNotMatch(releasePleaseJob, /^\s+issues: write$/m);
-    assert.doesNotMatch(releasePleaseJob, /^\s+pull-requests: write$/m);
+    assert.match(releasePleaseJob, /actions: read/);
+    assert.match(releasePleaseJob, /id: release_state/);
+    assert.match(releasePleaseJob, /ACTIONS_GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+    assert.match(releasePleaseJob, /steps\.release_state\.outputs\.release_state != 'deferred'/);
     assert.doesNotMatch(ci, /STRICT_INSPECT/);
   });
 });
