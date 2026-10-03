@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/takano536/kobako/compare/v0.5.0...v0.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **ci:** harden release finalization permissions ([#33](https://github.com/takano536/kobako/issues/33)) ([57b8b28](https://github.com/takano536/kobako/commit/57b8b283ab0ec7c08720ba957bbab34e7ef5cf30))
+
 ## [0.5.0](https://github.com/takano536/kobako/compare/v0.4.1...v0.5.0) (2026-10-03)
 
 
