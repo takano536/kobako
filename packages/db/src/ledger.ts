@@ -527,17 +527,18 @@ export async function updateTransaction(
   id: number,
   input: TransactionInput,
 ): Promise<Transaction | null> {
+  const values = {
+    type: input.type,
+    amount: input.amount,
+    occurredOn: input.occurredOn,
+    categoryId: input.categoryId,
+    ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
+    memo: input.memo,
+    updatedAt: new Date(),
+  };
   const rows = await db
     .update(transactions)
-    .set({
-      type: input.type,
-      amount: input.amount,
-      occurredOn: input.occurredOn,
-      categoryId: input.categoryId,
-      accountId: input.accountId ?? null,
-      memo: input.memo,
-      updatedAt: new Date(),
-    })
+    .set(values)
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .returning();
   return rows[0] ?? null;
