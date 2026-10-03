@@ -445,6 +445,42 @@ h3 {
   margin-top: var(--space-section);
 }
 
+.balances-description {
+  max-width: 48rem;
+  color: var(--muted);
+  line-height: var(--leading-body);
+}
+
+.balance-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.balance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: var(--space-group);
+  align-items: baseline;
+  min-width: 0;
+  min-height: 44px;
+  padding-block: var(--space-item);
+  border-bottom: 1px solid var(--rule);
+}
+
+.balance-account-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: var(--leading-body);
+}
+
+.balance-amount {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .section-heading {
   display: flex;
   flex-wrap: wrap;

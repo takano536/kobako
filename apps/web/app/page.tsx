@@ -21,6 +21,7 @@ import {
   PageShell,
   RegisterTransactionAction,
   SectionHeading,
+  SignedYen,
 } from './_components/ui';
 import { TransactionRow } from './transactions/transaction-row';
 
@@ -47,8 +48,6 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     listTransactions(db, householdId, { month, limit: 5 }),
     getExpenseCategoryTotals(db, householdId, month),
   ]);
-  const differenceIsNegative = totals.difference.startsWith('-');
-  const differenceAmount = differenceIsNegative ? totals.difference.slice(1) : totals.difference;
 
   return (
     <PageShell className="overview-page">
@@ -79,9 +78,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <div role="group" aria-labelledby="difference-total-label">
             <dt id="difference-total-label">収支差額</dt>
             <dd>
-              {differenceIsNegative ? <span className="sr-only">マイナス</span> : null}
-              <span aria-hidden="true">{differenceIsNegative ? '−' : ''}</span>
-              {formatYen(differenceAmount)}
+              <SignedYen value={totals.difference} />
             </dd>
           </div>
         </dl>
