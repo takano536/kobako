@@ -36,8 +36,7 @@ if [[ -n "$release_tag" ]]; then
   emit mode release
   emit push true
   emit version "$version"
-  emit web_tag "$version"
-  emit migrate_tag "$version"
+  emit image_tag "$version"
   emit sha_tag "sha-${GITHUB_SHA}"
   emit promote_latest true
   emit release_tag "$release_tag"
@@ -49,8 +48,7 @@ case "$GITHUB_EVENT_NAME" in
     emit mode none
     emit push false
     emit version none
-    emit web_tag none
-    emit migrate_tag none
+    emit image_tag none
     emit promote_latest false
     ;;
   push)
@@ -58,8 +56,7 @@ case "$GITHUB_EVENT_NAME" in
       emit mode none
       emit push false
       emit version none
-      emit web_tag none
-      emit migrate_tag none
+      emit image_tag none
       emit promote_latest false
       exit 0
     fi
@@ -67,8 +64,7 @@ case "$GITHUB_EVENT_NAME" in
     emit mode main
     emit push true
     emit version "$sha_tag"
-    emit web_tag "$sha_tag"
-    emit migrate_tag "$sha_tag"
+    emit image_tag "$sha_tag"
     emit promote_latest true
     emit sha_tag "$sha_tag"
     ;;

@@ -20,7 +20,7 @@ services:
     build:
       context: .
       target: web
-    image: kobako-web:local
+    image: ghcr.io/takano536/kobako:local
     environment:
       DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-kobako_dev}:${POSTGRES_PASSWORD:-kobako_dev_password}@postgres:5432/${POSTGRES_DB:-kobako}}
       NODE_ENV: production

@@ -148,23 +148,10 @@ jobs:
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
             OCI_VERSION=sha-${{ github.sha }}
-          tags: kobako-web:local
+          tags: ghcr.io/takano536/kobako:local
           load: true
-          cache-from: type=gha,scope=kobako-web
-          cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
-      - name: Build migration image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          target: migrate
-          tags: kobako-migrate:local
-          build-args: |
-            OCI_SOURCE=https://github.com/takano536/kobako
-            OCI_REVISION=${{ github.sha }}
-            OCI_VERSION=sha-${{ github.sha }}
-          load: true
-          cache-from: type=gha,scope=kobako-migrate
-          cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
+          cache-from: type=gha,scope=kobako-image
+          cache-to: type=gha,mode=max,scope=kobako-image,ignore-error=true
       - name: Build worker image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -220,17 +207,8 @@ jobs:
           curl --fail http://127.0.0.1:3000/transactions
       - name: Verify bundled migrator in web image
         run: |
-          docker run --rm --entrypoint sh kobako-web:local -c \
+          docker run --rm --entrypoint sh ghcr.io/takano536/kobako:local -c \
             'test -f /app/migrator/dist/migrate.js && test -f /app/migrator/drizzle/meta/_journal.json'
-      - name: Verify standalone migration image remains usable
-        run: |
-          postgres_container_id="$(docker compose ps -q postgres)"
-          compose_network="$(docker inspect -f '{{range $network, $_ := .NetworkSettings.Networks}}{{$network}}{{end}}' "$postgres_container_id")"
-          database_url='postgresql://kobako_ci:kobako_ci_password@postgres:5432/kobako'
-          before="$(docker compose exec -T postgres psql -U kobako_ci -d kobako -Atc 'select count(*) from drizzle.__drizzle_migrations')"
-          docker run --rm --network "$compose_network" -e "DATABASE_URL=$database_url" kobako-migrate:local
-          after="$(docker compose exec -T postgres psql -U kobako_ci -d kobako -Atc 'select count(*) from drizzle.__drizzle_migrations')"
-          test "$after" = "$before"
       - name: Wait for idle worker and web services
         run: |
           sleep 30
@@ -535,8 +513,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      web_tag: ${{ steps.tags.outputs.web_tag }}
-      migrate_tag: ${{ steps.tags.outputs.migrate_tag }}
+      image_tag: ${{ steps.tags.outputs.image_tag }}
     steps:
       - name: Check out the exact main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -560,64 +537,35 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check existing web SHA image
-        id: web_tag
+      - name: Check existing SHA image
+        id: image_tag
         env:
-          IMAGE: ghcr.io/takano536/kobako-web
-          TAG: ${{ steps.tags.outputs.web_tag }}
+          IMAGE: ghcr.io/takano536/kobako
+          TAG: ${{ steps.tags.outputs.image_tag }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
           EXPECTED_REVISION: ${{ github.sha }}
           EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
           REQUIRE_VERSION: true
         run: ./scripts/check-image-labels.sh
-      - name: Build and push web SHA image
-        if: steps.web_tag.outputs.exists != 'true'
+      - name: Build and push SHA image
+        if: steps.image_tag.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           target: web
           push: true
-          tags: ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
+          tags: ghcr.io/takano536/kobako:${{ steps.tags.outputs.image_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
-            org.opencontainers.image.description=kobako production web image
+            org.opencontainers.image.description=kobako production image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
             OCI_VERSION=${{ steps.tags.outputs.version }}
-          cache-from: type=gha,scope=kobako-web
-          cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
-      - name: Check existing migration SHA image
-        id: migrate_tag
-        env:
-          IMAGE: ghcr.io/takano536/kobako-migrate
-          TAG: ${{ steps.tags.outputs.migrate_tag }}
-          EXPECTED_SOURCE: https://github.com/takano536/kobako
-          EXPECTED_REVISION: ${{ github.sha }}
-          EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
-          REQUIRE_VERSION: true
-        run: ./scripts/check-image-labels.sh
-      - name: Build and push migration SHA image
-        if: steps.migrate_tag.outputs.exists != 'true'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          target: migrate
-          push: true
-          tags: ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/takano536/kobako
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
-            org.opencontainers.image.description=kobako production migrate image
-          build-args: |
-            OCI_SOURCE=https://github.com/takano536/kobako
-            OCI_REVISION=${{ github.sha }}
-            OCI_VERSION=${{ steps.tags.outputs.version }}
-          cache-from: type=gha,scope=kobako-migrate
-          cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
+          cache-from: type=gha,scope=kobako-image
+          cache-to: type=gha,mode=max,scope=kobako-image,ignore-error=true
 
   publish_release:
     name: publish-release
@@ -641,8 +589,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      web_tag: ${{ steps.tags.outputs.web_tag }}
-      migrate_tag: ${{ steps.tags.outputs.migrate_tag }}
+      image_tag: ${{ steps.tags.outputs.image_tag }}
     steps:
       - name: Check out the exact release merge commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -671,88 +618,47 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check existing release web image
-        id: web_tag
+      - name: Check existing release image
+        id: image_tag
         env:
-          IMAGE: ghcr.io/takano536/kobako-web
-          TAG: ${{ steps.tags.outputs.web_tag }}
+          IMAGE: ghcr.io/takano536/kobako
+          TAG: ${{ steps.tags.outputs.image_tag }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
           EXPECTED_REVISION: ${{ github.sha }}
           EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
           REQUIRE_VERSION: true
         run: ./scripts/check-image-labels.sh
-      - name: Check existing release web SHA image
-        id: web_sha_tag
+      - name: Check existing release SHA image
+        id: image_sha_tag
         env:
-          IMAGE: ghcr.io/takano536/kobako-web
+          IMAGE: ghcr.io/takano536/kobako
           TAG: ${{ steps.tags.outputs.sha_tag }}
           EXPECTED_SOURCE: https://github.com/takano536/kobako
           EXPECTED_REVISION: ${{ github.sha }}
           EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
           REQUIRE_VERSION: true
         run: ./scripts/check-image-labels.sh
-      - name: Build and push release web image
-        if: steps.web_tag.outputs.exists != 'true' || steps.web_sha_tag.outputs.exists != 'true'
+      - name: Build and push release image
+        if: steps.image_tag.outputs.exists != 'true' || steps.image_sha_tag.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           target: web
           push: true
           tags: |
-            ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
-            ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.sha_tag }}
+            ghcr.io/takano536/kobako:${{ steps.tags.outputs.image_tag }}
+            ghcr.io/takano536/kobako:${{ steps.tags.outputs.sha_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/takano536/kobako
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
-            org.opencontainers.image.description=kobako production web image
+            org.opencontainers.image.description=kobako production image
           build-args: |
             OCI_SOURCE=https://github.com/takano536/kobako
             OCI_REVISION=${{ github.sha }}
             OCI_VERSION=${{ steps.tags.outputs.version }}
-          cache-from: type=gha,scope=kobako-web
-          cache-to: type=gha,mode=max,scope=kobako-web,ignore-error=true
-      - name: Check existing release migration image
-        id: migrate_tag
-        env:
-          IMAGE: ghcr.io/takano536/kobako-migrate
-          TAG: ${{ steps.tags.outputs.migrate_tag }}
-          EXPECTED_SOURCE: https://github.com/takano536/kobako
-          EXPECTED_REVISION: ${{ github.sha }}
-          EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
-          REQUIRE_VERSION: true
-        run: ./scripts/check-image-labels.sh
-      - name: Check existing release migration SHA image
-        id: migrate_sha_tag
-        env:
-          IMAGE: ghcr.io/takano536/kobako-migrate
-          TAG: ${{ steps.tags.outputs.sha_tag }}
-          EXPECTED_SOURCE: https://github.com/takano536/kobako
-          EXPECTED_REVISION: ${{ github.sha }}
-          EXPECTED_VERSION: ${{ steps.tags.outputs.version }}
-          REQUIRE_VERSION: true
-        run: ./scripts/check-image-labels.sh
-      - name: Build and push release migration image
-        if: steps.migrate_tag.outputs.exists != 'true' || steps.migrate_sha_tag.outputs.exists != 'true'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          target: migrate
-          push: true
-          tags: |
-            ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
-            ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.sha_tag }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/takano536/kobako
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
-            org.opencontainers.image.description=kobako production migrate image
-          build-args: |
-            OCI_SOURCE=https://github.com/takano536/kobako
-            OCI_REVISION=${{ github.sha }}
-            OCI_VERSION=${{ steps.tags.outputs.version }}
-          cache-from: type=gha,scope=kobako-migrate
-          cache-to: type=gha,mode=max,scope=kobako-migrate,ignore-error=true
+          cache-from: type=gha,scope=kobako-image
+          cache-to: type=gha,mode=max,scope=kobako-image,ignore-error=true
 
   promote_latest:
     name: promote-latest
@@ -792,30 +698,25 @@ jobs:
             echo "main moved to $main_sha since this run targeted $EXPECTED_SHA; refusing to move latest backward" >&2
             echo 'at_tip=false' >>"$GITHUB_OUTPUT"
           fi
-      - name: Select immutable image tags for latest
+      - name: Select immutable image tag for latest
         id: tags
         env:
           RELEASE_RESULT: ${{ needs.publish_release.result }}
-          RELEASE_WEB_TAG: ${{ needs.publish_release.outputs.web_tag }}
-          RELEASE_MIGRATE_TAG: ${{ needs.publish_release.outputs.migrate_tag }}
-          MAIN_WEB_TAG: ${{ needs.publish_main.outputs.web_tag }}
-          MAIN_MIGRATE_TAG: ${{ needs.publish_main.outputs.migrate_tag }}
+          RELEASE_IMAGE_TAG: ${{ needs.publish_release.outputs.image_tag }}
+          MAIN_IMAGE_TAG: ${{ needs.publish_main.outputs.image_tag }}
         shell: bash
         run: |
           set -euo pipefail
           if [[ "$RELEASE_RESULT" == success ]]; then
-            web_tag="$RELEASE_WEB_TAG"
-            migrate_tag="$RELEASE_MIGRATE_TAG"
+            image_tag="$RELEASE_IMAGE_TAG"
           else
-            web_tag="$MAIN_WEB_TAG"
-            migrate_tag="$MAIN_MIGRATE_TAG"
+            image_tag="$MAIN_IMAGE_TAG"
           fi
-          if [[ -z "$web_tag" || -z "$migrate_tag" ]]; then
-            echo 'publish job did not provide immutable image tags' >&2
+          if [[ -z "$image_tag" ]]; then
+            echo 'publish job did not provide an immutable image tag' >&2
             exit 1
           fi
-          printf 'web_tag=%s\n' "$web_tag" >>"$GITHUB_OUTPUT"
-          printf 'migrate_tag=%s\n' "$migrate_tag" >>"$GITHUB_OUTPUT"
+          printf 'image_tag=%s\n' "$image_tag" >>"$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -823,9 +724,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Promote web image to latest
+      - name: Promote image to latest
         if: steps.promote_tip.outputs.at_tip == 'true'
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-web:latest ghcr.io/takano536/kobako-web:${{ steps.tags.outputs.web_tag }}
-      - name: Promote migration image to latest
-        if: steps.promote_tip.outputs.at_tip == 'true'
-        run: docker buildx imagetools create -t ghcr.io/takano536/kobako-migrate:latest ghcr.io/takano536/kobako-migrate:${{ steps.tags.outputs.migrate_tag }}
+        run: docker buildx imagetools create -t ghcr.io/takano536/kobako:latest ghcr.io/takano536/kobako:${{ steps.tags.outputs.image_tag }}
