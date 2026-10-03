@@ -226,7 +226,7 @@ export function transactionInputFromFormData(formData: FormData): Record<string,
     amount: formData.get('amount'),
     occurredOn: formData.get('occurredOn'),
     categoryId: categoryIdFromFormData(formData),
-    accountId: null,
+    accountId: undefined,
     memo: formData.get('memo') ?? '',
   };
 }

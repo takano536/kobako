@@ -28,7 +28,7 @@ describe('transaction input validation', () => {
     formData.set('categoryId', '1');
     formData.set('accountId', '2147483647');
     formData.set('memo', '');
-    expect(transactionInputFromFormData(formData)).toMatchObject({ accountId: null });
+    expect(transactionInputFromFormData(formData)).toMatchObject({ accountId: undefined });
   });
 
   it('rejects malformed amounts while allowing zero and negative integers', () => {

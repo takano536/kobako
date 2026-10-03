@@ -6,6 +6,7 @@ import { CategoryDot } from '../../src/lib/category';
 import {
   formatJapaneseDate,
   formatTransactionAmount,
+  moneyToneClass,
   transactionAmountTone,
 } from '../../src/lib/format';
 
@@ -49,7 +50,7 @@ export function TransactionRow({
               <span>{transaction.categoryName}</span>
             </span>
           </span>
-          <span className={`record-amount ${amountTone}`}>{amount}</span>
+          <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
         </Link>
       </li>
     );
@@ -72,7 +73,7 @@ export function TransactionRow({
             </span>
           ) : null}
         </span>
-        <span className={`record-amount ${amountTone}`}>{amount}</span>
+        <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
         <span className="row-affordance" aria-hidden="true">
           ›
         </span>

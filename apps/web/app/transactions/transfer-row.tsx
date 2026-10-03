@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import type { ListedTransfer } from '@kobako/db';
 
-import { formatJapaneseDate, formatYen } from '../../src/lib/format';
+import { formatJapaneseDate, formatYen, moneyToneClass } from '../../src/lib/format';
 
 export function TransferRow({
   transfer,
@@ -39,7 +39,9 @@ export function TransferRow({
             </span>
           ) : null}
         </span>
-        <span className="record-amount neutral">{formatYen(transfer.amount)}</span>
+        <span className={`record-amount ${moneyToneClass('neutral')}`}>
+          {formatYen(transfer.amount)}
+        </span>
         <span className="row-affordance" aria-hidden="true">
           ›
         </span>

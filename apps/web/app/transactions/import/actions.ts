@@ -480,5 +480,6 @@ export async function moneyManagerImportAction(
 
   revalidatePath('/');
   revalidatePath('/transactions');
+  revalidatePath('/balances');
   return successState(parsed.rows, committed);
 }

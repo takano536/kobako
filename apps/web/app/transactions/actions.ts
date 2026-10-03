@@ -77,6 +77,7 @@ function transferResultState(
 function revalidateLedger(): void {
   revalidatePath('/');
   revalidatePath('/transactions');
+  revalidatePath('/balances');
 }
 
 function redirectToMonth(month: string): never {

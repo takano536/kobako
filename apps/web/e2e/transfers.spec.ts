@@ -579,9 +579,9 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   expect(transferAffordance.x).toBeCloseTo(ordinaryAffordance.x, 1);
   // Transfer account names may wrap naturally; column alignment is asserted above.
   const transferAmountElement = transferRow.locator('.record-amount');
-  await expect(transferAmountElement).toHaveClass(/(^|\s)neutral(\s|$)/);
+  await expect(transferAmountElement).toHaveClass(/(^|\s)money-neutral(\s|$)/);
   const transferNeutralColors = await transferAmountElement.evaluate((element) => {
-    const token = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+    const token = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
     const probe = document.createElement('span');
     probe.style.color = token;
     document.body.append(probe);

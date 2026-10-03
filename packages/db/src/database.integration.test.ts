@@ -147,6 +147,191 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(seededCategories.filter((category) => category.type === 'income')).toHaveLength(3);
   });
 
+  it('computes all-time balances for accounts in one household', async () => {
+    expect(await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual([]);
+
+    const [largeAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'A very long account name that should wrap safely')
+      returning id
+    `;
+    const [idleAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'M idle account')
+      returning id
+    `;
+    const [sinkAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'N transfer sink')
+      returning id
+    `;
+    const [negativeAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Z negative account')
+      returning id
+    `;
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const incomeCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!largeAccount || !idleAccount || !sinkAccount || !negativeAccount) {
+      throw new Error('balance account fixtures were not created');
+    }
+    if (!expenseCategory || !incomeCategory) {
+      throw new Error('balance category fixtures were not created');
+    }
+
+    for (const occurredOn of ['1900-01-01', '2999-12-31']) {
+      await createTransaction(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transactionInputSchema.parse({
+          type: 'income',
+          amount: '999999999',
+          occurredOn,
+          categoryId: String(incomeCategory.id),
+          accountId: String(largeAccount.id),
+          memo: '',
+        }),
+      );
+    }
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '700',
+        occurredOn: '2026-09-01',
+        categoryId: String(expenseCategory.id),
+        accountId: String(negativeAccount.id),
+        memo: '',
+      }),
+    );
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '-200',
+        occurredOn: '9998-12-31',
+        categoryId: String(expenseCategory.id),
+        accountId: String(negativeAccount.id),
+        memo: '符号付き訂正',
+      }),
+    );
+    await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '1234',
+        occurredOn: '2026-09-02',
+        categoryId: String(expenseCategory.id),
+        memo: '口座未指定',
+      }),
+    );
+
+    const firstTransfer = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(largeAccount.id),
+        toAccountId: String(negativeAccount.id),
+        amount: '300',
+        occurredOn: '2026-09-03',
+        memo: '振替入出金',
+      }),
+    );
+    const secondTransfer = await createTransfer(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transferInputSchema.parse({
+        fromAccountId: String(negativeAccount.id),
+        toAccountId: String(sinkAccount.id),
+        amount: '100',
+        occurredOn: '9998-12-31',
+        memo: '未来の振替',
+      }),
+    );
+    expect(firstTransfer.status).toBe('ok');
+    expect(secondTransfer.status).toBe('ok');
+
+    const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
+    await client.sql`
+      insert into households (id, slug, name)
+      values (${otherHouseholdId}, 'balance-other', '別家計')
+    `;
+    const [otherAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name)
+      values (${otherHouseholdId}, 'A very long account name that should wrap safely')
+      returning id
+    `;
+    const [otherCategory] = await client.sql<{ id: number }[]>`
+      insert into categories (household_id, type, name, sort_order)
+      values (${otherHouseholdId}, 'income', '別家計収入', 999)
+      returning id
+    `;
+    if (!otherAccount || !otherCategory) {
+      throw new Error('other-household balance fixtures were not created');
+    }
+    await client.sql`
+      insert into transactions
+        (household_id, type, amount, occurred_on, category_id, account_id, memo)
+      values
+        (${otherHouseholdId}, 'income', 7777, '9998-12-31', ${otherCategory.id}, ${otherAccount.id}, '')
+    `;
+
+    const balances = await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(balances.map(({ accountName }) => accountName)).toEqual([
+      'A very long account name that should wrap safely',
+      'M idle account',
+      'N transfer sink',
+      'Z negative account',
+    ]);
+    expect(
+      balances.map(({ accountName, income, expense, transfersIn, transfersOut, balance }) => ({
+        accountName,
+        income,
+        expense,
+        transfersIn,
+        transfersOut,
+        balance,
+      })),
+    ).toEqual([
+      {
+        accountName: 'A very long account name that should wrap safely',
+        income: '1999999998',
+        expense: '0',
+        transfersIn: '0',
+        transfersOut: '300',
+        balance: '1999999698',
+      },
+      {
+        accountName: 'M idle account',
+        income: '0',
+        expense: '0',
+        transfersIn: '0',
+        transfersOut: '0',
+        balance: '0',
+      },
+      {
+        accountName: 'N transfer sink',
+        income: '0',
+        expense: '0',
+        transfersIn: '100',
+        transfersOut: '0',
+        balance: '100',
+      },
+      {
+        accountName: 'Z negative account',
+        income: '0',
+        expense: '500',
+        transfersIn: '300',
+        transfersOut: '100',
+        balance: '-300',
+      },
+    ]);
+    expect(balances.reduce((total, { balance }) => total + BigInt(balance), 0n)).toBe(1999999498n);
+  });
+
   it('starts each test with isolated ledger and healthcheck data', async () => {
     const rows = await client.db.select().from(systemHealthchecks);
     const ledgerRows = await client.db.select().from(transactions);
@@ -201,6 +386,61 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(await getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, created.id)).toBeNull();
     await verifySafeTestDatabaseConnection(client.sql, testDatabaseTarget, developmentUrl);
     expect(await deleteTransaction(client.db, DEFAULT_HOUSEHOLD_ID, created.id)).toBeNull();
+  });
+
+  it('preserves an account when omitted and clears it only when null is explicit', async () => {
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expenseCategory) {
+      throw new Error('expense category seed missing');
+    }
+    const [account] = await client.db
+      .insert(accounts)
+      .values({ householdId: DEFAULT_HOUSEHOLD_ID, name: '編集保持テスト口座' })
+      .returning({ id: accounts.id });
+    if (!account) {
+      throw new Error('account fixture was not created');
+    }
+    const created = await createTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '500',
+        occurredOn: '2026-09-14',
+        categoryId: String(expenseCategory.id),
+        accountId: String(account.id),
+        memo: '口座保持',
+      }),
+    );
+
+    const preserved = await updateTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      created.id,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '700',
+        occurredOn: '2026-09-14',
+        categoryId: String(expenseCategory.id),
+        memo: '口座保持後',
+      }),
+    );
+    expect(preserved).toMatchObject({ accountId: account.id, amount: 700 });
+
+    const cleared = await updateTransaction(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      created.id,
+      transactionInputSchema.parse({
+        type: 'expense',
+        amount: '700',
+        occurredOn: '2026-09-14',
+        categoryId: String(expenseCategory.id),
+        accountId: null,
+        memo: '口座解除後',
+      }),
+    );
+    expect(cleared).toMatchObject({ accountId: null, memo: '口座解除後' });
   });
 
   it('separates monthly income and expense totals and category breakdowns', async () => {
