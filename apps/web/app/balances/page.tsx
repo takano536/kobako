@@ -27,14 +27,20 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
   const allBalances = await getManagedAccountBalances(db, getCurrentHouseholdId());
   const balances = allBalances.filter((account) => account.deletedAt === null);
   const summary = calculateBalanceSummary(allBalances);
-  const groups: { id: number; name: string; accounts: typeof balances }[] = [];
+  const groups: {
+    kind: (typeof balances)[number]['kind'];
+    name: string;
+    accounts: typeof balances;
+  }[] = [
+    { kind: 'cash', name: '現金', accounts: [] },
+    { kind: 'bank', name: '銀行', accounts: [] },
+    { kind: 'credit_card', name: 'クレジットカード', accounts: [] },
+    { kind: 'debit_card', name: 'デビットカード', accounts: [] },
+    { kind: 'electronic_money', name: '電子マネー', accounts: [] },
+    { kind: 'other', name: 'その他', accounts: [] },
+  ];
   for (const account of balances) {
-    const group = groups.find((candidate) => candidate.id === account.groupId);
-    if (group) {
-      group.accounts.push(account);
-    } else {
-      groups.push({ id: account.groupId, name: account.groupName, accounts: [account] });
-    }
+    groups.find((group) => group.kind === account.kind)?.accounts.push(account);
   }
   return (
     <PageShell>
@@ -84,22 +90,24 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           />
         ) : (
           <div className="balance-groups">
-            {groups.map((group) => (
-              <section className="balance-group" key={group.id}>
-                <h3>{group.name}</h3>
-                <ul className="balance-list" aria-label={`${group.name}の資産別残高`}>
-                  {group.accounts.map((account) => (
-                    <AccountBalanceRow
-                      key={account.accountId}
-                      accountName={account.accountName}
-                      balance={account.balance}
-                      kind={account.kind}
-                      transactionsHref={`/transactions?account=${account.accountId}&month=all`}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ))}
+            {groups
+              .filter((group) => group.accounts.length > 0)
+              .map((group) => (
+                <section className="balance-group" key={group.kind}>
+                  <h3>{group.name}</h3>
+                  <ul className="balance-list" aria-label={`${group.name}の資産別残高`}>
+                    {group.accounts.map((account) => (
+                      <AccountBalanceRow
+                        key={account.accountId}
+                        accountName={account.accountName}
+                        balance={account.balance}
+                        kind={account.kind}
+                        transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              ))}
           </div>
         )}
       </section>

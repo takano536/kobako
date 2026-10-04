@@ -97,17 +97,27 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
-  const typeName =
+  const filterSummary = [
     type === 'expense'
       ? '支出'
       : type === 'income'
         ? '収入'
         : type === 'transfer'
           ? '振替'
-          : 'すべての種別';
-  const filterSummary = `${typeName}・${type === 'transfer' ? 'カテゴリなし' : (categoryName ?? 'すべてのカテゴリ')}${account ? `・資産: ${account.name}` : ''}`;
+          : undefined,
+    categoryName,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join('・');
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
   const currentPath = listHref(month, type, categoryId, accountId, page);
+  const clearAssetFilterHref = listHref(
+    month === 'all' ? currentTokyoMonth() : month,
+    type,
+    categoryId,
+    undefined,
+    page,
+  );
 
   return (
     <PageShell>
@@ -143,6 +153,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
           </div>
+          <ActionLink href={clearAssetFilterHref} variant="quiet">
+            資産の絞り込みを解除
+          </ActionLink>
         </section>
       ) : null}
       {month === 'all' ? (
@@ -178,6 +191,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         categories={categories}
         accounts={accounts}
         summary={filterSummary}
+        showClearAction={rows.length > 0}
       />
 
       <section className="transaction-groups" aria-label="取引一覧">

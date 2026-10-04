@@ -183,26 +183,17 @@ export const accountNameSchema = accountTextSchema('資産名', ACCOUNT_NAME_MAX
 export const accountCreateInputSchema = z.object({
   name: accountNameSchema,
   kind: accountKindSchema,
-  groupId: z.preprocess(
-    (value) =>
-      typeof value === 'string' && (value.trim() === '' || value.trim() === 'auto')
-        ? undefined
-        : value,
-    accountIdSchema,
-  ),
 });
 
 export const accountUpdateInputSchema = z.object({
   name: accountNameSchema,
   kind: accountKindSchema,
-  groupId: requiredAccountIdSchema,
   status: accountStatusSchema.optional(),
   expectedKind: accountKindSchema.optional(),
   confirmKindChange: z.boolean().default(false),
 });
 
 export const accountCardConditionInputSchema = z.object({
-  effectiveFrom: occurredOnSchema.nullable().optional(),
   closingDay: z
     .string()
     .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '締め日を選択してください。' })

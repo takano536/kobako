@@ -8,13 +8,7 @@ import {
   assertSafeTestDatabaseTarget,
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
-import {
-  DEFAULT_HOUSEHOLD_ID,
-  ensureDefaultAccountGroups,
-  initializeDefaultLedger,
-} from './ledger.js';
-import { listAccountGroups } from './accounts.js';
-import { findMoneyManagerImport } from './imports.js';
+import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
 
 const HOUSEHOLD_ID = '11111111-1111-1111-1111-111111111111';
 const MIGRATION_FILES = [
@@ -25,6 +19,7 @@ const MIGRATION_FILES = [
   '0004_grey_mysterio.sql',
   '0005_debit_asset_group.sql',
   '0006_fuzzy_argent.sql',
+  '0007_amusing_king_bedlam.sql',
 ] as const;
 
 async function executeMigrationFile(sql: Sql, fileName: string): Promise<void> {
@@ -102,7 +97,7 @@ describe('legacy account migration', () => {
     }
   });
 
-  it('migrates legacy account data and preserves whitespace-name collisions, balances, transfers, and imports', async () => {
+  it('migrates legacy account data, preserves IDs and balances, and ignores future card settings', async () => {
     if (!legacyClient) {
       throw new Error('legacy migration database was not initialized');
     }
@@ -164,6 +159,8 @@ describe('legacy account migration', () => {
     `;
     const importHash = 'c'.repeat(64);
     let customDebitGroup: { id: number; sort_order: number } | undefined;
+    let legacyCardId: number | undefined;
+    let futureCardId: number | undefined;
     await legacyClient.sql`
       insert into transaction_imports (
         household_id, source, sha256, original_filename, transaction_count,
@@ -258,21 +255,64 @@ describe('legacy account migration', () => {
 
     for (const fileName of MIGRATION_FILES.slice(4)) {
       await executeMigrationFile(legacyClient.sql, fileName);
-      if (fileName === '0004_grey_mysterio.sql') {
-        [customDebitGroup] = await legacyClient.sql<{ id: number; sort_order: number }[]>`
-          insert into account_groups (household_id, name, default_kind, sort_order)
-          values (${HOUSEHOLD_ID}, 'デビットカード', null, 777)
-          returning id, sort_order
-        `;
-        if (!customDebitGroup) {
-          throw new Error('custom debit group was not inserted');
-        }
+      if (fileName !== '0004_grey_mysterio.sql') {
+        continue;
       }
+      [customDebitGroup] = await legacyClient.sql<{ id: number; sort_order: number }[]>`
+        insert into account_groups (household_id, name, default_kind, sort_order)
+        values (${HOUSEHOLD_ID}, 'デビットカード', null, 777)
+        returning id, sort_order
+      `;
+      if (!customDebitGroup) {
+        throw new Error('custom debit group was not inserted');
+      }
+      const [legacyCard] = await legacyClient.sql<{ id: number }[]>`
+        insert into accounts (household_id, name, kind, group_id, status, sort_order)
+        values (
+          ${HOUSEHOLD_ID},
+          '移行カード',
+          'credit_card',
+          (select id from account_groups where household_id = ${HOUSEHOLD_ID} and name = 'クレジットカード'),
+          'active',
+          999
+        )
+        returning id
+      `;
+      legacyCardId = legacyCard?.id;
+      if (!legacyCardId) {
+        throw new Error('legacy card was not inserted');
+      }
+      const [futureCard] = await legacyClient.sql<{ id: number }[]>`
+        insert into accounts (household_id, name, kind, group_id, status, sort_order)
+        values (
+          ${HOUSEHOLD_ID},
+          '将来カード',
+          'credit_card',
+          (select id from account_groups where household_id = ${HOUSEHOLD_ID} and name = 'クレジットカード'),
+          'active',
+          1000
+        )
+        returning id
+      `;
+      futureCardId = futureCard?.id;
+      if (!futureCardId) {
+        throw new Error('future card was not inserted');
+      }
+      await legacyClient.sql`
+        insert into account_card_conditions (
+          household_id, account_id, effective_from, closing_day, payment_day,
+          payment_month_offset
+        )
+        values
+          (${HOUSEHOLD_ID}, ${legacyCardId}, '2020-01-01', '4', '5', 'same_month'),
+          (${HOUSEHOLD_ID}, ${legacyCardId}, null, '3', '4', 'next_month'),
+          (${HOUSEHOLD_ID}, ${legacyCardId}, '2999-01-01', '7', '8', 'next_month'),
+          (${HOUSEHOLD_ID}, ${futureCardId}, '2999-01-01', '8', '9', 'same_month')
+      `;
     }
-    if (!customDebitGroup) {
-      throw new Error('custom debit group was not inserted');
+    if (!customDebitGroup || !legacyCardId || !futureCardId) {
+      throw new Error('migration card fixtures were not inserted');
     }
-    await ensureDefaultAccountGroups(legacyClient.db, HOUSEHOLD_ID);
     const afterBalances = await accountBalanceRows();
     const afterTransactionRows = await legacyClient.sql<
       {
@@ -371,13 +411,35 @@ describe('legacy account migration', () => {
       where household_id = ${HOUSEHOLD_ID}
       order by account_id
     `;
-    const duplicateLookup = await findMoneyManagerImport(legacyClient.db, HOUSEHOLD_ID, importHash);
+    if (!legacyCardId) {
+      throw new Error('legacy card id is missing');
+    }
+    const currentCard = await legacyClient.sql<
+      { closingDay: string | null; paymentDay: string | null; paymentMonthOffset: string | null }[]
+    >`
+      select closing_day as "closingDay", payment_day as "paymentDay",
+             payment_month_offset as "paymentMonthOffset"
+      from account_card_settings
+      where household_id = ${HOUSEHOLD_ID} and account_id = ${legacyCardId}
+    `;
+    const futureCardSetting = await legacyClient.sql<
+      { closingDay: string | null; paymentDay: string | null; paymentMonthOffset: string | null }[]
+    >`
+      select closing_day as "closingDay", payment_day as "paymentDay",
+             payment_month_offset as "paymentMonthOffset"
+      from account_card_settings
+      where household_id = ${HOUSEHOLD_ID} and account_id = ${futureCardId}
+    `;
     expect(preservedDebitGroup).toEqual([
       { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
     ]);
     expect(preservedAfterInitialization).toEqual([
       { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
     ]);
+    expect(currentCard).toEqual([
+      { closingDay: '4', paymentDay: '5', paymentMonthOffset: 'same_month' },
+    ]);
+    expect(futureCardSetting).toEqual([]);
     expect(migratedAccounts).toEqual([
       {
         id: whitespaceAccount.id,
@@ -400,10 +462,27 @@ describe('legacy account migration', () => {
         kind: 'other',
         status: 'active',
       },
+      {
+        id: legacyCardId,
+        name: '移行カード',
+        groupName: 'クレジットカード',
+        kind: 'credit_card',
+        status: 'active',
+      },
+      {
+        id: futureCardId,
+        name: '将来カード',
+        groupName: 'クレジットカード',
+        kind: 'credit_card',
+        status: 'active',
+      },
     ]);
+    const comparableAfterBalances = afterBalances.filter(
+      (row) => row.id !== legacyCardId && row.id !== futureCardId,
+    );
     expect(afterTransactionRows).toEqual(beforeTransactionRows);
-    expect(afterBalances).toEqual(beforeBalances);
-    expect(summarizeBalances(afterBalances)).toEqual(summarizeBalances(beforeBalances));
+    expect(comparableAfterBalances).toEqual(beforeBalances);
+    expect(summarizeBalances(comparableAfterBalances)).toEqual(summarizeBalances(beforeBalances));
     expect(afterTransferRows).toEqual(beforeTransferRows);
     expect(afterImports).toEqual(beforeImports);
     expect(mappings).toEqual([
@@ -416,22 +495,22 @@ describe('legacy account migration', () => {
     expect(new Set(mappings.map((mapping) => mapping.accountId))).toEqual(
       new Set([collisionAccount.id, regularAccount.id]),
     );
-    expect(duplicateLookup).toMatchObject({
-      source: 'realbyte-money-manager',
-      sha256: importHash,
-      originalFilename: 'legacy.xlsx',
-    });
-    await expect(
-      legacyClient.sql`
-        insert into transaction_imports (
-          household_id, source, sha256, original_filename, transaction_count
-        )
-        values (${HOUSEHOLD_ID}, 'realbyte-money-manager', ${importHash}, 'duplicate.xlsx', 0)
+    await legacyClient.sql`
+      insert into transaction_imports (
+        household_id, source, sha256, original_filename, transaction_count
+      )
+      values (${HOUSEHOLD_ID}, 'realbyte-money-manager', ${importHash}, 'duplicate.xlsx', 0)
+    `;
+    expect(
+      await legacyClient.sql`
+        select count(*)::int as count
+        from transaction_imports
+        where household_id = ${HOUSEHOLD_ID} and sha256 = ${importHash}
       `,
-    ).rejects.toMatchObject({ code: '23505' });
+    ).toEqual([{ count: 2 }]);
   });
 
-  it('migrates an empty database and initializes default groups afterwards', async () => {
+  it('migrates an empty database and keeps account groups unused', async () => {
     if (!adminSql) {
       throw new Error('migration admin connection was not initialized');
     }
@@ -445,19 +524,23 @@ describe('legacy account migration', () => {
       for (const fileName of MIGRATION_FILES) {
         await executeMigrationFile(emptyClient.sql, fileName);
       }
+      await executeMigrationFile(emptyClient.sql, '0007_amusing_king_bedlam.sql');
       expect(await emptyClient.sql`select count(*)::int as count from households`).toEqual([
         { count: 0 },
       ]);
       await initializeDefaultLedger(emptyClient.db);
-      expect(
-        (await listAccountGroups(emptyClient.db, DEFAULT_HOUSEHOLD_ID)).map((group) => group.name),
-      ).toEqual(['現金', '銀行', 'クレジットカード', 'デビットカード', '電子マネー', 'その他']);
-      const debitGroup = await emptyClient.sql<{ defaultKind: string | null; sortOrder: number }[]>`
-        select default_kind as "defaultKind", sort_order as "sortOrder"
-        from account_groups
-        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'デビットカード'
+      expect(await emptyClient.sql`select count(*)::int as count from households`).toEqual([
+        { count: 1 },
+      ]);
+      expect(await emptyClient.sql`select count(*)::int as count from account_groups`).toEqual([
+        { count: 0 },
+      ]);
+      const nullableAccount = await emptyClient.sql`
+        insert into accounts (household_id, name, kind, sort_order)
+        values (${DEFAULT_HOUSEHOLD_ID}, 'グループなし', 'bank', 10)
+        returning group_id
       `;
-      expect(debitGroup).toEqual([{ defaultKind: 'debit_card', sortOrder: 40 }]);
+      expect(nullableAccount).toEqual([{ group_id: null }]);
     } finally {
       await emptyClient.close();
       await adminSql.unsafe(`drop database if exists "${emptyDatabase}"`);

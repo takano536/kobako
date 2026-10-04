@@ -418,16 +418,6 @@ async function deleteRunData(client: DatabaseClient): Promise<void> {
       and name like ${`${runMarkerPrefix}%`}
   `;
   await client.sql`
-    delete from account_import_mappings
-    where household_id = ${DEFAULT_HOUSEHOLD_ID}
-      and account_id in (
-        select id
-        from accounts
-        where household_id = ${DEFAULT_HOUSEHOLD_ID}
-          and name like ${`${runMarkerPrefix}%`}
-      )
-  `;
-  await client.sql`
     delete from accounts
     where household_id = ${DEFAULT_HOUSEHOLD_ID}
       and name like ${`${runMarkerPrefix}%`}
@@ -563,6 +553,9 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   await expect(confirmButton).toBeEnabled();
   await confirmButton.click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
+  await expect(page.locator('.import-success-counts')).toContainText('収入1件');
+  await expect(page.locator('.import-success-counts')).toContainText('支出1件');
+  await expect(page.locator('.import-success-counts')).toContainText('振替1件');
   await expect(page.locator('.import-success-period')).toHaveText(
     /\d{4}年\d+月\d+日〜\d{4}年\d+月\d+日/,
   );
@@ -622,7 +615,7 @@ test('creates unseen source assets without preview account selection', async ({ 
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
   await expect(page.getByText(/資産を\d+件作成しました。/)).toBeVisible();
 });
-test('warns on re-import and disables confirmation without new rows', async ({ page }) => {
+test('warns that a separate re-import creates duplicate rows', async ({ page }) => {
   const paths = fixturePaths;
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
@@ -630,14 +623,20 @@ test('warns on re-import and disables confirmation without new rows', async ({ p
   const before = await runCounts();
   await page.goto('/transactions/import');
   await uploadAndPreview(page, paths.valid);
-  await expect(
-    page.getByRole('heading', { name: /このファイルは.+に取り込み済みです/ }),
-  ).toBeVisible();
-  await expect(page.getByText('同じファイルは重複して取り込めません。')).toBeVisible();
-  await expect(page.getByRole('link', { name: '取引一覧で確認する' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '別のファイルを選ぶ' })).toBeVisible();
-  await screenshotState(page, 'e2e-duplicate');
-  expect(await runCounts()).toEqual(before);
+  await expect(page.getByText('同じデータを取り込むと重複して登録されます')).toBeVisible();
+  await page.getByRole('button', { name: '3件を取り込む' }).click();
+  await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
+  await expect(page.locator('.import-success-counts')).toContainText('収入1件');
+  await expect(page.locator('.import-success-counts')).toContainText('支出1件');
+  await expect(page.locator('.import-success-counts')).toContainText('振替1件');
+  await screenshotState(page, 'e2e-reimport');
+  expect(await runCounts()).toEqual({
+    transactions: before.transactions + 2,
+    transfers: before.transfers + 1,
+    categories: before.categories,
+    accounts: before.accounts + 4,
+    imports: before.imports + 1,
+  });
 });
 
 test('shows row-numbered errors while keeping transfers as importable rows', async ({ page }) => {

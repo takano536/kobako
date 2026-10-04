@@ -189,7 +189,7 @@ export function EmptyState({
   );
 }
 
-type FilterAccount = { id: number; name: string; groupName: string; status: 'active' | 'closed' };
+type FilterAccount = { id: number; name: string; status: 'active' | 'closed' };
 
 export function FilterBar({
   month,
@@ -199,6 +199,7 @@ export function FilterBar({
   categories,
   accounts,
   summary,
+  showClearAction = false,
 }: {
   month: string;
   type?: TransactionListType;
@@ -206,7 +207,8 @@ export function FilterBar({
   accountId?: number;
   categories: readonly FilterCategory[];
   accounts?: readonly FilterAccount[];
-  summary: string;
+  summary?: string;
+  showClearAction?: boolean;
 }) {
   const filterCategories =
     type && type !== 'transfer'
@@ -214,14 +216,24 @@ export function FilterBar({
       : type === 'transfer'
         ? []
         : categories;
+  const clearParams = new URLSearchParams({ month });
+  if (accountId !== undefined) clearParams.set('account', String(accountId));
+  const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
+  const hasAdditionalFilter = Boolean(type || categoryId);
   return (
-    <section className="filter-bar" aria-labelledby="filter-title">
+    <section
+      className="filter-bar"
+      aria-label="取引の絞り込み"
+      aria-labelledby={summary ? 'filter-title' : undefined}
+    >
       <details className="filter-details">
         <summary>
           <span className="filter-summary-action">条件を変更する</span>
-          <span className="filter-summary" id="filter-title">
-            {summary}
-          </span>
+          {summary ? (
+            <span className="filter-summary" id="filter-title">
+              {summary}
+            </span>
+          ) : null}
         </summary>
         <form className="filter-form" method="get">
           <label id="filter-month-label" htmlFor="filter-month">
@@ -288,6 +300,11 @@ export function FilterBar({
           </button>
         </form>
       </details>
+      {showClearAction && hasAdditionalFilter ? (
+        <ActionLink href={clearAdditionalFiltersHref} variant="quiet">
+          条件をクリアする
+        </ActionLink>
+      ) : null}
     </section>
   );
 }

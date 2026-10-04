@@ -96,24 +96,23 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 対応するのは「らくな家計簿」Android 版の Excel エクスポートだけです。先頭 11 列は日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順です。F が正本金額で、J は JPY の確認に使い、保存しません。I と K も保存せず、手数料は推測しません。
 
-振替は収入・支出の組にはせず、`accounts` と `transfers` の一行として保存します。送金元と送金先は削除されていない資産から選び、空の資産名・同一の振替元先・不正な日付や金額・未知の種別は行エラーにします。空でない新しい資産名はプレビューで選択させず、確定時に「その他」へ一度だけ作成します。
+振替は収入・支出の組にはせず、`accounts` と `transfers` の一行として保存します。送金元と送金先は削除されていない資産から選び、空の資産名・同一の振替元先・不正な日付や金額・未知の種別は行エラーにします。空でない新しい資産名はプレビューで選択させず、確定時に取込単位で一度だけ作成します。
 
 ## 資産・振替のデータモデル
 
-`accounts` は household ごとの資産です。`kind` は現金、銀行、クレジットカード、デビットカード、電子マネー、その他を持ち、`status`（`active`/`closed`）とは別に nullable な `deleted_at` で論理削除を表し、参照行を保持します。`transactions.account_id` は nullable ですが、設定される場合は household を含む複合 FK で別家計を拒否します。`transfers` は from/to の両方に同じ複合 FK、`from <> to` CHECK、正の金額 CHECK を持ちます。`getAccountBalances` は資産ごとに `income - expense - transfersOut + transfersIn` を返します。
+`accounts` は household ごとの資産です。`kind` は現金、銀行、クレジットカード、デビットカード、電子マネー、その他を持ち、`status`（`active`/`closed`）とは別に nullable な `deleted_at` で論理削除を表し、参照行を保持します。残高画面と資産作成時の分類は `kind` を使います。`transactions.account_id` は nullable ですが、設定される場合は household を含む複合 FK で別家計を拒否します。`transfers` は from/to の両方に同じ複合 FK、`from <> to` CHECK、正の金額 CHECK を持ちます。`getAccountBalances` は資産ごとに `income - expense - transfersOut + transfersIn` を返します。
 
-## 重複検知と世帯ロック
+## 取込操作の冪等性と世帯ロック
 
-ファイル本体のバイト列から SHA-256 ハッシュを計算し、内容を識別する値として使います。`transaction_imports(household_id, source='realbyte-money-manager', sha256)` の一意制約で、同じ家計・提供元・ファイル内容の組み合わせを重複としてデータベース側でも防ぎます。SHA-256 は 64 文字の小文字 16 進数として DB の CHECK でも検証します。プレビューではこの記録を読み取り専用で確認します。
+ファイル本体のバイト列から SHA-256 ハッシュを計算し、監査用の値として保存します。ハッシュ自体は一意制約にせず、同じファイルを別の取込操作で再登録できます。各プレビューにランダムな `operation_key` を割り当て、`transaction_imports(household_id, source='realbyte-money-manager', operation_key)` の部分一意制約で同じ操作の二重送信だけを冪等に処理します。SHA-256 は 64 文字の小文字 16 進数として DB の CHECK で検証します。
 
-確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を追加します。追加時の一意制約違反は重複として扱います。重複でなければ、取引に必要なカテゴリを種別と名前でまとめ、既存カテゴリを再利用し、新しいカテゴリには既存の最大 `sort_order` に 10 を加えた並び順を割り当てます。その後、取引を 500 行ずつ追加します。記録の追加を取引追加より先にロック内で行うため、同じファイルを同時に確定した場合も片方だけが登録されます。
+確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を `operation_key` と一緒に追加します。追加時の operation key 一意制約違反は同じ操作として既存の取込結果を返します。別の operation key なら、取込内の各提供元資産を新規資産へ一度だけ割り当て、必要なカテゴリを再利用・作成した後、取引と振替を一つのトランザクションで追加します。別操作で同じファイルを取り込んだ分も月次収支と残高に反映します。
 
 ## 再アップロードによる確定
 
-`moneyManagerImportAction` はプレビュー時にファイルのハッシュを計算し、正規化と重複確認を行います。返すのはファイル名、集計値、先頭の取引行、エラー、新しいカテゴリ・資産などに限られ、ファイル本体は保存しません。
+`moneyManagerImportAction` はプレビュー時にファイルのハッシュと `operation_key` を計算し、正規化を行います。返すのはファイル名、集計値、先頭の取引行、エラー、新しいカテゴリ・資産などに限られ、ファイル本体は保存しません。
 
-確定時は同じファイルをサーバーで読み直し、ハッシュと上限を再検証してから `commitMoneyManagerImport()` を呼びます。プレビュー後にファイルが変わっていれば確定せず、ファイル本体はリクエスト処理中のメモリだけに置きます。SHA-256 の一意制約と家計ロックで同じファイルの二重登録を防ぎます。
-対応付けのない資産だけを「その他」へ新規作成し、既存 mapping の対象が `deleted_at` 付きでも資産を復活・重複作成せず、その状態を保持します。資産設定からの対応名追加・変更は同じ家計・提供元で他資産が使う名前を Server Action で拒否します。名前ベース mapping（`source_account_id is null`）には既存の部分一意索引があり、既存データの衝突を移行で書き換えません。
+確定時は同じファイルをサーバーで読み直し、ハッシュ・操作キー・上限を再検証してから `commitMoneyManagerImport()` を呼びます。プレビュー後にファイルが変わっていれば確定せず、ファイル本体はリクエスト処理中のメモリだけに置きます。別操作の再アップロードでは同じデータを追加し、同じ操作キーでの二重送信だけを冪等に処理します。既存資産の名前・種別・カード条件は変更しません。
 
 ## インポートの上限
 
@@ -121,7 +120,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ## インポート schema
 
-schema は `packages/db/src/schema.ts` に定義し、`0006` までの migration を空 DB・既存 migration 適用済み DBの両方へ適用する integration test で確認します。
+schema は `packages/db/src/schema.ts` に定義し、`0007` までの migration を空 DB・既存 migration 適用済み DB の両方へ適用する integration test で確認します。
 
 ## 統合フォームでの振替入力
 

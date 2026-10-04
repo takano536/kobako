@@ -454,11 +454,6 @@ h3 {
   background: var(--paper);
 }
 
-.balances-description {
-  margin: var(--space-item) 0 var(--space-group);
-  color: var(--muted);
-}
-
 .balance-summary-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2699,16 +2694,6 @@ h3 {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.balance-account-badge {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-.balance-classification-badge {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .balance-groups {

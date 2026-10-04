@@ -4,14 +4,12 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
-  accountGroups,
   accounts,
   categories,
   households,
   transactions,
   transfers,
   type Account,
-  type AccountKind,
   type Category,
   type NewTransaction,
   type Transaction,
@@ -22,71 +20,6 @@ import { MAX_INT4_ID, type TransactionInput, type TransferInput } from './valida
 
 export const DEFAULT_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_HOUSEHOLD_SLUG = 'local';
-
-export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
-  { defaultKind: 'cash', name: '現金', sortOrder: 10 },
-  { defaultKind: 'bank', name: '銀行', sortOrder: 20 },
-  { defaultKind: 'credit_card', name: 'クレジットカード', sortOrder: 30 },
-  { defaultKind: 'debit_card', name: 'デビットカード', sortOrder: 40 },
-  { defaultKind: null, name: '電子マネー', sortOrder: 50 },
-  { defaultKind: null, name: 'その他', sortOrder: 60 },
-] as const satisfies ReadonlyArray<{
-  defaultKind: AccountKind | null;
-  name: string;
-  sortOrder: number;
-}>;
-
-type AccountGroupDatabase = Pick<Database, 'select' | 'insert' | 'update'>;
-
-export async function ensureDefaultAccountGroups(
-  db: AccountGroupDatabase,
-  householdId: string,
-): Promise<void> {
-  for (const seed of DEFAULT_ACCOUNT_GROUP_SEEDS) {
-    if (seed.defaultKind) {
-      const existingDefault = await db
-        .select({ id: accountGroups.id })
-        .from(accountGroups)
-        .where(
-          and(
-            eq(accountGroups.householdId, householdId),
-            eq(accountGroups.defaultKind, seed.defaultKind),
-          ),
-        )
-        .limit(1);
-      if (existingDefault[0]) continue;
-    }
-    const existingName = await db
-      .select({
-        id: accountGroups.id,
-        defaultKind: accountGroups.defaultKind,
-        sortOrder: accountGroups.sortOrder,
-      })
-      .from(accountGroups)
-      .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, seed.name)))
-      .limit(1);
-    if (existingName[0]) {
-      if (
-        seed.defaultKind &&
-        existingName[0].defaultKind === null &&
-        existingName[0].sortOrder === seed.sortOrder
-      ) {
-        await db
-          .update(accountGroups)
-          .set({ defaultKind: seed.defaultKind })
-          .where(eq(accountGroups.id, existingName[0].id));
-      }
-      continue;
-    }
-    await db
-      .insert(accountGroups)
-      .values({
-        householdId,
-        ...seed,
-      })
-      .onConflictDoNothing();
-  }
-}
 
 export const DEFAULT_CATEGORY_SEEDS = [
   { type: 'expense', name: '食費', sortOrder: 10 },
@@ -107,6 +40,17 @@ export const DEFAULT_CATEGORY_SEEDS = [
   sortOrder: number;
 }>;
 
+function accountKindOrderSql() {
+  return sql<number>`case ${accounts.kind}
+    when 'cash' then 0
+    when 'bank' then 1
+    when 'credit_card' then 2
+    when 'debit_card' then 3
+    when 'electronic_money' then 4
+    else 5
+  end`;
+}
+
 export async function initializeDefaultLedger(db: Database): Promise<void> {
   await db.transaction(async (transaction) => {
     await transaction
@@ -118,7 +62,6 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
       })
       .onConflictDoNothing({ target: households.id });
 
-    await ensureDefaultAccountGroups(transaction, DEFAULT_HOUSEHOLD_ID);
     await transaction
       .insert(categories)
       .values(
@@ -140,7 +83,7 @@ export async function listAccounts(db: Database, householdId: string): Promise<A
     .select()
     .from(accounts)
     .where(eq(accounts.householdId, householdId))
-    .orderBy(asc(accounts.name), asc(accounts.id));
+    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
 }
 
 export async function listActiveAccounts(db: Database, householdId: string): Promise<Account[]> {
@@ -148,7 +91,7 @@ export async function listActiveAccounts(db: Database, householdId: string): Pro
     .select()
     .from(accounts)
     .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
-    .orderBy(asc(accounts.name), asc(accounts.id));
+    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
 }
 
 export async function listCategories(
@@ -568,7 +511,14 @@ export async function getAccountBalances(
       group by household_id, from_account_id
     ) tout on tout.household_id = a.household_id and tout.account_id = a.id
     where a.household_id = ${householdId}
-    order by a.name, a.id
+    order by case a.kind
+      when 'cash' then 0
+      when 'bank' then 1
+      when 'credit_card' then 2
+      when 'debit_card' then 3
+      when 'electronic_money' then 4
+      else 5
+    end, a.sort_order, a.id
   `);
   return rows;
 }

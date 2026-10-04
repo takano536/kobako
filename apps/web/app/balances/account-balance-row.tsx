@@ -13,16 +13,6 @@ function isLiability(kind: AccountBalanceRowProps['kind'], rawBalance: bigint): 
   return kind === 'credit_card' || (kind === 'other' && rawBalance < 0n);
 }
 
-function balanceClassification(
-  kind: AccountBalanceRowProps['kind'],
-  rawBalance: bigint,
-): '資産' | '負債' | undefined {
-  if (kind === 'other' && rawBalance === 0n) {
-    return undefined;
-  }
-  return isLiability(kind, rawBalance) ? '負債' : '資産';
-}
-
 export function AccountBalanceRow({
   accountName,
   balance,
@@ -32,18 +22,14 @@ export function AccountBalanceRow({
   const rawBalance = BigInt(balance);
   const liability = isLiability(kind, rawBalance);
   const displayBalance = kind === 'credit_card' ? -rawBalance : rawBalance;
-  const classification = balanceClassification(kind, rawBalance);
   return (
     <li className="balance-row">
       <Link className="balance-account-link" href={transactionsHref}>
         <span className="balance-account-name">{accountName}</span>
       </Link>
-      <div className="balance-row-metrics">
-        {classification ? <span className="balance-account-badge">{classification}</span> : null}
-        <span className="balance-amount" aria-label={`${classification ?? ''}残高`}>
-          <SignedYen value={displayBalance.toString()} tone={liability ? 'negative' : 'positive'} />
-        </span>
-      </div>
+      <span className="balance-amount" aria-label="残高">
+        <SignedYen value={displayBalance.toString()} tone={liability ? 'negative' : 'positive'} />
+      </span>
     </li>
   );
 }

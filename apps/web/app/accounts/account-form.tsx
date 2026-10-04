@@ -15,14 +15,12 @@ export interface CardConditionValues {
 export interface AccountFormValues {
   name: string;
   kind: string;
-  groupId: string;
   expectedKind: string;
   confirmKindChange: boolean;
   closingDay: string;
   paymentDay: string;
   paymentMonthOffset: string;
   debitAccountId: string;
-  importMappingNames: string[];
 }
 
 export interface AccountFormState {
@@ -40,21 +38,12 @@ interface AccountOption {
   deletedAt: Date | null;
 }
 
-interface MappingOption {
-  id: number;
-  sourceAccountId: string | null;
-  sourceAccountName: string;
-}
-
 export interface AccountFormProps {
   action: (previousState: AccountFormState, formData: FormData) => Promise<AccountFormState>;
   initialValues: AccountFormValues;
-  groups: readonly { id: number; name: string; defaultKind: string | null }[];
   accounts?: readonly AccountOption[];
-  mappings?: readonly MappingOption[];
   accountId?: number;
   submitLabel: string;
-  editing: boolean;
   returnTo?: string;
 }
 
@@ -103,11 +92,8 @@ function cardConditionValues(condition?: Partial<CardConditionValues>): CardCond
 export function AccountForm({
   action,
   initialValues,
-  groups,
   accounts = [],
-  mappings = [],
   submitLabel,
-  editing,
   returnTo,
   accountId,
 }: AccountFormProps) {
@@ -116,29 +102,12 @@ export function AccountForm({
   const current = state.values ?? values;
   const nameError = state.fieldErrors?.name;
   const kindError = state.fieldErrors?.kind;
-  const groupError = state.fieldErrors?.groupId;
-  const mappingError = state.fieldErrors?.importMappingName;
   useEffect(() => {
     if (state.values) setValues(state.values);
   }, [state.values]);
 
   function updateValue<K extends keyof AccountFormValues>(key: K, value: AccountFormValues[K]) {
     setValues((previous) => ({ ...previous, [key]: value }));
-  }
-
-  function updateKind(nextKind: string) {
-    const currentGroup = groups.find((group) => String(group.id) === current.groupId);
-    const automatic = current.groupId === '' || current.groupId === 'auto';
-    const groupMatchesKind = currentGroup?.defaultKind === current.kind;
-    const nextGroup =
-      !editing && (automatic || groupMatchesKind)
-        ? groups.find((group) => group.defaultKind === nextKind)
-        : undefined;
-    setValues((previous) => ({
-      ...previous,
-      kind: nextKind,
-      groupId: nextGroup ? String(nextGroup.id) : previous.groupId,
-    }));
   }
 
   const card = cardConditionValues(current);
@@ -151,7 +120,7 @@ export function AccountForm({
       {returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}
       <div className="entry-detail-grid">
         <div className="field">
-          <label htmlFor="account-name">資産名</label>
+          <label htmlFor="account-name">名前</label>
           <div className="field-value">
             <input
               id="account-name"
@@ -175,7 +144,7 @@ export function AccountForm({
               name="kind"
               required
               value={current.kind}
-              onChange={(event) => updateKind(event.currentTarget.value)}
+              onChange={(event) => updateValue('kind', event.currentTarget.value)}
               aria-invalid={kindError?.length ? true : undefined}
               aria-describedby={kindError?.length ? 'account-kind-error' : undefined}
             >
@@ -186,29 +155,6 @@ export function AccountForm({
               ))}
             </select>
             <FieldError id="account-kind-error" messages={kindError} />
-          </div>
-        </div>
-        <div className="field">
-          <label htmlFor="account-group">資産グループ</label>
-          <div className="field-value">
-            <select
-              className="field-select"
-              id="account-group"
-              name="groupId"
-              required
-              value={current.groupId}
-              onChange={(event) => updateValue('groupId', event.currentTarget.value)}
-              aria-invalid={groupError?.length ? true : undefined}
-              aria-describedby={groupError?.length ? 'account-group-error' : undefined}
-            >
-              {!editing ? <option value="auto">種別に合わせる（自動）</option> : null}
-              {groups.map((group) => (
-                <option value={group.id} key={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            <FieldError id="account-group-error" messages={groupError} />
           </div>
         </div>
       </div>
@@ -301,47 +247,6 @@ export function AccountForm({
                       </option>
                     ))}
                 </select>
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {editing ? (
-        <section className="account-import-mappings">
-          <div className="entry-detail-grid">
-            {mappings.map((mapping, index) => (
-              <div className="field" key={mapping.id}>
-                <label htmlFor={`import-mapping-${mapping.id}`}>
-                  {index === 0 ? '対応名' : ''}
-                </label>
-                <div className="field-value">
-                  <input
-                    id={`import-mapping-${mapping.id}`}
-                    name="importMappingName"
-                    value={current.importMappingNames[index] ?? mapping.sourceAccountName}
-                    onChange={(event) => {
-                      const next = [...current.importMappingNames];
-                      next[index] = event.currentTarget.value;
-                      updateValue('importMappingNames', next);
-                    }}
-                    maxLength={120}
-                    aria-invalid={mappingError?.length ? true : undefined}
-                  />
-                  <input type="hidden" name="importMappingId" value={mapping.id} />
-                  <input
-                    type="hidden"
-                    name="importMappingSourceId"
-                    value={mapping.sourceAccountId ?? ''}
-                  />
-                </div>
-              </div>
-            ))}
-            <div className="field">
-              <label htmlFor="new-import-mapping">対応名を追加</label>
-              <div className="field-value">
-                <input id="new-import-mapping" name="newImportMappingName" maxLength={120} />
-                <FieldError id="import-mapping-error" messages={mappingError} />
               </div>
             </div>
           </div>

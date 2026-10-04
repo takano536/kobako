@@ -99,7 +99,7 @@ export const accounts = pgTable(
       .references(() => households.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
     kind: accountKind('kind').notNull().default('other'),
-    groupId: integer('group_id').notNull(),
+    groupId: integer('group_id'),
     status: accountStatus('status').notNull().default('active'),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     sortOrder: integer('sort_order').notNull().default(0),
@@ -113,9 +113,9 @@ export const accounts = pgTable(
       foreignColumns: [accountGroups.id, accountGroups.householdId],
     }).onDelete('restrict'),
     index('accounts_household_name_idx').on(table.householdId, table.name),
-    index('accounts_household_group_sort_order_idx').on(
+    index('accounts_household_kind_sort_order_idx').on(
       table.householdId,
-      table.groupId,
+      table.kind,
       table.sortOrder,
       table.id,
     ),
@@ -218,6 +218,43 @@ export const accountCardConditions = pgTable(
     ),
   ],
 );
+export const accountCardSettings = pgTable(
+  'account_card_settings',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    accountId: integer('account_id').notNull(),
+    closingDay: varchar('closing_day', { length: 5 }),
+    paymentDay: varchar('payment_day', { length: 5 }),
+    paymentMonthOffset: cardPaymentMonthOffset('payment_month_offset'),
+    debitAccountId: integer('debit_account_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'account_card_settings_account_household_fk',
+      columns: [table.accountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'account_card_settings_debit_account_household_fk',
+      columns: [table.debitAccountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    unique('account_card_settings_account_unique').on(table.accountId, table.householdId),
+    check(
+      'account_card_settings_closing_day_check',
+      sql`${table.closingDay} is null or ${table.closingDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
+    ),
+    check(
+      'account_card_settings_payment_day_check',
+      sql`${table.paymentDay} is null or ${table.paymentDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
+    ),
+  ],
+);
 
 export const transactionImports = pgTable(
   'transaction_imports',
@@ -228,6 +265,7 @@ export const transactionImports = pgTable(
       .references(() => households.id, { onDelete: 'cascade' }),
     source: varchar('source', { length: 80 }).notNull(),
     sha256: varchar('sha256', { length: 64 }).notNull(),
+    operationKey: varchar('operation_key', { length: 120 }),
     originalFilename: varchar('original_filename', { length: 255 }).notNull(),
     transactionCount: integer('transaction_count').notNull(),
     incomeCount: integer('income_count').notNull().default(0),
@@ -236,11 +274,9 @@ export const transactionImports = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    unique('transaction_imports_household_source_sha256_unique').on(
-      table.householdId,
-      table.source,
-      table.sha256,
-    ),
+    uniqueIndex('transaction_imports_household_source_operation_unique')
+      .on(table.householdId, table.source, table.operationKey)
+      .where(sql`${table.operationKey} is not null`),
     check('transaction_imports_transaction_count_check', sql`${table.transactionCount} >= 0`),
     check('transaction_imports_income_count_check', sql`${table.incomeCount} >= 0`),
     check('transaction_imports_expense_count_check', sql`${table.expenseCount} >= 0`),
@@ -357,14 +393,10 @@ export type SystemHealthcheck = typeof systemHealthchecks.$inferSelect;
 export type NewSystemHealthcheck = typeof systemHealthchecks.$inferInsert;
 export type Household = typeof households.$inferSelect;
 export type NewHousehold = typeof households.$inferInsert;
-export type AccountGroup = typeof accountGroups.$inferSelect;
-export type NewAccountGroup = typeof accountGroups.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
-export type AccountImportMapping = typeof accountImportMappings.$inferSelect;
-export type NewAccountImportMapping = typeof accountImportMappings.$inferInsert;
-export type AccountCardCondition = typeof accountCardConditions.$inferSelect;
-export type NewAccountCardCondition = typeof accountCardConditions.$inferInsert;
+export type AccountCardSetting = typeof accountCardSettings.$inferSelect;
+export type NewAccountCardSetting = typeof accountCardSettings.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type TransactionImport = typeof transactionImports.$inferSelect;

@@ -94,14 +94,6 @@ function periodLabel(period: MoneyManagerImportPreview['period']): string {
   return from === to ? from : `${from}〜${to}`;
 }
 
-function previousImportDateLabel(value: string | undefined): string {
-  if (!value) {
-    return '以前';
-  }
-  const date = value.slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatDate(date) : '以前';
-}
-
 function validationMessage(file: File, maxFileBytes: number): string | undefined {
   if (!/\.xlsx$/i.test(file.name)) {
     return 'Excel ファイル（.xlsx）を選んでください。';
@@ -498,31 +490,6 @@ function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
   );
 }
 
-function DuplicateNotice({
-  preview,
-  onReset,
-}: {
-  preview: MoneyManagerImportPreview;
-  onReset: () => void;
-}) {
-  return (
-    <section className="import-duplicate" role="status" aria-labelledby="import-duplicate-title">
-      <h2 id="import-duplicate-title">
-        このファイルは{previousImportDateLabel(preview.previousImportDate)}に取り込み済みです
-      </h2>
-      <p>同じファイルは重複して取り込めません。</p>
-      <div className="import-confirm-actions">
-        <Link className="button button-primary" href="/transactions">
-          取引一覧で確認する
-        </Link>
-        <button className="button import-secondary-action" type="button" onClick={onReset}>
-          別のファイルを選ぶ
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function ConfirmActions({
   preview,
   pending,
@@ -535,6 +502,7 @@ function ConfirmActions({
   const confirmDisabled = pending || preview.errorCount > 0 || preview.importableCount === 0;
   return (
     <section className="import-confirm" aria-label="取り込みを確定">
+      <p className="import-confirm-note">同じデータを取り込むと重複して登録されます</p>
       <div className="import-confirm-actions">
         <button
           className="button button-primary"
@@ -579,7 +547,7 @@ function PreviewView({
       <h2 id="import-preview-title" className="sr-only" ref={headingRef} tabIndex={-1}>
         取り込み内容を確認
       </h2>
-      {preview.fileError || preview.alreadyImported ? null : (
+      {preview.fileError ? null : (
         <>
           <AttentionSection preview={preview} />
           <SummarySection preview={preview} />
@@ -587,7 +555,6 @@ function PreviewView({
           <ConfirmActions preview={preview} pending={pending} onReset={onReset} />
         </>
       )}
-      {preview.alreadyImported ? <DuplicateNotice preview={preview} onReset={onReset} /> : null}
     </div>
   );
 }
@@ -623,10 +590,11 @@ function SuccessView({
       tone: 'neutral',
     },
   ] as const;
-  const created =
-    success.createdCategories === 0 && success.createdAccounts === 0
+  const created = success.duplicateOperation
+    ? 'この取込操作は既に確定しています。'
+    : success.createdCategories === 0 && success.createdAccounts === 0
       ? '新しいカテゴリ・資産はありません。'
-      : `カテゴリを${success.createdCategories.toLocaleString('ja-JP')}件、資産を${success.createdAccounts.toLocaleString('ja-JP')}件作成しました。`;
+      : `カテゴリを${success.createdCategories?.toLocaleString('ja-JP')}件、資産を${success.createdAccounts?.toLocaleString('ja-JP')}件作成しました。`;
   return (
     <section className="import-success" aria-labelledby="import-success-title">
       <p className="import-success-mark" aria-hidden="true">
@@ -635,7 +603,7 @@ function SuccessView({
         </svg>
       </p>
       <h2 id="import-success-title" ref={headingRef} tabIndex={-1}>
-        取り込みました
+        {success.duplicateOperation ? '取込操作は確定済みです' : '取り込みました'}
       </h2>
       <p className="import-success-period" role="status">
         {periodLabel(success.period)}
@@ -903,7 +871,10 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
         />
       ) : null}
       {displayedView === 'preview' && state.preview ? (
-        <input type="hidden" name="expectedHash" value={state.preview.hash} />
+        <>
+          <input type="hidden" name="expectedHash" value={state.preview.hash} />
+          <input type="hidden" name="operationKey" value={state.preview.operationKey} />
+        </>
       ) : null}
     </form>
   );

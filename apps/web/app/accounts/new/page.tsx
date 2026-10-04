@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { listActiveManagedAccounts, listAccountGroups } from '@kobako/db';
+import { listActiveManagedAccounts } from '@kobako/db';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
 import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
 import { createAccountAction } from '../actions';
@@ -10,10 +10,7 @@ export const revalidate = 0;
 export const metadata: Metadata = { title: '資産を登録' };
 
 export default async function NewAccountPage() {
-  const [groups, accounts] = await Promise.all([
-    listAccountGroups(getLedgerDatabase(), getCurrentHouseholdId()),
-    listActiveManagedAccounts(getLedgerDatabase(), getCurrentHouseholdId()),
-  ]);
+  const accounts = await listActiveManagedAccounts(getLedgerDatabase(), getCurrentHouseholdId());
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -27,22 +24,18 @@ export default async function NewAccountPage() {
       <section className="form-surface" aria-label="資産の入力">
         <AccountForm
           action={createAccountAction}
-          groups={groups}
           accounts={accounts}
           initialValues={{
             name: '',
             kind: 'other',
-            groupId: 'auto',
             expectedKind: '',
             confirmKindChange: false,
             closingDay: '',
             paymentDay: '',
             paymentMonthOffset: '',
             debitAccountId: '',
-            importMappingNames: [],
           }}
           submitLabel="登録する"
-          editing={false}
         />
       </section>
     </PageShell>

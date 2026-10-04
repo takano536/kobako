@@ -5,13 +5,7 @@ import {
   accountCreateInputSchema,
   accountUpdateInputSchema,
 } from '@kobako/db/validation';
-import {
-  createAccount,
-  deleteAccount,
-  saveCurrentCardCondition,
-  setAccountImportMappings,
-  updateAccount,
-} from '@kobako/db';
+import { createAccount, deleteAccount, saveCurrentCardCondition, updateAccount } from '@kobako/db';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 
@@ -29,27 +23,17 @@ function text(formData: FormData, name: string): string {
   return typeof value === 'string' ? value : '';
 }
 
-function texts(formData: FormData, name: string): string[] {
-  return formData.getAll(name).filter((value): value is string => typeof value === 'string');
-}
-
 function accountState(formData: FormData, message?: string): AccountFormState {
-  const mappingNames = texts(formData, 'importMappingName');
-  const cardValues = {
-    closingDay: text(formData, 'closingDay'),
-    paymentDay: text(formData, 'paymentDay'),
-    paymentMonthOffset: text(formData, 'paymentMonthOffset'),
-    debitAccountId: text(formData, 'debitAccountId'),
-  };
   return {
     values: {
       name: text(formData, 'name'),
       kind: text(formData, 'kind'),
-      groupId: text(formData, 'groupId'),
       expectedKind: text(formData, 'expectedKind'),
       confirmKindChange: formData.get('confirmKindChange') === 'on',
-      ...cardValues,
-      importMappingNames: mappingNames,
+      closingDay: text(formData, 'closingDay'),
+      paymentDay: text(formData, 'paymentDay'),
+      paymentMonthOffset: text(formData, 'paymentMonthOffset'),
+      debitAccountId: text(formData, 'debitAccountId'),
     },
     message,
   };
@@ -95,28 +79,6 @@ function hasCardInput(input: CardInput): boolean {
   return Object.values(input).some((value) => value !== null);
 }
 
-function mappingInputs(formData: FormData) {
-  const names = texts(formData, 'importMappingName');
-  const ids = texts(formData, 'importMappingId');
-  const sourceIds = texts(formData, 'importMappingSourceId');
-  const values = names.flatMap((name, index) => {
-    if (name.trim() === '') return [];
-    const id = parseInt4Id(ids[index] ?? '');
-    return [
-      {
-        ...(id === undefined ? {} : { id }),
-        sourceAccountId: sourceIds[index] || null,
-        sourceAccountName: name,
-      },
-    ];
-  });
-  const additional = text(formData, 'newImportMappingName');
-  if (additional.trim() !== '') {
-    values.push({ sourceAccountId: null, sourceAccountName: additional });
-  }
-  return values;
-}
-
 function accountReturnPath(formData: FormData, accountId: number): string {
   return validatedTransactionReturn(text(formData, 'return'), accountId) ?? '/balances';
 }
@@ -134,31 +96,25 @@ export async function createAccountAction(
   const parsed = accountCreateInputSchema.safeParse({
     name: text(formData, 'name'),
     kind: text(formData, 'kind'),
-    groupId: text(formData, 'groupId') || undefined,
   });
   if (!parsed.success) return validationState(formData, parsed.error);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const result = await createAccount(db, householdId, parsed.data);
-  if (result.status === 'group_unavailable') {
-    return { ...accountState(formData), message: '資産グループを確認できませんでした。' };
-  }
   if (result.status !== 'ok') {
     return { ...accountState(formData), message: '資産を保存できませんでした。' };
   }
-  if (parsed.data.kind === 'credit_card') {
+  if (parsed.data.kind === 'credit_card' && hasCardInput(cardInput(formData))) {
     const parsedCard = accountCardConditionInputSchema.safeParse(cardInput(formData));
     if (!parsedCard.success) return validationState(formData, parsedCard.error);
-    if (hasCardInput(cardInput(formData))) {
-      const saved = await saveCurrentCardCondition(
-        db,
-        householdId,
-        result.account.id,
-        parsedCard.data,
-      );
-      if (saved.status !== 'ok') {
-        return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
-      }
+    const saved = await saveCurrentCardCondition(
+      db,
+      householdId,
+      result.account.id,
+      parsedCard.data,
+    );
+    if (saved.status !== 'ok') {
+      return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
     }
   }
   revalidateAssets(result.account.id);
@@ -176,7 +132,6 @@ export async function updateAccountAction(
   const parsed = accountUpdateInputSchema.safeParse({
     name: text(formData, 'name'),
     kind: text(formData, 'kind'),
-    groupId: text(formData, 'groupId'),
     expectedKind: text(formData, 'expectedKind') || undefined,
     confirmKindChange: formData.get('confirmKindChange') === 'on',
   });
@@ -203,9 +158,6 @@ export async function updateAccountAction(
       message: '別の画面で種別が変更されました。再読み込みしてください。',
     };
   }
-  if (result.status === 'group_unavailable') {
-    return { ...accountState(formData), message: '資産グループを確認できませんでした。' };
-  }
   if (result.status !== 'ok') {
     return { ...accountState(formData), message: '資産を保存できませんでした。' };
   }
@@ -214,14 +166,6 @@ export async function updateAccountAction(
     if (saved.status !== 'ok') {
       return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
     }
-  }
-  const mappings = mappingInputs(formData);
-  const mappingResult = await setAccountImportMappings(db, householdId, id, mappings);
-  if (mappingResult.status !== 'ok') {
-    return {
-      ...accountState(formData),
-      fieldErrors: { importMappingName: ['対応名が他の資産で使われています。'] },
-    };
   }
   revalidateAssets(id);
   redirect(transactionReturnWithSaved(accountReturnPath(formData, id)));

@@ -2,8 +2,6 @@
 
 import {
   commitMoneyManagerImport,
-  findMoneyManagerImport,
-  listAccountImportMappings,
   listCategories,
   type MoneyManagerImportCommitResult,
   type MoneyManagerImportCounts,
@@ -19,7 +17,7 @@ import {
   type MoneyManagerNormalizationError,
   type MoneyManagerNormalizedRow,
 } from '@kobako/db/money-manager';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
@@ -338,25 +336,14 @@ async function buildPreview(
   bytes: Uint8Array,
   fileName: string,
   hash: string,
+  operationKey: string,
 ): Promise<MoneyManagerBuiltPreview> {
   const parsed = await parseMoneyManagerXlsx(bytes, { maxRows: MONEY_MANAGER_MAX_ROWS });
   const householdId = getCurrentHouseholdId();
   const db = getLedgerDatabase();
-  const [categories, mappings, duplicateRecord] = await Promise.all([
-    listCategories(db, householdId),
-    listAccountImportMappings(db, householdId, MONEY_MANAGER_SOURCE),
-    findMoneyManagerImport(db, householdId, hash, MONEY_MANAGER_SOURCE),
-  ]);
+  const categories = await listCategories(db, householdId);
   const categoryPlan = planMoneyManagerCategories(parsed.rows, categories);
   const source = sourceAccounts(parsed.rows);
-  const mappedKeys = new Set(
-    mappings.map((mapping) =>
-      mapping.sourceAccountId
-        ? `id:${mapping.sourceAccountId}`
-        : `name:${mapping.sourceAccountName}`,
-    ),
-  );
-  const unmappedAccounts = source.filter((account) => !mappedKeys.has(account.sourceKey));
   const rowErrorNumbers = new Set(
     parsed.errors
       .filter((error) => error.scope === 'row' && error.row !== undefined)
@@ -369,6 +356,7 @@ async function buildPreview(
     : parsed.errors;
   const preview: MoneyManagerImportPreview = {
     hash,
+    operationKey,
     fileName,
     fileSize: bytes.byteLength,
     readRowCount: parsed.rows.length + rowErrorNumbers.size,
@@ -382,12 +370,10 @@ async function buildPreview(
     newCategories: categoryPlan
       .filter((category) => category.action === 'create')
       .map(({ type, name }) => ({ type, name })),
-    newAccounts: unmappedAccounts.map(({ name, sourceAccountId }) => ({
+    newAccounts: source.map(({ name, sourceAccountId }) => ({
       name,
       sourceAccountId,
     })),
-    alreadyImported: duplicateRecord !== null,
-    previousImportDate: duplicateRecord?.createdAt.toISOString(),
   };
   return { preview, rows: parsed.rows, errors: parsed.errors };
 }
@@ -412,6 +398,7 @@ function successState(
       createdAccounts: committed.createdAccounts,
       period: committed.period ?? periodForRows(rows),
       months: [...new Set(rows.map((row) => row.occurredOn.slice(0, 7)))].sort(),
+      duplicateOperation: false,
     },
   };
 }
@@ -435,24 +422,29 @@ export async function moneyManagerImportAction(
     );
   }
 
+  let operationKey: string = randomUUID();
   if (intent === 'confirm') {
     const expectedHash = textField(formData, 'expectedHash').toLowerCase();
+    const expectedOperationKey = textField(formData, 'operationKey');
     if (
       !isValidHash(expectedHash) ||
       expectedHash !== upload.hash ||
       previousState.phase !== 'preview' ||
-      previousState.preview?.hash !== expectedHash
+      previousState.preview?.hash !== expectedHash ||
+      !expectedOperationKey ||
+      previousState.preview.operationKey !== expectedOperationKey
     ) {
       return errorState(
         previousState,
         'プレビュー後にファイルが変更されています。同じファイルを選び直してください。',
       );
     }
+    operationKey = expectedOperationKey;
   }
 
   let parsed: MoneyManagerBuiltPreview;
   try {
-    parsed = await buildPreview(upload.bytes, upload.fileName, upload.hash);
+    parsed = await buildPreview(upload.bytes, upload.fileName, upload.hash, operationKey);
   } catch (error) {
     return errorState(previousState, parserMessage(error));
   }
@@ -478,13 +470,6 @@ export async function moneyManagerImportAction(
       message: '取り込める取引がありません。別のファイルを選択してください。',
     };
   }
-  if (parsed.preview.alreadyImported) {
-    return {
-      phase: 'preview',
-      preview: parsed.preview,
-      message: 'このファイルはすでに取り込まれています。別のファイルを選び直してください。',
-    };
-  }
 
   let committed: MoneyManagerImportCommitResult;
   try {
@@ -492,6 +477,7 @@ export async function moneyManagerImportAction(
       householdId: getCurrentHouseholdId(),
       source: MONEY_MANAGER_SOURCE,
       sha256: upload.hash,
+      operationKey,
       originalFilename: upload.fileName,
       rows: parsed.rows,
     });
@@ -504,13 +490,14 @@ export async function moneyManagerImportAction(
   }
   if (committed.status === 'duplicate') {
     return {
-      phase: 'preview',
-      preview: {
-        ...parsed.preview,
-        alreadyImported: true,
-        previousImportDate: committed.previousImportDate,
+      phase: 'success',
+      success: {
+        transactionCount: parsed.rows.length,
+        counts: parsed.preview.counts,
+        period: parsed.preview.period,
+        months: [...new Set(parsed.rows.map((row) => row.occurredOn.slice(0, 7)))].sort(),
+        duplicateOperation: true,
       },
-      message: 'このファイルはすでに取り込まれています。別のファイルを選び直してください。',
     };
   }
 

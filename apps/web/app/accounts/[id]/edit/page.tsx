@@ -1,11 +1,5 @@
 import type { Metadata } from 'next';
-import {
-  getActiveManagedAccount,
-  getCurrentCardCondition,
-  listAccountGroups,
-  listAccountImportMappingsForAccount,
-  listManagedAccounts,
-} from '@kobako/db';
+import { getActiveManagedAccount, getCurrentCardCondition, listManagedAccounts } from '@kobako/db';
 import { notFound } from 'next/navigation';
 
 import { validatedTransactionReturn } from '../../../../src/lib/transaction-query';
@@ -43,16 +37,12 @@ export default async function EditAccountPage({
     `/transactions?account=${id}&month=all`;
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
-  const [account, groups, accounts] = await Promise.all([
+  const [account, accounts] = await Promise.all([
     getActiveManagedAccount(db, householdId, id),
-    listAccountGroups(db, householdId),
     listManagedAccounts(db, householdId),
   ]);
   if (!account) notFound();
-  const [cardCondition, mappings] = await Promise.all([
-    getCurrentCardCondition(db, householdId, id),
-    listAccountImportMappingsForAccount(db, householdId, id),
-  ]);
+  const cardCondition = await getCurrentCardCondition(db, householdId, id);
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -67,14 +57,11 @@ export default async function EditAccountPage({
         <div className="edit-form-layout">
           <AccountForm
             action={updateAccountAction.bind(null, idValue)}
-            groups={groups}
             accounts={accounts}
-            mappings={mappings}
             accountId={account.id}
             initialValues={{
               name: account.name,
               kind: account.kind,
-              groupId: String(account.groupId),
               expectedKind: account.kind,
               confirmKindChange: false,
               closingDay: cardCondition?.closingDay ?? '',
@@ -83,10 +70,8 @@ export default async function EditAccountPage({
               debitAccountId: cardCondition?.debitAccountId
                 ? String(cardCondition.debitAccountId)
                 : '',
-              importMappingNames: mappings.map((mapping) => mapping.sourceAccountName),
             }}
             submitLabel="保存する"
-            editing
             returnTo={returnTo}
           />
           <DeleteTransactionForm

@@ -536,6 +536,35 @@ test('isolates months: a transaction in one month never appears in another', asy
 test('filters transactions with a native GET form when JavaScript is disabled', async ({
   browser,
 }) => {
+  if (!databaseClient) {
+    throw new Error('ledger filter database is not initialized');
+  }
+  const [incomeCategory] = await databaseClient.sql<{ id: number }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'income' and name = '給与'
+    limit 1
+  `;
+  const [expenseCategory] = await databaseClient.sql<{ id: number }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'expense' and name = '食費'
+    limit 1
+  `;
+  if (!incomeCategory || !expenseCategory) {
+    throw new Error('ledger filter category fixtures are missing');
+  }
+  const [incomeRow] = await databaseClient.sql<{ id: number }[]>`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, 'income', 5000, ${`${month}-20`},
+      ${incomeCategory.id}, ${markerFor('native-filter-income')}
+    )
+    returning id
+  `;
+  if (!incomeRow) {
+    throw new Error('ledger filter income fixture was not created');
+  }
   const context = await browser.newContext({
     javaScriptEnabled: false,
     locale: 'ja-JP',
@@ -544,15 +573,34 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
   const page = await context.newPage();
   try {
     await page.goto(`/transactions?month=${month}`);
-    await expect(page.getByText('すべての種別・すべてのカテゴリ')).toBeVisible();
+    await expect(page.locator('.filter-summary')).toHaveCount(0);
     await page.getByText('条件を変更する', { exact: true }).click();
     await page.getByRole('combobox', { name: '種別' }).selectOption('income');
     await page.getByRole('button', { name: '適用' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
-    await expect(page.getByText('収入・すべてのカテゴリ')).toBeVisible();
-    await expect(page.getByRole('link', { name: /収入.*円/ })).toBeVisible();
+    await expect(page.locator('.filter-summary')).toHaveText('収入');
+    await page.getByText('条件を変更する', { exact: true }).click();
+    await page.getByRole('combobox', { name: 'カテゴリ' }).selectOption(String(incomeCategory.id));
+    await page.getByRole('button', { name: '適用' }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/transactions\\?month=${month}.*type=income.*category=`),
+    );
+    await expect(page.locator('.filter-summary')).toHaveText('収入・給与');
+    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
+    await page.getByRole('link', { name: '条件をクリアする' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
+    await expect(page.locator('.filter-summary')).toHaveCount(0);
+    await expect(
+      page.locator('.transaction-link').filter({ hasText: markerFor('native-filter-income') }),
+    ).toHaveCount(1);
+    await page.goto(`/transactions?month=${month}&type=income&category=${expenseCategory.id}`);
+    await expect(page.locator('.transaction-list')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
+    await page.getByRole('link', { name: '条件をクリアする' }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   } finally {
     await context.close();
+    await databaseClient.sql`delete from transactions where id = ${incomeRow.id}`;
   }
 });
 

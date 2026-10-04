@@ -1,17 +1,13 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import type { Database } from './client.js';
-import { ensureDefaultAccountGroups } from './ledger.js';
 import {
-  accountGroups,
-  accountImportMappings,
   accounts,
   categories,
   households,
   transactionImports,
   transactions,
   transfers,
-  type TransactionImport,
   type TransactionType,
 } from './schema.js';
 import {
@@ -32,7 +28,7 @@ import type {
 
 const TRANSACTION_INSERT_CHUNK_SIZE = 500;
 const CATEGORY_SORT_STEP = 10;
-const DUPLICATE_IMPORT_CONSTRAINT = 'transaction_imports_household_source_sha256_unique';
+const DUPLICATE_IMPORT_CONSTRAINT = 'transaction_imports_household_source_operation_unique';
 
 interface AccountImportResult {
   summaries: MoneyManagerImportAccountSummary[];
@@ -43,6 +39,7 @@ export interface MoneyManagerImportInput {
   householdId: string;
   source?: string;
   sha256: string;
+  operationKey?: string;
   originalFilename: string;
   rows: readonly MoneyManagerNormalizedRow[];
 }
@@ -81,35 +78,6 @@ async function lockHousehold(
   if (rows.length === 0) {
     throw new Error('Household not found');
   }
-}
-
-async function findExistingImport(
-  db: Database,
-  householdId: string,
-  source: string,
-  sha256: string,
-): Promise<TransactionImport | null> {
-  const rows = await db
-    .select()
-    .from(transactionImports)
-    .where(
-      and(
-        eq(transactionImports.householdId, householdId),
-        eq(transactionImports.source, source),
-        eq(transactionImports.sha256, sha256),
-      ),
-    )
-    .limit(1);
-  return rows[0] ?? null;
-}
-
-export async function findMoneyManagerImport(
-  db: Database,
-  householdId: string,
-  sha256: string,
-  source = MONEY_MANAGER_SOURCE,
-): Promise<TransactionImport | null> {
-  return findExistingImport(db, householdId, source, sha256);
 }
 
 function countsForRows(rows: readonly MoneyManagerNormalizedRow[]): MoneyManagerImportCounts {
@@ -248,83 +216,33 @@ async function insertMissingAccounts(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   rows: readonly MoneyManagerNormalizedRow[],
-  sourceName: string,
 ): Promise<AccountImportResult> {
   const source = sourceAccounts(rows);
-  const mappingRows = await transaction
-    .select({
-      id: accountImportMappings.id,
-      sourceAccountId: accountImportMappings.sourceAccountId,
-      sourceAccountName: accountImportMappings.sourceAccountName,
-      accountId: accountImportMappings.accountId,
-    })
-    .from(accountImportMappings)
-    .where(
-      and(
-        eq(accountImportMappings.householdId, householdId),
-        eq(accountImportMappings.source, sourceName),
-      ),
-    );
-  const mappingByKey = new Map(
-    mappingRows.map((mapping) => [
-      accountIdentityKey(mapping.sourceAccountName, mapping.sourceAccountId ?? undefined),
-      mapping,
-    ]),
-  );
-  await ensureDefaultAccountGroups(transaction, householdId);
-  const groupRows = await transaction
-    .select({ id: accountGroups.id })
-    .from(accountGroups)
-    .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, 'その他')))
-    .limit(1);
-  const group = groupRows[0];
-  if (!group) {
-    throw new Error('Default account group was not created');
-  }
   const maxRows = await transaction
     .select({ maxSortOrder: sql<number | null>`max(${accounts.sortOrder})` })
     .from(accounts)
-    .where(and(eq(accounts.householdId, householdId), eq(accounts.groupId, group.id)));
+    .where(eq(accounts.householdId, householdId));
   let nextSortOrder = Number(maxRows[0]?.maxSortOrder ?? 0) + 10;
   const summaries: MoneyManagerImportAccountSummary[] = [];
   const byKey = new Map<string, number>();
   for (const item of source) {
-    const mapping = mappingByKey.get(item.key);
-    let accountId: number | undefined;
-    let action: 'created' | 'reused';
-    if (mapping) {
-      accountId = mapping.accountId;
-      action = 'reused';
-    } else {
-      const inserted = await transaction
-        .insert(accounts)
-        .values({
-          householdId,
-          name: item.name,
-          kind: 'other' as const,
-          groupId: group.id,
-          status: 'active' as const,
-          sortOrder: nextSortOrder,
-        })
-        .returning({ id: accounts.id });
-      accountId = inserted[0]?.id;
-      nextSortOrder += 10;
-      action = 'created';
-    }
+    const inserted = await transaction
+      .insert(accounts)
+      .values({
+        householdId,
+        name: item.name,
+        kind: 'other' as const,
+        status: 'active' as const,
+        sortOrder: nextSortOrder,
+      })
+      .returning({ id: accounts.id });
+    const accountId = inserted[0]?.id;
     if (accountId === undefined) {
       throw new Error('Import account was not created');
     }
+    nextSortOrder += 10;
     byKey.set(item.key, accountId);
-    if (!mapping) {
-      await transaction.insert(accountImportMappings).values({
-        householdId,
-        source: sourceName,
-        sourceAccountId: item.sourceAccountId ?? null,
-        sourceAccountName: item.name,
-        accountId,
-      });
-    }
-    summaries.push({ name: item.name, id: accountId, action });
+    summaries.push({ name: item.name, id: accountId, action: 'created' });
   }
   return { summaries, byKey };
 }
@@ -421,31 +339,35 @@ export async function commitMoneyManagerImport(
     throw new Error('Money Manager import requires at least one row');
   }
   const source = input.source ?? MONEY_MANAGER_SOURCE;
+  const operationKey = input.operationKey?.trim() || null;
+  if (operationKey && operationKey.length > 120) {
+    throw new Error('Import operation key is too long');
+  }
   const counts = countsForRows(input.rows);
   const period = periodForRows(input.rows);
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, input.householdId);
-      const existingRows = await transaction
-        .select({
-          id: transactionImports.id,
-          createdAt: transactionImports.createdAt,
-        })
-        .from(transactionImports)
-        .where(
-          and(
-            eq(transactionImports.householdId, input.householdId),
-            eq(transactionImports.source, source),
-            eq(transactionImports.sha256, input.sha256),
-          ),
-        )
-        .limit(1);
+      const existingRows = operationKey
+        ? await transaction
+            .select({
+              id: transactionImports.id,
+            })
+            .from(transactionImports)
+            .where(
+              and(
+                eq(transactionImports.householdId, input.householdId),
+                eq(transactionImports.source, source),
+                eq(transactionImports.operationKey, operationKey),
+              ),
+            )
+            .limit(1)
+        : [];
       const existing = existingRows[0];
       if (existing) {
         return {
           status: 'duplicate' as const,
           importId: existing.id,
-          previousImportDate: existing.createdAt.toISOString(),
         };
       }
       const inserted = await transaction
@@ -454,6 +376,7 @@ export async function commitMoneyManagerImport(
           householdId: input.householdId,
           source,
           sha256: input.sha256,
+          operationKey,
           originalFilename: input.originalFilename,
           transactionCount: input.rows.length,
           incomeCount: counts.income.count,
@@ -470,12 +393,7 @@ export async function commitMoneyManagerImport(
         input.householdId,
         input.rows,
       );
-      const accountImport = await insertMissingAccounts(
-        transaction,
-        input.householdId,
-        input.rows,
-        source,
-      );
+      const accountImport = await insertMissingAccounts(transaction, input.householdId, input.rows);
       await insertTransactions(transaction, input.householdId, input.rows, accountImport.byKey);
       await insertTransfers(transaction, input.householdId, input.rows, accountImport.byKey);
       return {
@@ -491,14 +409,26 @@ export async function commitMoneyManagerImport(
       };
     });
   } catch (error) {
-    if (!isUniqueViolation(error, DUPLICATE_IMPORT_CONSTRAINT)) {
+    if (!operationKey || !isUniqueViolation(error, DUPLICATE_IMPORT_CONSTRAINT)) {
       throw error;
     }
-    const existing = await findExistingImport(db, input.householdId, source, input.sha256);
+    const existingRows = await db
+      .select({
+        id: transactionImports.id,
+      })
+      .from(transactionImports)
+      .where(
+        and(
+          eq(transactionImports.householdId, input.householdId),
+          eq(transactionImports.source, source),
+          eq(transactionImports.operationKey, operationKey),
+        ),
+      )
+      .limit(1);
+    const existing = existingRows[0];
     return {
       status: 'duplicate',
       importId: existing?.id,
-      previousImportDate: existing?.createdAt.toISOString(),
     };
   }
 }
