@@ -34,9 +34,9 @@ export const emptyTransactionFormState: TransactionFormState = {};
 
 export function transferValidationErrors(code: TransferValidationCode): TransactionFieldErrors {
   if (code === 'same_account') {
-    return { toAccountId: ['振替元と振替先は別の口座を選択してください。'] };
+    return { toAccountId: ['振替元と振替先は別の資産を選択してください。'] };
   }
-  const unavailable = ['選択した口座は利用できません。'];
+  const unavailable = ['選択した資産は利用できません。'];
   if (code === 'from_account_unavailable') {
     return { fromAccountId: unavailable };
   }

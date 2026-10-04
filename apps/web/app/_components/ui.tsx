@@ -50,6 +50,15 @@ export function SignedYen({ value, tone }: { value: string | number; tone?: Mone
   );
 }
 
+export function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m9.7 3.7.5-1.2h3.6l.5 1.2 1 .4 1.2-.5 2.5 2.5-.5 1.2.4 1 1.2.5v3.6l-1.2.5-.4 1 .5 1.2-2.5 2.5-1.2-.5-1 .4-.5 1.2h-3.6l-.5-1.2-1-.4-1.2.5-2.5-2.5.5-1.2-.4-1-1.2-.5V8.8l1.2-.5.4-1-.5-1.2 2.5-2.5 1.2.5 1-.4Z" />
+      <circle cx="12" cy="10.6" r="2.5" />
+    </svg>
+  );
+}
+
 export function RegisterTransactionAction({
   month,
   variant = 'primary',
@@ -263,13 +272,12 @@ export function FilterBar({
           </label>
           {accounts ? (
             <label>
-              口座
+              資産
               <select name="account" defaultValue={accountId ? String(accountId) : ''}>
                 <option value="">すべて</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name}（{account.groupName}）
-                    {account.status === 'closed' ? '（利用終了）' : ''}
+                    {account.name}
                   </option>
                 ))}
               </select>

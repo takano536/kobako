@@ -518,6 +518,13 @@ h3 {
   padding-block: var(--space-item);
   border-bottom: 1px solid var(--rule);
 }
+.balance-row-metrics {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-item);
+}
 
 .balance-account-name {
   flex: 1 1 auto;
@@ -546,6 +553,17 @@ h3 {
   justify-content: space-between;
   gap: var(--space-group);
   margin-bottom: var(--space-within);
+}
+.account-form .section-heading {
+  display: block;
+  margin: var(--space-section) 0 var(--space-within);
+}
+
+.account-form .section-heading h2 {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+  line-height: var(--leading-meta);
 }
 
 .section-heading h2 {
@@ -1299,8 +1317,11 @@ h3 {
 
 .entry-detail-grid .field-value > .field-select {
   appearance: none;
-  padding: 4px 0;
+  overflow: hidden;
+  padding: 4px 24px 4px 0;
   font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
   background-position: right center;
   background-repeat: no-repeat;
@@ -2578,14 +2599,19 @@ h3 {
   }
 
   .balance-list {
-    --balance-amount-column: max(55%, 11rem);
+    --balance-amount-column: auto;
   }
 
   .balance-row {
     gap: var(--space-item);
   }
 
+  .balance-row-metrics {
+    gap: var(--space-within);
+  }
+
   .balance-amount {
+    width: auto;
     font-size: var(--text-body);
     letter-spacing: normal;
   }
@@ -2685,144 +2711,23 @@ h3 {
   font-weight: 600;
 }
 
-.balance-account-primary {
-  display: block;
-}
-
-.balance-account-raw {
-  display: block;
-  color: var(--muted);
-  font-size: var(--text-small);
-  font-weight: 400;
-}
-
-.balance-account-overpaid .money-amount {
-  color: #8a5b00;
-}
-
-.balance-overpaid-badge {
-  color: #8a5b00;
-  font-weight: 600;
-}
-
 .balance-groups {
   display: grid;
   gap: var(--space-section);
+  margin-top: var(--space-section);
 }
 
 .balance-group h3 {
-  margin: 0 0 var(--space-within);
-  font-size: var(--text-heading);
-}
-
-.balance-group-subtotal {
-  display: grid;
-  gap: 8px;
-  margin: var(--space-within) 0 0;
-  padding: var(--space-within) var(--space-group);
-  border-bottom: 1px solid var(--rule);
-  background: var(--bar);
-}
-
-.balance-group-subtotal > div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-group);
-}
-
-.balance-group-subtotal dt {
-  color: var(--muted);
-}
-
-.balance-group-subtotal dd {
+  min-height: 25px;
   margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.account-group-list,
-.managed-account-list {
-  display: grid;
-  gap: var(--space-within);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.account-group-card {
-  display: grid;
-  gap: var(--space-within);
-  padding: var(--space-group);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-
-.account-group-header,
-.managed-account-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-within);
-}
-
-.managed-account-row {
-  padding: var(--space-item) 0 0;
-  border-top: 1px solid var(--rule);
-}
-
-.account-group-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-item);
-}
-
-.account-group-heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-item);
-}
-
-.account-group-heading h3 {
-  margin: 0;
-}
-
-.account-group-heading span,
-.account-group-default,
-.managed-account-meta {
+  padding-top: var(--space-within);
   color: var(--muted);
   font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: var(--leading-meta);
 }
 
-.account-group-empty {
-  margin: 0;
-  color: var(--muted);
-}
-
-.managed-account-info {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.account-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--bar);
-  color: var(--muted);
-  font-size: var(--text-small);
-  font-weight: 600;
-}
-
-.managed-account-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-item);
-}
-
-.account-group-actions,
 .inline-form,
 .form-actions {
   display: flex;
@@ -2830,22 +2735,8 @@ h3 {
   align-items: center;
   gap: var(--space-item);
 }
-
-.inline-form input,
-.inline-form select,
-.account-form input,
-.account-form select {
-  min-height: 44px;
-  padding: 4px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  background: var(--paper);
-}
-
-.account-form input,
-.account-form select {
-  width: 100%;
-  min-width: 0;
+.account-form .form-actions {
+  justify-content: flex-end;
 }
 
 .account-form input[type='checkbox'] {
@@ -2857,36 +2748,6 @@ h3 {
   border: 0;
   border-radius: 0;
   background: transparent;
-}
-
-.form-stack {
-  display: grid;
-  gap: var(--space-section);
-}
-
-.form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.form-field label {
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-
-.form-field-help,
-.card-condition-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-
-.account-form .date-picker-display {
-  min-height: 44px;
-  padding: 4px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  background: var(--paper);
 }
 
 .field-error,
@@ -2901,141 +2762,12 @@ h3 {
   gap: 8px;
 }
 
-.transfer-closed-account-toggle {
-  display: none;
-}
-
-.ledger-form:has(input[name='type'][value='transfer']:checked) .transfer-closed-account-toggle {
-  display: flex;
-  align-items: center;
-}
-
-.danger-zone {
-  display: grid;
-  gap: var(--space-within);
-  margin-top: var(--space-section);
-  padding-top: var(--space-section);
-  border-top: 1px solid #d7aaa4;
-}
-
-.danger-zone h2 {
-  margin: 0;
-  color: #8f443d;
-  font-size: var(--text-heading);
-}
-
-.managed-account-name {
-  color: inherit;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.managed-account-name:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.managed-account-meta {
-  margin: 4px 0 0;
-}
-
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-group);
   margin-top: var(--space-section);
-}
-
-.card-condition-history {
-  display: grid;
-  gap: var(--space-group);
-  margin: 0;
-  padding-inline-start: 0;
-  list-style: none;
-}
-
-.card-condition-history li {
-  display: grid;
-  gap: 4px;
-  padding: var(--space-group);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-}
-
-.card-condition-history span {
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-
-.card-condition-history a {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-}
-
-.account-choice-section {
-  display: grid;
-  gap: var(--space-within);
-}
-
-.account-choice-section > p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.account-choice-list {
-  display: grid;
-  gap: var(--space-item);
-}
-
-.account-choice-row {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-  padding: var(--space-item) 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.account-choice-row label {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-item);
-}
-
-.account-choice-row label > strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.account-choice-row select {
-  width: min(100%, 28rem);
-  min-width: 0;
-  min-height: 44px;
-  padding: 4px 8px;
-}
-
-.account-group-order {
-  display: flex;
-  gap: 4px;
-}
-
-.managed-account-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.account-transaction-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-item);
-  margin-top: var(--space-item);
 }
 
 .month-switcher-all {
@@ -3050,89 +2782,51 @@ h3 {
   min-width: 0;
 }
 
-.account-group-create-form input {
-  min-width: 12rem;
+.asset-transaction-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-group);
+  margin: var(--space-section) 0 var(--space-within);
 }
 
-.account-group-rename {
-  display: grid;
+.asset-transaction-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: var(--space-item);
 }
 
-.account-group-rename > summary {
-  width: max-content;
-  list-style: none;
+.asset-transaction-heading h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-heading);
 }
 
-.account-group-rename > summary::-webkit-details-marker,
-.account-group-rename > summary::marker {
-  display: none;
-  content: '';
+.asset-settings-link {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-right: -24px;
+  color: var(--muted);
+  font-size: 1.25rem;
+  text-decoration: none;
 }
 
-.account-group-rename .inline-form {
-  margin-top: 0;
+.asset-settings-link svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
-@media (max-width: 30rem) {
-  .account-group-create-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-  }
-
-  .account-group-create-form label {
-    grid-column: 1 / -1;
-  }
-
-  .account-group-create-form input {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .account-group-card {
-    align-items: stretch;
-  }
-
-  .account-group-header {
-    align-items: flex-start;
-  }
-
-  .account-group-heading {
-    min-width: 0;
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-  }
-
-  .account-group-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .account-group-order {
-    flex: 0 0 auto;
-  }
-
-  .account-group-rename {
-    width: auto;
-  }
-
-  .account-group-rename .inline-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .account-group-rename .inline-form input {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .managed-account-row {
-    align-items: flex-start;
-  }
-
-  .managed-account-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
+.asset-settings-link:hover {
+  color: var(--accent);
 }

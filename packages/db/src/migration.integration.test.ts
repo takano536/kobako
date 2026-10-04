@@ -8,7 +8,11 @@ import {
   assertSafeTestDatabaseTarget,
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
-import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
+import {
+  DEFAULT_HOUSEHOLD_ID,
+  ensureDefaultAccountGroups,
+  initializeDefaultLedger,
+} from './ledger.js';
 import { listAccountGroups } from './accounts.js';
 import { findMoneyManagerImport } from './imports.js';
 
@@ -19,6 +23,8 @@ const MIGRATION_FILES = [
   '0002_bitter_stryfe.sql',
   '0003_money_manager_import.sql',
   '0004_grey_mysterio.sql',
+  '0005_debit_asset_group.sql',
+  '0006_fuzzy_argent.sql',
 ] as const;
 
 async function executeMigrationFile(sql: Sql, fileName: string): Promise<void> {
@@ -157,6 +163,7 @@ describe('legacy account migration', () => {
         (${HOUSEHOLD_ID}, ${regularAccount.id}, ${whitespaceAccount.id}, 40, '2026-01-06', '振替2')
     `;
     const importHash = 'c'.repeat(64);
+    let customDebitGroup: { id: number; sort_order: number } | undefined;
     await legacyClient.sql`
       insert into transaction_imports (
         household_id, source, sha256, original_filename, transaction_count,
@@ -249,8 +256,23 @@ describe('legacy account migration', () => {
       where household_id = ${HOUSEHOLD_ID}
     `;
 
-    await executeMigrationFile(legacyClient.sql, MIGRATION_FILES[4]);
-
+    for (const fileName of MIGRATION_FILES.slice(4)) {
+      await executeMigrationFile(legacyClient.sql, fileName);
+      if (fileName === '0004_grey_mysterio.sql') {
+        [customDebitGroup] = await legacyClient.sql<{ id: number; sort_order: number }[]>`
+          insert into account_groups (household_id, name, default_kind, sort_order)
+          values (${HOUSEHOLD_ID}, 'デビットカード', null, 777)
+          returning id, sort_order
+        `;
+        if (!customDebitGroup) {
+          throw new Error('custom debit group was not inserted');
+        }
+      }
+    }
+    if (!customDebitGroup) {
+      throw new Error('custom debit group was not inserted');
+    }
+    await ensureDefaultAccountGroups(legacyClient.db, HOUSEHOLD_ID);
     const afterBalances = await accountBalanceRows();
     const afterTransactionRows = await legacyClient.sql<
       {
@@ -325,6 +347,24 @@ describe('legacy account migration', () => {
       from transaction_imports
       where household_id = ${HOUSEHOLD_ID}
     `;
+    const preservedDebitGroup = await legacyClient.sql<
+      {
+        id: number;
+        defaultKind: string | null;
+        sortOrder: number;
+      }[]
+    >`
+      select id, default_kind as "defaultKind", sort_order as "sortOrder"
+      from account_groups
+      where id = ${customDebitGroup.id}
+    `;
+    const preservedAfterInitialization = await legacyClient.sql<
+      { id: number; defaultKind: string | null; sortOrder: number }[]
+    >`
+      select id, default_kind as "defaultKind", sort_order as "sortOrder"
+      from account_groups
+      where id = ${customDebitGroup.id}
+    `;
     const mappings = await legacyClient.sql<{ sourceAccountName: string; accountId: number }[]>`
       select source_account_name as "sourceAccountName", account_id as "accountId"
       from account_import_mappings
@@ -332,7 +372,12 @@ describe('legacy account migration', () => {
       order by account_id
     `;
     const duplicateLookup = await findMoneyManagerImport(legacyClient.db, HOUSEHOLD_ID, importHash);
-
+    expect(preservedDebitGroup).toEqual([
+      { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
+    ]);
+    expect(preservedAfterInitialization).toEqual([
+      { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
+    ]);
     expect(migratedAccounts).toEqual([
       {
         id: whitespaceAccount.id,
@@ -406,7 +451,13 @@ describe('legacy account migration', () => {
       await initializeDefaultLedger(emptyClient.db);
       expect(
         (await listAccountGroups(emptyClient.db, DEFAULT_HOUSEHOLD_ID)).map((group) => group.name),
-      ).toEqual(['現金', '銀行', 'クレジットカード', '電子マネー', 'その他']);
+      ).toEqual(['現金', '銀行', 'クレジットカード', 'デビットカード', '電子マネー', 'その他']);
+      const debitGroup = await emptyClient.sql<{ defaultKind: string | null; sortOrder: number }[]>`
+        select default_kind as "defaultKind", sort_order as "sortOrder"
+        from account_groups
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'デビットカード'
+      `;
+      expect(debitGroup).toEqual([{ defaultKind: 'debit_card', sortOrder: 40 }]);
     } finally {
       await emptyClient.close();
       await adminSql.unsafe(`drop database if exists "${emptyDatabase}"`);

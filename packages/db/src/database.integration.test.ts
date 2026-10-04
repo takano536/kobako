@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { MoneyManagerLedgerRow, MoneyManagerNormalizedRow } from './money-manager-format.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -24,29 +24,17 @@ import {
   updateTransfer,
 } from './ledger.js';
 import {
-  appendCardCondition,
-  correctCardCondition,
   createAccount,
-  createAccountGroup,
   deleteAccount,
-  deleteAccountGroup,
-  getAccountReferenceSummary,
+  getActiveManagedAccount,
+  getCurrentCardCondition,
   listAccountGroups,
-  listAccountImportMappings,
-  listCardConditionHistory,
+  listActiveManagedAccounts,
   listManagedAccounts,
-  renameAccountGroup,
-  reorderAccountGroups,
-  reorderAccounts,
-  updateAccount,
+  saveCurrentCardCondition,
+  setAccountImportMappings,
 } from './accounts.js';
-import {
-  commitMoneyManagerImport as commitMoneyManagerImportRaw,
-  findMoneyManagerImport,
-  validateMoneyManagerImportAccountResolutions,
-  type MoneyManagerImportAccountResolution,
-  type MoneyManagerImportInput,
-} from './imports.js';
+import { commitMoneyManagerImport } from './imports.js';
 import { runMigrations } from './migrate.js';
 import {
   assertSafeTestDatabaseTarget,
@@ -54,9 +42,7 @@ import {
   type DatabaseTarget,
 } from './database-safety.js';
 import {
-  accountCardConditions,
   accountGroups,
-  accountImportMappings,
   accounts,
   categories,
   transactionImports,
@@ -96,64 +82,6 @@ function importedRow(
     memo: 'テスト',
     ...overrides,
   };
-}
-function defaultImportResolutions(
-  rows: readonly MoneyManagerNormalizedRow[],
-  mapped: ReadonlySet<string>,
-): NonNullable<MoneyManagerImportInput['accountResolutions']> {
-  const seen = new Set<string>();
-  const resolutions: MoneyManagerImportAccountResolution[] = [];
-  for (const row of rows) {
-    const sourceAccounts =
-      row.type === 'transfer'
-        ? [
-            { name: row.fromAccountName, id: row.fromSourceAccountId },
-            { name: row.toAccountName, id: row.toSourceAccountId },
-          ]
-        : [{ name: row.accountName, id: row.sourceAccountId }];
-    for (const sourceAccount of sourceAccounts) {
-      const key =
-        sourceAccount.id === undefined ? `name:${sourceAccount.name}` : `id:${sourceAccount.id}`;
-      if (seen.has(key) || mapped.has(key)) continue;
-      seen.add(key);
-      resolutions.push({
-        sourceAccountName: sourceAccount.name,
-        ...(sourceAccount.id === undefined ? {} : { sourceAccountId: sourceAccount.id }),
-        action: 'create',
-      });
-    }
-  }
-  return resolutions;
-}
-
-async function commitMoneyManagerImport(
-  db: Parameters<typeof commitMoneyManagerImportRaw>[0],
-  input: MoneyManagerImportInput,
-) {
-  if (input.accountResolutions !== undefined) {
-    return commitMoneyManagerImportRaw(db, input);
-  }
-  const mappingRows = await db
-    .select({
-      sourceAccountId: accountImportMappings.sourceAccountId,
-      sourceAccountName: accountImportMappings.sourceAccountName,
-    })
-    .from(accountImportMappings)
-    .where(
-      and(
-        eq(accountImportMappings.householdId, input.householdId),
-        eq(accountImportMappings.source, input.source ?? 'realbyte-money-manager'),
-      ),
-    );
-  const mapped = new Set(
-    mappingRows.map((mapping) =>
-      mapping.sourceAccountId === null
-        ? `name:${mapping.sourceAccountName}`
-        : `id:${mapping.sourceAccountId}`,
-    ),
-  );
-  const resolutions = defaultImportResolutions(input.rows, mapped);
-  return commitMoneyManagerImportRaw(db, { ...input, accountResolutions: resolutions });
 }
 
 describe('PostgreSQL migrations and ledger', () => {
@@ -230,140 +158,98 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(seededCategories.filter((category) => category.type === 'expense')).toHaveLength(9);
     expect(seededCategories.filter((category) => category.type === 'income')).toHaveLength(3);
   });
-  it('creates accounts with kind defaults, allows same names, and protects group rules', async () => {
-    const customGroup = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '旅行',
-    });
-    expect(customGroup.status).toBe('ok');
-    if (customGroup.status !== 'ok') {
-      throw new Error('custom account group was not created');
-    }
-    const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '同名口座',
-      kind: 'bank',
-    });
-    const cash = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '同名口座',
-      kind: 'cash',
-    });
-    expect(bank.status).toBe('ok');
-    expect(cash.status).toBe('ok');
-    if (bank.status !== 'ok' || cash.status !== 'ok') {
-      throw new Error('account fixtures were not created');
-    }
-    expect(bank.account.groupName).toBe('銀行');
-    expect(cash.account.groupName).toBe('現金');
-    expect(bank.account.id).not.toBe(cash.account.id);
-
-    const kindConfirmation = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id, {
-      name: bank.account.name,
-      kind: 'credit_card',
-      groupId: cash.account.groupId,
-      status: 'active',
-      expectedKind: 'bank',
-      confirmKindChange: false,
-    });
-    expect(kindConfirmation).toMatchObject({
-      status: 'kind_confirmation_required',
-      previousKind: 'bank',
-    });
-    const updated = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id, {
-      name: bank.account.name,
-      kind: 'credit_card',
-      groupId: cash.account.groupId,
-      status: 'closed',
-      expectedKind: 'bank',
-      confirmKindChange: true,
-    });
-    expect(updated.status).toBe('ok');
-    if (updated.status !== 'ok') {
-      throw new Error('account kind update was not committed');
-    }
-    expect(updated.account.status).toBe('closed');
-    expect(
-      (await listManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
-        (account) => account.name === '同名口座',
-      ),
-    ).toHaveLength(2);
-
-    const customAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '旅行口座',
-      kind: 'other',
-      groupId: customGroup.group.id,
-    });
-    expect(customAccount.status).toBe('ok');
-    expect(await deleteAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, customGroup.group.id)).toEqual(
-      {
-        status: 'not_empty',
-      },
-    );
-    if (customAccount.status !== 'ok') {
-      throw new Error('custom account fixture was not created');
-    }
-    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, customAccount.account.id)).toEqual({
-      status: 'deleted',
-    });
-    expect(
-      await deleteAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, customGroup.group.id),
-    ).toMatchObject({ status: 'ok' });
-    expect(await deleteAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, cash.account.groupId)).toEqual(
-      { status: 'default_group' },
-    );
-  });
-  it('serializes concurrent group rename and delete decisions under household locks', async () => {
-    const first = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '競合グループA',
-    });
-    const second = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '競合グループB',
-    });
-    expect(first.status).toBe('ok');
-    expect(second.status).toBe('ok');
-    if (first.status !== 'ok' || second.status !== 'ok') {
-      throw new Error('concurrent group fixtures were not created');
-    }
-    const renameResults = await Promise.all([
-      renameAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, first.group.id, {
-        name: '競合グループ',
-      }),
-      renameAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, second.group.id, {
-        name: '競合グループ',
-      }),
+  it('uses fixed asset groups, saves current card conditions, and deletes assets logically', async () => {
+    const groups = await listAccountGroups(client.db, DEFAULT_HOUSEHOLD_ID);
+    expect(groups.map((group) => group.name)).toEqual([
+      '現金',
+      '銀行',
+      'クレジットカード',
+      'デビットカード',
+      '電子マネー',
+      'その他',
     ]);
-    expect(renameResults.filter((result) => result.status === 'ok')).toHaveLength(1);
-    expect(renameResults.filter((result) => result.status === 'duplicate_name')).toHaveLength(1);
-
-    const removable = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '削除競合グループ',
-    });
-    expect(removable.status).toBe('ok');
-    if (removable.status !== 'ok') {
-      throw new Error('delete race fixture was not created');
-    }
-    const [group] = await listAccountGroups(client.db, DEFAULT_HOUSEHOLD_ID);
-    if (!group) {
-      throw new Error('default group fixture is missing');
-    }
-    const [deleteResult, createResult] = await Promise.all([
-      deleteAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, removable.group.id),
-      createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-        name: '削除競合口座',
-        kind: 'other',
-        groupId: removable.group.id,
-      }),
+    expect(groups.slice(0, 4).map((group) => group.defaultKind)).toEqual([
+      'cash',
+      'bank',
+      'credit_card',
+      'debit_card',
     ]);
-    expect(['ok', 'not_empty']).toContain(deleteResult.status);
-    expect(['ok', 'group_unavailable', 'error']).toContain(createResult.status);
-    expect(group.id).toBeGreaterThan(0);
-  });
 
-  it('records card condition history without calculating payments', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '履歴カード',
+      name: '設定カード',
       kind: 'credit_card',
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '引落口座',
+      name: '引落資産',
+      kind: 'bank',
+    });
+    expect(card.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (card.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('card fixtures were not created');
+    }
+    await client.sql`
+      update accounts set status = 'closed' where id = ${debit.account.id}
+    `;
+    expect(await listActiveManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: debit.account.id, status: 'closed' })]),
+    );
+    expect(
+      await getActiveManagedAccount(client.db, DEFAULT_HOUSEHOLD_ID, debit.account.id),
+    ).toMatchObject({
+      id: debit.account.id,
+      status: 'closed',
+    });
+    const saved = await saveCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
+      closingDay: 'last',
+      paymentDay: '10',
+      paymentMonthOffset: 'next_month',
+      debitAccountId: debit.account.id,
+    });
+    expect(saved.status).toBe('ok');
+    const current = await getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id);
+    expect(current).toMatchObject({
+      effectiveFrom: null,
+      closingDay: 'last',
+      paymentDay: '10',
+      paymentMonthOffset: 'next_month',
+      debitAccountId: debit.account.id,
+    });
+
+    const deleted = await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, debit.account.id);
+    expect(deleted).toEqual({ status: 'deleted' });
+    expect(await listManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: debit.account.id,
+          status: 'closed',
+          deletedAt: expect.any(Date),
+        }),
+      ]),
+    );
+    expect(await listActiveManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: debit.account.id })]),
+    );
+    const raw = await client.sql<{ status: string; deleted_at: string | null }[]>`
+      select status, deleted_at from accounts where id = ${debit.account.id}
+    `;
+    expect(raw).toHaveLength(1);
+    expect(raw[0]?.status).toBe('closed');
+    expect(raw[0]?.deleted_at).toEqual(expect.any(String));
+
+    expect(
+      await getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).toMatchObject({
+      debitAccountId: debit.account.id,
+    });
+  });
+  it('selects the latest past card condition, then unset, then earliest future', async () => {
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '条件選択カード',
+      kind: 'credit_card',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '条件選択引落口座',
       kind: 'bank',
     });
     expect(card.status).toBe('ok');
@@ -371,49 +257,56 @@ describe('PostgreSQL migrations and ledger', () => {
     if (card.status !== 'ok' || debit.status !== 'ok') {
       throw new Error('card condition fixtures were not created');
     }
-    const baseline = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
+
+    await client.sql`
+      insert into account_card_conditions (
+        household_id,
+        account_id,
+        effective_from,
+        closing_day,
+        payment_day,
+        payment_month_offset,
+        debit_account_id
+      )
+      values
+        (${DEFAULT_HOUSEHOLD_ID}, ${card.account.id}, '2000-01-01', '1', '2', 'same_month', ${debit.account.id}),
+        (${DEFAULT_HOUSEHOLD_ID}, ${card.account.id}, '2001-01-01', '3', '4', 'next_month', ${debit.account.id}),
+        (${DEFAULT_HOUSEHOLD_ID}, ${card.account.id}, null, '5', '6', 'two_months_later', ${debit.account.id}),
+        (${DEFAULT_HOUSEHOLD_ID}, ${card.account.id}, '2999-01-01', '7', '8', 'same_month', ${debit.account.id})
+    `;
+
+    await expect(
+      getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).resolves.toMatchObject({
+      effectiveFrom: '2001-01-01',
+      closingDay: '3',
+    });
+
+    await client.sql`
+      delete from account_card_conditions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and account_id = ${card.account.id}
+        and effective_from in ('2000-01-01', '2001-01-01')
+    `;
+    await expect(
+      getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).resolves.toMatchObject({
       effectiveFrom: null,
-      closingDay: 'last',
-      paymentDay: '10',
-      paymentMonthOffset: 'next_month',
-      debitAccountId: debit.account.id,
+      closingDay: '5',
     });
-    const future = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-      effectiveFrom: '2026-10-01',
-      closingDay: '15',
-      paymentDay: 'last',
-      paymentMonthOffset: 'two_months_later',
-      debitAccountId: debit.account.id,
+
+    await client.sql`
+      delete from account_card_conditions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and account_id = ${card.account.id}
+        and effective_from is null
+    `;
+    await expect(
+      getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).resolves.toMatchObject({
+      effectiveFrom: '2999-01-01',
+      closingDay: '7',
     });
-    expect(baseline.status).toBe('ok');
-    expect(future.status).toBe('ok');
-    if (baseline.status !== 'ok' || future.status !== 'ok') {
-      throw new Error('card condition history was not created');
-    }
-    expect(
-      (await listCardConditionHistory(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id)).map(
-        (condition) => condition.effectiveFrom,
-      ),
-    ).toEqual(['2026-10-01', null]);
-    const corrected = await correctCardCondition(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      card.account.id,
-      baseline.condition.id,
-      {
-        effectiveFrom: '2026-01-01',
-        closingDay: '20',
-        paymentDay: '12',
-        paymentMonthOffset: 'same_month',
-        debitAccountId: debit.account.id,
-      },
-    );
-    expect(corrected.status).toBe('ok');
-    expect(
-      (await listCardConditionHistory(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id)).map(
-        (condition) => condition.effectiveFrom,
-      ),
-    ).toEqual(['2026-10-01', '2026-01-01']);
   });
 
   it('computes all-time balances for accounts in one household', async () => {
@@ -1110,73 +1003,6 @@ describe('PostgreSQL migrations and ledger', () => {
         throw error;
       }
     }).rejects.toThrow();
-  });
-
-  it('restricts referenced accounts and cascades accounts and transfers with a household', async () => {
-    const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Referenced source', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
-      returning id
-    `;
-    const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Referenced destination', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
-      returning id
-    `;
-    if (!fromAccount || !toAccount) {
-      throw new Error('referenced accounts were not created');
-    }
-    await client.sql`
-      insert into transfers
-        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
-      values
-        (${DEFAULT_HOUSEHOLD_ID}, ${fromAccount.id}, ${toAccount.id}, 100, '2026-09-01', '')
-    `;
-    await expect(async () => {
-      try {
-        await client.sql`delete from accounts where id = ${fromAccount.id}`;
-      } catch (error) {
-        expect(pgError(error).code).toBe('23503');
-        expect(pgError(error).constraint_name).toBe('transfers_from_account_household_fk');
-        throw error;
-      }
-    }).rejects.toThrow();
-
-    const cascadeHouseholdId = '00000000-0000-0000-0000-000000000002';
-    await client.sql`
-      insert into households (id, slug, name)
-      values (${cascadeHouseholdId}, 'cascade', 'Cascade household')
-    `;
-    await client.sql`
-      insert into account_groups (household_id, name, sort_order)
-      values (${cascadeHouseholdId}, 'その他', 10)
-    `;
-    const [cascadeFrom] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${cascadeHouseholdId}, 'Cascade source', (select id from account_groups where household_id = ${cascadeHouseholdId} and name = 'その他'))
-      returning id
-    `;
-    const [cascadeTo] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${cascadeHouseholdId}, 'Cascade destination', (select id from account_groups where household_id = ${cascadeHouseholdId} and name = 'その他'))
-      returning id
-    `;
-    if (!cascadeFrom || !cascadeTo) {
-      throw new Error('cascade accounts were not created');
-    }
-    await client.sql`
-      insert into transfers
-        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
-      values
-        (${cascadeHouseholdId}, ${cascadeFrom.id}, ${cascadeTo.id}, 200, '2026-09-01', '')
-    `;
-    await client.sql`delete from households where id = ${cascadeHouseholdId}`;
-    expect(
-      await client.sql`select id from accounts where household_id = ${cascadeHouseholdId}`,
-    ).toEqual([]);
-    expect(
-      await client.sql`select id from transfers where household_id = ${cascadeHouseholdId}`,
-    ).toEqual([]);
   });
 
   it('creates, edits, and deletes transfers with household and balance boundaries', async () => {
@@ -2299,7 +2125,7 @@ describe('PostgreSQL migrations and ledger', () => {
     ).toHaveLength(1);
   });
 
-  it('honors explicit same-name account selection while keeping household scope', async () => {
+  it('reuses same-name account mappings within the household', async () => {
     const otherHouseholdId = '00000000-0000-0000-0000-000000000002';
     await client.sql`
       insert into households (id, slug, name)
@@ -2323,18 +2149,19 @@ describe('PostgreSQL migrations and ledger', () => {
       throw new Error('account reuse fixtures were not created');
     }
 
+    await client.sql`
+      insert into account_import_mappings (
+        household_id, source, source_account_id, source_account_name, account_id
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'realbyte-money-manager', null,
+        'Existing account', ${existingAccount.id}
+      )
+    `;
     const result = await commitMoneyManagerImport(client.db, {
       householdId: DEFAULT_HOUSEHOLD_ID,
       sha256: 'a'.repeat(64),
       originalFilename: 'account-reuse.xlsx',
-      accountResolutions: [
-        {
-          sourceAccountName: 'Existing account',
-          action: 'existing',
-          accountId: existingAccount.id,
-        },
-        { sourceAccountName: 'Other-only account', action: 'create' },
-      ],
       rows: [
         importedRow({ accountName: 'Existing account', categoryName: 'Account reuse' }),
         {
@@ -2411,18 +2238,19 @@ describe('PostgreSQL migrations and ledger', () => {
     if (!existingAccount) {
       throw new Error('stable mapping account fixture was not created');
     }
+    await client.sql`
+      insert into account_import_mappings (
+        household_id, source, source_account_id, source_account_name, account_id
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'realbyte-money-manager', 'source-42',
+        'Source account', ${existingAccount.id}
+      )
+    `;
     const first = await commitMoneyManagerImport(client.db, {
       householdId: DEFAULT_HOUSEHOLD_ID,
       sha256: 'f'.repeat(64),
       originalFilename: 'stable-account.xlsx',
-      accountResolutions: [
-        {
-          sourceAccountName: 'Source account',
-          sourceAccountId: 'source-42',
-          action: 'existing',
-          accountId: existingAccount.id,
-        },
-      ],
       rows: [
         importedRow({
           accountName: 'Source account',
@@ -2468,10 +2296,226 @@ describe('PostgreSQL migrations and ledger', () => {
     ).toEqual([
       {
         source_account_id: 'source-42',
-        source_account_name: 'Renamed source account',
+        source_account_name: 'Source account',
         account_id: existingAccount.id,
       },
     ]);
+  });
+
+  it('rejects mapping names already used by another asset for both mapping kinds', async () => {
+    const [nameOwner, idOwner, target] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name, group_id)
+      select ${DEFAULT_HOUSEHOLD_ID}, fixture.name, g.id
+      from (
+        values
+          ('mapping name owner'),
+          ('mapping id owner'),
+          ('mapping target')
+      ) as fixture(name)
+      cross join lateral (
+        select id from account_groups
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'
+        limit 1
+      ) g
+      returning id
+    `;
+    if (!nameOwner || !idOwner || !target) {
+      throw new Error('mapping conflict fixtures were not created');
+    }
+    const nameMapping = await setAccountImportMappings(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      nameOwner.id,
+      [{ sourceAccountName: '共有対応名' }],
+    );
+    await expect(
+      client.sql`
+        insert into account_import_mappings (
+          household_id, source, source_account_id, source_account_name, account_id
+        )
+        values (
+          ${DEFAULT_HOUSEHOLD_ID}, 'realbyte-money-manager', null,
+          '共有対応名', ${target.id}
+        )
+      `,
+    ).rejects.toMatchObject({ code: '23505' });
+    expect(nameMapping.status).toBe('ok');
+    const idMapping = await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, idOwner.id, [
+      { sourceAccountId: 'shared-source-id', sourceAccountName: 'ID 対応名' },
+    ]);
+    expect(idMapping.status).toBe('ok');
+    expect(
+      await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, target.id, [
+        { sourceAccountName: '共有対応名' },
+      ]),
+    ).toEqual({ status: 'conflict' });
+    expect(
+      await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, target.id, [
+        { sourceAccountId: 'target-source-id', sourceAccountName: 'ID 対応名' },
+      ]),
+    ).toEqual({ status: 'conflict' });
+    expect(
+      await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, target.id, [
+        { sourceAccountId: 'shared-source-id', sourceAccountName: '別の対応名' },
+      ]),
+    ).toEqual({ status: 'conflict' });
+    if (idMapping.status !== 'ok') {
+      throw new Error('ID mapping fixture was not created');
+    }
+    const idMappingId = idMapping.mappings[0]?.id;
+    if (idMappingId === undefined) {
+      throw new Error('ID mapping id was not returned');
+    }
+    expect(
+      await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, idOwner.id, [
+        { id: idMappingId, sourceAccountName: '共有対応名' },
+      ]),
+    ).toEqual({ status: 'conflict' });
+  });
+
+  it('reuses closed and logically deleted mapped accounts without changing deletion state', async () => {
+    const [closedAccount, deletedAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name, group_id, status)
+      select ${DEFAULT_HOUSEHOLD_ID}, fixture.name, g.id, fixture.status::account_status
+      from (
+        values
+          ('closed import target', 'closed'),
+          ('deleted import target', 'active')
+      ) as fixture(name, status)
+      cross join lateral (
+        select id from account_groups
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'
+        limit 1
+      ) g
+      returning id
+    `;
+    if (!closedAccount || !deletedAccount) {
+      throw new Error('import deletion-state fixtures were not created');
+    }
+    await client.sql`
+      update accounts set deleted_at = now() where id = ${deletedAccount.id}
+    `;
+    const closedMapping = await setAccountImportMappings(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      closedAccount.id,
+      [{ sourceAccountId: 'closed-source', sourceAccountName: 'Closed source' }],
+    );
+    const deletedMapping = await setAccountImportMappings(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      deletedAccount.id,
+      [{ sourceAccountId: 'deleted-source', sourceAccountName: 'Deleted source' }],
+    );
+    expect(closedMapping.status).toBe('ok');
+    expect(deletedMapping.status).toBe('ok');
+    const result = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'e'.repeat(64),
+      originalFilename: 'deleted-and-closed.xlsx',
+      rows: [
+        importedRow({
+          accountName: 'Closed source',
+          sourceAccountId: 'closed-source',
+          categoryName: 'Closed import',
+        }),
+        importedRow({
+          sourceRow: 3,
+          accountName: 'Deleted source',
+          sourceAccountId: 'deleted-source',
+          categoryName: 'Deleted import',
+        }),
+      ],
+    });
+    if (result.status !== 'imported') {
+      throw new Error('closed/deleted mapped import did not commit');
+    }
+    expect(result.accounts).toEqual([
+      { name: 'Closed source', action: 'reused', id: closedAccount.id },
+      { name: 'Deleted source', action: 'reused', id: deletedAccount.id },
+    ]);
+    expect(
+      await client.sql`
+        select status, deleted_at is not null as deleted
+        from accounts
+        where id in (${closedAccount.id}, ${deletedAccount.id})
+        order by id
+      `,
+    ).toEqual([
+      { status: 'closed', deleted: false },
+      { status: 'active', deleted: true },
+    ]);
+    expect(
+      await client.sql`
+        select count(*)::int as count
+        from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+          and name in ('Closed source', 'Deleted source')
+      `,
+    ).toEqual([{ count: 0 }]);
+  });
+
+  it('reuses mappings added and renamed in asset settings on subsequent imports', async () => {
+    const [target] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name, group_id)
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'Settings mapping target',
+        (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他')
+      )
+      returning id
+    `;
+    if (!target) {
+      throw new Error('settings mapping target was not created');
+    }
+    const added = await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, target.id, [
+      { sourceAccountName: 'Settings source' },
+    ]);
+    if (added.status !== 'ok') {
+      throw new Error('settings mapping was not added');
+    }
+    const first = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: '1'.repeat(64),
+      originalFilename: 'settings-mapping.xlsx',
+      rows: [importedRow({ accountName: 'Settings source', categoryName: 'Settings first' })],
+    });
+    if (first.status !== 'imported') {
+      throw new Error('settings mapping import did not commit');
+    }
+    expect(first.accounts).toEqual([{ name: 'Settings source', action: 'reused', id: target.id }]);
+    const mappingId = added.mappings[0]?.id;
+    if (mappingId === undefined) {
+      throw new Error('settings mapping id was not returned');
+    }
+    const changed = await setAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, target.id, [
+      { id: mappingId, sourceAccountName: 'Renamed settings source' },
+    ]);
+    expect(changed.status).toBe('ok');
+    const second = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: '2'.repeat(64),
+      originalFilename: 'settings-mapping-renamed.xlsx',
+      rows: [
+        importedRow({
+          accountName: 'Renamed settings source',
+          categoryName: 'Settings second',
+        }),
+      ],
+    });
+    if (second.status !== 'imported') {
+      throw new Error('renamed settings mapping import did not commit');
+    }
+    expect(second.accounts).toEqual([
+      { name: 'Renamed settings source', action: 'reused', id: target.id },
+    ]);
+    expect(
+      await client.sql`
+        select count(*)::int as count
+        from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+          and name = 'Renamed settings source'
+      `,
+    ).toEqual([{ count: 0 }]);
   });
 
   it('does not conflate categories with the same name across income and expense types', async () => {
@@ -2723,310 +2767,6 @@ describe('PostgreSQL migrations and ledger', () => {
       { amount: -50, memo: 'second', categoryName: 'Immediate' },
       { amount: 300, memo: 'first', categoryName: 'Immediate' },
     ]);
-  });
-  it('deletes a card with only its own conditions and blocks every external reference', async () => {
-    const ownCard = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '削除専用カード',
-      kind: 'credit_card',
-    });
-    expect(ownCard.status).toBe('ok');
-    if (ownCard.status !== 'ok') {
-      throw new Error('own-card fixture was not created');
-    }
-    const ownCondition = await appendCardCondition(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      ownCard.account.id,
-      { effectiveFrom: null },
-    );
-    expect(ownCondition.status).toBe('ok');
-    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, ownCard.account.id)).toEqual({
-      status: 'deleted',
-    });
-    expect(
-      await client.sql`
-        select count(*)::int as count
-        from account_card_conditions
-        where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${ownCard.account.id}
-      `,
-    ).toEqual([{ count: 0 }]);
-    expect(await listManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).not.toContainEqual(
-      expect.objectContaining({ id: ownCard.account.id }),
-    );
-
-    const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '参照対象口座',
-      kind: 'bank',
-    });
-    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '参照元カード',
-      kind: 'credit_card',
-    });
-    const destination = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '参照先口座',
-      kind: 'other',
-    });
-    expect(target.status).toBe('ok');
-    expect(card.status).toBe('ok');
-    expect(destination.status).toBe('ok');
-    if (target.status !== 'ok' || card.status !== 'ok' || destination.status !== 'ok') {
-      throw new Error('reference fixtures were not created');
-    }
-    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
-    if (!expenseCategory) {
-      throw new Error('reference category fixture is missing');
-    }
-    await createTransaction(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transactionInputSchema.parse({
-        type: 'expense',
-        amount: '100',
-        occurredOn: '2026-09-01',
-        categoryId: String(expenseCategory.id),
-        accountId: String(target.account.id),
-        memo: '参照取引',
-      }),
-    );
-    const transfer = await createTransfer(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transferInputSchema.parse({
-        fromAccountId: String(target.account.id),
-        toAccountId: String(destination.account.id),
-        amount: '80',
-        occurredOn: '2026-09-02',
-        memo: '参照振替',
-      }),
-    );
-    expect(transfer.status).toBe('ok');
-    await client.db.insert(accountImportMappings).values({
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      source: 'reference-test',
-      sourceAccountId: null,
-      sourceAccountName: '参照対象口座',
-      accountId: target.account.id,
-    });
-    const debitCondition = await appendCardCondition(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      card.account.id,
-      { effectiveFrom: null, debitAccountId: target.account.id },
-    );
-    expect(debitCondition.status).toBe('ok');
-    expect(
-      await getAccountReferenceSummary(client.db, DEFAULT_HOUSEHOLD_ID, target.account.id),
-    ).toEqual({
-      transactions: 1,
-      transfers: 1,
-      importMappings: 1,
-      cardConditions: 0,
-      debitAccounts: 1,
-    });
-    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, target.account.id)).toEqual({
-      status: 'referenced',
-      references: {
-        transactions: 1,
-        transfers: 1,
-        importMappings: 1,
-        cardConditions: 0,
-        debitAccounts: 1,
-      },
-    });
-    expect(await client.db.select().from(accounts)).toContainEqual(
-      expect.objectContaining({ id: target.account.id, name: '参照対象口座' }),
-    );
-    expect(await client.db.select().from(transfers)).toContainEqual(
-      expect.objectContaining({ id: transfer.status === 'ok' ? transfer.transfer.id : -1 }),
-    );
-    expect(
-      await client.db
-        .select()
-        .from(accountImportMappings)
-        .where(eq(accountImportMappings.accountId, target.account.id)),
-    ).toHaveLength(1);
-    expect(
-      await client.db
-        .select()
-        .from(accountCardConditions)
-        .where(eq(accountCardConditions.debitAccountId, target.account.id)),
-    ).toHaveLength(1);
-  });
-
-  it('enforces the complete card-condition status matrix and preserves unset values', async () => {
-    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '条件マトリクスカード',
-      kind: 'credit_card',
-    });
-    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '条件引落銀行',
-      kind: 'bank',
-    });
-    const secondCard = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '条件別カード',
-      kind: 'credit_card',
-    });
-    const nonCard = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '条件その他口座',
-      kind: 'other',
-    });
-    const closedDebit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '条件終了引落銀行',
-      kind: 'bank',
-    });
-    expect(card.status).toBe('ok');
-    expect(debit.status).toBe('ok');
-    expect(secondCard.status).toBe('ok');
-    expect(nonCard.status).toBe('ok');
-    expect(closedDebit.status).toBe('ok');
-    if (
-      card.status !== 'ok' ||
-      debit.status !== 'ok' ||
-      secondCard.status !== 'ok' ||
-      nonCard.status !== 'ok' ||
-      closedDebit.status !== 'ok'
-    ) {
-      throw new Error('card matrix fixtures were not created');
-    }
-    const closedUpdate = await updateAccount(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      closedDebit.account.id,
-      {
-        name: closedDebit.account.name,
-        kind: closedDebit.account.kind,
-        groupId: closedDebit.account.groupId,
-        status: 'closed',
-        expectedKind: closedDebit.account.kind,
-        confirmKindChange: false,
-      },
-    );
-    expect(closedUpdate.status).toBe('ok');
-    const closedCondition = await appendCardCondition(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      secondCard.account.id,
-      { effectiveFrom: '2027-04-01', debitAccountId: closedDebit.account.id },
-    );
-    expect(closedCondition.status).toBe('ok');
-    const foreignHouseholdId = '00000000-0000-0000-0000-000000000003';
-    await client.sql`
-      insert into households (id, slug, name)
-      values (${foreignHouseholdId}, 'card-foreign', '別家計')
-    `;
-    const [foreignGroup] = await client.sql<{ id: number }[]>`
-      insert into account_groups (household_id, name, sort_order)
-      values (${foreignHouseholdId}, '別家計グループ', 10)
-      returning id
-    `;
-    if (!foreignGroup) {
-      throw new Error('foreign group fixture was not created');
-    }
-    const [foreignAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id, kind, status, sort_order)
-      values (${foreignHouseholdId}, '別家計銀行', ${foreignGroup.id}, 'bank', 'active', 10)
-      returning id
-    `;
-    if (!foreignAccount) {
-      throw new Error('foreign debit fixture was not created');
-    }
-
-    const unset = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {});
-    expect(unset.status).toBe('ok');
-    if (unset.status !== 'ok') {
-      throw new Error('unset card condition was not created');
-    }
-    expect(unset.condition).toMatchObject({
-      effectiveFrom: null,
-      closingDay: null,
-      paymentDay: null,
-      paymentMonthOffset: null,
-      debitAccountId: null,
-    });
-    const partial = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-      effectiveFrom: '2026-01-01',
-      paymentDay: '10',
-      debitAccountId: debit.account.id,
-    });
-    expect(partial.status).toBe('ok');
-    if (partial.status !== 'ok') {
-      throw new Error('partial card condition was not created');
-    }
-    expect(partial.condition).toMatchObject({
-      effectiveFrom: '2026-01-01',
-      closingDay: null,
-      paymentDay: '10',
-      paymentMonthOffset: null,
-      debitAccountId: debit.account.id,
-    });
-    expect(
-      (await listCardConditionHistory(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id)).map(
-        (condition) => ({
-          effectiveFrom: condition.effectiveFrom,
-          paymentDay: condition.paymentDay,
-          debitAccountId: condition.debitAccountId,
-        }),
-      ),
-    ).toEqual([
-      { effectiveFrom: '2026-01-01', paymentDay: '10', debitAccountId: debit.account.id },
-      { effectiveFrom: null, paymentDay: null, debitAccountId: null },
-    ]);
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: null,
-      }),
-    ).toEqual({ status: 'duplicate_effective_from' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2026-01-01',
-      }),
-    ).toEqual({ status: 'duplicate_effective_from' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2025-12-01',
-      }),
-    ).toEqual({ status: 'not_after_latest' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2026-02-01',
-        debitAccountId: card.account.id,
-      }),
-    ).toEqual({ status: 'invalid_debit_account' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2026-03-01',
-        debitAccountId: secondCard.account.id,
-      }),
-    ).toEqual({ status: 'invalid_debit_account' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2026-04-01',
-        debitAccountId: foreignAccount.id,
-      }),
-    ).toEqual({ status: 'invalid_debit_account' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        effectiveFrom: '2026-05-01',
-        debitAccountId: MAX_INT4_ID,
-      }),
-    ).toEqual({ status: 'invalid_debit_account' });
-    expect(
-      await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, nonCard.account.id, {}),
-    ).toEqual({ status: 'not_card' });
-    const future = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-      effectiveFrom: '2026-02-01',
-      debitAccountId: debit.account.id,
-    });
-    expect(future.status).toBe('ok');
-    expect(
-      await correctCardCondition(
-        client.db,
-        DEFAULT_HOUSEHOLD_ID,
-        card.account.id,
-        partial.condition.id,
-        { effectiveFrom: '2026-02-01', debitAccountId: debit.account.id },
-      ),
-    ).toEqual({ status: 'duplicate_effective_from' });
   });
   it('filters an account to its transactions and transfers with stable paging boundaries', async () => {
     const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
@@ -3282,362 +3022,5 @@ describe('PostgreSQL migrations and ledger', () => {
         accountId: card.account.id,
       }),
     ).toMatchObject([{ amount: -200, memo: 'カード返金' }]);
-  });
-  it('keeps balances and totals unchanged across group and account presentation changes', async () => {
-    const custom = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '残高確認グループ',
-    });
-    expect(custom.status).toBe('ok');
-    if (custom.status !== 'ok') {
-      throw new Error('balance group fixture was not created');
-    }
-    const first = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '残高確認口座1',
-      kind: 'other',
-      groupId: custom.group.id,
-    });
-    const second = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '残高確認口座2',
-      kind: 'other',
-      groupId: custom.group.id,
-    });
-    expect(first.status).toBe('ok');
-    expect(second.status).toBe('ok');
-    if (first.status !== 'ok' || second.status !== 'ok') {
-      throw new Error('balance account fixtures were not created');
-    }
-    const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
-    const income = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
-    if (!expense || !income) {
-      throw new Error('balance categories are missing');
-    }
-    await createTransaction(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transactionInputSchema.parse({
-        type: 'income',
-        amount: '1000',
-        occurredOn: '2026-09-01',
-        categoryId: String(income.id),
-        accountId: String(first.account.id),
-        memo: '残高収入',
-      }),
-    );
-    await createTransaction(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transactionInputSchema.parse({
-        type: 'expense',
-        amount: '250',
-        occurredOn: '2026-09-02',
-        categoryId: String(expense.id),
-        accountId: String(second.account.id),
-        memo: '残高支出',
-      }),
-    );
-    const transfer = await createTransfer(
-      client.db,
-      DEFAULT_HOUSEHOLD_ID,
-      transferInputSchema.parse({
-        fromAccountId: String(first.account.id),
-        toAccountId: String(second.account.id),
-        amount: '300',
-        occurredOn: '2026-09-03',
-        memo: '残高振替',
-      }),
-    );
-    expect(transfer.status).toBe('ok');
-    const before = {
-      balances: await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID),
-      totals: await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09'),
-    };
-    const renamed = await renameAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, custom.group.id, {
-      name: '残高確認グループ改名',
-    });
-    expect(renamed.status).toBe('ok');
-    const defaultGroups = await listAccountGroups(client.db, DEFAULT_HOUSEHOLD_ID);
-    const bankGroup = defaultGroups.find((group) => group.defaultKind === 'bank');
-    if (!bankGroup) {
-      throw new Error('default bank group is missing');
-    }
-    expect(
-      await renameAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, bankGroup.id, {
-        name: '銀行グループ改名',
-      }),
-    ).toMatchObject({ status: 'ok' });
-    const moved = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, first.account.id, {
-      name: first.account.name,
-      kind: first.account.kind,
-      groupId: bankGroup.id,
-      status: 'active',
-      expectedKind: first.account.kind,
-      confirmKindChange: false,
-    });
-    expect(moved.status).toBe('ok');
-    const groupsAfterMove = await listAccountGroups(client.db, DEFAULT_HOUSEHOLD_ID);
-    expect(
-      await reorderAccountGroups(
-        client.db,
-        DEFAULT_HOUSEHOLD_ID,
-        [...groupsAfterMove].reverse().map((group) => group.id),
-      ),
-    ).toMatchObject({ status: 'ok' });
-    const customAccounts = (await listManagedAccounts(client.db, DEFAULT_HOUSEHOLD_ID)).filter(
-      (account) => account.groupId === custom.group.id,
-    );
-    expect(customAccounts.map((account) => account.id)).toEqual([second.account.id]);
-    expect(
-      await reorderAccounts(client.db, DEFAULT_HOUSEHOLD_ID, custom.group.id, [second.account.id]),
-    ).toMatchObject({ status: 'ok' });
-    const closed = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, second.account.id, {
-      name: second.account.name,
-      kind: second.account.kind,
-      groupId: custom.group.id,
-      status: 'closed',
-      expectedKind: second.account.kind,
-      confirmKindChange: false,
-    });
-    expect(closed.status).toBe('ok');
-    const reopened = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, second.account.id, {
-      name: second.account.name,
-      kind: second.account.kind,
-      groupId: custom.group.id,
-      status: 'active',
-      expectedKind: second.account.kind,
-      confirmKindChange: false,
-    });
-    expect(reopened.status).toBe('ok');
-    expect({
-      balances: await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID),
-      totals: await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09'),
-    }).toEqual(before);
-  });
-  it('re-imports a renamed and reconfigured account without overwriting settings or duplicating mappings', async () => {
-    const custom = await createAccountGroup(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '再取込グループ',
-    });
-    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '再取込引落銀行',
-      kind: 'bank',
-    });
-    expect(custom.status).toBe('ok');
-    expect(debit.status).toBe('ok');
-    if (custom.status !== 'ok' || debit.status !== 'ok') {
-      throw new Error('re-import fixtures were not created');
-    }
-    const sourceAccountName = '再取込元口座';
-    const firstInput = {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: '6'.repeat(64),
-      originalFilename: 'reimport-first.xlsx',
-      rows: [importedRow({ accountName: sourceAccountName, categoryName: '再取込支出1' })],
-    };
-    const first = await commitMoneyManagerImport(client.db, firstInput);
-    expect(first.status).toBe('imported');
-    if (first.status !== 'imported') {
-      throw new Error('first re-import did not commit');
-    }
-    const accountId = first.accounts[0]?.id;
-    if (accountId === undefined) {
-      throw new Error('first re-import account was not created');
-    }
-    const configured = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, accountId, {
-      name: '再取込後の口座名',
-      kind: 'credit_card',
-      groupId: custom.group.id,
-      status: 'closed',
-      expectedKind: 'other',
-      confirmKindChange: true,
-    });
-    expect(configured.status).toBe('ok');
-    const cardCondition = await appendCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, accountId, {
-      effectiveFrom: '2026-01-01',
-      closingDay: 'last',
-      paymentDay: '10',
-      paymentMonthOffset: 'next_month',
-      debitAccountId: debit.status === 'ok' ? debit.account.id : null,
-    });
-    expect(cardCondition.status).toBe('ok');
-    const [configuredRow] = await client.sql<
-      { name: string; kind: string; groupId: number; status: string; sortOrder: number }[]
-    >`
-      select name, kind, group_id as "groupId", status, sort_order as "sortOrder"
-      from accounts
-      where id = ${accountId} and household_id = ${DEFAULT_HOUSEHOLD_ID}
-    `;
-    const secondInput = {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: '7'.repeat(64),
-      originalFilename: 'reimport-second.xlsx',
-      rows: [
-        importedRow({
-          accountName: sourceAccountName,
-          categoryName: '再取込支出2',
-          memo: '二回目',
-          sourceRow: 2,
-        }),
-      ],
-    };
-    const second = await commitMoneyManagerImport(client.db, secondInput);
-    expect(second.status).toBe('imported');
-    if (second.status !== 'imported') {
-      throw new Error('second re-import did not commit');
-    }
-    expect(second.accounts).toEqual([{ name: sourceAccountName, action: 'reused', id: accountId }]);
-    const [afterConfiguredRow] = await client.sql<
-      { name: string; kind: string; groupId: number; status: string; sortOrder: number }[]
-    >`
-      select name, kind, group_id as "groupId", status, sort_order as "sortOrder"
-      from accounts
-      where id = ${accountId} and household_id = ${DEFAULT_HOUSEHOLD_ID}
-    `;
-    expect(afterConfiguredRow).toEqual(configuredRow);
-    expect(
-      await listAccountImportMappings(client.db, DEFAULT_HOUSEHOLD_ID, 'realbyte-money-manager'),
-    ).toEqual([
-      expect.objectContaining({
-        sourceAccountName,
-        accountId,
-      }),
-    ]);
-    expect(
-      await client.sql`
-        select count(*)::int as count
-        from account_import_mappings
-        where household_id = ${DEFAULT_HOUSEHOLD_ID}
-          and source = 'realbyte-money-manager'
-          and source_account_name = ${sourceAccountName}
-      `,
-    ).toEqual([{ count: 1 }]);
-    expect(
-      await client.sql`
-        select count(*)::int as count
-        from transactions
-        where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${accountId}
-      `,
-    ).toEqual([{ count: 2 }]);
-    expect(
-      await findMoneyManagerImport(client.db, DEFAULT_HOUSEHOLD_ID, firstInput.sha256),
-    ).not.toBeNull();
-    expect(
-      await findMoneyManagerImport(client.db, DEFAULT_HOUSEHOLD_ID, secondInput.sha256),
-    ).not.toBeNull();
-    expect(await commitMoneyManagerImport(client.db, secondInput)).toMatchObject({
-      status: 'duplicate',
-    });
-  });
-
-  it('does not auto-match renamed source names and supports explicit mapping reuse afterwards', async () => {
-    const existing = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-      name: '元口座名',
-      kind: 'bank',
-    });
-    expect(existing.status).toBe('ok');
-    if (existing.status !== 'ok') {
-      throw new Error('renamed-source account fixture was not created');
-    }
-    const first = await commitMoneyManagerImport(client.db, {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: '8'.repeat(64),
-      originalFilename: 'source-original.xlsx',
-      accountResolutions: [
-        {
-          sourceAccountName: '元データ名',
-          action: 'existing',
-          accountId: existing.account.id,
-        },
-      ],
-      rows: [importedRow({ accountName: '元データ名', categoryName: '名前変更前' })],
-    });
-    expect(first.status).toBe('imported');
-    const renamed = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, existing.account.id, {
-      name: '変更後口座名',
-      kind: 'bank',
-      groupId: existing.account.groupId,
-      status: 'active',
-      expectedKind: 'bank',
-      confirmKindChange: false,
-    });
-    expect(renamed.status).toBe('ok');
-
-    const changedNameInput = {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: '9'.repeat(64),
-      originalFilename: 'source-changed.xlsx',
-      rows: [importedRow({ accountName: '変更後口座名', categoryName: '名前変更後' })],
-    };
-    expect(
-      await validateMoneyManagerImportAccountResolutions(
-        client.db,
-        DEFAULT_HOUSEHOLD_ID,
-        changedNameInput.rows,
-      ),
-    ).toMatchObject({ code: 'missing_account_resolution' });
-    expect(await commitMoneyManagerImportRaw(client.db, changedNameInput)).toMatchObject({
-      status: 'validation_error',
-      code: 'missing_account_resolution',
-    });
-    const changedName = await commitMoneyManagerImport(client.db, {
-      ...changedNameInput,
-      accountResolutions: [{ sourceAccountName: '変更後口座名', action: 'create' }],
-    });
-    expect(changedName.status).toBe('imported');
-    if (changedName.status !== 'imported') {
-      throw new Error('changed source-name import did not commit');
-    }
-    expect(changedName.accounts[0]?.id).not.toBe(existing.account.id);
-
-    const explicitName = '選択して結び付ける口座名';
-    const explicitInput = {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: 'a'.repeat(64),
-      originalFilename: 'source-explicit.xlsx',
-      rows: [importedRow({ accountName: explicitName, categoryName: '明示選択' })],
-    };
-    expect(
-      await validateMoneyManagerImportAccountResolutions(
-        client.db,
-        DEFAULT_HOUSEHOLD_ID,
-        explicitInput.rows,
-      ),
-    ).toMatchObject({ code: 'missing_account_resolution' });
-    const explicit = await commitMoneyManagerImport(client.db, {
-      ...explicitInput,
-      accountResolutions: [
-        {
-          sourceAccountName: explicitName,
-          action: 'existing',
-          accountId: existing.account.id,
-        },
-      ],
-    });
-    expect(explicit.status).toBe('imported');
-    if (explicit.status !== 'imported') {
-      throw new Error('explicit changed-name mapping did not commit');
-    }
-    expect(explicit.accounts).toEqual([
-      { name: explicitName, action: 'reused', id: existing.account.id },
-    ]);
-    const followUp = await commitMoneyManagerImport(client.db, {
-      householdId: DEFAULT_HOUSEHOLD_ID,
-      sha256: 'b'.repeat(64),
-      originalFilename: 'source-explicit-follow-up.xlsx',
-      rows: [importedRow({ accountName: explicitName, categoryName: '明示選択後' })],
-    });
-    expect(followUp.status).toBe('imported');
-    if (followUp.status !== 'imported') {
-      throw new Error('follow-up explicit mapping did not commit');
-    }
-    expect(followUp.accounts).toEqual([
-      { name: explicitName, action: 'reused', id: existing.account.id },
-    ]);
-    expect(
-      await client.sql`
-        select count(*)::int as count
-        from account_import_mappings
-        where household_id = ${DEFAULT_HOUSEHOLD_ID}
-          and source_account_name = ${explicitName}
-      `,
-    ).toEqual([{ count: 1 }]);
   });
 });

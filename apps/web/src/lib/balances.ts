@@ -1,4 +1,5 @@
-export type BalanceAccountKind = 'cash' | 'bank' | 'credit_card' | 'electronic_money' | 'other';
+export type BalanceAccountKind =
+  'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
 
 export interface BalanceAmount {
   balance: string;

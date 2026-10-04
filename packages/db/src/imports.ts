@@ -28,18 +28,15 @@ import type {
   MoneyManagerImportCommitResult,
   MoneyManagerImportCounts,
   MoneyManagerImportPeriod,
-  MoneyManagerImportValidationError,
 } from './money-manager-import-contract.js';
 
 const TRANSACTION_INSERT_CHUNK_SIZE = 500;
 const CATEGORY_SORT_STEP = 10;
 const DUPLICATE_IMPORT_CONSTRAINT = 'transaction_imports_household_source_sha256_unique';
 
-export interface MoneyManagerImportAccountResolution {
-  sourceAccountName: string;
-  sourceAccountId?: string;
-  action: 'existing' | 'create';
-  accountId?: number;
+interface AccountImportResult {
+  summaries: MoneyManagerImportAccountSummary[];
+  byKey: Map<string, number>;
 }
 
 export interface MoneyManagerImportInput {
@@ -48,7 +45,6 @@ export interface MoneyManagerImportInput {
   sha256: string;
   originalFilename: string;
   rows: readonly MoneyManagerNormalizedRow[];
-  accountResolutions?: readonly MoneyManagerImportAccountResolution[];
 }
 
 function categoryKey(type: TransactionType, name: string): string {
@@ -218,11 +214,6 @@ async function insertMissingCategories(
   });
 }
 
-interface AccountResolutionResult {
-  summaries: MoneyManagerImportAccountSummary[];
-  byKey: Map<string, number>;
-}
-
 function accountIdentityKey(name: string, sourceAccountId?: string): string {
   return sourceAccountId ? `id:${sourceAccountId}` : `name:${name}`;
 }
@@ -253,177 +244,13 @@ function sourceAccounts(rows: readonly MoneyManagerNormalizedRow[]): {
   return result;
 }
 
-type AccountResolutionExecutor = Pick<Database, 'select'>;
-
-export async function validateMoneyManagerImportAccountResolutions(
-  db: AccountResolutionExecutor,
-  householdId: string,
-  rows: readonly MoneyManagerNormalizedRow[],
-  resolutions?: readonly MoneyManagerImportAccountResolution[],
-  sourceName = MONEY_MANAGER_SOURCE,
-): Promise<MoneyManagerImportValidationError | null> {
-  const source = sourceAccounts(rows);
-  const [current, mappingRows] = await Promise.all([
-    db.select({ id: accounts.id }).from(accounts).where(eq(accounts.householdId, householdId)),
-    db
-      .select({
-        sourceAccountId: accountImportMappings.sourceAccountId,
-        sourceAccountName: accountImportMappings.sourceAccountName,
-        accountId: accountImportMappings.accountId,
-      })
-      .from(accountImportMappings)
-      .where(
-        and(
-          eq(accountImportMappings.householdId, householdId),
-          eq(accountImportMappings.source, sourceName),
-        ),
-      ),
-  ]);
-  const currentIds = new Set(current.map((account) => account.id));
-  const mappingByKey = new Map(
-    mappingRows.map((mapping) => [
-      accountIdentityKey(mapping.sourceAccountName, mapping.sourceAccountId ?? undefined),
-      mapping.accountId,
-    ]),
-  );
-  const submitted = resolutions ?? [];
-  const resolutionByKey = new Map<string, MoneyManagerImportAccountResolution>();
-  for (const resolution of submitted) {
-    const key = accountIdentityKey(resolution.sourceAccountName, resolution.sourceAccountId);
-    if (resolutionByKey.has(key)) {
-      return {
-        status: 'validation_error',
-        code: 'duplicate_account_resolution',
-        sourceAccountNames: [resolution.sourceAccountName],
-      };
-    }
-    resolutionByKey.set(key, resolution);
-  }
-
-  const unmatched = source.filter((item) => !mappingByKey.has(item.key));
-  const expectedKeys = new Set(unmatched.map((item) => item.key));
-  const unexpected = submitted.filter((resolution) => {
-    const key = accountIdentityKey(resolution.sourceAccountName, resolution.sourceAccountId);
-    return !expectedKeys.has(key);
-  });
-  if (unexpected.length > 0) {
-    return {
-      status: 'validation_error',
-      code: 'unexpected_account_resolution',
-      sourceAccountNames: unexpected.map((resolution) => resolution.sourceAccountName),
-    };
-  }
-  const missing = unmatched.filter((item) => !resolutionByKey.has(item.key));
-  if (missing.length > 0) {
-    return {
-      status: 'validation_error',
-      code: 'missing_account_resolution',
-      sourceAccountNames: missing.map((item) => item.name),
-    };
-  }
-
-  const targetByKey = new Map<string, number>();
-  for (const item of source) {
-    const mappingTarget = mappingByKey.get(item.key);
-    if (mappingTarget !== undefined) {
-      if (!currentIds.has(mappingTarget)) {
-        return {
-          status: 'validation_error',
-          code: 'invalid_account_selection',
-          sourceAccountNames: [item.name],
-        };
-      }
-      targetByKey.set(item.key, mappingTarget);
-      continue;
-    }
-    const resolution = resolutionByKey.get(item.key);
-    if (!resolution) {
-      continue;
-    }
-    if (
-      resolution.sourceAccountName !== item.name ||
-      resolution.sourceAccountId !== item.sourceAccountId
-    ) {
-      return {
-        status: 'validation_error',
-        code: 'invalid_account_selection',
-        sourceAccountNames: [item.name],
-      };
-    }
-    if (resolution.action === 'create') {
-      if (resolution.accountId !== undefined) {
-        return {
-          status: 'validation_error',
-          code: 'invalid_account_selection',
-          sourceAccountNames: [item.name],
-        };
-      }
-      continue;
-    }
-    if (resolution.action !== 'existing') {
-      return {
-        status: 'validation_error',
-        code: 'invalid_account_selection',
-        sourceAccountNames: [item.name],
-      };
-    }
-    if (resolution.accountId === undefined || !currentIds.has(resolution.accountId)) {
-      return {
-        status: 'validation_error',
-        code: 'invalid_account_selection',
-        sourceAccountNames: [item.name],
-      };
-    }
-    targetByKey.set(item.key, resolution.accountId);
-  }
-  for (const row of rows) {
-    if (row.type !== 'transfer') continue;
-    const fromKey = accountIdentityKey(row.fromAccountName, row.fromSourceAccountId);
-    const toKey = accountIdentityKey(row.toAccountName, row.toSourceAccountId);
-    if (fromKey === toKey || targetByKey.get(fromKey) === targetByKey.get(toKey)) {
-      if (fromKey === toKey || (targetByKey.has(fromKey) && targetByKey.has(toKey))) {
-        return {
-          status: 'validation_error',
-          code: 'same_account',
-          sourceRow: row.sourceRow,
-          sourceAccountNames: [row.fromAccountName, row.toAccountName],
-        };
-      }
-    }
-  }
-  const targetSources = new Map<number, string[]>();
-  for (const item of source) {
-    const target = targetByKey.get(item.key);
-    if (target === undefined) continue;
-    const names = targetSources.get(target) ?? [];
-    names.push(item.name);
-    targetSources.set(target, names);
-  }
-  for (const names of targetSources.values()) {
-    if (names.length > 1) {
-      return {
-        status: 'validation_error',
-        code: 'duplicate_account_target',
-        sourceAccountNames: names,
-      };
-    }
-  }
-  return null;
-}
-
 async function insertMissingAccounts(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   rows: readonly MoneyManagerNormalizedRow[],
-  resolutions: readonly MoneyManagerImportAccountResolution[] | undefined,
   sourceName: string,
-): Promise<AccountResolutionResult> {
+): Promise<AccountImportResult> {
   const source = sourceAccounts(rows);
-  const current = await transaction
-    .select({ id: accounts.id, name: accounts.name })
-    .from(accounts)
-    .where(eq(accounts.householdId, householdId));
-  const currentById = new Map(current.map((account) => [account.id, account]));
   const mappingRows = await transaction
     .select({
       id: accountImportMappings.id,
@@ -444,17 +271,11 @@ async function insertMissingAccounts(
       mapping,
     ]),
   );
-  const resolutionByKey = new Map(
-    (resolutions ?? []).map((resolution) => [
-      accountIdentityKey(resolution.sourceAccountName, resolution.sourceAccountId),
-      resolution,
-    ]),
-  );
   await ensureDefaultAccountGroups(transaction, householdId);
   const groupRows = await transaction
     .select({ id: accountGroups.id })
     .from(accountGroups)
-    .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.defaultKind, 'other')))
+    .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, 'その他')))
     .limit(1);
   const group = groupRows[0];
   if (!group) {
@@ -469,21 +290,12 @@ async function insertMissingAccounts(
   const byKey = new Map<string, number>();
   for (const item of source) {
     const mapping = mappingByKey.get(item.key);
-    const resolution = resolutionByKey.get(item.key);
     let accountId: number | undefined;
     let action: 'created' | 'reused';
     if (mapping) {
       accountId = mapping.accountId;
       action = 'reused';
-    } else if (!resolution) {
-      throw new Error(`Import account resolution is missing for ${item.name}`);
-    } else if (resolution.action === 'existing') {
-      if (resolution.accountId === undefined || !currentById.has(resolution.accountId)) {
-        throw new Error(`Import account selection is invalid for ${item.name}`);
-      }
-      accountId = resolution.accountId;
-      action = 'reused';
-    } else if (resolution.action === 'create') {
+    } else {
       const inserted = await transaction
         .insert(accounts)
         .values({
@@ -498,21 +310,12 @@ async function insertMissingAccounts(
       accountId = inserted[0]?.id;
       nextSortOrder += 10;
       action = 'created';
-    } else {
-      throw new Error(`Import account resolution is invalid for ${item.name}`);
     }
     if (accountId === undefined) {
       throw new Error('Import account was not created');
     }
     byKey.set(item.key, accountId);
-    if (mapping) {
-      if (mapping.sourceAccountId && mapping.sourceAccountName !== item.name) {
-        await transaction
-          .update(accountImportMappings)
-          .set({ sourceAccountName: item.name, updatedAt: new Date() })
-          .where(eq(accountImportMappings.id, mapping.id));
-      }
-    } else {
+    if (!mapping) {
       await transaction.insert(accountImportMappings).values({
         householdId,
         source: sourceName,
@@ -645,16 +448,6 @@ export async function commitMoneyManagerImport(
           previousImportDate: existing.createdAt.toISOString(),
         };
       }
-      const resolutionError = await validateMoneyManagerImportAccountResolutions(
-        transaction,
-        input.householdId,
-        input.rows,
-        input.accountResolutions,
-        source,
-      );
-      if (resolutionError) {
-        return resolutionError;
-      }
       const inserted = await transaction
         .insert(transactionImports)
         .values({
@@ -677,15 +470,14 @@ export async function commitMoneyManagerImport(
         input.householdId,
         input.rows,
       );
-      const accountResolution = await insertMissingAccounts(
+      const accountImport = await insertMissingAccounts(
         transaction,
         input.householdId,
         input.rows,
-        input.accountResolutions,
         source,
       );
-      await insertTransactions(transaction, input.householdId, input.rows, accountResolution.byKey);
-      await insertTransfers(transaction, input.householdId, input.rows, accountResolution.byKey);
+      await insertTransactions(transaction, input.householdId, input.rows, accountImport.byKey);
+      await insertTransfers(transaction, input.householdId, input.rows, accountImport.byKey);
       return {
         status: 'imported' as const,
         importId,
@@ -693,10 +485,9 @@ export async function commitMoneyManagerImport(
         counts,
         period,
         createdCategories: categoriesSummary.filter((item) => item.action === 'created').length,
-        createdAccounts: accountResolution.summaries.filter((item) => item.action === 'created')
-          .length,
+        createdAccounts: accountImport.summaries.filter((item) => item.action === 'created').length,
         categories: categoriesSummary,
-        accounts: accountResolution.summaries,
+        accounts: accountImport.summaries,
       };
     });
   } catch (error) {

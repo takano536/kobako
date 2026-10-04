@@ -58,7 +58,7 @@ function database(): DatabaseClient {
 }
 
 function balanceList(page: Page): Locator {
-  return page.getByRole('list', { name: '口座別残高' });
+  return page.getByRole('list', { name: /資産別残高/ }).first();
 }
 
 function summaryAmount(page: Page, label: string): Locator {
@@ -430,8 +430,8 @@ test('reaches balances from navigation and shows a deterministic empty state', a
     'page',
   );
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-  await expect(page.getByRole('heading', { name: '口座がありません' })).toBeVisible();
-  await expect(page.getByText('口座を登録すると、ここに残高が表示されます。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '資産がありません' })).toBeVisible();
+  await expect(page.getByText('資産を登録すると、ここに残高が表示されます。')).toBeVisible();
   await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
   await expectStickyBalanceSummary(page);
   await page.screenshot({
@@ -455,13 +455,9 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expectBalanceSummary(page, { assets: '0', liabilities: '500', net: '−500' });
   await expectStickyBalanceSummary(page);
   await expect(accountRow(page, longAccountName).getByText('負債', { exact: true })).toBeVisible();
-  const zeroOtherBadge = accountRow(page, destinationAccountName).getByText('分類なし', {
-    exact: true,
-  });
-  await expect(zeroOtherBadge).toHaveAttribute(
-    'title',
-    'その他の口座は残高の符号で資産・負債を判定。0円のため集計対象外',
-  );
+  await expect(
+    accountRow(page, destinationAccountName).getByText('分類なし', { exact: true }),
+  ).toHaveCount(0);
   await page.goto(`/transactions?month=${month}`);
   await page
     .locator('.transaction-link')

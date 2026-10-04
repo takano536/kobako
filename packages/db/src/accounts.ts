@@ -1,4 +1,5 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { currentTokyoDate } from './month.js';
 import type { Database } from './client.js';
 import { ensureDefaultAccountGroups, getAccountBalances, type AccountBalance } from './ledger.js';
 import {
@@ -12,16 +13,16 @@ import {
   type Account,
   type AccountCardCondition,
   type AccountGroup,
+  type AccountImportMapping,
 } from './schema.js';
 import {
   accountCardConditionInputSchema,
   accountCreateInputSchema,
-  accountGroupInputSchema,
+  accountNameSchema,
   accountUpdateInputSchema,
   requiresKindInterpretationConfirmation,
   type AccountCardConditionInput,
   type AccountCreateInput,
-  type AccountGroupInput,
   type AccountUpdateInput,
 } from './validation.js';
 
@@ -40,37 +41,17 @@ export type AccountMutationResult =
   | { status: 'error' };
 
 export type AccountDeleteResult =
-  | { status: 'deleted' }
-  | { status: 'not_found' }
-  | { status: 'referenced'; references: AccountReferenceSummary }
-  | { status: 'error' };
+  { status: 'deleted' } | { status: 'not_found' } | { status: 'error' };
 
-export interface AccountReferenceSummary {
-  transactions: number;
-  transfers: number;
-  importMappings: number;
-  cardConditions: number;
-  debitAccounts: number;
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth += 1) {
+    const candidate = current as { code?: unknown; cause?: unknown };
+    if (candidate.code === '23505') return true;
+    current = candidate.cause;
+  }
+  return false;
 }
-
-export type AccountGroupMutationResult =
-  | { status: 'ok'; group: AccountGroup }
-  | { status: 'not_found' }
-  | { status: 'duplicate_name' }
-  | { status: 'not_empty' }
-  | { status: 'default_group' }
-  | { status: 'error' };
-
-export interface AccountGroupReorderResult {
-  status: 'ok' | 'invalid' | 'error';
-  groups?: AccountGroup[];
-}
-
-export interface AccountReorderResult {
-  status: 'ok' | 'invalid' | 'error';
-  accounts?: AccountWithGroup[];
-}
-
 function accountSelect() {
   return {
     id: accounts.id,
@@ -79,6 +60,7 @@ function accountSelect() {
     kind: accounts.kind,
     groupId: accounts.groupId,
     status: accounts.status,
+    deletedAt: accounts.deletedAt,
     sortOrder: accounts.sortOrder,
     createdAt: accounts.createdAt,
     groupName: accountGroups.name,
@@ -128,11 +110,36 @@ export async function listManagedAccounts(
     .where(eq(accounts.householdId, householdId))
     .orderBy(asc(accountGroups.sortOrder), asc(accounts.sortOrder), asc(accounts.id));
 }
+
+export async function listActiveManagedAccounts(
+  db: Database,
+  householdId: string,
+): Promise<AccountWithGroup[]> {
+  return db
+    .select(accountSelect())
+    .from(accounts)
+    .innerJoin(
+      accountGroups,
+      and(eq(accountGroups.id, accounts.groupId), eq(accountGroups.householdId, householdId)),
+    )
+    .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
+    .orderBy(asc(accountGroups.sortOrder), asc(accounts.sortOrder), asc(accounts.id));
+}
+
+export async function getActiveManagedAccount(
+  db: Database,
+  householdId: string,
+  accountId: number,
+): Promise<AccountWithGroup | null> {
+  const account = await getAccountInExecutor(db, householdId, accountId);
+  return account?.deletedAt === null ? account : null;
+}
 export interface ManagedAccountBalance extends AccountBalance {
   kind: Account['kind'];
   groupId: number;
   groupName: string;
   status: Account['status'];
+  deletedAt: Account['deletedAt'];
   sortOrder: number;
 }
 
@@ -155,6 +162,7 @@ export async function getManagedAccountBalances(
             groupId: account.groupId,
             groupName: account.groupName,
             status: account.status,
+            deletedAt: account.deletedAt,
             sortOrder: account.sortOrder,
           },
         ]
@@ -191,12 +199,28 @@ async function defaultGroup(
   kind: AccountCreateInput['kind'],
 ): Promise<AccountGroup | null> {
   await ensureDefaultAccountGroups(transaction, householdId);
-  const rows = await transaction
+  const byKind = ['cash', 'bank', 'credit_card', 'debit_card'].includes(kind)
+    ? await transaction
+        .select()
+        .from(accountGroups)
+        .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.defaultKind, kind)))
+        .limit(1)
+    : [];
+  if (byKind[0]) return byKind[0];
+  const legacyName = kind === 'electronic_money' ? '電子マネー' : 'その他';
+  const legacy = await transaction
     .select()
     .from(accountGroups)
-    .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.defaultKind, kind)))
+    .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, legacyName)))
     .limit(1);
-  return rows[0] ?? null;
+  if (legacy[0]) return legacy[0];
+  const fallback = await transaction
+    .select()
+    .from(accountGroups)
+    .where(eq(accountGroups.householdId, householdId))
+    .orderBy(asc(accountGroups.sortOrder), asc(accountGroups.id))
+    .limit(1);
+  return fallback[0] ?? null;
 }
 
 async function currentRawBalance(
@@ -347,7 +371,7 @@ export async function updateAccount(
           name: parsed.data.name,
           kind: parsed.data.kind,
           groupId: parsed.data.groupId,
-          status: parsed.data.status,
+          status: account.status,
         })
         .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
         .returning({ id: accounts.id });
@@ -365,45 +389,6 @@ export async function updateAccount(
   }
 }
 
-type SqlExecutor = Pick<Database, 'execute'>;
-
-async function accountReferenceSummary(
-  db: SqlExecutor,
-  householdId: string,
-  accountId: number,
-): Promise<AccountReferenceSummary> {
-  const rows = await db.execute<{
-    transactions: string;
-    transfers: string;
-    importMappings: string;
-    cardConditions: string;
-    debitAccounts: string;
-  }>(sql`
-    select
-      (select count(*) from transactions where household_id = ${householdId} and account_id = ${accountId})::text as transactions,
-      (select count(*) from transfers where household_id = ${householdId} and (from_account_id = ${accountId} or to_account_id = ${accountId}))::text as transfers,
-      (select count(*) from account_import_mappings where household_id = ${householdId} and account_id = ${accountId})::text as "importMappings",
-      (select count(*) from account_card_conditions where household_id = ${householdId} and account_id = ${accountId})::text as "cardConditions",
-      (select count(*) from account_card_conditions where household_id = ${householdId} and debit_account_id = ${accountId})::text as "debitAccounts"
-  `);
-  const row = rows[0];
-  return {
-    transactions: Number(row?.transactions ?? 0),
-    transfers: Number(row?.transfers ?? 0),
-    importMappings: Number(row?.importMappings ?? 0),
-    cardConditions: Number(row?.cardConditions ?? 0),
-    debitAccounts: Number(row?.debitAccounts ?? 0),
-  };
-}
-
-export async function getAccountReferenceSummary(
-  db: Database,
-  householdId: string,
-  accountId: number,
-): Promise<AccountReferenceSummary> {
-  return accountReferenceSummary(db, householdId, accountId);
-}
-
 export async function deleteAccount(
   db: Database,
   householdId: string,
@@ -413,265 +398,29 @@ export async function deleteAccount(
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
       const account = await transaction
-        .select({ id: accounts.id })
+        .select({ id: accounts.id, deletedAt: accounts.deletedAt })
         .from(accounts)
         .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
         .for('update')
         .limit(1);
-      if (!account[0]) {
+      if (!account[0] || account[0].deletedAt !== null) {
         return { status: 'not_found' };
       }
-      const references = await accountReferenceSummary(transaction, householdId, accountId);
-      const blockingReferences = {
-        transactions: references.transactions,
-        transfers: references.transfers,
-        importMappings: references.importMappings,
-        debitAccounts: references.debitAccounts,
-      };
-      if (Object.values(blockingReferences).some((count) => count > 0)) {
-        return { status: 'referenced', references };
-      }
-      await transaction
-        .delete(accountCardConditions)
+      const deleted = await transaction
+        .update(accounts)
+        .set({ deletedAt: new Date() })
         .where(
           and(
-            eq(accountCardConditions.accountId, accountId),
-            eq(accountCardConditions.householdId, householdId),
+            eq(accounts.id, accountId),
+            eq(accounts.householdId, householdId),
+            isNull(accounts.deletedAt),
           ),
-        );
-      const deleted = await transaction
-        .delete(accounts)
-        .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
+        )
         .returning({ id: accounts.id });
       return deleted[0] ? { status: 'deleted' } : { status: 'not_found' };
     });
   } catch (error) {
     console.error('[accounts/delete] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-export async function createAccountGroup(
-  db: Database,
-  householdId: string,
-  input: AccountGroupInput,
-): Promise<AccountGroupMutationResult> {
-  const parsed = accountGroupInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 'error' };
-  }
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const existing = await transaction
-        .select({ id: accountGroups.id })
-        .from(accountGroups)
-        .where(
-          and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, parsed.data.name)),
-        )
-        .limit(1);
-      if (existing[0]) {
-        return { status: 'duplicate_name' };
-      }
-      const maxRows = await transaction
-        .select({ maxSortOrder: sql<number | null>`max(${accountGroups.sortOrder})` })
-        .from(accountGroups)
-        .where(eq(accountGroups.householdId, householdId));
-      const inserted = await transaction
-        .insert(accountGroups)
-        .values({
-          householdId,
-          name: parsed.data.name,
-          sortOrder: Number(maxRows[0]?.maxSortOrder ?? 0) + 10,
-        })
-        .returning();
-      return inserted[0] ? { status: 'ok', group: inserted[0] } : { status: 'error' };
-    });
-  } catch (error) {
-    console.error('[account-groups/create] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-export async function renameAccountGroup(
-  db: Database,
-  householdId: string,
-  groupId: number,
-  input: AccountGroupInput,
-): Promise<AccountGroupMutationResult> {
-  const parsed = accountGroupInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 'error' };
-  }
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const current = await transaction
-        .select()
-        .from(accountGroups)
-        .where(and(eq(accountGroups.id, groupId), eq(accountGroups.householdId, householdId)))
-        .for('update')
-        .limit(1);
-      const group = current[0];
-      if (!group) {
-        return { status: 'not_found' };
-      }
-      const duplicate = await transaction
-        .select({ id: accountGroups.id })
-        .from(accountGroups)
-        .where(
-          and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, parsed.data.name)),
-        )
-        .limit(1);
-      if (duplicate[0] && duplicate[0].id !== groupId) {
-        return { status: 'duplicate_name' };
-      }
-      const rows = await transaction
-        .update(accountGroups)
-        .set({ name: parsed.data.name })
-        .where(and(eq(accountGroups.id, groupId), eq(accountGroups.householdId, householdId)))
-        .returning();
-      return rows[0] ? { status: 'ok', group: rows[0] } : { status: 'not_found' };
-    });
-  } catch (error) {
-    console.error('[account-groups/rename] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-export async function deleteAccountGroup(
-  db: Database,
-  householdId: string,
-  groupId: number,
-): Promise<AccountGroupMutationResult> {
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const current = await transaction
-        .select()
-        .from(accountGroups)
-        .where(and(eq(accountGroups.id, groupId), eq(accountGroups.householdId, householdId)))
-        .for('update')
-        .limit(1);
-      const group = current[0];
-      if (!group) {
-        return { status: 'not_found' };
-      }
-      if (group.defaultKind !== null) {
-        return { status: 'default_group' };
-      }
-      const account = await transaction
-        .select({ id: accounts.id })
-        .from(accounts)
-        .where(and(eq(accounts.householdId, householdId), eq(accounts.groupId, groupId)))
-        .for('update')
-        .limit(1);
-      if (account[0]) {
-        return { status: 'not_empty' };
-      }
-      const deleted = await transaction
-        .delete(accountGroups)
-        .where(and(eq(accountGroups.id, groupId), eq(accountGroups.householdId, householdId)))
-        .returning({ id: accountGroups.id });
-      return deleted[0] ? { status: 'ok', group } : { status: 'not_found' };
-    });
-  } catch (error) {
-    console.error('[account-groups/delete] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-export async function reorderAccountGroups(
-  db: Database,
-  householdId: string,
-  orderedIds: readonly number[],
-): Promise<AccountGroupReorderResult> {
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const current = await transaction
-        .select()
-        .from(accountGroups)
-        .where(eq(accountGroups.householdId, householdId))
-        .for('update');
-      const currentIds = new Set(current.map((group) => group.id));
-      if (
-        orderedIds.length !== current.length ||
-        orderedIds.some((id) => !currentIds.has(id)) ||
-        new Set(orderedIds).size !== orderedIds.length
-      ) {
-        return { status: 'invalid' };
-      }
-      for (const [index, id] of orderedIds.entries()) {
-        await transaction
-          .update(accountGroups)
-          .set({ sortOrder: (index + 1) * 10 })
-          .where(and(eq(accountGroups.id, id), eq(accountGroups.householdId, householdId)));
-      }
-      const groups = await transaction
-        .select()
-        .from(accountGroups)
-        .where(eq(accountGroups.householdId, householdId))
-        .orderBy(asc(accountGroups.sortOrder), asc(accountGroups.id));
-      return { status: 'ok', groups };
-    });
-  } catch (error) {
-    console.error('[account-groups/reorder] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-export async function reorderAccounts(
-  db: Database,
-  householdId: string,
-  groupId: number,
-  orderedIds: readonly number[],
-): Promise<AccountReorderResult> {
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const current = await transaction
-        .select({ id: accounts.id })
-        .from(accounts)
-        .where(and(eq(accounts.householdId, householdId), eq(accounts.groupId, groupId)))
-        .for('update');
-      const currentIds = new Set(current.map((account) => account.id));
-      if (
-        orderedIds.length !== current.length ||
-        orderedIds.some((id) => !currentIds.has(id)) ||
-        new Set(orderedIds).size !== orderedIds.length
-      ) {
-        return { status: 'invalid' };
-      }
-      for (const [index, id] of orderedIds.entries()) {
-        await transaction
-          .update(accounts)
-          .set({ sortOrder: (index + 1) * 10 })
-          .where(and(eq(accounts.id, id), eq(accounts.householdId, householdId)));
-      }
-      const refreshed = await transaction
-        .select(accountSelect())
-        .from(accounts)
-        .innerJoin(
-          accountGroups,
-          and(eq(accountGroups.id, accounts.groupId), eq(accountGroups.householdId, householdId)),
-        )
-        .where(eq(accounts.householdId, householdId))
-        .orderBy(asc(accountGroups.sortOrder), asc(accounts.sortOrder), asc(accounts.id));
-      return { status: 'ok', accounts: refreshed };
-    });
-  } catch (error) {
-    console.error('[accounts/reorder] database operation failed', {
       errorType: error instanceof Error ? error.name : 'UnknownError',
     });
     return { status: 'error' };
@@ -692,24 +441,10 @@ async function cardAccount(
 }
 
 export type CardConditionStatus =
-  | 'ok'
-  | 'not_card'
-  | 'duplicate_effective_from'
-  | 'not_after_latest'
-  | 'invalid_debit_account'
-  | 'not_found'
-  | 'error';
+  'ok' | 'not_card' | 'invalid_debit_account' | 'not_found' | 'error';
 
 export type CardConditionResult =
   | { status: 'ok'; condition: AccountCardCondition }
-  | { status: Exclude<CardConditionStatus, 'ok'> };
-
-export type CardConditionCorrectionPreviewResult =
-  | {
-      status: 'ok';
-      before: AccountCardCondition;
-      after: AccountCardCondition;
-    }
   | { status: Exclude<CardConditionStatus, 'ok'> };
 
 async function validateDebitAccount(
@@ -717,14 +452,19 @@ async function validateDebitAccount(
   householdId: string,
   cardAccountId: number,
   debitAccountId: number | null | undefined,
+  allowedDeletedAccountId?: number | null,
 ): Promise<boolean> {
   if (debitAccountId === null || debitAccountId === undefined) return true;
   if (debitAccountId === cardAccountId) return false;
   const debit = await cardAccount(transaction, householdId, debitAccountId);
-  return debit !== null && debit.kind !== 'credit_card';
+  return (
+    debit !== null &&
+    debit.kind !== 'credit_card' &&
+    (debit.deletedAt === null || debit.id === allowedDeletedAccountId)
+  );
 }
 
-export async function listCardConditionHistory(
+async function listCardConditionHistory(
   db: Database,
   householdId: string,
   accountId: number,
@@ -747,327 +487,112 @@ export async function listCardConditionHistory(
   });
 }
 
-export async function appendCardCondition(
+function chooseCurrentCardCondition(
+  conditions: readonly AccountCardCondition[],
+  today = currentTokyoDate(),
+): AccountCardCondition | null {
+  const effective = conditions
+    .filter(
+      (condition): condition is AccountCardCondition & { effectiveFrom: string } =>
+        condition.effectiveFrom !== null,
+    )
+    .sort((left, right) => right.effectiveFrom.localeCompare(left.effectiveFrom));
+  return (
+    effective.find((condition) => condition.effectiveFrom <= today) ??
+    conditions.find((condition) => condition.effectiveFrom === null) ??
+    effective.at(-1) ??
+    null
+  );
+}
+
+/**
+ * Select the current condition while retaining any historical rows.
+ * Past/current conditions win, then the unset condition, then the earliest future row.
+ */
+export async function getCurrentCardCondition(
+  db: Database,
+  householdId: string,
+  accountId: number,
+): Promise<AccountCardCondition | null> {
+  const account = await cardAccount(db, householdId, accountId);
+  if (!account || account.kind !== 'credit_card') return null;
+  return chooseCurrentCardCondition(await listCardConditionHistory(db, householdId, accountId));
+}
+
+export async function saveCurrentCardCondition(
   db: Database,
   householdId: string,
   accountId: number,
   input: AccountCardConditionInput,
 ): Promise<CardConditionResult> {
   const parsed = accountCardConditionInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 'error' };
-  }
+  if (!parsed.success) return { status: 'error' };
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
       const account = await cardAccount(transaction, householdId, accountId);
-      if (!account || account.kind !== 'credit_card') {
-        return { status: 'not_card' };
-      }
-      if (
-        !(await validateDebitAccount(
-          transaction,
-          householdId,
-          accountId,
-          parsed.data.debitAccountId,
-        ))
-      ) {
-        return { status: 'invalid_debit_account' };
-      }
-      const effectiveFrom = parsed.data.effectiveFrom ?? null;
-      const existingRows = await transaction
-        .select({ effectiveFrom: accountCardConditions.effectiveFrom })
+      if (!account || account.kind !== 'credit_card') return { status: 'not_card' };
+      const conditions = await transaction
+        .select()
         .from(accountCardConditions)
         .where(
           and(
             eq(accountCardConditions.householdId, householdId),
             eq(accountCardConditions.accountId, accountId),
           ),
-        );
-      if (existingRows.some((row) => row.effectiveFrom === effectiveFrom)) {
-        return { status: 'duplicate_effective_from' };
+        )
+        .for('update');
+      const current = chooseCurrentCardCondition(conditions);
+      if (
+        !(await validateDebitAccount(
+          transaction,
+          householdId,
+          accountId,
+          parsed.data.debitAccountId,
+          current?.debitAccountId,
+        ))
+      ) {
+        return { status: 'invalid_debit_account' };
       }
-      const latest = existingRows
-        .map((row) => row.effectiveFrom)
-        .filter((value): value is string => value !== null)
-        .sort()
-        .at(-1);
-      if (effectiveFrom !== null && latest && effectiveFrom <= latest) {
-        return { status: 'not_after_latest' };
+      const values = {
+        closingDay: parsed.data.closingDay ?? null,
+        paymentDay: parsed.data.paymentDay ?? null,
+        paymentMonthOffset: parsed.data.paymentMonthOffset ?? null,
+        debitAccountId: parsed.data.debitAccountId ?? null,
+        updatedAt: new Date(),
+      };
+      if (current) {
+        const updated = await transaction
+          .update(accountCardConditions)
+          .set(values)
+          .where(
+            and(
+              eq(accountCardConditions.id, current.id),
+              eq(accountCardConditions.householdId, householdId),
+              eq(accountCardConditions.accountId, accountId),
+            ),
+          )
+          .returning();
+        return updated[0] ? { status: 'ok', condition: updated[0] } : { status: 'not_found' };
       }
       const inserted = await transaction
         .insert(accountCardConditions)
         .values({
           householdId,
           accountId,
-          effectiveFrom,
-          closingDay: parsed.data.closingDay ?? null,
-          paymentDay: parsed.data.paymentDay ?? null,
-          paymentMonthOffset: parsed.data.paymentMonthOffset ?? null,
-          debitAccountId: parsed.data.debitAccountId ?? null,
+          effectiveFrom: null,
+          ...values,
+          createdAt: new Date(),
         })
         .returning();
       return inserted[0] ? { status: 'ok', condition: inserted[0] } : { status: 'error' };
     });
   } catch (error) {
-    console.error('[accounts/card-condition] database operation failed', {
+    console.error('[accounts/card-condition-save] database operation failed', {
       errorType: error instanceof Error ? error.name : 'UnknownError',
     });
     return { status: 'error' };
   }
-}
-
-export async function correctCardCondition(
-  db: Database,
-  householdId: string,
-  accountId: number,
-  conditionId: number,
-  input: AccountCardConditionInput,
-): Promise<CardConditionResult> {
-  const parsed = accountCardConditionInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 'error' };
-  }
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const account = await cardAccount(transaction, householdId, accountId);
-      if (!account || account.kind !== 'credit_card') {
-        return { status: 'not_card' };
-      }
-      const target = await transaction
-        .select()
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.id, conditionId),
-            eq(accountCardConditions.accountId, accountId),
-            eq(accountCardConditions.householdId, householdId),
-          ),
-        )
-        .for('update')
-        .limit(1);
-      if (!target[0]) {
-        return { status: 'not_found' };
-      }
-      if (
-        !(await validateDebitAccount(
-          transaction,
-          householdId,
-          accountId,
-          parsed.data.debitAccountId,
-        ))
-      ) {
-        return { status: 'invalid_debit_account' };
-      }
-      const effectiveFrom = parsed.data.effectiveFrom ?? null;
-      const duplicate = await transaction
-        .select({ id: accountCardConditions.id })
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.householdId, householdId),
-            eq(accountCardConditions.accountId, accountId),
-            effectiveFrom === null
-              ? isNull(accountCardConditions.effectiveFrom)
-              : eq(accountCardConditions.effectiveFrom, effectiveFrom),
-          ),
-        )
-        .limit(1);
-      if (duplicate[0] && duplicate[0].id !== conditionId) {
-        return { status: 'duplicate_effective_from' };
-      }
-      const otherRows = await transaction
-        .select({
-          id: accountCardConditions.id,
-          effectiveFrom: accountCardConditions.effectiveFrom,
-        })
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.householdId, householdId),
-            eq(accountCardConditions.accountId, accountId),
-          ),
-        );
-      const otherEffectiveDates = otherRows
-        .filter((row) => row.id !== conditionId && row.effectiveFrom !== null)
-        .map((row) => row.effectiveFrom as string)
-        .sort();
-      const previousDate =
-        target[0].effectiveFrom === null
-          ? undefined
-          : otherEffectiveDates.filter((date) => date < target[0]!.effectiveFrom!).at(-1);
-      const nextDate =
-        target[0].effectiveFrom === null
-          ? otherEffectiveDates[0]
-          : otherEffectiveDates.find((date) => date > target[0]!.effectiveFrom!);
-      if (
-        effectiveFrom !== null &&
-        ((previousDate !== undefined && effectiveFrom <= previousDate) ||
-          (nextDate !== undefined && effectiveFrom >= nextDate))
-      ) {
-        return { status: 'not_after_latest' };
-      }
-      const updated = await transaction
-        .update(accountCardConditions)
-        .set({
-          effectiveFrom,
-          closingDay: parsed.data.closingDay ?? null,
-          paymentDay: parsed.data.paymentDay ?? null,
-          paymentMonthOffset: parsed.data.paymentMonthOffset ?? null,
-          debitAccountId: parsed.data.debitAccountId ?? null,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(accountCardConditions.id, conditionId),
-            eq(accountCardConditions.accountId, accountId),
-            eq(accountCardConditions.householdId, householdId),
-          ),
-        )
-        .returning();
-      return updated[0] ? { status: 'ok', condition: updated[0] } : { status: 'not_found' };
-    });
-  } catch (error) {
-    console.error('[accounts/card-condition-correct] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-/**
- * Validate a proposed correction while the target row is locked.
- *
- * The returned before/after values are used by the confirmation UI. The
- * correction must still be submitted through confirmCardConditionCorrection,
- * which repeats these checks in the mutating transaction.
- */
-export async function previewCardConditionCorrection(
-  db: Database,
-  householdId: string,
-  accountId: number,
-  conditionId: number,
-  input: AccountCardConditionInput,
-): Promise<CardConditionCorrectionPreviewResult> {
-  const parsed = accountCardConditionInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 'error' };
-  }
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const account = await cardAccount(transaction, householdId, accountId);
-      if (!account || account.kind !== 'credit_card') {
-        return { status: 'not_card' };
-      }
-      const target = await transaction
-        .select()
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.id, conditionId),
-            eq(accountCardConditions.accountId, accountId),
-            eq(accountCardConditions.householdId, householdId),
-          ),
-        )
-        .for('update')
-        .limit(1);
-      if (!target[0]) {
-        return { status: 'not_found' };
-      }
-      if (
-        !(await validateDebitAccount(
-          transaction,
-          householdId,
-          accountId,
-          parsed.data.debitAccountId,
-        ))
-      ) {
-        return { status: 'invalid_debit_account' };
-      }
-      const effectiveFrom = parsed.data.effectiveFrom ?? null;
-      const duplicate = await transaction
-        .select({ id: accountCardConditions.id })
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.householdId, householdId),
-            eq(accountCardConditions.accountId, accountId),
-            effectiveFrom === null
-              ? isNull(accountCardConditions.effectiveFrom)
-              : eq(accountCardConditions.effectiveFrom, effectiveFrom),
-          ),
-        )
-        .limit(1);
-      if (duplicate[0] && duplicate[0].id !== conditionId) {
-        return { status: 'duplicate_effective_from' };
-      }
-      const otherRows = await transaction
-        .select({
-          id: accountCardConditions.id,
-          effectiveFrom: accountCardConditions.effectiveFrom,
-        })
-        .from(accountCardConditions)
-        .where(
-          and(
-            eq(accountCardConditions.householdId, householdId),
-            eq(accountCardConditions.accountId, accountId),
-          ),
-        );
-      const otherEffectiveDates = otherRows
-        .filter((row) => row.id !== conditionId && row.effectiveFrom !== null)
-        .map((row) => row.effectiveFrom as string)
-        .sort();
-      const previousDate =
-        target[0].effectiveFrom === null
-          ? undefined
-          : otherEffectiveDates.filter((date) => date < target[0]!.effectiveFrom!).at(-1);
-      const nextDate =
-        target[0].effectiveFrom === null
-          ? otherEffectiveDates[0]
-          : otherEffectiveDates.find((date) => date > target[0]!.effectiveFrom!);
-      if (
-        effectiveFrom !== null &&
-        ((previousDate !== undefined && effectiveFrom <= previousDate) ||
-          (nextDate !== undefined && effectiveFrom >= nextDate))
-      ) {
-        return { status: 'not_after_latest' };
-      }
-      return {
-        status: 'ok',
-        before: target[0],
-        after: {
-          ...target[0],
-          effectiveFrom: parsed.data.effectiveFrom ?? null,
-          closingDay: parsed.data.closingDay ?? null,
-          paymentDay: parsed.data.paymentDay ?? null,
-          paymentMonthOffset: parsed.data.paymentMonthOffset ?? null,
-          debitAccountId: parsed.data.debitAccountId ?? null,
-        },
-      };
-    });
-  } catch (error) {
-    console.error('[accounts/card-condition-preview] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
-  }
-}
-
-/**
- * Apply a correction after the caller has shown and received confirmation.
- * Validation and row locking are repeated by correctCardCondition so a stale
- * confirmation cannot overwrite a changed history.
- */
-export async function confirmCardConditionCorrection(
-  db: Database,
-  householdId: string,
-  accountId: number,
-  conditionId: number,
-  input: AccountCardConditionInput,
-): Promise<CardConditionResult> {
-  return correctCardCondition(db, householdId, accountId, conditionId, input);
 }
 
 export async function listAccountImportMappings(db: Database, householdId: string, source: string) {
@@ -1081,4 +606,133 @@ export async function listAccountImportMappings(db: Database, householdId: strin
       ),
     )
     .orderBy(asc(accountImportMappings.sourceAccountName), asc(accountImportMappings.id));
+}
+
+export interface AccountImportMappingInput {
+  id?: number;
+  sourceAccountId?: string | null;
+  sourceAccountName: string;
+}
+
+export type AccountImportMappingMutationResult =
+  | { status: 'ok'; mappings: AccountImportMapping[] }
+  | { status: 'not_found' | 'conflict' | 'invalid' | 'error' };
+
+export async function listAccountImportMappingsForAccount(
+  db: Database,
+  householdId: string,
+  accountId: number,
+  source = 'realbyte-money-manager',
+): Promise<AccountImportMapping[]> {
+  return db
+    .select()
+    .from(accountImportMappings)
+    .where(
+      and(
+        eq(accountImportMappings.householdId, householdId),
+        eq(accountImportMappings.accountId, accountId),
+        eq(accountImportMappings.source, source),
+      ),
+    )
+    .orderBy(asc(accountImportMappings.sourceAccountName), asc(accountImportMappings.id));
+}
+
+export async function setAccountImportMappings(
+  db: Database,
+  householdId: string,
+  accountId: number,
+  inputs: readonly AccountImportMappingInput[],
+  source = 'realbyte-money-manager',
+): Promise<AccountImportMappingMutationResult> {
+  const parsed = inputs.map((input) => ({
+    ...input,
+    sourceAccountName: accountNameSchema.safeParse(input.sourceAccountName),
+  }));
+  if (parsed.some((input) => !input.sourceAccountName.success)) {
+    return { status: 'invalid' };
+  }
+  const names = parsed.map((input) =>
+    input.sourceAccountName.success ? input.sourceAccountName.data : '',
+  );
+  if (new Set(names.map((name) => name.toLocaleLowerCase())).size !== names.length) {
+    return { status: 'conflict' };
+  }
+  try {
+    return await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+      const account = await transaction
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
+        .for('update')
+        .limit(1);
+      if (!account[0]) return { status: 'not_found' };
+      const current = await transaction
+        .select()
+        .from(accountImportMappings)
+        .where(
+          and(
+            eq(accountImportMappings.householdId, householdId),
+            eq(accountImportMappings.source, source),
+          ),
+        )
+        .for('update');
+      const byId = new Map(current.map((mapping) => [mapping.id, mapping]));
+      for (const [index, input] of parsed.entries()) {
+        const name = names[index] ?? '';
+        const existing = input.id === undefined ? undefined : byId.get(input.id);
+        if (input.id !== undefined && (!existing || existing.accountId !== accountId)) {
+          return { status: 'conflict' };
+        }
+        if (!existing) {
+          const sourceAccountId = input.sourceAccountId ?? null;
+          const duplicate = current.find(
+            (mapping) =>
+              mapping.accountId !== accountId &&
+              (mapping.sourceAccountName === name ||
+                (sourceAccountId !== null && mapping.sourceAccountId === sourceAccountId)),
+          );
+          if (duplicate) return { status: 'conflict' };
+          try {
+            await transaction.insert(accountImportMappings).values({
+              householdId,
+              source,
+              sourceAccountId: input.sourceAccountId ?? null,
+              sourceAccountName: name,
+              accountId,
+            });
+          } catch (error) {
+            if (isUniqueViolation(error)) {
+              return { status: 'conflict' };
+            }
+            throw error;
+          }
+        } else {
+          const duplicate = current.find(
+            (mapping) => mapping.id !== existing.id && mapping.sourceAccountName === name,
+          );
+          if (duplicate) return { status: 'conflict' };
+          await transaction
+            .update(accountImportMappings)
+            .set({ sourceAccountName: name, updatedAt: new Date() })
+            .where(eq(accountImportMappings.id, existing.id));
+        }
+        void index;
+      }
+      return {
+        status: 'ok',
+        mappings: await listAccountImportMappingsForAccount(
+          transaction,
+          householdId,
+          accountId,
+          source,
+        ),
+      };
+    });
+  } catch (error) {
+    console.error('[accounts/import-mappings] database operation failed', {
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return { status: 'error' };
+  }
 }

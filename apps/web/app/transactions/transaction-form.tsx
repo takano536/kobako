@@ -46,6 +46,7 @@ type AccountOption = {
   id: number;
   name: string;
   status: 'active' | 'closed';
+  deletedAt: Date | null;
 };
 
 export interface TransactionFormProps {
@@ -57,7 +58,6 @@ export interface TransactionFormProps {
   accounts: AccountOption[];
   initialValues: TransactionFormValues;
   submitLabel: string;
-  allowClosedAccountToggle?: boolean;
 }
 
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
@@ -182,7 +182,6 @@ export function TransactionForm({
   accounts,
   initialValues,
   submitLabel,
-  allowClosedAccountToggle = false,
 }: TransactionFormProps) {
   const [state, formAction, pending] = useActionState(action, emptyTransactionFormState);
   const [values, setValues] = useState(initialValues);
@@ -191,7 +190,6 @@ export function TransactionForm({
   const [amountInputError, setAmountInputError] = useState<string>();
   const [amountInputErrorKey, setAmountInputErrorKey] = useState(0);
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [showClosedTransferAccounts, setShowClosedTransferAccounts] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const memoRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -204,13 +202,12 @@ export function TransactionForm({
   const linkedToAccountId = Number(formValues.toAccountId);
   const transferAccounts = accounts.filter(
     (account) =>
-      account.status !== 'closed' ||
-      showClosedTransferAccounts ||
+      account.deletedAt === null ||
       account.id === linkedFromAccountId ||
       account.id === linkedToAccountId,
   );
   const normalAccounts = accounts.filter(
-    (account) => account.status !== 'closed' || account.id === Number(formValues.accountId),
+    (account) => account.deletedAt === null || account.id === Number(formValues.accountId),
   );
 
   useEffect(() => {
@@ -499,17 +496,6 @@ export function TransactionForm({
           })}
         </div>
 
-        {allowClosedAccountToggle ? (
-          <label className="checkbox-field transfer-closed-account-toggle">
-            <input
-              type="checkbox"
-              checked={showClosedTransferAccounts}
-              onChange={(event) => setShowClosedTransferAccounts(event.currentTarget.checked)}
-              aria-controls="transaction-transfer-accounts"
-            />
-            利用終了の口座も表示
-          </label>
-        ) : null}
         <div
           id="transaction-transfer-accounts"
           className="entry-detail-grid account-detail-grid transfer-account-detail-grid"
@@ -531,7 +517,6 @@ export function TransactionForm({
                 {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
-                    {account.status === 'closed' ? '（利用終了）' : ''}
                   </option>
                 ))}
               </select>
@@ -557,7 +542,6 @@ export function TransactionForm({
                 {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
-                    {account.status === 'closed' ? '（利用終了）' : ''}
                   </option>
                 ))}
               </select>
@@ -569,7 +553,7 @@ export function TransactionForm({
         </div>
         <div className="entry-detail-grid ordinary-account-detail-grid">
           <div className={`field account-field${accountError ? ' has-error' : ''}`}>
-            <label htmlFor="transaction-account">口座</label>
+            <label htmlFor="transaction-account">資産</label>
             <div className={`field-value${accountError ? ' has-error' : ''}`}>
               <select
                 className="field-select"
@@ -584,7 +568,6 @@ export function TransactionForm({
                 {normalAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
-                    {account.status === 'closed' ? '（利用終了）' : ''}
                   </option>
                 ))}
               </select>
@@ -652,21 +635,32 @@ export function TransactionForm({
   );
 }
 
+export type DeleteAction = (
+  previousState: DeleteFormState,
+  formData: FormData,
+) => Promise<DeleteFormState>;
+
 export interface DeleteTransactionFormProps {
   transactionId: number;
   entryType?: 'transaction' | 'transfer';
   formId?: string;
+  action?: DeleteAction;
+  targetLabel?: string;
+  idFieldName?: string;
+  cancelHref?: string;
 }
 
 export function DeleteTransactionForm({
   transactionId,
   entryType = 'transaction',
   formId = 'delete-transaction-form',
+  action,
+  targetLabel = '取引',
+  idFieldName = 'id',
+  cancelHref,
 }: DeleteTransactionFormProps) {
-  const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(
-    deleteTransactionAction.bind(null, entryType),
-    {},
-  );
+  const deleteAction = action ?? deleteTransactionAction.bind(null, entryType);
+  const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(deleteAction, {});
   const [hasHydrated, setHasHydrated] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -792,9 +786,10 @@ export function DeleteTransactionForm({
   }, [closeDeleteConfirm, hasHydrated, isDeleteConfirmOpen]);
 
   const editPath =
-    entryType === 'transfer'
+    cancelHref ??
+    (entryType === 'transfer'
       ? `/transactions/transfers/${transactionId}/edit`
-      : `/transactions/${transactionId}/edit`;
+      : `/transactions/${transactionId}/edit`);
 
   function handleCancel(event: MouseEvent<HTMLAnchorElement>): void {
     event.preventDefault();
@@ -830,9 +825,9 @@ export function DeleteTransactionForm({
             aria-modal="true"
             aria-labelledby={`${formId}-title`}
           >
-            <p id={`${formId}-title`}>この取引を削除しますか？</p>
+            <p id={`${formId}-title`}>この{targetLabel}を削除しますか？</p>
             <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
-              <input type="hidden" name="id" value={transactionId} />
+              <input type="hidden" name={idFieldName} value={transactionId} />
 
               <input type="hidden" name="confirm" value="delete" />
               <button

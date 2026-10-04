@@ -33,6 +33,7 @@ export const accountKind = pgEnum('account_kind', [
   'cash',
   'bank',
   'credit_card',
+  'debit_card',
   'electronic_money',
   'other',
 ]);
@@ -100,6 +101,7 @@ export const accounts = pgTable(
     kind: accountKind('kind').notNull().default('other'),
     groupId: integer('group_id').notNull(),
     status: accountStatus('status').notNull().default('active'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },

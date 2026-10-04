@@ -1,20 +1,17 @@
 'use server';
 
 import {
-  createAccount,
-  deleteAccount,
-  createAccountGroup,
-  deleteAccountGroup,
-  renameAccountGroup,
-  reorderAccountGroups,
-  reorderAccounts,
-  updateAccount,
-} from '@kobako/db';
-import {
+  accountCardConditionInputSchema,
   accountCreateInputSchema,
-  accountGroupInputSchema,
   accountUpdateInputSchema,
 } from '@kobako/db/validation';
+import {
+  createAccount,
+  deleteAccount,
+  saveCurrentCardCondition,
+  setAccountImportMappings,
+  updateAccount,
+} from '@kobako/db';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 
@@ -25,50 +22,34 @@ import {
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { parseInt4Id } from '../../src/lib/ids';
 import type { AccountFormState } from './account-form';
+import type { DeleteFormState } from '../../src/lib/transaction-form';
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : '';
 }
 
-function referenceKinds(references: {
-  transactions: number;
-  transfers: number;
-  importMappings: number;
-  debitAccounts: number;
-}): string {
-  return [
-    references.transactions > 0 ? '取引' : '',
-    references.transfers > 0 ? '振替' : '',
-    references.importMappings > 0 ? '取り込み履歴' : '',
-    references.debitAccounts > 0 ? 'カードの引き落とし口座' : '',
-  ]
-    .filter(Boolean)
-    .join('・');
-}
-
-function accountReturnPath(formData: FormData, accountId: number): string {
-  return (
-    validatedTransactionReturn(text(formData, 'return'), accountId) ??
-    `/transactions?account=${accountId}&month=all`
-  );
-}
-
-function interpretation(kind: string, rawBalance: string): string {
-  const raw = BigInt(rawBalance);
-  const liability = kind === 'credit_card' || (kind === 'other' && raw < 0n);
-  return `${liability ? '負債' : '資産'}・${rawBalance}円`;
+function texts(formData: FormData, name: string): string[] {
+  return formData.getAll(name).filter((value): value is string => typeof value === 'string');
 }
 
 function accountState(formData: FormData, message?: string): AccountFormState {
+  const mappingNames = texts(formData, 'importMappingName');
+  const cardValues = {
+    closingDay: text(formData, 'closingDay'),
+    paymentDay: text(formData, 'paymentDay'),
+    paymentMonthOffset: text(formData, 'paymentMonthOffset'),
+    debitAccountId: text(formData, 'debitAccountId'),
+  };
   return {
     values: {
       name: text(formData, 'name'),
       kind: text(formData, 'kind'),
       groupId: text(formData, 'groupId'),
-      status: text(formData, 'status') || 'active',
       expectedKind: text(formData, 'expectedKind'),
       confirmKindChange: formData.get('confirmKindChange') === 'on',
+      ...cardValues,
+      importMappingNames: mappingNames,
     },
     message,
   };
@@ -86,12 +67,63 @@ function validationState(
   return { ...accountState(formData), fieldErrors };
 }
 
-function revalidateAccounts(): void {
-  revalidatePath('/accounts');
-  revalidatePath('/accounts/new');
+interface CardInput {
+  closingDay: string | null;
+  paymentDay: string | null;
+  paymentMonthOffset: string | null;
+  debitAccountId: string | null;
+}
+
+function revalidateAssets(accountId?: number): void {
   revalidatePath('/balances');
   revalidatePath('/transactions');
   revalidatePath('/');
+  revalidatePath('/accounts/new');
+  if (accountId !== undefined) revalidatePath(`/accounts/${accountId}/edit`);
+}
+
+function cardInput(formData: FormData): CardInput {
+  return {
+    closingDay: text(formData, 'closingDay') || null,
+    paymentDay: text(formData, 'paymentDay') || null,
+    paymentMonthOffset: text(formData, 'paymentMonthOffset') || null,
+    debitAccountId: text(formData, 'debitAccountId') || null,
+  };
+}
+
+function hasCardInput(input: CardInput): boolean {
+  return Object.values(input).some((value) => value !== null);
+}
+
+function mappingInputs(formData: FormData) {
+  const names = texts(formData, 'importMappingName');
+  const ids = texts(formData, 'importMappingId');
+  const sourceIds = texts(formData, 'importMappingSourceId');
+  const values = names.flatMap((name, index) => {
+    if (name.trim() === '') return [];
+    const id = parseInt4Id(ids[index] ?? '');
+    return [
+      {
+        ...(id === undefined ? {} : { id }),
+        sourceAccountId: sourceIds[index] || null,
+        sourceAccountName: name,
+      },
+    ];
+  });
+  const additional = text(formData, 'newImportMappingName');
+  if (additional.trim() !== '') {
+    values.push({ sourceAccountId: null, sourceAccountName: additional });
+  }
+  return values;
+}
+
+function accountReturnPath(formData: FormData, accountId: number): string {
+  return validatedTransactionReturn(text(formData, 'return'), accountId) ?? '/balances';
+}
+
+function interpretation(kind: string, rawBalance: string): string {
+  const liability = kind === 'credit_card' || (kind === 'other' && BigInt(rawBalance) < 0n);
+  return liability ? '負債' : '資産';
 }
 
 export async function createAccountAction(
@@ -104,18 +136,33 @@ export async function createAccountAction(
     kind: text(formData, 'kind'),
     groupId: text(formData, 'groupId') || undefined,
   });
-  if (!parsed.success) {
-    return validationState(formData, parsed.error);
-  }
-  const result = await createAccount(getLedgerDatabase(), getCurrentHouseholdId(), parsed.data);
+  if (!parsed.success) return validationState(formData, parsed.error);
+  const db = getLedgerDatabase();
+  const householdId = getCurrentHouseholdId();
+  const result = await createAccount(db, householdId, parsed.data);
   if (result.status === 'group_unavailable') {
-    return { ...accountState(formData), message: 'グループを確認できませんでした。' };
+    return { ...accountState(formData), message: '資産グループを確認できませんでした。' };
   }
   if (result.status !== 'ok') {
-    return { ...accountState(formData), message: '口座を保存できませんでした。' };
+    return { ...accountState(formData), message: '資産を保存できませんでした。' };
   }
-  revalidateAccounts();
-  redirect('/accounts');
+  if (parsed.data.kind === 'credit_card') {
+    const parsedCard = accountCardConditionInputSchema.safeParse(cardInput(formData));
+    if (!parsedCard.success) return validationState(formData, parsedCard.error);
+    if (hasCardInput(cardInput(formData))) {
+      const saved = await saveCurrentCardCondition(
+        db,
+        householdId,
+        result.account.id,
+        parsedCard.data,
+      );
+      if (saved.status !== 'ok') {
+        return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
+      }
+    }
+  }
+  revalidateAssets(result.account.id);
+  redirect(`/transactions?account=${result.account.id}&month=all`);
 }
 
 export async function updateAccountAction(
@@ -130,129 +177,73 @@ export async function updateAccountAction(
     name: text(formData, 'name'),
     kind: text(formData, 'kind'),
     groupId: text(formData, 'groupId'),
-    status: text(formData, 'status'),
     expectedKind: text(formData, 'expectedKind') || undefined,
     confirmKindChange: formData.get('confirmKindChange') === 'on',
   });
-  if (!parsed.success) {
-    return validationState(formData, parsed.error);
-  }
-  const result = await updateAccount(getLedgerDatabase(), getCurrentHouseholdId(), id, parsed.data);
+  if (!parsed.success) return validationState(formData, parsed.error);
+  const parsedCard =
+    parsed.data.kind === 'credit_card'
+      ? accountCardConditionInputSchema.safeParse(cardInput(formData))
+      : undefined;
+  if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
+  const db = getLedgerDatabase();
+  const householdId = getCurrentHouseholdId();
+  const result = await updateAccount(db, householdId, id, parsed.data);
   if (result.status === 'not_found') notFound();
   if (result.status === 'kind_confirmation_required') {
-    const cardConditionsHidden =
-      result.previousKind === 'credit_card' && parsed.data.kind !== 'credit_card'
-        ? 'カード条件は保持されますが、クレジットカードに戻すまで非表示です。'
-        : '';
     return {
       ...accountState(formData),
-      message: `残高は${result.rawBalance}円です。変更前: ${interpretation(result.previousKind, result.rawBalance)}、変更後: ${interpretation(parsed.data.kind, result.rawBalance)}。${cardConditionsHidden}種類を変更すると集計上の意味が変わるため、確認して保存してください。`,
+      message: `種別を${interpretation(parsed.data.kind, result.rawBalance)}として保存します。確認してからもう一度保存してください。`,
       requiresKindConfirmation: true,
     };
   }
   if (result.status === 'stale_kind') {
     return {
       ...accountState(formData),
-      message: '別の画面で種類が変更されました。画面を再読み込みしてください。',
+      message: '別の画面で種別が変更されました。再読み込みしてください。',
     };
   }
   if (result.status === 'group_unavailable') {
-    return { ...accountState(formData), message: 'グループを確認できませんでした。' };
+    return { ...accountState(formData), message: '資産グループを確認できませんでした。' };
   }
   if (result.status !== 'ok') {
-    return { ...accountState(formData), message: '口座を保存できませんでした。' };
+    return { ...accountState(formData), message: '資産を保存できませんでした。' };
   }
-  revalidateAccounts();
+  if (parsedCard?.success) {
+    const saved = await saveCurrentCardCondition(db, householdId, id, parsedCard.data);
+    if (saved.status !== 'ok') {
+      return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
+    }
+  }
+  const mappings = mappingInputs(formData);
+  const mappingResult = await setAccountImportMappings(db, householdId, id, mappings);
+  if (mappingResult.status !== 'ok') {
+    return {
+      ...accountState(formData),
+      fieldErrors: { importMappingName: ['対応名が他の資産で使われています。'] },
+    };
+  }
+  revalidateAssets(id);
   redirect(transactionReturnWithSaved(accountReturnPath(formData, id)));
 }
 
-export async function deleteAccountAction(formData: FormData): Promise<void> {
+export async function deleteAccountAction(
+  previousState: DeleteFormState,
+  formData: FormData,
+): Promise<DeleteFormState> {
+  void previousState;
   const id = parseInt4Id(text(formData, 'accountId'));
   if (id === undefined) notFound();
-  if (text(formData, 'confirm') !== 'delete') return;
+  if (text(formData, 'confirm') !== 'delete') {
+    return { message: '削除する場合は確認操作を完了してください。' };
+  }
   const result = await deleteAccount(getLedgerDatabase(), getCurrentHouseholdId(), id);
-  if (result.status === 'referenced') {
-    const references = referenceKinds(result.references);
-    redirect(`/accounts?error=account_referenced&references=${encodeURIComponent(references)}`);
+  if (result.status === 'not_found') {
+    return { message: '資産を削除できませんでした。' };
   }
-  if (result.status === 'not_found' || result.status === 'error') {
-    redirect('/accounts?error=account_delete_failed');
+  if (result.status === 'error') {
+    return { message: '削除できませんでした。時間をおいてもう一度お試しください。' };
   }
-  revalidateAccounts();
-  redirect('/accounts');
-}
-
-export async function createAccountGroupAction(formData: FormData): Promise<void> {
-  const parsed = accountGroupInputSchema.safeParse({ name: text(formData, 'name') });
-  if (!parsed.success) return;
-  const result = await createAccountGroup(
-    getLedgerDatabase(),
-    getCurrentHouseholdId(),
-    parsed.data,
-  );
-  if (result.status === 'ok') {
-    revalidateAccounts();
-    redirect('/accounts');
-  }
-}
-
-export async function renameAccountGroupAction(formData: FormData): Promise<void> {
-  const id = parseInt4Id(text(formData, 'groupId'));
-  if (id === undefined) notFound();
-  const parsed = accountGroupInputSchema.safeParse({ name: text(formData, 'name') });
-  if (!parsed.success) return;
-  const result = await renameAccountGroup(
-    getLedgerDatabase(),
-    getCurrentHouseholdId(),
-    id,
-    parsed.data,
-  );
-  if (result.status === 'ok') {
-    revalidateAccounts();
-    redirect('/accounts');
-  }
-}
-export async function reorderAccountGroupsAction(formData: FormData): Promise<void> {
-  const orderedIds = formData.getAll('orderedIds').flatMap((value) => {
-    const parsed = parseInt4Id(typeof value === 'string' ? value : '');
-    return parsed === undefined ? [] : [parsed];
-  });
-  const result = await reorderAccountGroups(
-    getLedgerDatabase(),
-    getCurrentHouseholdId(),
-    orderedIds,
-  );
-  if (result.status === 'ok') {
-    revalidateAccounts();
-    redirect('/accounts');
-  }
-}
-export async function reorderAccountsAction(formData: FormData): Promise<void> {
-  const groupId = parseInt4Id(text(formData, 'groupId'));
-  if (groupId === undefined) notFound();
-  const orderedIds = formData.getAll('orderedIds').flatMap((value) => {
-    const parsed = parseInt4Id(typeof value === 'string' ? value : '');
-    return parsed === undefined ? [] : [parsed];
-  });
-  const result = await reorderAccounts(
-    getLedgerDatabase(),
-    getCurrentHouseholdId(),
-    groupId,
-    orderedIds,
-  );
-  if (result.status === 'ok') {
-    revalidateAccounts();
-    redirect('/accounts');
-  }
-}
-
-export async function deleteAccountGroupAction(formData: FormData): Promise<void> {
-  const id = parseInt4Id(text(formData, 'groupId'));
-  if (id === undefined) notFound();
-  if (text(formData, 'confirm') !== 'delete') return;
-  const result = await deleteAccountGroup(getLedgerDatabase(), getCurrentHouseholdId(), id);
-  if (result.status === 'ok') {
-    revalidateAccounts();
-    redirect('/accounts');
-  }
+  revalidateAssets(id);
+  redirect('/balances');
 }

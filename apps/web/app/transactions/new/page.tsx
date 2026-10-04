@@ -2,7 +2,7 @@ import {
   currentTokyoDate,
   currentTokyoMonth,
   isValidMonth,
-  listAccounts,
+  listActiveAccounts,
   listCategories,
 } from '@kobako/db';
 
@@ -41,7 +41,7 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   const db = getLedgerDatabase();
   const [categories, accounts] = await Promise.all([
     listCategories(db, householdId),
-    listAccounts(db, householdId),
+    listActiveAccounts(db, householdId),
   ]);
   const type = parseType(firstQueryValue(query.type));
   const firstExpense = categories.find((category) => category.type === 'expense');
@@ -63,7 +63,6 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
           action={createTransactionAction}
           categories={categories}
           accounts={accounts}
-          allowClosedAccountToggle
           initialValues={{
             type,
             amount: '',

@@ -72,13 +72,13 @@ async function validateCategory(input: TransactionInput, householdId: string): P
 async function validateTransactionAccount(
   accountId: number | null | undefined,
   householdId: string,
-  allowedClosedAccountId?: number,
+  allowedDeletedAccountId?: number,
 ): Promise<boolean> {
   if (accountId === null || accountId === undefined) {
     return true;
   }
   const account = await getManagedAccount(getLedgerDatabase(), householdId, accountId);
-  return account?.status === 'active' || account?.id === allowedClosedAccountId;
+  return account?.deletedAt === null || account?.id === allowedDeletedAccountId;
 }
 function transferResultState(
   values: TransactionFormValues,
@@ -153,7 +153,7 @@ export async function createTransactionAction(
     return databaseFailure('validate-account', error);
   }
   if (!accountMatches) {
-    return validationState(values, { accountId: ['利用中の口座を選択してください。'] });
+    return validationState(values, { accountId: ['資産を選択してください。'] });
   }
   try {
     await createTransaction(db, householdId, parsed.data);
@@ -246,7 +246,7 @@ export async function updateTransactionAction(
   if (!categoryMatches) {
     return validationState(values, { categoryId: ['種別に合うカテゴリを選択してください。'] });
   }
-  let allowedClosedAccountId: number | undefined;
+  let allowedDeletedAccountId: number | undefined;
   if (sourceKind === 'transaction') {
     let existingTransaction;
     try {
@@ -257,20 +257,20 @@ export async function updateTransactionAction(
     if (!existingTransaction) {
       notFound();
     }
-    allowedClosedAccountId = existingTransaction.accountId ?? undefined;
+    allowedDeletedAccountId = existingTransaction.accountId ?? undefined;
   }
   let accountMatches: boolean;
   try {
     accountMatches = await validateTransactionAccount(
       parsed.data.accountId,
       householdId,
-      allowedClosedAccountId,
+      allowedDeletedAccountId,
     );
   } catch (error) {
     return databaseFailure('validate-account', error);
   }
   if (!accountMatches) {
-    return validationState(values, { accountId: ['利用中の口座を選択してください。'] });
+    return validationState(values, { accountId: ['資産を選択してください。'] });
   }
 
   let updated;

@@ -53,7 +53,6 @@ export default async function EditTransferPage({ params }: { params: Promise<{ i
             action={action}
             categories={categories}
             accounts={accounts}
-            allowClosedAccountToggle
             initialValues={{
               type: 'transfer',
               amount: String(transfer.amount),

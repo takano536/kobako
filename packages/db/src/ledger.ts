@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
@@ -27,10 +27,11 @@ export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
   { defaultKind: 'cash', name: '現金', sortOrder: 10 },
   { defaultKind: 'bank', name: '銀行', sortOrder: 20 },
   { defaultKind: 'credit_card', name: 'クレジットカード', sortOrder: 30 },
-  { defaultKind: 'electronic_money', name: '電子マネー', sortOrder: 40 },
-  { defaultKind: 'other', name: 'その他', sortOrder: 50 },
+  { defaultKind: 'debit_card', name: 'デビットカード', sortOrder: 40 },
+  { defaultKind: null, name: '電子マネー', sortOrder: 50 },
+  { defaultKind: null, name: 'その他', sortOrder: 60 },
 ] as const satisfies ReadonlyArray<{
-  defaultKind: AccountKind;
+  defaultKind: AccountKind | null;
   name: string;
   sortOrder: number;
 }>;
@@ -42,27 +43,39 @@ export async function ensureDefaultAccountGroups(
   householdId: string,
 ): Promise<void> {
   for (const seed of DEFAULT_ACCOUNT_GROUP_SEEDS) {
-    const existingDefault = await db
-      .select({ id: accountGroups.id })
-      .from(accountGroups)
-      .where(
-        and(
-          eq(accountGroups.householdId, householdId),
-          eq(accountGroups.defaultKind, seed.defaultKind),
-        ),
-      )
-      .limit(1);
-    if (existingDefault[0]) continue;
+    if (seed.defaultKind) {
+      const existingDefault = await db
+        .select({ id: accountGroups.id })
+        .from(accountGroups)
+        .where(
+          and(
+            eq(accountGroups.householdId, householdId),
+            eq(accountGroups.defaultKind, seed.defaultKind),
+          ),
+        )
+        .limit(1);
+      if (existingDefault[0]) continue;
+    }
     const existingName = await db
-      .select({ id: accountGroups.id })
+      .select({
+        id: accountGroups.id,
+        defaultKind: accountGroups.defaultKind,
+        sortOrder: accountGroups.sortOrder,
+      })
       .from(accountGroups)
       .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, seed.name)))
       .limit(1);
     if (existingName[0]) {
-      await db
-        .update(accountGroups)
-        .set({ defaultKind: seed.defaultKind })
-        .where(eq(accountGroups.id, existingName[0].id));
+      if (
+        seed.defaultKind &&
+        existingName[0].defaultKind === null &&
+        existingName[0].sortOrder === seed.sortOrder
+      ) {
+        await db
+          .update(accountGroups)
+          .set({ defaultKind: seed.defaultKind })
+          .where(eq(accountGroups.id, existingName[0].id));
+      }
       continue;
     }
     await db
@@ -127,6 +140,14 @@ export async function listAccounts(db: Database, householdId: string): Promise<A
     .select()
     .from(accounts)
     .where(eq(accounts.householdId, householdId))
+    .orderBy(asc(accounts.name), asc(accounts.id));
+}
+
+export async function listActiveAccounts(db: Database, householdId: string): Promise<Account[]> {
+  return db
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
     .orderBy(asc(accounts.name), asc(accounts.id));
 }
 
@@ -707,6 +728,7 @@ async function validateTransferAccounts(
   householdId: string,
   fromAccountId: number,
   toAccountId: number,
+  allowedDeletedAccountIds: readonly number[] = [],
 ): Promise<TransferValidationCode | null> {
   const fromInvalid =
     !Number.isSafeInteger(fromAccountId) || fromAccountId < 1 || fromAccountId > MAX_INT4_ID;
@@ -725,7 +747,7 @@ async function validateTransferAccounts(
     return 'same_account';
   }
   const accountRows = await db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, deletedAt: accounts.deletedAt })
     .from(accounts)
     .where(
       and(
@@ -733,9 +755,15 @@ async function validateTransferAccounts(
         inArray(accounts.id, [fromAccountId, toAccountId]),
       ),
     );
-  const accountIds = new Set(accountRows.map((account) => account.id));
-  const fromAvailable = accountIds.has(fromAccountId);
-  const toAvailable = accountIds.has(toAccountId);
+  const allowedDeleted = new Set(allowedDeletedAccountIds);
+  const accountAvailable = (id: number, deletedAt: Date | null) =>
+    deletedAt === null || allowedDeleted.has(id);
+  const fromAvailable = accountRows.some(
+    (account) => account.id === fromAccountId && accountAvailable(account.id, account.deletedAt),
+  );
+  const toAvailable = accountRows.some(
+    (account) => account.id === toAccountId && accountAvailable(account.id, account.deletedAt),
+  );
   if (fromAvailable && toAvailable) {
     return null;
   }
@@ -792,7 +820,11 @@ export async function updateTransfer(
   try {
     return await db.transaction(async (transaction) => {
       const targetRows = await transaction
-        .select({ id: transfers.id })
+        .select({
+          id: transfers.id,
+          fromAccountId: transfers.fromAccountId,
+          toAccountId: transfers.toAccountId,
+        })
         .from(transfers)
         .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
         .limit(1);
@@ -804,6 +836,7 @@ export async function updateTransfer(
         householdId,
         input.fromAccountId,
         input.toAccountId,
+        [targetRows[0].fromAccountId, targetRows[0].toAccountId],
       );
       if (validationCode) {
         return { status: 'validation_error', code: validationCode };

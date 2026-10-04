@@ -775,7 +775,7 @@ test('keeps the date picker tab stop visible and saves after picking a date', as
   await page.goto(`/transactions/new?month=${month}`);
   const amount = page.getByLabel('金額');
   const category = page.locator('.category-field-expense select');
-  const account = page.getByLabel('口座', { exact: true });
+  const account = page.getByLabel('資産', { exact: true });
   const dateDisplay = page.locator('.date-picker-display');
   const memo = page.getByLabel('メモ（任意）');
   await amount.focus();

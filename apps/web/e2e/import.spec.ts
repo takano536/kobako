@@ -38,6 +38,7 @@ let fixturePaths:
       valid: string;
       invalid: string;
       keyboard: string;
+      keyboardOnly: string;
       mobile: string;
       fallback: string;
       multiMonth: string;
@@ -197,6 +198,30 @@ async function writeFixtures(): Promise<void> {
       },
     ],
   });
+  const keyboardOnlyBytes = buildMoneyManagerWorkbook({
+    rows: [
+      {
+        account: markerFor(runMarkerPrefix, 'keyboard-only-expense-account'),
+        dateSerial: date,
+        category: markerFor(runMarkerPrefix, 'keyboard-only-expense-category'),
+        content: markerFor(runMarkerPrefix, 'keyboard-only-expense-content'),
+        memo: markerFor(runMarkerPrefix, 'keyboard-only-expense-memo'),
+        amount: '8642.0',
+        type: '支出',
+        currency: 'JPY',
+      },
+      {
+        dateSerial: nextDate,
+        account: markerFor(runMarkerPrefix, 'keyboard-only-income-account'),
+        category: markerFor(runMarkerPrefix, 'keyboard-only-income-category'),
+        content: markerFor(runMarkerPrefix, 'keyboard-only-income-content'),
+        memo: markerFor(runMarkerPrefix, 'keyboard-only-income-memo'),
+        amount: '7531.0',
+        type: '収入',
+        currency: 'JPY',
+      },
+    ],
+  });
   const mobileBytes = buildMoneyManagerWorkbook({
     rows: [
       {
@@ -303,6 +328,7 @@ async function writeFixtures(): Promise<void> {
     valid: join(temporaryDirectory, 'valid.xlsx'),
     invalid: join(temporaryDirectory, 'invalid.xlsx'),
     keyboard: join(temporaryDirectory, 'keyboard.xlsx'),
+    keyboardOnly: join(temporaryDirectory, 'keyboard-only.xlsx'),
     mobile: join(temporaryDirectory, 'mobile.xlsx'),
     fallback: join(temporaryDirectory, 'fallback.xlsx'),
     multiMonth: join(temporaryDirectory, 'multi-month.xlsx'),
@@ -315,6 +341,7 @@ async function writeFixtures(): Promise<void> {
     writeFile(paths.valid, validBytes),
     writeFile(paths.invalid, invalidBytes),
     writeFile(paths.keyboard, keyboardBytes),
+    writeFile(paths.keyboardOnly, keyboardOnlyBytes),
     writeFile(paths.mobile, mobileBytes),
     writeFile(paths.fallback, fallbackBytes),
     writeFile(paths.multiMonth, multiMonthBytes),
@@ -329,6 +356,7 @@ async function writeFixtures(): Promise<void> {
     keyboardBytes,
     mobileBytes,
     fallbackBytes,
+    keyboardOnlyBytes,
     multiMonthBytes,
   ].map(hashBytes);
 }
@@ -571,67 +599,29 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   ).toBeVisible();
   await page.getByRole('link', { name: '残高', exact: true }).click();
   await expect(page).toHaveURL(/\/balances$/);
-  const balanceList = page.getByRole('list', { name: '口座別残高' });
-  const expenseBalanceRow = balanceList.getByRole('listitem').filter({
+  const expenseBalanceRow = page.locator('.balance-row').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
   });
   await expect(expenseBalanceRow.locator('.balance-amount')).toContainText('1,234円');
   await expect(expenseBalanceRow.locator('.balance-amount .sr-only')).toHaveText('マイナス');
-  const incomeBalanceRow = balanceList.getByRole('listitem').filter({
+  const incomeBalanceRow = page.locator('.balance-row').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-income-account'),
   });
   await expect(incomeBalanceRow.locator('.balance-amount')).toContainText('5,678円');
 });
-test('requires an explicit choice for every unmatched source account', async ({ page }) => {
+test('creates unseen source assets without preview account selection', async ({ page }) => {
   const paths = fixturePaths;
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
   await page.goto('/transactions/import');
-  const before = await runCounts();
   await uploadAndPreview(page, paths.keyboard);
-  const firstTarget = page.locator('select[name="accountTarget"]').first();
-  await firstTarget.evaluate((element) => element.remove());
+  await expect(page.getByText('新しい資産', { exact: true })).toBeVisible();
+  await expect(page.locator('.account-choice-row')).toHaveCount(0);
   await page.getByRole('button', { name: '2件を取り込む' }).click();
-  await expect(page.locator('p.form-message[role="alert"]')).toContainText(
-    '取り込み先が選ばれていません',
-  );
-  expect(await runCounts()).toEqual(before);
-});
-
-test('supports explicit account reuse and reports created accounts neutrally', async ({ page }) => {
-  const paths = fixturePaths;
-  if (!paths) {
-    throw new Error('E2E fixtures are not initialized');
-  }
-  const existingName = markerFor(runMarkerPrefix, 'mobile-account');
-  const groups = await database().sql<{ id: number }[]>`
-    select id
-    from account_groups
-    where household_id = ${DEFAULT_HOUSEHOLD_ID} and default_kind = 'other'
-    limit 1
-  `;
-  const group = groups[0];
-  if (!group) {
-    throw new Error('import reuse group fixture is missing');
-  }
-  await database().sql`
-    insert into accounts (household_id, name, kind, group_id, status, sort_order)
-    values (${DEFAULT_HOUSEHOLD_ID}, ${existingName}, 'other', ${group.id}, 'active', 900)
-  `;
-  await page.goto('/transactions/import');
-  await uploadAndPreview(page, paths.mobile);
-  const choiceRow = page.locator('.account-choice-row').filter({ hasText: existingName });
-  await choiceRow.locator('select[name="accountTarget"]').selectOption({
-    label: `既存の口座を再利用: ${existingName}`,
-  });
-  await expect(choiceRow).toContainText('既存の口座を再利用');
-  await page.getByRole('button', { name: '1件を取り込む' }).click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
-  await expect(page.getByText('カテゴリを1件、口座を0件作成しました。')).toBeVisible();
-  await expect(page.getByText('新しい資産', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/資産を\d+件作成しました。/)).toBeVisible();
 });
-
 test('warns on re-import and disables confirmation without new rows', async ({ page }) => {
   const paths = fixturePaths;
   if (!paths) {
@@ -678,7 +668,7 @@ test('supports keyboard-only preview, confirm, and file-selection reset', async 
   }
   await page.goto('/transactions/import');
   const input = page.locator('input[type="file"]');
-  await input.setInputFiles(paths.keyboard);
+  await input.setInputFiles(paths.keyboardOnly);
   await expect(page.getByRole('heading', { name: '取り込み内容を確認' })).toBeFocused();
 
   const confirmButton = page.getByRole('button', { name: '2件を取り込む' });

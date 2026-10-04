@@ -40,6 +40,4 @@ export type {
   MoneyManagerImportPreviewRow,
   MoneyManagerImportPreviewRowError,
   MoneyManagerImportSuccess,
-  MoneyManagerImportValidationCode,
-  MoneyManagerImportValidationError,
 } from './money-manager-import-contract.js';

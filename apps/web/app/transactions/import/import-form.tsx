@@ -377,40 +377,7 @@ function SummarySection({ preview }: { preview: MoneyManagerImportPreview }) {
       </dl>
       <div className="import-new-names-list">
         <NamesSummary title="新しいカテゴリ" names={categories} />
-        <NamesSummary title="取り込み元の口座" names={sourceAccounts} />
-      </div>
-    </section>
-  );
-}
-function AccountChoices({ preview }: { preview: MoneyManagerImportPreview }) {
-  const choices = preview.accountChoices ?? [];
-  if (choices.length === 0) return null;
-  return (
-    <section
-      className="import-preview-section account-choice-section"
-      aria-labelledby="account-choice-title"
-    >
-      <div className="import-section-heading">
-        <h2 id="account-choice-title">取り込み元の口座を確認</h2>
-      </div>
-      <p>一致する名前でも自動で統合しません。各口座の取り込み先を選んでください。</p>
-      <div className="account-choice-list">
-        {choices.map((choice, index) => (
-          <div className="account-choice-row" key={choice.sourceKey ?? choice.name}>
-            <label htmlFor={`account-target-${index}`}>
-              <strong>{choice.name}</strong>
-              <select id={`account-target-${index}`} name="accountTarget" defaultValue="create">
-                <option value="create">新しい口座を作成</option>
-                {(choice.candidates ?? []).map((candidate) => (
-                  <option value={`existing:${candidate.id}`} key={candidate.id}>
-                    既存の口座を再利用: {candidate.name}
-                    {candidate.status === 'closed' ? '（利用終了）' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ))}
+        <NamesSummary title="新しい資産" names={sourceAccounts} />
       </div>
     </section>
   );
@@ -565,11 +532,7 @@ function ConfirmActions({
   pending: boolean;
   onReset: () => void;
 }) {
-  const confirmDisabled =
-    pending ||
-    preview.errorCount > 0 ||
-    preview.importableCount === 0 ||
-    Boolean(preview.accountResolutionError);
+  const confirmDisabled = pending || preview.errorCount > 0 || preview.importableCount === 0;
   return (
     <section className="import-confirm" aria-label="取り込みを確定">
       <div className="import-confirm-actions">
@@ -620,7 +583,6 @@ function PreviewView({
         <>
           <AttentionSection preview={preview} />
           <SummarySection preview={preview} />
-          <AccountChoices preview={preview} />
           <PreviewRows preview={preview} />
           <ConfirmActions preview={preview} pending={pending} onReset={onReset} />
         </>
@@ -663,8 +625,8 @@ function SuccessView({
   ] as const;
   const created =
     success.createdCategories === 0 && success.createdAccounts === 0
-      ? '新しいカテゴリ・口座はありません。'
-      : `カテゴリを${success.createdCategories.toLocaleString('ja-JP')}件、口座を${success.createdAccounts.toLocaleString('ja-JP')}件作成しました。`;
+      ? '新しいカテゴリ・資産はありません。'
+      : `カテゴリを${success.createdCategories.toLocaleString('ja-JP')}件、資産を${success.createdAccounts.toLocaleString('ja-JP')}件作成しました。`;
   return (
     <section className="import-success" aria-labelledby="import-success-title">
       <p className="import-success-mark" aria-hidden="true">

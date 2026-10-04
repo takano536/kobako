@@ -28,13 +28,13 @@ households (1) ──< account_groups ──< accounts
      └──< transaction_imports  [fingerprint: (household, source, sha256)]
 ```
 
-- `account_groups`: 家計ごとの口座グループ。標準 5 グループは idempotent に seed し、口座とは独立して並び順を持ちます。空のカスタムグループだけ削除できます。
-- `accounts`: 家計ごとの口座名、`kind`（`cash`/`bank`/`electronic_money`/`credit_card`/`other`）、`status`（`active`/`closed`：利用中／利用終了）、グループ、並び順を持ちます。口座名は一意ではなく、同名登録は警告後に別口座として許可します。取引・振替・取り込み・別カードの引落口座として参照されている口座は削除できません。口座自身のカード条件履歴は削除時に同時に削除されます。
+- `account_groups`: 家計ごとの資産グループです。現金・銀行・クレジットカード・デビットカードを標準順で seed し、電子マネー・その他など既存の legacy group も保持します。グループを追加・改名・並び替えする Web API/UI は提供しません。
+- `accounts`: 家計ごとの資産名、`kind`（`cash`/`bank`/`credit_card`/`debit_card`/`electronic_money`/`other`）、`status`（`active`/`closed`）、`deleted_at`、グループ、並び順を持ちます。同名資産は別レコードとして許可します。`status` は資産の状態を表し、`deleted_at` が論理削除の印です。削除後も取引・振替・取り込み対応付け・カード条件の参照を保持します。
 - `categories`: `household_id`、`type`（`expense`/`income`）、表示名、並び順。`(household_id, type, name)` を一意にし、初期カテゴリを支出 9 種・収入 3 種登録します。
-- `transactions`: 収入・支出だけを保存する既存の台帳です。`account_id` は nullable で、口座を持たない取引も許可します。`(account_id, household_id)` の複合 FK と account lookup index を持ち、カテゴリ FK と合わせて別家計の参照を DB で拒否します。
-- `transfers`: 振替を一つの追跡可能な行として保存し、`from_account_id`、`to_account_id`、正の JPY `amount`、`occurred_on`、`memo` を持ちます。送金元と送金先は CHECK で異なることを強制し、両端に household を含む複合 FK を張ります。日付・送金元・送金先の各 lookup index を持ち、家計削除は cascade、口座削除は restrict です。振替は収入・支出・カテゴリ集計に入れません。
-- `account_import_mappings`: インポート提供元の安定した口座 ID（なければ名前）を家計内口座へ対応付けます。既存の対応付けは次回以降静かに再利用し、口座情報を上書きしません。
-- `account_card_conditions`: クレジットカードの締め日・支払日・支払月ずれ・引落口座を `effective_from`（適用開始日）付き履歴として保存します。計算や自動振替は行いません。
+- `transactions`: 収入・支出だけを保存する既存の台帳です。`account_id` は nullable で、資産を持たない取引も許可します。`(account_id, household_id)` の複合 FK と account lookup index を持ち、カテゴリ FK と合わせて別家計の参照を DB で拒否します。
+- `transfers`: 振替を一つの追跡可能な行として保存し、`from_account_id`、`to_account_id`、正の JPY `amount`、`occurred_on`、`memo` を持ちます。送金元と送金先は CHECK で異なることを強制し、両端に household を含む複合 FK を張ります。日付・送金元・送金先の各 lookup index を持ち、削除されていない資産（`status` が `closed` でも可）だけ新規振替に使えます。
+- `account_import_mappings`: インポート提供元の安定した資産 ID（なければ名前）を家計内資産へ対応付けます。対応名は同じ家計・提供元の別資産間で重複させず、既存の対応付けは次回以降静かに再利用します。対応先が論理削除済みでも復活・再作成せず、その参照と `deleted_at` を保持します。未対応付けの資産は確定時に「その他」へ自動作成します。
+- `account_card_conditions`: クレジットカードの現在条件を保存します。既存の effective date 履歴を保持しつつ、設定フォームは今日時点の条件を選択して更新します。支払計算や自動振替は行いません。
 - `transaction_imports`: `household_id`、`source`（`realbyte-money-manager`）、元ファイルのバイト列の SHA-256、元ファイル名、全件数、種別ごとの件数、作成日時を保存します。`(household_id, source, sha256)` を一意制約として重複ファイルを防ぎ、ファイル本体とセルデータは保存しません。
 - 全ての Web query は呼び出し元が渡す household を条件に含めます（現状は常に `getCurrentHouseholdId()` の値）。月次範囲は `YYYY-MM-01` 以上、翌月 1 日未満の half-open range です。
 - 月・日付が扱う年は 1900〜9998 年（`packages/db/src/month.ts` の `MIN_SUPPORTED_YEAR`/`MAX_SUPPORTED_YEAR`）に制限します。PostgreSQL `date`/`YYYY-MM` 自体はこれより広い範囲を扱えますが、`0000-01` のような極端な値が migration 未対応のクライアント入力や URL 改ざんから届いても 500 にならないよう、`isValidMonth`/`isCalendarDate`/`parseMonth`/`shiftMonth` すべてでこの範囲を検証・フォールバックします。
@@ -53,14 +53,12 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 概要と一覧は Server Component で URL query (`month`、`type`、`category`、`account`、`page`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
-`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜ、同じ通常行レイアウトで振替を `振替元 → 振替先` として表示します。種別で「振替」を選ぶと振替だけを表示し、カテゴリの絞り込みは振替では無効です。口座による絞り込みは通常取引の `account_id` と振替の from/to の両方を一つの query で対象にし、ページング・月・種別・カテゴリと組み合わせても重複を出しません。振替は収入・支出の全 totals から除外します。
+`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、ページング・月・種別・カテゴリと組み合わせても重複を出しません。
 
-登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。通常取引の口座は利用中の候補だけを表示し、利用終了の口座を参照する編集画面ではその口座を「利用終了」と表示して保持します。新規・編集で振替を選んだ場合、振替元・振替先の候補は初期状態では利用中の口座だけに絞り、「利用終了の口座も表示」をオンにすると利用終了の口座も「利用終了」と表示して選択できます。すでに選択中の利用終了の振替端点はトグルがオフでも保持します。口座による絞り込みの一覧では利用終了の口座も「利用終了」と表示します。保存時に種別を変更した場合、`convertTransactionToTransfer` または `convertTransferToTransaction` が一つの DB transaction 内で新しい行を作成して元行を削除します。成功時は対象月へ redirect し、`/`、`/transactions`、`/balances` を `revalidatePath` して読み取りを新しくします。振替の DB mutation は household と両口座を明示的に照合し、別家計の口座や同一口座を拒否します。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+- 登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、Zod schema を Server Action でも再検証します。新規操作の資産候補は削除されていない資産にし、既存取引を編集する場合は参照中の削除済み資産を保持します。新規振替も削除されていない資産を受け付けます。
+- 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧やグループ管理 UI はありません。取引一覧で資産を絞り込んだときだけ、削除されていない資産に設定歯車を表示し、資産設定フォームは資産基本情報、カード現在条件、インポート対応名をまとめて扱います。論理削除は `accounts.deleted_at` に日時を設定し、参照行を保持します。
 
-- 口座管理は `/accounts` と Server Action で行い、標準グループ、カスタムグループ、口座の並び順・種類・利用状態を管理します。種類を変更すると口座残高の解釈が変わる場合があるため明示確認を求め、取引や振替などの既存行は書き換えません。参照のある口座は削除せず理由を表示します。
-- `getAccountBalances` は全期間の取引から口座ごとの計算上の残高を `income - expense - transfersOut + transfersIn` で計算し、未来日付の取引も含めます。初期残高は持たず、口座を持たない手入力の取引を除外します。現金・銀行・電子マネーは計算上の残高を資産として表示し、クレジットカードは計算上の残高の符号を反転して負債として表示します。カードの過払い（計算上の残高 > 0）は明示し、集計の純資産は常に計算上の残高の総和です。
-
-表示側は符号付き金額を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
+`getAccountBalances` は全期間の取引から資産ごとの計算上の残高を `income - expense - transfersOut + transfersIn` で計算します。現金・銀行・デビットカードは資産、クレジットカードは符号を反転して負債として表示します。その他は残高の符号で表示ラベルを決め、純資産は全資産の計算上の残高の総和です。
 
 日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 
@@ -81,13 +79,11 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 `apps/web/next.config.ts` では Server Action のリクエスト本文の上限を 6 MB に設定し、5 MiB のファイルと multipart の付加分を受け付けます。`yauzl` と `saxes` は Node.js サーバーの外部パッケージとして扱います。
 
-プレビューでは `moneyManagerImportAction` が `intent=preview` のファイルを受け取り、元のバイト列から SHA-256 ハッシュを計算して `parseMoneyManagerXlsx()` で正規化します。`findMoneyManagerImport()` によって同じ家計、提供元、ハッシュの記録を確認し、`money-manager-import-contract.ts` のシリアライズ可能な型で、ファイル名・サイズ・期間・収入/支出/振替の件数と合計・新規カテゴリ・新規口座・口座ごとの取り込み先候補・上限付きサンプル・ファイルエラー・行エラーを返します。既存記録は `alreadyImported` と前回日時で表し、ハッシュの詳細を UI に要求しません。
+プレビューでは `moneyManagerImportAction` が `intent=preview` のファイルを受け取り、元のバイト列から SHA-256 ハッシュを計算して `parseMoneyManagerXlsx()` で正規化します。`findMoneyManagerImport()` によって同じ家計、提供元、ハッシュの記録を確認し、ファイル名・サイズ・期間・収入/支出/振替の件数と合計・新規カテゴリ・新規資産・上限付きサンプル・ファイルエラー・行エラーを返します。
 
-取り込み元に安定した口座 ID があればそれを、なければ口座名を対応付けの識別子とします。未対応付け口座は既存名でも自動統合せず、各行で「新規作成」を既定にして既存口座（利用終了は表示付き）を選べます。同名の別口座を選択した場合も口座名や種類などの口座情報は上書きしません。既存の対応付けは次回以降静かに再利用します。
+取り込み元に安定した資産 ID があればそれを、なければ資産名を対応付けの識別子とします。未対応付け資産はプレビューで選択を要求せず、確定時に「その他」グループへ自動作成します。既存の対応付けは次回以降静かに再利用し、対応先が `deleted_at` 付きでも復活・重複作成せず、既存資産の名前・種別・カード条件を上書きしません。
 
-確認では同じフォームから選択中のファイルをもう一度送信します。サーバーアクションはファイルを読み直して上限を検証し、ハッシュと内容を比較してから `commitMoneyManagerImport()` を呼びます。問題がなければ家計のロック、インポート記録、カテゴリ・口座の作成または選択済み口座の再利用、収入/支出と振替の追加を一つのトランザクションで行います。振替行は「引き出し」を振替元 B「資産」、振替先 C「分類」、金額 F として保存します。J は JPY の確認に使い、保存しません。I/K も保存しません。手数料は推測しません。完了画面の一覧リンクは、取り込んだ期間の最新月を開きます。
-
-対応する形式は Android 版だけです。先頭 11 列は日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順で、日付は 1900 年方式の Excel シリアル値、金額は `/^-?\d+(?:\.0+)?$/` に一致する整数または `.0` で終わる値だけを受け付けます。通貨は行ごとに JPY を確認します。通常行の B は口座名、振替行の B/C は元先口座名です。空の口座名、同一の元先口座、未知の種別、日付・金額不正は行エラーにし、未知だが空でない口座名はプレビューで選択を求め、確定時に既定では新規口座を作成します。
+対応する形式は Android 版だけです。先頭 11 列は日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順です。空の資産名、同一の振替元先、未知の種別、日付・金額不正は行エラーにし、未知だが空でない資産名は新規資産として扱います。
 
 `transaction_imports` にはファイル本体ではなく、ハッシュ、元ファイル名、提供元、全件数、種別ごとの件数、作成日時だけを保存します。SHA-256 は 64 文字の小文字 16 進数として CHECK で検証します。ZIP の過剰な展開は yauzl のサイズ検証で防ぎ、saxes は DOCTYPE を拒否します。数式セルも行エラーとして扱います。パーサーはサーバー側だけで動作し、ファイル本体をディスクへ書き込みません。
 

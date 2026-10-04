@@ -145,17 +145,17 @@ describe('unified transaction form values', () => {
 
   it('maps every transfer validation endpoint to its corresponding field', () => {
     expect(transferValidationErrors('from_account_unavailable')).toEqual({
-      fromAccountId: ['選択した口座は利用できません。'],
+      fromAccountId: ['選択した資産は利用できません。'],
     });
     expect(transferValidationErrors('to_account_unavailable')).toEqual({
-      toAccountId: ['選択した口座は利用できません。'],
+      toAccountId: ['選択した資産は利用できません。'],
     });
     expect(transferValidationErrors('accounts_unavailable')).toEqual({
-      fromAccountId: ['選択した口座は利用できません。'],
-      toAccountId: ['選択した口座は利用できません。'],
+      fromAccountId: ['選択した資産は利用できません。'],
+      toAccountId: ['選択した資産は利用できません。'],
     });
     expect(transferValidationErrors('same_account')).toEqual({
-      toAccountId: ['振替元と振替先は別の口座を選択してください。'],
+      toAccountId: ['振替元と振替先は別の資産を選択してください。'],
     });
   });
   it('maps field errors for expense, income, and transfer forms', () => {

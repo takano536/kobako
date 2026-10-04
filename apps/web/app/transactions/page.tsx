@@ -10,6 +10,7 @@ import {
   shiftMonth,
   type ListedLedgerEntry,
 } from '@kobako/db';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import {
@@ -25,6 +26,7 @@ import {
   PageHeader,
   PageShell,
   RegisterTransactionAction,
+  SettingsIcon,
 } from '../_components/ui';
 import {
   firstQueryValue,
@@ -103,19 +105,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         : type === 'transfer'
           ? '振替'
           : 'すべての種別';
-  const filterSummary = `${typeName}・${type === 'transfer' ? 'カテゴリなし' : (categoryName ?? 'すべてのカテゴリ')}${account ? `・口座: ${account.name}` : ''}`;
+  const filterSummary = `${typeName}・${type === 'transfer' ? 'カテゴリなし' : (categoryName ?? 'すべてのカテゴリ')}${account ? `・資産: ${account.name}` : ''}`;
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
   const currentPath = listHref(month, type, categoryId, accountId, page);
-  const accountKindLabel =
-    account?.kind === 'cash'
-      ? '現金'
-      : account?.kind === 'bank'
-        ? '銀行'
-        : account?.kind === 'electronic_money'
-          ? '電子マネー'
-          : account?.kind === 'credit_card'
-            ? 'クレジットカード'
-            : 'その他';
 
   return (
     <PageShell>
@@ -137,22 +129,19 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         </p>
       ) : null}
       {account ? (
-        <section className="account-transaction-header" aria-labelledby="account-filter-title">
-          <h2 id="account-filter-title">{account.name}</h2>
-          <p>
-            種類: {accountKindLabel} ／ グループ: {account.groupName}
-            {account.status === 'closed' ? ' ／ 利用終了' : ''}
-          </p>
-          <div className="account-transaction-actions">
-            <ActionLink
-              href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
-              variant="secondary"
-            >
-              口座設定
-            </ActionLink>
-            <ActionLink href={listHref(month, type, categoryId, undefined)} variant="quiet">
-              口座の絞り込みを解除
-            </ActionLink>
+        <section className="asset-transaction-header" aria-labelledby="asset-filter-title">
+          <div className="asset-transaction-heading">
+            {account.deletedAt === null ? (
+              <Link
+                className="asset-settings-link"
+                href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
+                aria-label="資産設定"
+                title="資産設定"
+              >
+                <SettingsIcon />
+              </Link>
+            ) : null}
+            <h2 id="asset-filter-title">{account.name}</h2>
           </div>
         </section>
       ) : null}
@@ -195,25 +184,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         {rows.length === 0 ? (
           <EmptyState
             size="page"
-            title={
-              account
-                ? `${account.name}の記録がありません`
-                : hasFilter
-                  ? '条件に合う記録がありません'
-                  : 'この月はまだ空です'
-            }
+            title={hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}
             description={
-              account ? (
-                <>
-                  <span className="phrase-wrap">{account.name}に紐づく記録はありません。</span>
-                  <ActionLink
-                    href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
-                    variant="quiet"
-                  >
-                    口座設定
-                  </ActionLink>
-                </>
-              ) : hasFilter ? (
+              hasFilter ? (
                 <>
                   <span className="phrase-wrap">条件を変えるか、</span>
                   <span className="phrase-wrap">条件をクリアしてください。</span>
@@ -226,11 +199,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
               )
             }
             action={
-              account ? (
-                <ActionLink href={listHref(month, type, categoryId)} variant="quiet">
-                  口座の絞り込みを解除
-                </ActionLink>
-              ) : hasFilter ? (
+              hasFilter ? (
                 <ActionLink href={`/transactions?month=${month}`} variant="quiet">
                   条件をクリアする
                 </ActionLink>

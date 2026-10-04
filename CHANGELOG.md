@@ -1,4 +1,13 @@
 # Changelog
+## [Unreleased]
+
+### Features
+
+* unify asset registration and settings, add debit-card assets, logical deletion, and current card-condition editing
+* remove standalone asset/group/card-history management UI and automatically create unmapped import assets
+* add migration coverage for fresh databases and upgrades from the previous account schema
+* reuse import mappings without resurrecting logically deleted assets and reject duplicate mapping names in asset settings
+
 
 ## [0.6.0](https://github.com/takano536/kobako/compare/v0.5.1...v0.6.0) (2026-10-03)
 
