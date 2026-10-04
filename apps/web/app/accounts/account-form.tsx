@@ -99,19 +99,25 @@ export function AccountForm({
 }: AccountFormProps) {
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
-  const current = state.values ?? values;
+  const [isDirty, setIsDirty] = useState(false);
+  const current = state.values && !isDirty ? state.values : values;
   const nameError = state.fieldErrors?.name;
   const kindError = state.fieldErrors?.kind;
   useEffect(() => {
-    if (state.values) setValues(state.values);
+    if (state.values) {
+      setValues(state.values);
+      setIsDirty(false);
+    }
   }, [state.values]);
 
   function updateValue<K extends keyof AccountFormValues>(key: K, value: AccountFormValues[K]) {
+    setIsDirty(true);
     setValues((previous) => ({ ...previous, [key]: value }));
   }
 
   const card = cardConditionValues(current);
   const setCardValue = (key: keyof CardConditionValues, value: string) => {
+    setIsDirty(true);
     setValues((previous) => ({ ...previous, [key]: value }));
   };
 

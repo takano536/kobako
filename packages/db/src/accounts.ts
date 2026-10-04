@@ -23,12 +23,24 @@ import {
 export type AccountMutationResult =
   | { status: 'ok'; account: Account }
   | { status: 'not_found' }
+  | { status: 'deleted' }
   | { status: 'kind_confirmation_required'; previousKind: Account['kind']; rawBalance: string }
   | { status: 'stale_kind' }
+  | { status: 'not_card' }
+  | { status: 'invalid_debit_account' }
   | { status: 'error' };
 
 export type AccountDeleteResult =
   { status: 'deleted' } | { status: 'not_found' } | { status: 'error' };
+
+type AccountMutationFailureStatus =
+  'not_found' | 'deleted' | 'not_card' | 'invalid_debit_account' | 'error';
+
+class AccountMutationRollback extends Error {
+  constructor(readonly status: AccountMutationFailureStatus) {
+    super(`Account mutation failed: ${status}`);
+  }
+}
 
 function accountKindOrderSql() {
   return sql<number>`case ${accounts.kind}
@@ -176,14 +188,37 @@ export async function createAccount(
   db: Database,
   householdId: string,
   input: AccountCreateInput,
+  cardCondition?: AccountCardConditionInput,
 ): Promise<AccountMutationResult> {
   const parsed = accountCreateInputSchema.safeParse(input);
   if (!parsed.success) {
     return { status: 'error' };
   }
+  const parsedCard =
+    cardCondition === undefined
+      ? undefined
+      : accountCardConditionInputSchema.safeParse(cardCondition);
+  if (parsedCard && !parsedCard.success) {
+    return { status: 'error' };
+  }
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      if (parsedCard?.success) {
+        if (parsed.data.kind !== 'credit_card') {
+          return { status: 'not_card' };
+        }
+        if (
+          !(await validateDebitAccount(
+            transaction,
+            householdId,
+            undefined,
+            parsedCard.data.debitAccountId,
+          ))
+        ) {
+          return { status: 'invalid_debit_account' };
+        }
+      }
       const sortOrder = (await maxAccountSortOrder(transaction, householdId)) + 10;
       const inserted = await transaction
         .insert(accounts)
@@ -197,12 +232,30 @@ export async function createAccount(
         .returning({ id: accounts.id });
       const id = inserted[0]?.id;
       if (id === undefined) {
-        return { status: 'error' };
+        throw new AccountMutationRollback('error');
       }
       const account = await getAccountInExecutor(transaction, householdId, id);
-      return account ? { status: 'ok', account } : { status: 'error' };
+      if (!account) {
+        throw new AccountMutationRollback('error');
+      }
+      if (parsedCard?.success) {
+        const saved = await saveCardConditionInTransaction(
+          transaction,
+          householdId,
+          account,
+          parsedCard.data,
+          null,
+        );
+        if (saved.status !== 'ok') {
+          throw new AccountMutationRollback(saved.status);
+        }
+      }
+      return { status: 'ok', account };
     });
   } catch (error) {
+    if (error instanceof AccountMutationRollback) {
+      return { status: error.status };
+    }
     console.error('[accounts/create] database operation failed', {
       errorType: error instanceof Error ? error.name : 'UnknownError',
     });
@@ -215,9 +268,17 @@ export async function updateAccount(
   householdId: string,
   accountId: number,
   input: AccountUpdateInput,
+  cardCondition?: AccountCardConditionInput,
 ): Promise<AccountMutationResult> {
   const parsed = accountUpdateInputSchema.safeParse(input);
   if (!parsed.success) {
+    return { status: 'error' };
+  }
+  const parsedCard =
+    cardCondition === undefined
+      ? undefined
+      : accountCardConditionInputSchema.safeParse(cardCondition);
+  if (parsedCard && !parsedCard.success) {
     return { status: 'error' };
   }
   try {
@@ -233,6 +294,9 @@ export async function updateAccount(
       if (!account) {
         return { status: 'not_found' };
       }
+      if (account.deletedAt !== null) {
+        return { status: 'deleted' };
+      }
       if (parsed.data.expectedKind !== undefined && parsed.data.expectedKind !== account.kind) {
         return { status: 'stale_kind' };
       }
@@ -247,6 +311,28 @@ export async function updateAccount(
           rawBalance,
         };
       }
+      let currentCardCondition: AccountCardSetting | null = null;
+      if (parsedCard?.success) {
+        if (parsed.data.kind !== 'credit_card') {
+          return { status: 'not_card' };
+        }
+        currentCardCondition = await currentCardSettingInTransaction(
+          transaction,
+          householdId,
+          accountId,
+        );
+        if (
+          !(await validateDebitAccount(
+            transaction,
+            householdId,
+            accountId,
+            parsedCard.data.debitAccountId,
+            currentCardCondition?.debitAccountId,
+          ))
+        ) {
+          return { status: 'invalid_debit_account' };
+        }
+      }
       const updated = await transaction
         .update(accounts)
         .set({
@@ -254,15 +340,39 @@ export async function updateAccount(
           kind: parsed.data.kind,
           status: account.status,
         })
-        .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
+        .where(
+          and(
+            eq(accounts.id, accountId),
+            eq(accounts.householdId, householdId),
+            isNull(accounts.deletedAt),
+          ),
+        )
         .returning({ id: accounts.id });
       if (!updated[0]) {
-        return { status: 'not_found' };
+        throw new AccountMutationRollback('not_found');
       }
-      const result = await getAccountInExecutor(transaction, householdId, accountId);
-      return result ? { status: 'ok', account: result } : { status: 'error' };
+      const updatedAccount = await getAccountInExecutor(transaction, householdId, accountId);
+      if (!updatedAccount) {
+        throw new AccountMutationRollback('error');
+      }
+      if (parsedCard?.success) {
+        const saved = await saveCardConditionInTransaction(
+          transaction,
+          householdId,
+          updatedAccount,
+          parsedCard.data,
+          currentCardCondition,
+        );
+        if (saved.status !== 'ok') {
+          throw new AccountMutationRollback(saved.status);
+        }
+      }
+      return { status: 'ok', account: updatedAccount };
     });
   } catch (error) {
+    if (error instanceof AccountMutationRollback) {
+      return { status: error.status };
+    }
     console.error('[accounts/update] database operation failed', {
       errorType: error instanceof Error ? error.name : 'UnknownError',
     });
@@ -321,29 +431,6 @@ async function cardAccount(
   return rows[0] ?? null;
 }
 
-export type CardConditionStatus =
-  'ok' | 'not_card' | 'invalid_debit_account' | 'not_found' | 'error';
-
-export type CardConditionResult =
-  { status: 'ok'; condition: AccountCardSetting } | { status: Exclude<CardConditionStatus, 'ok'> };
-
-async function validateDebitAccount(
-  transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
-  householdId: string,
-  cardAccountId: number,
-  debitAccountId: number | null | undefined,
-  allowedDeletedAccountId?: number | null,
-): Promise<boolean> {
-  if (debitAccountId === null || debitAccountId === undefined) return true;
-  if (debitAccountId === cardAccountId) return false;
-  const debit = await cardAccount(transaction, householdId, debitAccountId);
-  return (
-    debit !== null &&
-    debit.kind !== 'credit_card' &&
-    (debit.deletedAt === null || debit.id === allowedDeletedAccountId)
-  );
-}
-
 /**
  * Read the single current card setting. Legacy effective-date rows are retained
  * for migration/audit purposes but are intentionally never consulted here.
@@ -368,78 +455,97 @@ export async function getCurrentCardCondition(
   return rows[0] ?? null;
 }
 
-export async function saveCurrentCardCondition(
-  db: Database,
+type CardConditionMutationResult =
+  | { status: 'ok'; condition: AccountCardSetting }
+  | {
+      status: 'deleted' | 'not_card' | 'invalid_debit_account' | 'not_found' | 'error';
+    };
+
+async function validateDebitAccount(
+  transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
+  householdId: string,
+  cardAccountId: number | undefined,
+  debitAccountId: number | null | undefined,
+  allowedDeletedAccountId?: number | null,
+): Promise<boolean> {
+  if (debitAccountId === null || debitAccountId === undefined) return true;
+  if (debitAccountId === cardAccountId) return false;
+  const debit = await cardAccount(transaction, householdId, debitAccountId);
+  return (
+    debit !== null &&
+    debit.kind !== 'credit_card' &&
+    (debit.deletedAt === null || debit.id === allowedDeletedAccountId)
+  );
+}
+
+async function currentCardSettingInTransaction(
+  transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   accountId: number,
+): Promise<AccountCardSetting | null> {
+  const rows = await transaction
+    .select()
+    .from(accountCardSettings)
+    .where(
+      and(
+        eq(accountCardSettings.householdId, householdId),
+        eq(accountCardSettings.accountId, accountId),
+      ),
+    )
+    .for('update')
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function saveCardConditionInTransaction(
+  transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
+  householdId: string,
+  account: Account,
   input: AccountCardConditionInput,
-): Promise<CardConditionResult> {
-  const parsed = accountCardConditionInputSchema.safeParse(input);
-  if (!parsed.success) return { status: 'error' };
-  try {
-    return await db.transaction(async (transaction) => {
-      await lockHousehold(transaction, householdId);
-      const account = await cardAccount(transaction, householdId, accountId);
-      if (!account || account.kind !== 'credit_card') return { status: 'not_card' };
-      const currentRows = await transaction
-        .select()
-        .from(accountCardSettings)
-        .where(
-          and(
-            eq(accountCardSettings.householdId, householdId),
-            eq(accountCardSettings.accountId, accountId),
-          ),
-        )
-        .for('update')
-        .limit(1);
-      const current = currentRows[0];
-      if (
-        !(await validateDebitAccount(
-          transaction,
-          householdId,
-          accountId,
-          parsed.data.debitAccountId,
-          current?.debitAccountId,
-        ))
-      ) {
-        return { status: 'invalid_debit_account' };
-      }
-      const values = {
-        closingDay: parsed.data.closingDay ?? null,
-        paymentDay: parsed.data.paymentDay ?? null,
-        paymentMonthOffset: parsed.data.paymentMonthOffset ?? null,
-        debitAccountId: parsed.data.debitAccountId ?? null,
-        updatedAt: new Date(),
-      };
-      if (current) {
-        const updated = await transaction
-          .update(accountCardSettings)
-          .set(values)
-          .where(
-            and(
-              eq(accountCardSettings.id, current.id),
-              eq(accountCardSettings.householdId, householdId),
-              eq(accountCardSettings.accountId, accountId),
-            ),
-          )
-          .returning();
-        return updated[0] ? { status: 'ok', condition: updated[0] } : { status: 'not_found' };
-      }
-      const inserted = await transaction
-        .insert(accountCardSettings)
-        .values({
-          householdId,
-          accountId,
-          ...values,
-          createdAt: new Date(),
-        })
-        .returning();
-      return inserted[0] ? { status: 'ok', condition: inserted[0] } : { status: 'error' };
-    });
-  } catch (error) {
-    console.error('[accounts/card-condition-save] database operation failed', {
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    });
-    return { status: 'error' };
+  current: AccountCardSetting | null,
+): Promise<CardConditionMutationResult> {
+  if (account.deletedAt !== null) return { status: 'deleted' };
+  if (account.kind !== 'credit_card') return { status: 'not_card' };
+  if (
+    !(await validateDebitAccount(
+      transaction,
+      householdId,
+      account.id,
+      input.debitAccountId,
+      current?.debitAccountId,
+    ))
+  ) {
+    return { status: 'invalid_debit_account' };
   }
+  const values = {
+    closingDay: input.closingDay ?? null,
+    paymentDay: input.paymentDay ?? null,
+    paymentMonthOffset: input.paymentMonthOffset ?? null,
+    debitAccountId: input.debitAccountId ?? null,
+    updatedAt: new Date(),
+  };
+  if (current) {
+    const updated = await transaction
+      .update(accountCardSettings)
+      .set(values)
+      .where(
+        and(
+          eq(accountCardSettings.id, current.id),
+          eq(accountCardSettings.householdId, householdId),
+          eq(accountCardSettings.accountId, account.id),
+        ),
+      )
+      .returning();
+    return updated[0] ? { status: 'ok', condition: updated[0] } : { status: 'not_found' };
+  }
+  const inserted = await transaction
+    .insert(accountCardSettings)
+    .values({
+      householdId,
+      accountId: account.id,
+      ...values,
+      createdAt: new Date(),
+    })
+    .returning();
+  return inserted[0] ? { status: 'ok', condition: inserted[0] } : { status: 'error' };
 }

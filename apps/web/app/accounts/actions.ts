@@ -5,7 +5,7 @@ import {
   accountCreateInputSchema,
   accountUpdateInputSchema,
 } from '@kobako/db/validation';
-import { createAccount, deleteAccount, saveCurrentCardCondition, updateAccount } from '@kobako/db';
+import { createAccount, deleteAccount, updateAccount } from '@kobako/db';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 
@@ -98,24 +98,28 @@ export async function createAccountAction(
     kind: text(formData, 'kind'),
   });
   if (!parsed.success) return validationState(formData, parsed.error);
+  const parsedCard =
+    parsed.data.kind === 'credit_card' && hasCardInput(cardInput(formData))
+      ? accountCardConditionInputSchema.safeParse(cardInput(formData))
+      : undefined;
+  if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
-  const result = await createAccount(db, householdId, parsed.data);
+  const result = await createAccount(
+    db,
+    householdId,
+    parsed.data,
+    parsedCard?.success ? parsedCard.data : undefined,
+  );
+  if (
+    result.status === 'invalid_debit_account' ||
+    result.status === 'not_card' ||
+    (parsedCard?.success && result.status === 'error')
+  ) {
+    return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
+  }
   if (result.status !== 'ok') {
     return { ...accountState(formData), message: '資産を保存できませんでした。' };
-  }
-  if (parsed.data.kind === 'credit_card' && hasCardInput(cardInput(formData))) {
-    const parsedCard = accountCardConditionInputSchema.safeParse(cardInput(formData));
-    if (!parsedCard.success) return validationState(formData, parsedCard.error);
-    const saved = await saveCurrentCardCondition(
-      db,
-      householdId,
-      result.account.id,
-      parsedCard.data,
-    );
-    if (saved.status !== 'ok') {
-      return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
-    }
   }
   revalidateAssets(result.account.id);
   redirect(`/transactions?account=${result.account.id}&month=all`);
@@ -143,8 +147,17 @@ export async function updateAccountAction(
   if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
-  const result = await updateAccount(db, householdId, id, parsed.data);
+  const result = await updateAccount(
+    db,
+    householdId,
+    id,
+    parsed.data,
+    parsedCard?.success ? parsedCard.data : undefined,
+  );
   if (result.status === 'not_found') notFound();
+  if (result.status === 'deleted') {
+    return { ...accountState(formData), message: '資産は削除済みのため保存できません。' };
+  }
   if (result.status === 'kind_confirmation_required') {
     return {
       ...accountState(formData),
@@ -158,14 +171,15 @@ export async function updateAccountAction(
       message: '別の画面で種別が変更されました。再読み込みしてください。',
     };
   }
+  if (
+    result.status === 'invalid_debit_account' ||
+    result.status === 'not_card' ||
+    (parsedCard?.success && result.status === 'error')
+  ) {
+    return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
+  }
   if (result.status !== 'ok') {
     return { ...accountState(formData), message: '資産を保存できませんでした。' };
-  }
-  if (parsedCard?.success) {
-    const saved = await saveCurrentCardCondition(db, householdId, id, parsedCard.data);
-    if (saved.status !== 'ok') {
-      return { ...accountState(formData), message: 'カード条件を保存できませんでした。' };
-    }
   }
   revalidateAssets(id);
   redirect(transactionReturnWithSaved(accountReturnPath(formData, id)));

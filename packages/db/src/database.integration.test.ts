@@ -30,7 +30,7 @@ import {
   getCurrentCardCondition,
   listActiveManagedAccounts,
   listManagedAccounts,
-  saveCurrentCardCondition,
+  updateAccount,
 } from './accounts.js';
 import { commitMoneyManagerImport } from './imports.js';
 import { runMigrations } from './migrate.js';
@@ -53,6 +53,7 @@ import {
   MAX_INT4_ID,
   transactionInputSchema,
   transferInputSchema,
+  type AccountCardConditionInput,
   type TransactionInput,
   type TransferInput,
 } from './validation.js';
@@ -182,12 +183,18 @@ describe('PostgreSQL migrations and ledger', () => {
       id: debit.account.id,
       status: 'closed',
     });
-    const saved = await saveCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-      closingDay: 'last',
-      paymentDay: '10',
-      paymentMonthOffset: 'next_month',
-      debitAccountId: debit.account.id,
-    });
+    const saved = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
     expect(saved.status).toBe('ok');
     const current = await getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id);
     expect(current).toMatchObject({
@@ -239,20 +246,32 @@ describe('PostgreSQL migrations and ledger', () => {
       throw new Error('card condition fixtures were not created');
     }
     await expect(
-      saveCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        closingDay: '3',
-        paymentDay: '4',
-        paymentMonthOffset: 'next_month',
-        debitAccountId: debit.account.id,
-      }),
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: '3',
+          paymentDay: '4',
+          paymentMonthOffset: 'next_month',
+          debitAccountId: debit.account.id,
+        },
+      ),
     ).resolves.toMatchObject({ status: 'ok' });
     await expect(
-      saveCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id, {
-        closingDay: 'last',
-        paymentDay: null,
-        paymentMonthOffset: null,
-        debitAccountId: null,
-      }),
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: 'last',
+          paymentDay: null,
+          paymentMonthOffset: null,
+          debitAccountId: null,
+        },
+      ),
     ).resolves.toMatchObject({ status: 'ok' });
     expect(
       await client.sql`
@@ -279,6 +298,448 @@ describe('PostgreSQL migrations and ledger', () => {
       paymentMonthOffset: null,
       debitAccountId: null,
     });
+  });
+  it('rolls back card validation and debit-reference failures before creating an account', async () => {
+    const invalidCard = {
+      closingDay: '32',
+      paymentDay: null,
+      paymentMonthOffset: null,
+      debitAccountId: null,
+    } as unknown as AccountCardConditionInput;
+    const invalidCardResult = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: 'カード入力失敗', kind: 'credit_card' },
+      invalidCard,
+    );
+    expect(invalidCardResult).toEqual({ status: 'error' });
+    expect(
+      await client.sql`select id from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'カード入力失敗'`,
+    ).toEqual([]);
+
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '作成再試行の引落口座',
+      kind: 'bank',
+    });
+    expect(debit.status).toBe('ok');
+    if (debit.status !== 'ok') throw new Error('debit fixture was not created');
+    const failed = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: '作成再試行カード', kind: 'credit_card' },
+      {
+        closingDay: null,
+        paymentDay: null,
+        paymentMonthOffset: null,
+        debitAccountId: 999_999_999,
+      },
+    );
+    expect(failed).toEqual({ status: 'invalid_debit_account' });
+    expect(
+      await client.sql`select id from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '作成再試行カード'`,
+    ).toEqual([]);
+
+    const retried = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: '作成再試行カード', kind: 'credit_card' },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    expect(retried.status).toBe('ok');
+    expect(
+      await client.sql`select count(*)::int as count from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '作成再試行カード'`,
+    ).toEqual([{ count: 1 }]);
+  });
+
+  it('rolls back account edits when card settings fail and retries without duplicate settings', async () => {
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '編集再試行カード',
+      kind: 'credit_card',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '編集再試行引落口座',
+      kind: 'bank',
+    });
+    expect(card.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (card.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('edit fixtures were not created');
+    }
+    await expect(
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: '3',
+          paymentDay: '4',
+          paymentMonthOffset: 'same_month',
+          debitAccountId: debit.account.id,
+        },
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    const before = await client.sql`
+      select name, kind, deleted_at from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+    `;
+    const conditionBefore = await client.sql`
+      select closing_day, payment_day, payment_month_offset, debit_account_id
+      from account_card_settings
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+    `;
+    const failed = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      {
+        name: '編集失敗後の名前',
+        kind: 'credit_card',
+        expectedKind: 'credit_card',
+        confirmKindChange: false,
+      },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: 999_999_999,
+      },
+    );
+    expect(failed).toEqual({ status: 'invalid_debit_account' });
+    expect(
+      await client.sql`
+        select name, kind, deleted_at from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+      `,
+    ).toEqual(before);
+    expect(
+      await client.sql`
+        select closing_day, payment_day, payment_month_offset, debit_account_id
+        from account_card_settings
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+      `,
+    ).toEqual(conditionBefore);
+
+    const retried = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      {
+        name: '編集成功後の名前',
+        kind: 'credit_card',
+        expectedKind: 'credit_card',
+        confirmKindChange: false,
+      },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    expect(retried.status).toBe('ok');
+    expect(
+      await client.sql`
+        select name, kind from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+      `,
+    ).toEqual([{ name: '編集成功後の名前', kind: 'credit_card' }]);
+    expect(
+      await client.sql`select count(*)::int as count from account_card_settings where account_id = ${card.account.id}`,
+    ).toEqual([{ count: 1 }]);
+  });
+
+  it('rolls back account writes when card settings fail at the database layer', async () => {
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: 'トリガー失敗カード',
+      kind: 'credit_card',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: 'トリガー失敗引落口座',
+      kind: 'bank',
+    });
+    expect(card.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (card.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('trigger fixtures were not created');
+    }
+    const initialCondition = {
+      closingDay: '3',
+      paymentDay: '4',
+      paymentMonthOffset: 'same_month' as const,
+      debitAccountId: debit.account.id,
+    };
+    await expect(
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        initialCondition,
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    const before = await client.sql`
+      select name, kind, deleted_at from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+    `;
+    const conditionBefore = await client.sql`
+      select closing_day, payment_day, payment_month_offset, debit_account_id
+      from account_card_settings
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+    `;
+
+    try {
+      await client.sql`
+        create or replace function test_account_card_settings_failure()
+        returns trigger
+        language plpgsql
+        as $$
+        begin
+          raise exception 'forced account card settings failure';
+        end;
+        $$;
+      `;
+      await client.sql`
+        create trigger test_account_card_settings_failure
+        before insert or update on account_card_settings
+        for each row execute function test_account_card_settings_failure();
+      `;
+
+      const failedCreate = await createAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        { name: 'トリガー作成失敗', kind: 'credit_card' },
+        {
+          closingDay: 'last',
+          paymentDay: '10',
+          paymentMonthOffset: 'next_month',
+          debitAccountId: debit.account.id,
+        },
+      );
+      expect(failedCreate).toEqual({ status: 'error' });
+      expect(
+        await client.sql`
+          select id from accounts
+          where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'トリガー作成失敗'
+        `,
+      ).toEqual([]);
+
+      const failedUpdate = await updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: 'トリガー編集失敗', kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: 'last',
+          paymentDay: '10',
+          paymentMonthOffset: 'next_month',
+          debitAccountId: debit.account.id,
+        },
+      );
+      expect(failedUpdate).toEqual({ status: 'error' });
+      expect(
+        await client.sql`
+          select name, kind, deleted_at from accounts
+          where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+        `,
+      ).toEqual(before);
+      expect(
+        await client.sql`
+          select closing_day, payment_day, payment_month_offset, debit_account_id
+          from account_card_settings
+          where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+        `,
+      ).toEqual(conditionBefore);
+    } finally {
+      await client.sql`
+        drop trigger if exists test_account_card_settings_failure on account_card_settings;
+      `;
+      await client.sql`drop function if exists test_account_card_settings_failure();`;
+    }
+
+    const retriedCreate = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: 'トリガー作成失敗', kind: 'credit_card' },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    expect(retriedCreate.status).toBe('ok');
+    const retriedUpdate = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      { name: 'トリガー編集成功', kind: 'credit_card', confirmKindChange: false },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    expect(retriedUpdate.status).toBe('ok');
+    expect(
+      await client.sql`
+        select count(*)::int as count from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'トリガー作成失敗'
+      `,
+    ).toEqual([{ count: 1 }]);
+    expect(
+      await client.sql`
+        select name, kind from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+      `,
+    ).toEqual([{ name: 'トリガー編集成功', kind: 'credit_card' }]);
+    expect(
+      await client.sql`
+        select count(*)::int as count from account_card_settings
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+      `,
+    ).toEqual([{ count: 1 }]);
+  });
+
+  it('rejects basic and card edits after the target account is soft-deleted', async () => {
+    const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '削除済み銀行',
+      kind: 'bank',
+    });
+    expect(bank.status).toBe('ok');
+    if (bank.status !== 'ok') throw new Error('deleted bank fixture was not created');
+    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id)).toEqual({
+      status: 'deleted',
+    });
+    const basicUpdate = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id, {
+      name: '削除済み銀行の変更',
+      kind: 'bank',
+      confirmKindChange: false,
+    });
+    expect(basicUpdate).toEqual({ status: 'deleted' });
+    expect(
+      await client.sql`
+        select name, kind, deleted_at from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${bank.account.id}
+      `,
+    ).toEqual([{ name: '削除済み銀行', kind: 'bank', deleted_at: expect.any(String) }]);
+
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '削除済みカード',
+      kind: 'credit_card',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '削除済みカード引落口座',
+      kind: 'bank',
+    });
+    expect(card.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (card.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('deleted card fixtures were not created');
+    }
+    await expect(
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: 'last',
+          paymentDay: '10',
+          paymentMonthOffset: 'next_month',
+          debitAccountId: debit.account.id,
+        },
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id)).toEqual({
+      status: 'deleted',
+    });
+    const deletedConditionBefore = await client.sql`
+      select closing_day, payment_day, payment_month_offset, debit_account_id
+      from account_card_settings
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+    `;
+    const cardUpdate = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      {
+        name: '削除済みカードの変更',
+        kind: 'credit_card',
+        confirmKindChange: false,
+      },
+      {
+        closingDay: '3',
+        paymentDay: '4',
+        paymentMonthOffset: 'same_month',
+        debitAccountId: null,
+      },
+    );
+    expect(cardUpdate).toEqual({ status: 'deleted' });
+    expect(
+      await client.sql`
+        select name, kind, deleted_at from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${card.account.id}
+      `,
+    ).toEqual([{ name: '削除済みカード', kind: 'credit_card', deleted_at: expect.any(String) }]);
+    expect(
+      await client.sql`
+        select closing_day, payment_day, payment_month_offset, debit_account_id
+        from account_card_settings
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+      `,
+    ).toEqual(deletedConditionBefore);
+  });
+
+  it('preserves expected kind when a bank-to-card retry follows a failed card save', async () => {
+    const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '銀行からカードへ',
+      kind: 'bank',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '銀行からカードへの引落口座',
+      kind: 'cash',
+    });
+    expect(bank.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (bank.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('kind retry fixtures were not created');
+    }
+    const failed = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      bank.account.id,
+      { name: 'カード化失敗', kind: 'credit_card', expectedKind: 'bank', confirmKindChange: true },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: 999_999_999,
+      },
+    );
+    expect(failed).toEqual({ status: 'invalid_debit_account' });
+    const retried = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      bank.account.id,
+      { name: 'カード化成功', kind: 'credit_card', expectedKind: 'bank', confirmKindChange: true },
+      {
+        closingDay: 'last',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    expect(retried.status).toBe('ok');
+    expect(await client.sql`select name, kind from accounts where id = ${bank.account.id}`).toEqual(
+      [{ name: 'カード化成功', kind: 'credit_card' }],
+    );
   });
 
   it('computes all-time balances for accounts in one household', async () => {
