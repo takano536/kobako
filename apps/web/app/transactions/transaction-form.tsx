@@ -45,6 +45,7 @@ type CategoryOption = {
 type AccountOption = {
   id: number;
   name: string;
+  status: 'active' | 'closed';
 };
 
 export interface TransactionFormProps {
@@ -56,11 +57,13 @@ export interface TransactionFormProps {
   accounts: AccountOption[];
   initialValues: TransactionFormValues;
   submitLabel: string;
+  allowClosedAccountToggle?: boolean;
 }
 
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
   'type',
   'amount',
+  'accountId',
   'fromAccountId',
   'toAccountId',
   'occurredOn',
@@ -179,6 +182,7 @@ export function TransactionForm({
   accounts,
   initialValues,
   submitLabel,
+  allowClosedAccountToggle = false,
 }: TransactionFormProps) {
   const [state, formAction, pending] = useActionState(action, emptyTransactionFormState);
   const [values, setValues] = useState(initialValues);
@@ -187,6 +191,7 @@ export function TransactionForm({
   const [amountInputError, setAmountInputError] = useState<string>();
   const [amountInputErrorKey, setAmountInputErrorKey] = useState(0);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [showClosedTransferAccounts, setShowClosedTransferAccounts] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const memoRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -195,6 +200,18 @@ export function TransactionForm({
   const formValues = state.values && !isDirty ? state.values : values;
   const selectedType: TransactionFormType =
     formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
+  const linkedFromAccountId = Number(formValues.fromAccountId);
+  const linkedToAccountId = Number(formValues.toAccountId);
+  const transferAccounts = accounts.filter(
+    (account) =>
+      account.status !== 'closed' ||
+      showClosedTransferAccounts ||
+      account.id === linkedFromAccountId ||
+      account.id === linkedToAccountId,
+  );
+  const normalAccounts = accounts.filter(
+    (account) => account.status !== 'closed' || account.id === Number(formValues.accountId),
+  );
 
   useEffect(() => {
     if (state.values) {
@@ -290,6 +307,7 @@ export function TransactionForm({
       amount: submittedValues.amount,
       occurredOn: submittedValues.occurredOn,
       categoryId: submittedValues.categoryId,
+      accountId: submittedValues.accountId,
       memo: submittedValues.memo,
     });
     if (result.success) {
@@ -317,6 +335,7 @@ export function TransactionForm({
   const toAccountError = firstTransactionFieldError(errors, 'toAccountId');
   const occurredOnError = firstTransactionFieldError(errors, 'occurredOn');
   const categoryError = firstTransactionFieldError(errors, 'categoryId');
+  const accountError = firstTransactionFieldError(errors, 'accountId');
   const memoError = firstTransactionFieldError(errors, 'memo');
   const messages = errorMessages(errors);
   const dialogMessages =
@@ -480,7 +499,21 @@ export function TransactionForm({
           })}
         </div>
 
-        <div className="entry-detail-grid account-detail-grid">
+        {allowClosedAccountToggle ? (
+          <label className="checkbox-field transfer-closed-account-toggle">
+            <input
+              type="checkbox"
+              checked={showClosedTransferAccounts}
+              onChange={(event) => setShowClosedTransferAccounts(event.currentTarget.checked)}
+              aria-controls="transaction-transfer-accounts"
+            />
+            利用終了の口座も表示
+          </label>
+        ) : null}
+        <div
+          id="transaction-transfer-accounts"
+          className="entry-detail-grid account-detail-grid transfer-account-detail-grid"
+        >
           <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
             <label htmlFor="transaction-from-account">振替元</label>
             <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
@@ -495,9 +528,10 @@ export function TransactionForm({
                 required
               >
                 <option value="">選択してください</option>
-                {accounts.map((account) => (
+                {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
+                    {account.status === 'closed' ? '（利用終了）' : ''}
                   </option>
                 ))}
               </select>
@@ -520,14 +554,42 @@ export function TransactionForm({
                 required
               >
                 <option value="">選択してください</option>
-                {accounts.map((account) => (
+                {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
+                    {account.status === 'closed' ? '（利用終了）' : ''}
                   </option>
                 ))}
               </select>
               {toAccountError ? (
                 <FieldError id="transaction-to-account-error" message={toAccountError} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className="entry-detail-grid ordinary-account-detail-grid">
+          <div className={`field account-field${accountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-account">口座</label>
+            <div className={`field-value${accountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-account"
+                name="accountId"
+                value={formValues.accountId}
+                onChange={(event) => updateValue('accountId', event.currentTarget.value)}
+                aria-invalid={accountError ? true : undefined}
+                aria-describedby={accountError ? 'transaction-account-error' : undefined}
+              >
+                <option value="">選択してください</option>
+                {normalAccounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                    {account.status === 'closed' ? '（利用終了）' : ''}
+                  </option>
+                ))}
+              </select>
+              {accountError ? (
+                <FieldError id="transaction-account-error" message={accountError} />
               ) : null}
             </div>
           </div>

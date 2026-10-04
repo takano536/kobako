@@ -9,7 +9,7 @@ import {
   type MoneyDirection,
   monthLabel,
 } from '../../src/lib/format';
-import type { TransactionListType } from '../../src/lib/transaction-query';
+import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
 import { MonthPickerField } from '../transactions/date-picker-field';
 
 type ActionLinkVariant = 'primary' | 'secondary' | 'quiet' | 'back';
@@ -180,19 +180,23 @@ export function EmptyState({
   );
 }
 
-type FilterCategory = { id: number; name: string; type: 'expense' | 'income' };
+type FilterAccount = { id: number; name: string; groupName: string; status: 'active' | 'closed' };
 
 export function FilterBar({
   month,
   type,
   categoryId,
+  accountId,
   categories,
+  accounts,
   summary,
 }: {
   month: string;
   type?: TransactionListType;
   categoryId?: number;
+  accountId?: number;
   categories: readonly FilterCategory[];
+  accounts?: readonly FilterAccount[];
   summary: string;
 }) {
   const filterCategories =
@@ -213,12 +217,19 @@ export function FilterBar({
         <form className="filter-form" method="get">
           <label id="filter-month-label" htmlFor="filter-month">
             月
-            <MonthPickerField
-              id="filter-month"
-              name="month"
-              value={month}
-              labelId="filter-month-label"
-            />
+            {accountId !== undefined ? (
+              <select id="filter-month" name="month" defaultValue={month}>
+                <option value="all">全期間</option>
+                {month !== 'all' ? <option value={month}>{monthLabel(month)}</option> : null}
+              </select>
+            ) : (
+              <MonthPickerField
+                id="filter-month"
+                name="month"
+                value={month}
+                labelId="filter-month-label"
+              />
+            )}
           </label>
           <label>
             種別
@@ -250,6 +261,20 @@ export function FilterBar({
               </span>
             ) : null}
           </label>
+          {accounts ? (
+            <label>
+              口座
+              <select name="account" defaultValue={accountId ? String(accountId) : ''}>
+                <option value="">すべて</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}（{account.groupName}）
+                    {account.status === 'closed' ? '（利用終了）' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button className="button button-primary" type="submit">
             適用
           </button>

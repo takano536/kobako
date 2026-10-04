@@ -10,6 +10,7 @@ import {
   serial,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -27,6 +28,29 @@ export const transactionType = pgEnum('transaction_type', ['expense', 'income'])
 
 export type TransactionType = (typeof transactionType.enumValues)[number];
 
+/** The user-facing account kinds; credit cards are the only fixed liability kind. */
+export const accountKind = pgEnum('account_kind', [
+  'cash',
+  'bank',
+  'credit_card',
+  'electronic_money',
+  'other',
+]);
+
+export type AccountKind = (typeof accountKind.enumValues)[number];
+
+export const accountStatus = pgEnum('account_status', ['active', 'closed']);
+
+export type AccountStatus = (typeof accountStatus.enumValues)[number];
+
+export const cardPaymentMonthOffset = pgEnum('card_payment_month_offset', [
+  'same_month',
+  'next_month',
+  'two_months_later',
+]);
+
+export type CardPaymentMonthOffset = (typeof cardPaymentMonthOffset.enumValues)[number];
+
 /** A transfer is deliberately kept out of the income/expense enum and totals. */
 export type TransferType = 'transfer';
 
@@ -38,6 +62,33 @@ export const households = pgTable('households', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const accountGroups = pgTable(
+  'account_groups',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    defaultKind: accountKind('default_kind'),
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('account_groups_household_name_unique').on(table.householdId, table.name),
+    uniqueIndex('account_groups_household_default_kind_unique')
+      .on(table.householdId, table.defaultKind)
+      .where(sql`${table.defaultKind} is not null`),
+    unique('account_groups_id_household_unique').on(table.id, table.householdId),
+    index('account_groups_household_sort_order_idx').on(
+      table.householdId,
+      table.sortOrder,
+      table.id,
+    ),
+    check('account_groups_sort_order_check', sql`${table.sortOrder} >= 0`),
+  ],
+);
+
 export const accounts = pgTable(
   'accounts',
   {
@@ -46,11 +97,123 @@ export const accounts = pgTable(
       .notNull()
       .references(() => households.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
+    kind: accountKind('kind').notNull().default('other'),
+    groupId: integer('group_id').notNull(),
+    status: accountStatus('status').notNull().default('active'),
+    sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    unique('accounts_household_name_unique').on(table.householdId, table.name),
     unique('accounts_id_household_unique').on(table.id, table.householdId),
+    foreignKey({
+      name: 'accounts_group_household_fk',
+      columns: [table.groupId, table.householdId],
+      foreignColumns: [accountGroups.id, accountGroups.householdId],
+    }).onDelete('restrict'),
+    index('accounts_household_name_idx').on(table.householdId, table.name),
+    index('accounts_household_group_sort_order_idx').on(
+      table.householdId,
+      table.groupId,
+      table.sortOrder,
+      table.id,
+    ),
+    check('accounts_sort_order_check', sql`${table.sortOrder} >= 0`),
+    check(
+      'accounts_name_not_blank_check',
+      sql`length(regexp_replace(${table.name}, '[[:space:]]', '', 'g')) > 0`,
+    ),
+  ],
+);
+
+export const accountImportMappings = pgTable(
+  'account_import_mappings',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    source: varchar('source', { length: 80 }).notNull(),
+    sourceAccountId: varchar('source_account_id', { length: 255 }),
+    sourceAccountName: varchar('source_account_name', { length: 120 }).notNull(),
+    accountId: integer('account_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'account_import_mappings_account_household_fk',
+      columns: [table.accountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    uniqueIndex('account_import_mappings_source_id_unique')
+      .on(table.householdId, table.source, table.sourceAccountId)
+      .where(sql`${table.sourceAccountId} is not null`),
+    uniqueIndex('account_import_mappings_source_name_unique')
+      .on(table.householdId, table.source, table.sourceAccountName)
+      .where(sql`${table.sourceAccountId} is null`),
+    index('account_import_mappings_household_source_name_idx').on(
+      table.householdId,
+      table.source,
+      table.sourceAccountName,
+    ),
+    index('account_import_mappings_household_account_idx').on(table.householdId, table.accountId),
+    check(
+      'account_import_mappings_identity_check',
+      sql`${table.sourceAccountId} is not null or length(btrim(${table.sourceAccountName})) > 0`,
+    ),
+    check(
+      'account_import_mappings_source_id_check',
+      sql`${table.sourceAccountId} is null or length(btrim(${table.sourceAccountId})) > 0`,
+    ),
+  ],
+);
+
+export const accountCardConditions = pgTable(
+  'account_card_conditions',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    accountId: integer('account_id').notNull(),
+    effectiveFrom: date('effective_from', { mode: 'string' }),
+    closingDay: varchar('closing_day', { length: 5 }),
+    paymentDay: varchar('payment_day', { length: 5 }),
+    paymentMonthOffset: cardPaymentMonthOffset('payment_month_offset'),
+    debitAccountId: integer('debit_account_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'account_card_conditions_account_household_fk',
+      columns: [table.accountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'account_card_conditions_debit_account_household_fk',
+      columns: [table.debitAccountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    uniqueIndex('account_card_conditions_account_effective_from_unique')
+      .on(table.accountId, table.effectiveFrom)
+      .where(sql`${table.effectiveFrom} is not null`),
+    uniqueIndex('account_card_conditions_account_unset_unique')
+      .on(table.accountId)
+      .where(sql`${table.effectiveFrom} is null`),
+    index('account_card_conditions_household_account_effective_idx').on(
+      table.householdId,
+      table.accountId,
+      table.effectiveFrom,
+    ),
+    check(
+      'account_card_conditions_closing_day_check',
+      sql`${table.closingDay} is null or ${table.closingDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
+    ),
+    check(
+      'account_card_conditions_payment_day_check',
+      sql`${table.paymentDay} is null or ${table.paymentDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
+    ),
   ],
 );
 
@@ -192,8 +355,14 @@ export type SystemHealthcheck = typeof systemHealthchecks.$inferSelect;
 export type NewSystemHealthcheck = typeof systemHealthchecks.$inferInsert;
 export type Household = typeof households.$inferSelect;
 export type NewHousehold = typeof households.$inferInsert;
+export type AccountGroup = typeof accountGroups.$inferSelect;
+export type NewAccountGroup = typeof accountGroups.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
+export type AccountImportMapping = typeof accountImportMappings.$inferSelect;
+export type NewAccountImportMapping = typeof accountImportMappings.$inferInsert;
+export type AccountCardCondition = typeof accountCardConditions.$inferSelect;
+export type NewAccountCardCondition = typeof accountCardConditions.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type TransactionImport = typeof transactionImports.$inferSelect;

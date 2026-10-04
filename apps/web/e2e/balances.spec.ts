@@ -221,10 +221,10 @@ async function expectAccountValuesFit(page: Page): Promise<void> {
 async function seedAccounts(): Promise<{ longAccountId: number; destinationAccountId: number }> {
   const client = database();
   const rows = await client.sql<{ id: number; name: string }[]>`
-    insert into accounts (household_id, name)
+    insert into accounts (household_id, name, group_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${longAccountName}),
-      (${DEFAULT_HOUSEHOLD_ID}, ${destinationAccountName})
+      (${DEFAULT_HOUSEHOLD_ID}, ${longAccountName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${destinationAccountName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
     returning id, name
   `;
   const longAccount = rows.find((account) => account.name === longAccountName);
@@ -286,8 +286,8 @@ async function seedTrillionScaleBalances(): Promise<void> {
   const accountIds = new Map<string, number>();
   for (const accountName of accountNames) {
     const rows = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name)
-      values (${DEFAULT_HOUSEHOLD_ID}, ${accountName})
+      insert into accounts (household_id, name, group_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
       returning id
     `;
     const account = rows[0];
@@ -431,7 +431,7 @@ test('reaches balances from navigation and shows a deterministic empty state', a
   );
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: '口座がありません' })).toBeVisible();
-  await expect(page.getByText('Excel ファイルを取り込むと、口座が追加されます。')).toBeVisible();
+  await expect(page.getByText('口座を登録すると、ここに残高が表示されます。')).toBeVisible();
   await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
   await expectStickyBalanceSummary(page);
   await page.screenshot({
@@ -454,9 +454,14 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expectAccountBalance(page, longAccountName, '−500円');
   await expectBalanceSummary(page, { assets: '0', liabilities: '500', net: '−500' });
   await expectStickyBalanceSummary(page);
-  await expect(accountRow(page, longAccountName).locator('a, button')).toHaveCount(0);
-  await expectAccountBalance(page, destinationAccountName, '0円');
-
+  await expect(accountRow(page, longAccountName).getByText('負債', { exact: true })).toBeVisible();
+  const zeroOtherBadge = accountRow(page, destinationAccountName).getByText('分類なし', {
+    exact: true,
+  });
+  await expect(zeroOtherBadge).toHaveAttribute(
+    'title',
+    'その他の口座は残高の符号で資産・負債を判定。0円のため集計対象外',
+  );
   await page.goto(`/transactions?month=${month}`);
   await page
     .locator('.transaction-link')
@@ -542,6 +547,60 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expectAccountBalance(page, longAccountName, '0円');
   await expectAccountBalance(page, destinationAccountName, '0円');
   await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
+});
+
+test('opens the account-filtered transactions by clicking its name from balances', async ({
+  page,
+}) => {
+  const accountName = `${markerPrefix}account-link`;
+  const [category] = await database().sql<{ id: number }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'expense'
+    order by id
+    limit 1
+  `;
+  if (!category) throw new Error('balances account-link category fixture was not created');
+  const [account] = await database().sql<{ id: number }[]>`
+    insert into accounts (
+      household_id, name, kind, group_id, status, sort_order
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank',
+      (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '銀行'),
+      'active', 500
+    )
+    returning id
+  `;
+  if (!account) throw new Error('balances account-link account fixture was not created');
+  await database().sql`
+    insert into transactions (
+      household_id, type, amount, occurred_on, category_id, account_id, memo
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, 'expense', 321, ${`${month}-03`},
+      ${category.id}, ${account.id}, ${`${markerPrefix}account-link-row`}
+    )
+  `;
+
+  await page.goto('/balances');
+  const row = accountRow(page, accountName);
+  await expect(row).toBeVisible();
+  await row.getByText(accountName, { exact: true }).click();
+  await expect(page).toHaveURL(`/transactions?account=${account.id}&month=all`);
+  await expect(page.getByRole('heading', { name: accountName, exact: true })).toBeVisible();
+  await expect(
+    page.locator('.transaction-link').filter({ hasText: `${markerPrefix}account-link-row` }),
+  ).toHaveCount(1);
+  await database().sql`
+    delete from transactions
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and memo = ${`${markerPrefix}account-link-row`}
+  `;
+  await database().sql`
+    delete from accounts
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${account.id}
+  `;
 });
 
 test('captures shared chrome geometry for overview, transactions, and balances', async ({

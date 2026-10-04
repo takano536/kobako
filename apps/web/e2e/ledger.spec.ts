@@ -309,6 +309,7 @@ test('supports keyboard entry and mobile layout for an ordinary transaction', as
   await category.press('ArrowDown');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
   await expect(memo).toBeFocused();
   await memo.pressSequentially(markerFor('keyboard-mobile'));
   const dimensions = await page.evaluate(() => ({
@@ -774,12 +775,15 @@ test('keeps the date picker tab stop visible and saves after picking a date', as
   await page.goto(`/transactions/new?month=${month}`);
   const amount = page.getByLabel('金額');
   const category = page.locator('.category-field-expense select');
+  const account = page.getByLabel('口座', { exact: true });
   const dateDisplay = page.locator('.date-picker-display');
   const memo = page.getByLabel('メモ（任意）');
   await amount.focus();
 
   await page.keyboard.press('Tab');
   await expect(category).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(account).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dateDisplay).toBeFocused();
   const dateInput = page.locator('input[type="date"][name="occurredOn"]');

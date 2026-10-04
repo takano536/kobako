@@ -8,6 +8,8 @@ import {
   deleteTransaction,
   deleteTransfer,
   getCategory,
+  getManagedAccount,
+  getTransaction,
   updateTransaction,
   updateTransfer,
 } from '@kobako/db';
@@ -66,6 +68,17 @@ async function validateCategory(input: TransactionInput, householdId: string): P
     input.type,
   );
   return category !== null;
+}
+async function validateTransactionAccount(
+  accountId: number | null | undefined,
+  householdId: string,
+  allowedClosedAccountId?: number,
+): Promise<boolean> {
+  if (accountId === null || accountId === undefined) {
+    return true;
+  }
+  const account = await getManagedAccount(getLedgerDatabase(), householdId, accountId);
+  return account?.status === 'active' || account?.id === allowedClosedAccountId;
 }
 function transferResultState(
   values: TransactionFormValues,
@@ -132,6 +145,15 @@ export async function createTransactionAction(
   }
   if (!categoryMatches) {
     return validationState(values, { categoryId: ['種別に合うカテゴリを選択してください。'] });
+  }
+  let accountMatches: boolean;
+  try {
+    accountMatches = await validateTransactionAccount(parsed.data.accountId, householdId);
+  } catch (error) {
+    return databaseFailure('validate-account', error);
+  }
+  if (!accountMatches) {
+    return validationState(values, { accountId: ['利用中の口座を選択してください。'] });
   }
   try {
     await createTransaction(db, householdId, parsed.data);
@@ -223,6 +245,32 @@ export async function updateTransactionAction(
   }
   if (!categoryMatches) {
     return validationState(values, { categoryId: ['種別に合うカテゴリを選択してください。'] });
+  }
+  let allowedClosedAccountId: number | undefined;
+  if (sourceKind === 'transaction') {
+    let existingTransaction;
+    try {
+      existingTransaction = await getTransaction(db, householdId, id);
+    } catch (error) {
+      return databaseFailure('load-for-update', error);
+    }
+    if (!existingTransaction) {
+      notFound();
+    }
+    allowedClosedAccountId = existingTransaction.accountId ?? undefined;
+  }
+  let accountMatches: boolean;
+  try {
+    accountMatches = await validateTransactionAccount(
+      parsed.data.accountId,
+      householdId,
+      allowedClosedAccountId,
+    );
+  } catch (error) {
+    return databaseFailure('validate-account', error);
+  }
+  if (!accountMatches) {
+    return validationState(values, { accountId: ['利用中の口座を選択してください。'] });
   }
 
   let updated;

@@ -39,6 +39,7 @@ let fixturePaths:
       invalid: string;
       keyboard: string;
       mobile: string;
+      fallback: string;
       multiMonth: string;
       wrongExtension: string;
       empty: string;
@@ -210,6 +211,20 @@ async function writeFixtures(): Promise<void> {
       },
     ],
   });
+  const fallbackBytes = buildMoneyManagerWorkbook({
+    rows: [
+      {
+        account: markerFor(runMarkerPrefix, 'fallback-account'),
+        dateSerial: date,
+        category: markerFor(runMarkerPrefix, 'fallback-category'),
+        content: markerFor(runMarkerPrefix, 'fallback-content'),
+        memo: markerFor(runMarkerPrefix, 'fallback-memo'),
+        amount: '654.0',
+        type: '支出',
+        currency: 'JPY',
+      },
+    ],
+  });
   const multiMonthBytes = buildMoneyManagerWorkbook({
     rows: [
       {
@@ -289,6 +304,7 @@ async function writeFixtures(): Promise<void> {
     invalid: join(temporaryDirectory, 'invalid.xlsx'),
     keyboard: join(temporaryDirectory, 'keyboard.xlsx'),
     mobile: join(temporaryDirectory, 'mobile.xlsx'),
+    fallback: join(temporaryDirectory, 'fallback.xlsx'),
     multiMonth: join(temporaryDirectory, 'multi-month.xlsx'),
     wrongExtension: join(temporaryDirectory, 'wrong-extension.txt'),
     empty: join(temporaryDirectory, 'empty.xlsx'),
@@ -300,15 +316,21 @@ async function writeFixtures(): Promise<void> {
     writeFile(paths.invalid, invalidBytes),
     writeFile(paths.keyboard, keyboardBytes),
     writeFile(paths.mobile, mobileBytes),
+    writeFile(paths.fallback, fallbackBytes),
     writeFile(paths.multiMonth, multiMonthBytes),
     writeFile(paths.wrongExtension, 'not an Excel file'),
     writeFile(paths.empty, new Uint8Array()),
     writeFile(paths.large, largeBytes),
   ]);
   fixturePaths = paths;
-  fixtureHashes = [validBytes, invalidBytes, keyboardBytes, mobileBytes, multiMonthBytes].map(
-    hashBytes,
-  );
+  fixtureHashes = [
+    validBytes,
+    invalidBytes,
+    keyboardBytes,
+    mobileBytes,
+    fallbackBytes,
+    multiMonthBytes,
+  ].map(hashBytes);
 }
 
 async function uploadAndPreview(page: Page, path: string): Promise<void> {
@@ -366,6 +388,16 @@ async function deleteRunData(client: DatabaseClient): Promise<void> {
     delete from categories
     where household_id = ${DEFAULT_HOUSEHOLD_ID}
       and name like ${`${runMarkerPrefix}%`}
+  `;
+  await client.sql`
+    delete from account_import_mappings
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and account_id in (
+        select id
+        from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+          and name like ${`${runMarkerPrefix}%`}
+      )
   `;
   await client.sql`
     delete from accounts
@@ -550,12 +582,62 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   });
   await expect(incomeBalanceRow.locator('.balance-amount')).toContainText('5,678円');
 });
+test('requires an explicit choice for every unmatched source account', async ({ page }) => {
+  const paths = fixturePaths;
+  if (!paths) {
+    throw new Error('E2E fixtures are not initialized');
+  }
+  await page.goto('/transactions/import');
+  const before = await runCounts();
+  await uploadAndPreview(page, paths.keyboard);
+  const firstTarget = page.locator('select[name="accountTarget"]').first();
+  await firstTarget.evaluate((element) => element.remove());
+  await page.getByRole('button', { name: '2件を取り込む' }).click();
+  await expect(page.locator('p.form-message[role="alert"]')).toContainText(
+    '取り込み先が選ばれていません',
+  );
+  expect(await runCounts()).toEqual(before);
+});
+
+test('supports explicit account reuse and reports created accounts neutrally', async ({ page }) => {
+  const paths = fixturePaths;
+  if (!paths) {
+    throw new Error('E2E fixtures are not initialized');
+  }
+  const existingName = markerFor(runMarkerPrefix, 'mobile-account');
+  const groups = await database().sql<{ id: number }[]>`
+    select id
+    from account_groups
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and default_kind = 'other'
+    limit 1
+  `;
+  const group = groups[0];
+  if (!group) {
+    throw new Error('import reuse group fixture is missing');
+  }
+  await database().sql`
+    insert into accounts (household_id, name, kind, group_id, status, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${existingName}, 'other', ${group.id}, 'active', 900)
+  `;
+  await page.goto('/transactions/import');
+  await uploadAndPreview(page, paths.mobile);
+  const choiceRow = page.locator('.account-choice-row').filter({ hasText: existingName });
+  await choiceRow.locator('select[name="accountTarget"]').selectOption({
+    label: `既存の口座を再利用: ${existingName}`,
+  });
+  await expect(choiceRow).toContainText('既存の口座を再利用');
+  await page.getByRole('button', { name: '1件を取り込む' }).click();
+  await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
+  await expect(page.getByText('カテゴリを1件、口座を0件作成しました。')).toBeVisible();
+  await expect(page.getByText('新しい資産', { exact: true })).toHaveCount(0);
+});
 
 test('warns on re-import and disables confirmation without new rows', async ({ page }) => {
   const paths = fixturePaths;
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
+  const before = await runCounts();
   await page.goto('/transactions/import');
   await uploadAndPreview(page, paths.valid);
   await expect(
@@ -565,13 +647,7 @@ test('warns on re-import and disables confirmation without new rows', async ({ p
   await expect(page.getByRole('link', { name: '取引一覧で確認する' })).toBeVisible();
   await expect(page.getByRole('button', { name: '別のファイルを選ぶ' })).toBeVisible();
   await screenshotState(page, 'e2e-duplicate');
-  expect(await runCounts()).toEqual({
-    transactions: 2,
-    transfers: 1,
-    categories: 2,
-    accounts: 4,
-    imports: 1,
-  });
+  expect(await runCounts()).toEqual(before);
 });
 
 test('shows row-numbered errors while keeping transfers as importable rows', async ({ page }) => {
@@ -579,6 +655,7 @@ test('shows row-numbered errors while keeping transfers as importable rows', asy
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
+  const before = await runCounts();
   await page.goto('/transactions/import');
   await uploadAndPreview(page, paths.invalid);
   await expect(page.getByText('3行目', { exact: true })).toBeVisible();
@@ -591,13 +668,7 @@ test('shows row-numbered errors while keeping transfers as importable rows', asy
   const confirmButton = page.getByRole('button', { name: /件を取り込む$/ });
   await expect(confirmButton).toBeDisabled();
   await screenshotState(page, 'e2e-error');
-  expect(await runCounts()).toEqual({
-    transactions: 2,
-    transfers: 1,
-    categories: 2,
-    accounts: 4,
-    imports: 1,
-  });
+  expect(await runCounts()).toEqual(before);
 });
 
 test('supports keyboard-only preview, confirm, and file-selection reset', async ({ page }) => {
@@ -672,12 +743,12 @@ test('previews and confirms through the fallback form when JavaScript is disable
   try {
     await page.goto('/transactions/import');
     const input = page.locator('input[type="file"]');
-    await input.setInputFiles(paths.mobile);
+    await input.setInputFiles(paths.fallback);
     await page.getByRole('button', { name: 'ファイルを読み込む' }).click();
     await expect(page.getByRole('heading', { name: '取り込み内容を確認' })).toBeVisible();
     await expect(page.getByText('全1件のうち1件を表示', { exact: true })).toBeVisible();
 
-    await input.setInputFiles(paths.mobile);
+    await input.setInputFiles(paths.fallback);
     await page.getByRole('button', { name: '1件を取り込む' }).click();
     await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
   } finally {

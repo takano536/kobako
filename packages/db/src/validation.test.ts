@@ -20,7 +20,7 @@ describe('transaction input validation', () => {
     expect(normalizeAmountInput('0')).toBe(0);
   });
 
-  it('ignores account ids from ordinary transaction form posts', () => {
+  it('keeps the selected account id from ordinary transaction form posts', () => {
     const formData = new FormData();
     formData.set('type', 'expense');
     formData.set('amount', '100');
@@ -28,7 +28,7 @@ describe('transaction input validation', () => {
     formData.set('categoryId', '1');
     formData.set('accountId', '2147483647');
     formData.set('memo', '');
-    expect(transactionInputFromFormData(formData)).toMatchObject({ accountId: undefined });
+    expect(transactionInputFromFormData(formData)).toMatchObject({ accountId: '2147483647' });
   });
 
   it('rejects malformed amounts while allowing zero and negative integers', () => {

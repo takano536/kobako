@@ -53,11 +53,13 @@ export default async function EditTransactionPage({ params }: { params: Promise<
             action={action}
             categories={categories}
             accounts={accounts}
+            allowClosedAccountToggle
             initialValues={{
               type: transaction.type,
               amount: String(transaction.amount),
               occurredOn: transaction.occurredOn,
               categoryId: String(transaction.categoryId),
+              accountId: transaction.accountId ? String(transaction.accountId) : '',
               fromAccountId: '',
               toAccountId: '',
               memo: transaction.memo,

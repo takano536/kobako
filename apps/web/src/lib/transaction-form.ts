@@ -2,13 +2,21 @@ import type { TransferValidationCode } from '@kobako/db';
 
 export type TransactionFormType = 'expense' | 'income' | 'transfer';
 export type TransactionFormField =
-  'type' | 'amount' | 'occurredOn' | 'categoryId' | 'fromAccountId' | 'toAccountId' | 'memo';
+  | 'type'
+  | 'amount'
+  | 'occurredOn'
+  | 'categoryId'
+  | 'accountId'
+  | 'fromAccountId'
+  | 'toAccountId'
+  | 'memo';
 
 export interface TransactionFormValues {
   type: string;
   amount: string;
   occurredOn: string;
   categoryId: string;
+  accountId: string;
   fromAccountId: string;
   toAccountId: string;
   memo: string;
@@ -58,6 +66,7 @@ export function switchTransactionType(
     ...values,
     type,
     categoryId,
+    accountId: type === 'transfer' ? '' : values.accountId,
     fromAccountId: type === 'transfer' ? values.fromAccountId : '',
     toAccountId: type === 'transfer' ? values.toAccountId : '',
   };
@@ -86,6 +95,7 @@ export function transactionFormValuesFromFormData(formData: FormData): Transacti
     amount: textField(formData, 'amount'),
     occurredOn: textField(formData, 'occurredOn'),
     categoryId: isTransfer ? '' : String(categoryIdFromFormData(formData) ?? ''),
+    accountId: isTransfer ? '' : textField(formData, 'accountId'),
     fromAccountId: isTransfer ? textField(formData, 'fromAccountId') : '',
     toAccountId: isTransfer ? textField(formData, 'toAccountId') : '',
     memo: textField(formData, 'memo'),

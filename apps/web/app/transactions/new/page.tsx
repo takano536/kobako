@@ -63,6 +63,7 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
           action={createTransactionAction}
           categories={categories}
           accounts={accounts}
+          allowClosedAccountToggle
           initialValues={{
             type,
             amount: '',
@@ -75,6 +76,7 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
                 : type === 'expense' && firstExpense
                   ? String(firstExpense.id)
                   : '',
+            accountId: '',
             fromAccountId: '',
             toAccountId: '',
             memo: '',

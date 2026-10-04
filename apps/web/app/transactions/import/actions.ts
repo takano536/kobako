@@ -3,18 +3,21 @@
 import {
   commitMoneyManagerImport,
   findMoneyManagerImport,
-  listAccounts,
+  listAccountImportMappings,
+  listManagedAccounts,
   listCategories,
+  validateMoneyManagerImportAccountResolutions,
+  type MoneyManagerImportAccountResolution,
   type MoneyManagerImportCommitResult,
   type MoneyManagerImportCounts,
   type MoneyManagerImportSuccess,
+  type MoneyManagerImportValidationError,
 } from '@kobako/db';
 import {
   MONEY_MANAGER_MAX_ROWS,
   MONEY_MANAGER_SOURCE,
   MONEY_MANAGER_XLSX_LIMITS,
   parseMoneyManagerXlsx,
-  planMoneyManagerAccounts,
   planMoneyManagerCategories,
   MoneyManagerXlsxError,
   type MoneyManagerNormalizationError,
@@ -144,6 +147,66 @@ function textField(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === 'string' ? value : '';
 }
+type MoneyManagerAccountChoice = NonNullable<MoneyManagerImportPreview['accountChoices']>[number];
+
+function accountResolutionsFromFormData(
+  formData: FormData,
+  choices: readonly MoneyManagerAccountChoice[],
+): MoneyManagerImportAccountResolution[] {
+  const targets = formData.getAll('accountTarget');
+  const submittedNames = formData.getAll('accountSourceName');
+  const submittedIds = formData.getAll('accountSourceId');
+  const hasLegacyIdentityFields = submittedNames.length > 0 || submittedIds.length > 0;
+  const legacyIdentityMatches =
+    !hasLegacyIdentityFields ||
+    (submittedNames.length === choices.length &&
+      submittedIds.length === choices.length &&
+      choices.every((choice, index) => {
+        const submittedName = submittedNames[index];
+        const submittedId = submittedIds[index];
+        const sourceAccountId =
+          typeof submittedId === 'string' && submittedId ? submittedId : undefined;
+        return (
+          typeof submittedName === 'string' &&
+          submittedName === choice.name &&
+          sourceAccountId === choice.sourceAccountId
+        );
+      }));
+  const resolutions = choices.flatMap((choice, index): MoneyManagerImportAccountResolution[] => {
+    const target = targets[index];
+    if (typeof target !== 'string' || target === '') {
+      return [];
+    }
+    if (target === 'create') {
+      return [
+        {
+          sourceAccountName: choice.name,
+          sourceAccountId: choice.sourceAccountId,
+          action: 'create' as const,
+        },
+      ];
+    }
+    const existingMatch = /^existing:(\d+)$/.exec(target);
+    const accountId = existingMatch ? Number(existingMatch[1]) : 0;
+    return [
+      {
+        sourceAccountName: choice.name,
+        sourceAccountId: choice.sourceAccountId,
+        action: 'existing' as const,
+        accountId: Number.isSafeInteger(accountId) && accountId > 0 ? accountId : 0,
+      },
+    ];
+  });
+  if (targets.length > choices.length || !legacyIdentityMatches) {
+    resolutions.push({
+      sourceAccountName: '',
+      sourceAccountId: '__unexpected_account_resolution__',
+      action: 'existing',
+      accountId: 0,
+    });
+  }
+  return resolutions;
+}
 
 function formatFileSize(bytes: number): string {
   return `${Math.floor(bytes / (1024 * 1024))} MiB`;
@@ -157,6 +220,26 @@ function errorState(
     return { phase: 'preview', preview: previousState.preview, message };
   }
   return { phase: 'select', message };
+}
+
+function accountResolutionMessage(error: MoneyManagerImportValidationError): string {
+  const names = error.sourceAccountNames?.filter(Boolean).join('、');
+  switch (error.code) {
+    case 'duplicate_account_target':
+      return `取り込み元の口座${names ? `「${names}」` : ''}が同じ既存口座に指定されています。口座ごとに別の取り込み先を選んでください。`;
+    case 'same_account':
+      return `振替${error.sourceRow ? `（${error.sourceRow}行目）` : ''}の移動元と移動先${names ? `「${names}」` : ''}が同じ口座です。別の口座を選んでください。`;
+    case 'missing_account_resolution':
+      return `取り込み元の口座${names ? `「${names}」` : ''}の取り込み先が選ばれていません。口座ごとに新規作成または既存口座を選んでください。`;
+    case 'duplicate_account_resolution':
+      return '取り込み元の口座の選択が重複しています。各口座の取り込み先を選び直してください。';
+    case 'unexpected_account_resolution':
+      return '取り込み元の口座の選択を確認できません。ファイルを選び直して、もう一度選択してください。';
+    case 'invalid_account_selection':
+      return `取り込み先の口座${names ? `「${names}」` : ''}を確認できません。口座を選び直してください。`;
+    default:
+      return '取り込み先の口座を確認できません。口座を選び直してください。';
+  }
 }
 
 function fileFromFormData(formData: FormData): File | null {
@@ -224,6 +307,31 @@ function periodForRows(
     }
   }
   return { from, to };
+}
+function sourceAccounts(
+  rows: readonly MoneyManagerNormalizedRow[],
+): { name: string; sourceAccountId?: string; sourceKey: string }[] {
+  const seen = new Set<string>();
+  const accounts: { name: string; sourceAccountId?: string; sourceKey: string }[] = [];
+  for (const row of rows) {
+    const rowAccounts =
+      row.type === 'transfer'
+        ? [
+            { name: row.fromAccountName, sourceAccountId: row.fromSourceAccountId },
+            { name: row.toAccountName, sourceAccountId: row.toSourceAccountId },
+          ]
+        : [{ name: row.accountName, sourceAccountId: row.sourceAccountId }];
+    for (const account of rowAccounts) {
+      const sourceKey = account.sourceAccountId
+        ? `id:${account.sourceAccountId}`
+        : `name:${account.name}`;
+      if (!seen.has(sourceKey)) {
+        seen.add(sourceKey);
+        accounts.push({ ...account, sourceKey });
+      }
+    }
+  }
+  return accounts;
 }
 
 function previewRow(
@@ -318,13 +426,46 @@ async function buildPreview(
   const parsed = await parseMoneyManagerXlsx(bytes, { maxRows: MONEY_MANAGER_MAX_ROWS });
   const householdId = getCurrentHouseholdId();
   const db = getLedgerDatabase();
-  const [categories, accountRows, duplicateRecord] = await Promise.all([
+  const [categories, managedAccounts, mappings, duplicateRecord] = await Promise.all([
     listCategories(db, householdId),
-    listAccounts(db, householdId),
+    listManagedAccounts(db, householdId),
+    listAccountImportMappings(db, householdId, MONEY_MANAGER_SOURCE),
     findMoneyManagerImport(db, householdId, hash, MONEY_MANAGER_SOURCE),
   ]);
   const categoryPlan = planMoneyManagerCategories(parsed.rows, categories);
-  const accountPlan = planMoneyManagerAccounts(parsed.rows, accountRows);
+  const source = sourceAccounts(parsed.rows);
+  const mappedKeys = new Set(
+    mappings.map((mapping) =>
+      mapping.sourceAccountId
+        ? `id:${mapping.sourceAccountId}`
+        : `name:${mapping.sourceAccountName}`,
+    ),
+  );
+  const unmappedAccounts = source.filter((account) => !mappedKeys.has(account.sourceKey));
+  // Preview has no user selections yet. Explicitly model the visible default
+  // so validation still checks existing mappings without treating omission as
+  // an implicit create during confirmation.
+  const accountResolutionError = await validateMoneyManagerImportAccountResolutions(
+    db,
+    householdId,
+    parsed.rows,
+    unmappedAccounts.map(({ name, sourceAccountId }) => ({
+      sourceAccountName: name,
+      sourceAccountId,
+      action: 'create' as const,
+    })),
+    MONEY_MANAGER_SOURCE,
+  );
+  const accountChoices = unmappedAccounts.map((account) => ({
+    name: account.name,
+    sourceAccountId: account.sourceAccountId,
+    sourceKey: account.sourceKey,
+    candidates: managedAccounts.map((managedAccount) => ({
+      id: managedAccount.id,
+      name: managedAccount.name,
+      status: managedAccount.status,
+    })),
+  }));
   const rowErrorNumbers = new Set(
     parsed.errors
       .filter((error) => error.scope === 'row' && error.row !== undefined)
@@ -350,9 +491,12 @@ async function buildPreview(
     newCategories: categoryPlan
       .filter((category) => category.action === 'create')
       .map(({ type, name }) => ({ type, name })),
-    newAccounts: accountPlan
-      .filter((account) => account.action === 'create')
-      .map(({ name }) => ({ name })),
+    newAccounts: unmappedAccounts.map(({ name, sourceAccountId }) => ({
+      name,
+      sourceAccountId,
+    })),
+    accountChoices,
+    accountResolutionError: accountResolutionError ?? undefined,
     alreadyImported: duplicateRecord !== null,
     previousImportDate: duplicateRecord?.createdAt.toISOString(),
   };
@@ -425,7 +569,13 @@ export async function moneyManagerImportAction(
   }
 
   if (intent === 'preview') {
-    return { phase: 'preview', preview: parsed.preview };
+    return {
+      phase: 'preview',
+      preview: parsed.preview,
+      message: parsed.preview.accountResolutionError
+        ? accountResolutionMessage(parsed.preview.accountResolutionError)
+        : undefined,
+    };
   }
 
   if (parsed.errors.length > 0) {
@@ -458,6 +608,10 @@ export async function moneyManagerImportAction(
       sha256: upload.hash,
       originalFilename: upload.fileName,
       rows: parsed.rows,
+      accountResolutions: accountResolutionsFromFormData(
+        formData,
+        parsed.preview.accountChoices ?? [],
+      ),
     });
   } catch {
     return {
@@ -475,6 +629,13 @@ export async function moneyManagerImportAction(
         previousImportDate: committed.previousImportDate,
       },
       message: 'このファイルはすでに取り込まれています。別のファイルを選び直してください。',
+    };
+  }
+  if (committed.status === 'validation_error') {
+    return {
+      phase: 'preview',
+      preview: { ...parsed.preview, accountResolutionError: committed },
+      message: accountResolutionMessage(committed),
     };
   }
 

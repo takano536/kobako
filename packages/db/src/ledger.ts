@@ -1,15 +1,17 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
+  accountGroups,
   accounts,
   categories,
   households,
   transactions,
   transfers,
   type Account,
+  type AccountKind,
   type Category,
   type NewTransaction,
   type Transaction,
@@ -20,6 +22,58 @@ import { MAX_INT4_ID, type TransactionInput, type TransferInput } from './valida
 
 export const DEFAULT_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_HOUSEHOLD_SLUG = 'local';
+
+export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
+  { defaultKind: 'cash', name: '現金', sortOrder: 10 },
+  { defaultKind: 'bank', name: '銀行', sortOrder: 20 },
+  { defaultKind: 'credit_card', name: 'クレジットカード', sortOrder: 30 },
+  { defaultKind: 'electronic_money', name: '電子マネー', sortOrder: 40 },
+  { defaultKind: 'other', name: 'その他', sortOrder: 50 },
+] as const satisfies ReadonlyArray<{
+  defaultKind: AccountKind;
+  name: string;
+  sortOrder: number;
+}>;
+
+type AccountGroupDatabase = Pick<Database, 'select' | 'insert' | 'update'>;
+
+export async function ensureDefaultAccountGroups(
+  db: AccountGroupDatabase,
+  householdId: string,
+): Promise<void> {
+  for (const seed of DEFAULT_ACCOUNT_GROUP_SEEDS) {
+    const existingDefault = await db
+      .select({ id: accountGroups.id })
+      .from(accountGroups)
+      .where(
+        and(
+          eq(accountGroups.householdId, householdId),
+          eq(accountGroups.defaultKind, seed.defaultKind),
+        ),
+      )
+      .limit(1);
+    if (existingDefault[0]) continue;
+    const existingName = await db
+      .select({ id: accountGroups.id })
+      .from(accountGroups)
+      .where(and(eq(accountGroups.householdId, householdId), eq(accountGroups.name, seed.name)))
+      .limit(1);
+    if (existingName[0]) {
+      await db
+        .update(accountGroups)
+        .set({ defaultKind: seed.defaultKind })
+        .where(eq(accountGroups.id, existingName[0].id));
+      continue;
+    }
+    await db
+      .insert(accountGroups)
+      .values({
+        householdId,
+        ...seed,
+      })
+      .onConflictDoNothing();
+  }
+}
 
 export const DEFAULT_CATEGORY_SEEDS = [
   { type: 'expense', name: '食費', sortOrder: 10 },
@@ -51,6 +105,7 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
       })
       .onConflictDoNothing({ target: households.id });
 
+    await ensureDefaultAccountGroups(transaction, DEFAULT_HOUSEHOLD_ID);
     await transaction
       .insert(categories)
       .values(
@@ -115,7 +170,9 @@ export interface TransactionFilters {
   month: string;
   type?: TransactionType;
   categoryId?: number;
+  accountId?: number;
   limit?: number;
+  offset?: number;
 }
 
 export interface LedgerEntryFilters extends Omit<TransactionFilters, 'type'> {
@@ -161,17 +218,20 @@ export type TransferDeleteResult =
   { status: 'ok'; occurredOn: string } | { status: 'not_found' } | { status: 'error' };
 
 function transactionConditions(householdId: string, filters: TransactionFilters): SQL[] {
-  const range = monthRange(filters.month);
-  const conditions: SQL[] = [
-    eq(transactions.householdId, householdId),
-    gte(transactions.occurredOn, range.start),
-    lt(transactions.occurredOn, range.endExclusive),
-  ];
+  const conditions: SQL[] = [eq(transactions.householdId, householdId)];
+  if (filters.month !== 'all') {
+    const range = monthRange(filters.month);
+    conditions.push(gte(transactions.occurredOn, range.start));
+    conditions.push(lt(transactions.occurredOn, range.endExclusive));
+  }
   if (filters.type === 'expense' || filters.type === 'income') {
     conditions.push(eq(transactions.type, filters.type));
   }
   if (filters.categoryId) {
     conditions.push(eq(transactions.categoryId, filters.categoryId));
+  }
+  if (filters.accountId !== undefined) {
+    conditions.push(eq(transactions.accountId, filters.accountId));
   }
   return conditions;
 }
@@ -208,7 +268,8 @@ export async function listTransactions(
     )
     .where(and(...transactionConditions(householdId, filters)))
     .orderBy(desc(transactions.occurredOn), desc(transactions.id));
-  return filters.limit ? query.limit(filters.limit) : query;
+  const limited = filters.limit ? query.limit(filters.limit) : query;
+  return filters.offset ? limited.offset(filters.offset) : limited;
 }
 
 export async function listLedgerEntries(
@@ -216,60 +277,142 @@ export async function listLedgerEntries(
   householdId: string,
   filters: LedgerEntryFilters,
 ): Promise<ListedLedgerEntry[]> {
-  const transactionRows =
-    filters.type === 'transfer'
-      ? []
-      : await listTransactions(db, householdId, {
-          month: filters.month,
-          type: filters.type,
-          categoryId: filters.categoryId,
-          limit: undefined,
-        });
-  if (filters.type !== 'transfer' && (filters.type || filters.categoryId)) {
-    return filters.limit ? transactionRows.slice(0, filters.limit) : transactionRows;
-  }
-
-  const range = monthRange(filters.month);
-  const fromAccounts = alias(accounts, 'transfer_from_accounts');
-  const toAccounts = alias(accounts, 'transfer_to_accounts');
-  const transferRows = await db
-    .select({
-      id: transfers.id,
-      amount: transfers.amount,
-      occurredOn: transfers.occurredOn,
-      fromAccountId: transfers.fromAccountId,
-      fromAccountName: fromAccounts.name,
-      toAccountId: transfers.toAccountId,
-      toAccountName: toAccounts.name,
-      memo: transfers.memo,
-    })
-    .from(transfers)
-    .innerJoin(
-      fromAccounts,
-      and(eq(fromAccounts.id, transfers.fromAccountId), eq(fromAccounts.householdId, householdId)),
-    )
-    .innerJoin(
-      toAccounts,
-      and(eq(toAccounts.id, transfers.toAccountId), eq(toAccounts.householdId, householdId)),
-    )
-    .where(
-      and(
-        eq(transfers.householdId, householdId),
-        gte(transfers.occurredOn, range.start),
-        lt(transfers.occurredOn, range.endExclusive),
-      ),
+  const includeTransactions = filters.type !== 'transfer';
+  const includeTransfers =
+    filters.type === 'transfer' || (filters.type === undefined && filters.categoryId === undefined);
+  const transactionWhere: SQL[] = [eq(transactions.householdId, householdId)];
+  const transferWhere: SQL[] = [eq(transfers.householdId, householdId)];
+  if (filters.month !== 'all') {
+    const range = monthRange(filters.month);
+    transactionWhere.push(
+      gte(transactions.occurredOn, range.start),
+      lt(transactions.occurredOn, range.endExclusive),
     );
-  const entries: ListedLedgerEntry[] = [
-    ...transactionRows,
-    ...transferRows.map((transfer) => ({ ...transfer, type: 'transfer' as const })),
-  ];
-  entries.sort(
-    (left, right) =>
-      right.occurredOn.localeCompare(left.occurredOn) ||
-      right.id - left.id ||
-      (right.type === 'transfer' ? 1 : -1),
+    transferWhere.push(
+      gte(transfers.occurredOn, range.start),
+      lt(transfers.occurredOn, range.endExclusive),
+    );
+  }
+  if (filters.type === 'expense' || filters.type === 'income') {
+    transactionWhere.push(eq(transactions.type, filters.type));
+  }
+  if (filters.categoryId && filters.type !== 'transfer') {
+    transactionWhere.push(eq(transactions.categoryId, filters.categoryId));
+  }
+  if (filters.accountId !== undefined) {
+    transactionWhere.push(eq(transactions.accountId, filters.accountId));
+    transferWhere.push(
+      or(
+        eq(transfers.fromAccountId, filters.accountId),
+        eq(transfers.toAccountId, filters.accountId),
+      )!,
+    );
+  }
+  const parts: SQL[] = [];
+  if (includeTransactions) {
+    parts.push(sql`
+      select
+        ${transactions.id} as id,
+        ${transactions.type}::text as entry_type,
+        ${transactions.amount} as amount,
+        ${transactions.occurredOn} as occurred_on,
+        ${transactions.categoryId} as category_id,
+        ${categories.name} as category_name,
+        ${transactions.accountId} as account_id,
+        ${accounts.name} as account_name,
+        null::integer as from_account_id,
+        null::text as from_account_name,
+        null::integer as to_account_id,
+        null::text as to_account_name,
+        ${transactions.memo} as memo
+      from ${transactions}
+      inner join ${categories}
+        on ${categories.id} = ${transactions.categoryId}
+        and ${categories.householdId} = ${householdId}
+        and ${categories.type} = ${transactions.type}
+      left join ${accounts}
+        on ${accounts.id} = ${transactions.accountId}
+        and ${accounts.householdId} = ${householdId}
+      where ${sql.join(transactionWhere, sql` and `)}
+    `);
+  }
+  if (includeTransfers) {
+    const fromAccounts = alias(accounts, 'transfer_from_accounts');
+    const toAccounts = alias(accounts, 'transfer_to_accounts');
+    parts.push(sql`
+      select
+        ${transfers.id} as id,
+        'transfer'::text as entry_type,
+        ${transfers.amount} as amount,
+        ${transfers.occurredOn} as occurred_on,
+        null::integer as category_id,
+        null::text as category_name,
+        null::integer as account_id,
+        null::text as account_name,
+        ${transfers.fromAccountId} as from_account_id,
+        ${fromAccounts.name} as from_account_name,
+        ${transfers.toAccountId} as to_account_id,
+        ${toAccounts.name} as to_account_name,
+        ${transfers.memo} as memo
+      from ${transfers}
+      inner join ${accounts} as transfer_from_accounts
+        on ${fromAccounts.id} = ${transfers.fromAccountId}
+        and ${fromAccounts.householdId} = ${householdId}
+      inner join ${accounts} as transfer_to_accounts
+        on ${toAccounts.id} = ${transfers.toAccountId}
+        and ${toAccounts.householdId} = ${householdId}
+      where ${sql.join(transferWhere, sql` and `)}
+    `);
+  }
+  if (parts.length === 0) return [];
+  const limit = filters.limit === undefined ? undefined : Math.max(0, filters.limit);
+  const offset = Math.max(0, filters.offset ?? 0);
+  const rows = await db.execute<{
+    id: number;
+    entry_type: string;
+    amount: number;
+    occurred_on: string;
+    category_id: number | null;
+    category_name: string | null;
+    account_id: number | null;
+    account_name: string | null;
+    from_account_id: number | null;
+    from_account_name: string | null;
+    to_account_id: number | null;
+    to_account_name: string | null;
+    memo: string;
+  }>(sql`
+    select *
+    from (${sql.join(parts, sql` union all `)}) as ledger_entries
+    order by occurred_on desc, id desc, (entry_type = 'transfer') desc
+    ${limit === undefined ? sql`` : sql`limit ${limit}`}
+    offset ${offset}
+  `);
+  return rows.map((row) =>
+    row.entry_type === 'transfer'
+      ? {
+          id: row.id,
+          type: 'transfer' as const,
+          amount: row.amount,
+          occurredOn: row.occurred_on,
+          fromAccountId: row.from_account_id!,
+          fromAccountName: row.from_account_name!,
+          toAccountId: row.to_account_id!,
+          toAccountName: row.to_account_name!,
+          memo: row.memo,
+        }
+      : {
+          id: row.id,
+          type: row.entry_type as TransactionType,
+          amount: row.amount,
+          occurredOn: row.occurred_on,
+          categoryId: row.category_id!,
+          categoryName: row.category_name!,
+          accountId: row.account_id,
+          accountName: row.account_name,
+          memo: row.memo,
+        },
   );
-  return filters.limit ? entries.slice(0, filters.limit) : entries;
 }
 
 export async function getTransaction(
