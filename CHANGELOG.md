@@ -1,4 +1,11 @@
 # Changelog
+## [0.7.0](https://github.com/takano536/kobako/compare/v0.6.0...v0.7.0) (2026-10-04)
+
+
+### Features
+
+* simplify asset management and always-append imports ([#37](https://github.com/takano536/kobako/issues/37)) ([e562933](https://github.com/takano536/kobako/commit/e562933316baf432a6a0e10bf3068d46a76445a5))
+
 ## [Unreleased]
 
 ### Features
