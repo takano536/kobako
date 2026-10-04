@@ -192,11 +192,11 @@ test.beforeAll(async () => {
     toName = `${marker}:先`;
     alternateName = `${marker}:変更先`;
     await databaseClient.sql`
-      insert into accounts (household_id, name)
+      insert into accounts (household_id, name, kind)
       values
-        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}),
-        (${DEFAULT_HOUSEHOLD_ID}, ${toName}),
-        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName})
+        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}, 'other'),
+        (${DEFAULT_HOUSEHOLD_ID}, ${toName}, 'other'),
+        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName}, 'other')
     `;
   } catch (error) {
     await databaseClient.close();
@@ -356,7 +356,7 @@ test('filters transfer rows by direct transfer URL regardless of category query'
   await clearRunTransfers(databaseClient);
   await seedRunTransfer();
   await page.goto(`/transactions?month=${month}&type=transfer&category=1`);
-  await expect(page.getByText('振替・カテゴリなし')).toBeVisible();
+  await expect(page.locator('.filter-summary')).toHaveText('振替');
   await expect(page.locator('select[name="type"]')).toHaveValue('transfer');
   await expect(page.locator('select[name="category"]')).toBeDisabled();
   await expect(runTransferRows(page)).toHaveCount(1);

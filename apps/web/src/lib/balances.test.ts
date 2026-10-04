@@ -59,4 +59,18 @@ describe('calculateBalanceSummary', () => {
       net: '-7',
     });
   });
+
+  it('uses account kinds for liability presentation while net remains raw balance sum', () => {
+    expect(
+      calculateBalanceSummary([
+        { balance: '8000', kind: 'bank' },
+        { balance: '12000', kind: 'credit_card' },
+        { balance: '-3000', kind: 'credit_card' },
+      ]),
+    ).toEqual({
+      assets: '8000',
+      liabilities: '-9000',
+      net: '17000',
+    });
+  });
 });

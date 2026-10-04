@@ -29,6 +29,33 @@
       "when": 1790721354855,
       "tag": "0003_money_manager_import",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791047935018,
+      "tag": "0004_grey_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "when": 1791097941000,
+      "tag": "0005_debit_asset_group",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791097942144,
+      "tag": "0006_fuzzy_argent",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791111018560,
+      "tag": "0007_amusing_king_bedlam",
+      "breakpoints": true
     }
   ]
 }

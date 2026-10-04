@@ -35,6 +35,29 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      name: 'mobile',
+      testIgnore: /account-shortage\.spec\.ts$|balances\.spec\.ts$|account-management\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'mobile-account-management',
+      dependencies: ['mobile', 'balances'],
+      testMatch: /account-management\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'mobile-account-shortage',
+      dependencies: ['mobile', 'mobile-account-management'],
+      testMatch: /account-shortage\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'mobile-balances',
+      dependencies: ['mobile', 'mobile-account-shortage'],
+      testMatch: /balances\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
       name: 'balances',
       dependencies: ['chromium', 'account-shortage'],
       testMatch: /balances\.spec\.ts$/,

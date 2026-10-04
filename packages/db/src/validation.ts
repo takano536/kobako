@@ -6,6 +6,7 @@ import type { TransactionType } from './schema.js';
 
 export { AMOUNT_FORMAT_MESSAGE, AMOUNT_LIMIT, AMOUNT_TEXT_PATTERN_SOURCE } from './amount.js';
 
+export const ACCOUNT_NAME_MAX_LENGTH = 120;
 export const MEMO_MAX_LENGTH = 200;
 export const MAX_INT4_ID = 2_147_483_647;
 const DECIMAL_AMOUNT_PATTERN = /^-?(?:\d+\.\d+|\.\d+)$/;
@@ -125,11 +126,115 @@ export const memoSchema = z.preprocess(
 );
 
 export const accountIdSchema = z.preprocess((value) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return undefined;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+  }
+  return value;
+}, z.number().int().positive().max(MAX_INT4_ID).optional().nullable());
+
+export const requiredAccountIdSchema = z.preprocess((value) => {
   if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
     return Number(value.trim());
   }
   return value;
-}, z.number().int().positive().optional().nullable());
+}, z.number().int().positive().max(MAX_INT4_ID));
+export const accountKindSchema = z.enum(
+  ['cash', 'bank', 'credit_card', 'debit_card', 'electronic_money', 'other'] as const,
+  { error: '資産の種類を選択してください。' },
+);
+
+export const accountStatusSchema = z.enum(['active', 'closed'] as const, {
+  error: '資産の状態を選択してください。',
+});
+
+export const cardPaymentMonthOffsetSchema = z.enum(
+  ['same_month', 'next_month', 'two_months_later'] as const,
+  { error: '支払月を選択してください。' },
+);
+
+function containsAccountControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+}
+function accountTextSchema(label: string, maxLength: number) {
+  return z
+    .string({ error: `${label}を入力してください。` })
+    .trim()
+    .min(1, { error: `${label}を入力してください。` })
+    .max(maxLength, { error: `${label}は${maxLength}文字以内で入力してください。` })
+    .refine((value) => !containsAccountControlCharacter(value), {
+      error: `${label}に制御文字は使えません。`,
+    });
+}
+
+export const accountNameSchema = accountTextSchema('資産名', ACCOUNT_NAME_MAX_LENGTH);
+
+export const accountCreateInputSchema = z.object({
+  name: accountNameSchema,
+  kind: accountKindSchema,
+});
+
+export const accountUpdateInputSchema = z.object({
+  name: accountNameSchema,
+  kind: accountKindSchema,
+  status: accountStatusSchema.optional(),
+  expectedKind: accountKindSchema.optional(),
+  confirmKindChange: z.boolean().default(false),
+});
+
+export const accountCardConditionInputSchema = z.object({
+  closingDay: z
+    .string()
+    .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '締め日を選択してください。' })
+    .nullable()
+    .optional(),
+  paymentDay: z
+    .string()
+    .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '支払日を選択してください。' })
+    .nullable()
+    .optional(),
+  paymentMonthOffset: cardPaymentMonthOffsetSchema.nullable().optional(),
+  debitAccountId: accountIdSchema,
+});
+
+export type AccountKindInput = z.infer<typeof accountKindSchema>;
+export type AccountStatusInput = z.infer<typeof accountStatusSchema>;
+export type CardPaymentMonthOffsetInput = z.infer<typeof cardPaymentMonthOffsetSchema>;
+export type AccountCreateInput = z.infer<typeof accountCreateInputSchema>;
+export type AccountUpdateInput = z.infer<typeof accountUpdateInputSchema>;
+export type AccountCardConditionInput = z.infer<typeof accountCardConditionInputSchema>;
+
+export function isLiabilityKind(kind: AccountKindInput): boolean {
+  return kind === 'credit_card';
+}
+
+export function requiresKindInterpretationConfirmation(
+  previousKind: AccountKindInput,
+  nextKind: AccountKindInput,
+  rawBalance: string | number | bigint,
+): boolean {
+  if (previousKind === nextKind) {
+    return false;
+  }
+  if (previousKind === 'credit_card' || nextKind === 'credit_card') {
+    return true;
+  }
+  const raw = BigInt(rawBalance);
+  const previousLiability = previousKind === 'other' && raw < 0n;
+  const nextLiability = nextKind === 'other' && raw < 0n;
+  return previousLiability !== nextLiability;
+}
 
 /** Positive integer amount validation used for one-row account transfers. */
 export const transferAmountSchema = z.preprocess(
@@ -161,10 +266,10 @@ function requiredTransferAccountIdSchema(label: string) {
       return value;
     },
     z
-      .number({ error: `${label}の口座を選択してください。` })
-      .int({ error: `${label}の口座を選択してください。` })
-      .positive({ error: `${label}の口座を選択してください。` })
-      .max(MAX_INT4_ID, { error: '選択した口座は利用できません。' }),
+      .number({ error: `${label}の資産を選択してください。` })
+      .int({ error: `${label}の資産を選択してください。` })
+      .positive({ error: `${label}の資産を選択してください。` })
+      .max(MAX_INT4_ID, { error: '選択した資産は利用できません。' }),
   );
 }
 
@@ -181,7 +286,7 @@ export const transferInputSchema = z
       context.addIssue({
         code: 'custom',
         path: ['toAccountId'],
-        message: '振替元と振替先は別の口座を選択してください。',
+        message: '振替元と振替先は別の資産を選択してください。',
       });
     }
   });
@@ -221,12 +326,13 @@ export function categoryIdFromFormData(formData: FormData): unknown {
 }
 
 export function transactionInputFromFormData(formData: FormData): Record<string, unknown> {
+  const type = formData.get('type');
   return {
-    type: formData.get('type'),
+    type,
     amount: formData.get('amount'),
     occurredOn: formData.get('occurredOn'),
     categoryId: categoryIdFromFormData(formData),
-    accountId: undefined,
+    accountId: type === 'transfer' ? undefined : formData.get('accountId'),
     memo: formData.get('memo') ?? '',
   };
 }

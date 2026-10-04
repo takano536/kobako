@@ -9,7 +9,7 @@ import {
   type MoneyDirection,
   monthLabel,
 } from '../../src/lib/format';
-import type { TransactionListType } from '../../src/lib/transaction-query';
+import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
 import { MonthPickerField } from '../transactions/date-picker-field';
 
 type ActionLinkVariant = 'primary' | 'secondary' | 'quiet' | 'back';
@@ -47,6 +47,15 @@ export function SignedYen({ value, tone }: { value: string | number; tone?: Mone
       <span aria-hidden="true">{negative ? '−' : ''}</span>
       {formatYen(absoluteValue)}
     </span>
+  );
+}
+
+export function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m9.7 3.7.5-1.2h3.6l.5 1.2 1 .4 1.2-.5 2.5 2.5-.5 1.2.4 1 1.2.5v3.6l-1.2.5-.4 1 .5 1.2-2.5 2.5-1.2-.5-1 .4-.5 1.2h-3.6l-.5-1.2-1-.4-1.2.5-2.5-2.5.5-1.2-.4-1-1.2-.5V8.8l1.2-.5.4-1-.5-1.2 2.5-2.5 1.2.5 1-.4Z" />
+      <circle cx="12" cy="10.6" r="2.5" />
+    </svg>
   );
 }
 
@@ -180,20 +189,26 @@ export function EmptyState({
   );
 }
 
-type FilterCategory = { id: number; name: string; type: 'expense' | 'income' };
+type FilterAccount = { id: number; name: string; status: 'active' | 'closed' };
 
 export function FilterBar({
   month,
   type,
   categoryId,
+  accountId,
   categories,
+  accounts,
   summary,
+  showClearAction = false,
 }: {
   month: string;
   type?: TransactionListType;
   categoryId?: number;
+  accountId?: number;
   categories: readonly FilterCategory[];
-  summary: string;
+  accounts?: readonly FilterAccount[];
+  summary?: string;
+  showClearAction?: boolean;
 }) {
   const filterCategories =
     type && type !== 'transfer'
@@ -201,24 +216,41 @@ export function FilterBar({
       : type === 'transfer'
         ? []
         : categories;
+  const clearParams = new URLSearchParams({ month });
+  if (accountId !== undefined) clearParams.set('account', String(accountId));
+  const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
+  const hasAdditionalFilter = Boolean(type || categoryId);
   return (
-    <section className="filter-bar" aria-labelledby="filter-title">
+    <section
+      className="filter-bar"
+      aria-label="取引の絞り込み"
+      aria-labelledby={summary ? 'filter-title' : undefined}
+    >
       <details className="filter-details">
         <summary>
           <span className="filter-summary-action">条件を変更する</span>
-          <span className="filter-summary" id="filter-title">
-            {summary}
-          </span>
+          {summary ? (
+            <span className="filter-summary" id="filter-title">
+              {summary}
+            </span>
+          ) : null}
         </summary>
         <form className="filter-form" method="get">
           <label id="filter-month-label" htmlFor="filter-month">
             月
-            <MonthPickerField
-              id="filter-month"
-              name="month"
-              value={month}
-              labelId="filter-month-label"
-            />
+            {accountId !== undefined ? (
+              <select id="filter-month" name="month" defaultValue={month}>
+                <option value="all">全期間</option>
+                {month !== 'all' ? <option value={month}>{monthLabel(month)}</option> : null}
+              </select>
+            ) : (
+              <MonthPickerField
+                id="filter-month"
+                name="month"
+                value={month}
+                labelId="filter-month-label"
+              />
+            )}
           </label>
           <label>
             種別
@@ -250,11 +282,29 @@ export function FilterBar({
               </span>
             ) : null}
           </label>
+          {accounts ? (
+            <label>
+              資産
+              <select name="account" defaultValue={accountId ? String(accountId) : ''}>
+                <option value="">すべて</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button className="button button-primary" type="submit">
             適用
           </button>
         </form>
       </details>
+      {showClearAction && hasAdditionalFilter ? (
+        <ActionLink href={clearAdditionalFiltersHref} variant="quiet">
+          条件をクリアする
+        </ActionLink>
+      ) : null}
     </section>
   );
 }

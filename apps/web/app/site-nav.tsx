@@ -13,7 +13,6 @@ export function SiteNav() {
   const overviewCurrent = pathname === '/';
   const transactionsCurrent = pathname.startsWith('/transactions');
   const balancesCurrent = pathname.startsWith('/balances');
-
   return (
     <nav className="site-nav" aria-label="メインナビゲーション">
       <Link href="/" aria-current={overviewCurrent ? 'page' : undefined}>

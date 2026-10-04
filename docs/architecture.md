@@ -17,20 +17,17 @@ kobako は pnpm workspace の modular monolith として始めます。
 `@kobako/db` の `ledger.ts` は household を暗黙に固定しません。`listCategories`・`getCategory`・`listTransactions`・`getTransaction`・`getMonthlyTotals`・`getExpenseCategoryTotals`・`createTransaction`・`updateTransaction`・`deleteTransaction` はすべて `householdId` を最初の明示引数として受け取ります。`DEFAULT_HOUSEHOLD_ID`/`DEFAULT_HOUSEHOLD_SLUG` は `initializeDefaultLedger` の seed データ専用の定数として残し、query/mutation 本体からは参照しません。Web 側は `apps/web/src/lib/ledger-data.ts` の `getCurrentHouseholdId()` 一箇所だけで対象 household を解決し、すべての Server Component/Server Action がそこを経由します。将来の認証実装は、この一箇所をセッションから household を導出する実装に差し替えるだけで済みます。
 
 ```text
-households (1) ──< accounts
-     │                │
-     ├──< categories  ├──< transactions (income/expense)
-     │                │          │
-     │                └──────< transfers (from/to accounts)
-     │
-     └──< transaction_imports  [fingerprint: (household, source, sha256)]
+households (1) ──< accounts ──< transactions
+     │             │             └──< transfers (from/to accounts)
+     │             ├──< account_card_conditions (migration source)
+     │             └──< account_card_settings (current, one row)
+     └──< transaction_imports
 ```
 
-- `accounts`: 家計ごとの資産・口座名。`(household_id, name)` を一意にし、`(id, household_id)` の複合キーを複合 FK の参照先にします。家計削除は cascade、取引または振替から参照されている口座の削除は restrict です。
-- `categories`: `household_id`、`type`（`expense`/`income`）、表示名、並び順。`(household_id, type, name)` を一意にし、初期カテゴリを支出 9 種・収入 3 種登録します。
-- `transactions`: 収入・支出だけを保存する既存の台帳です。`account_id` は nullable で、手入力の取引は口座を持たないため nullable です。`(account_id, household_id)` の複合 FK と account lookup index を持ち、カテゴリ FK と合わせて別家計の参照を DB で拒否します。
-- `transfers`: 振替を一つの追跡可能な行として保存し、`from_account_id`、`to_account_id`、正の JPY `amount`、`occurred_on`、`memo` を持ちます。送金元と送金先は CHECK で異なることを強制し、両端に household を含む複合 FK を張ります。日付・送金元・送金先の各 lookup index を持ち、家計削除は cascade、口座削除は restrict です。振替は収入・支出・カテゴリ集計に入れません。
-- `transaction_imports`: `household_id`、`source`（`realbyte-money-manager`）、raw ファイルバイト列の SHA-256、元ファイル名、全件数、種別ごとの件数、作成日時を保存します。`(household_id, source, sha256)` を一意制約として重複ファイルを防ぎ、ファイル本体とセルデータは保存しません。
+- `accounts` の `kind`（`cash`/`bank`/`credit_card`/`debit_card`/`electronic_money`/`other`）を唯一の表示分類として扱い、同名資産を許可します。
+- `accounts` は `status`（`active`/`closed`）、`deleted_at`、並び順を持ちます。論理削除後も取引・振替・カード設定の参照を保持します。
+- `account_card_conditions` は移行元データを保持するだけで、実行時には参照しません。`account_card_settings` に移行時点の条件を一行だけ保存し、現在値を上書きします。
+- `transaction_imports` はファイルハッシュと結果件数を保存します。別の `operation_key` の再取込は新しいデータとして追加し、同じ `operation_key` の再送信だけ同じ結果を返します。
 - 全ての Web query は呼び出し元が渡す household を条件に含めます（現状は常に `getCurrentHouseholdId()` の値）。月次範囲は `YYYY-MM-01` 以上、翌月 1 日未満の half-open range です。
 - 月・日付が扱う年は 1900〜9998 年（`packages/db/src/month.ts` の `MIN_SUPPORTED_YEAR`/`MAX_SUPPORTED_YEAR`）に制限します。PostgreSQL `date`/`YYYY-MM` 自体はこれより広い範囲を扱えますが、`0000-01` のような極端な値が migration 未対応のクライアント入力や URL 改ざんから届いても 500 にならないよう、`isValidMonth`/`isCalendarDate`/`parseMonth`/`shiftMonth` すべてでこの範囲を検証・フォールバックします。
 
@@ -46,16 +43,15 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 ## 表示と mutation
 
-概要と一覧は Server Component で URL query (`month`、`type`、`category`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
+概要と一覧は Server Component で URL query (`month`、`type`、`category`、`account`、`page`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
-`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜ、同じ通常行レイアウトで振替を `振替元 → 振替先` として表示します。種別で「振替」を選ぶと振替だけを表示し、カテゴリ filter は振替では無効です。振替は収入・支出の全 totals から除外します。
+`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、ページング・月・種別・カテゴリと組み合わせても重複を出しません。
 
-登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、同じ厳格な金額形式を含む Zod schema を Server Action でも必ず再検証します。保存時に種別を変更した場合、`convertTransactionToTransfer` または `convertTransferToTransaction` が一つの DB transaction 内で新しい行を作成して元行を削除します。成功時は対象月へ redirect し、`/`、`/transactions`、`/balances` を `revalidatePath` して読み取りを新しくします。振替の DB mutation は household と両口座を明示的に照合し、別家計の口座や同一口座を拒否します。削除は `<details>` の確認開示と `confirm=delete` の hidden field を持つ専用フォームで、確認値なしでは削除せず、JavaScript 無効でも 2 回目の送信だけが実行されます。削除後に削除 URL へ戻りません。
+- 登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、Zod schema を Server Action でも再検証します。新規操作の資産候補は削除されていない資産にし、既存取引を編集する場合は参照中の削除済み資産を保持します。新規振替も削除されていない資産を受け付けます。
+- 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧はなく、取引一覧で資産を絞り込んだときだけ削除されていない資産に設定歯車を表示します。資産設定フォームは名前・種別・カード現在条件をまとめて扱い、論理削除は `accounts.deleted_at` に日時を設定して参照行を保持します。
+- 資産とカード現在条件の保存は同一トランザクションで確定し、保存時点で論理削除済みの資産は変更せず拒否します。
 
-通常取引の編集フォームは口座欄を持たないため、入力の `accountId` が `undefined` の場合は既存の口座を保持します。DB API に `null` を明示した場合だけ口座を解除し、取込取引の編集で残高が変わらないようにします。
-表示側は signed amount を種別ごとに SQL 合計し、収支差額を `income - expense` として `BigInt` で計算します。取引行では 0 を `0円`、支出の負数を返金・訂正として `＋`、収入の負数を `−` で表示します。カテゴリ別支出の構成比は支出合計が 0 以下またはカテゴリ合計が負なら `—`、カテゴリ合計が 0 なら `0%` とし、バー幅は非正の値で 0 です。
-
-`getAccountBalances` は全期間の取引から口座ごとの残高を `income - expense - transfersOut + transfersIn` で計算し、未来日付の取引も含めます。初期残高は持たず、口座を持たない手入力の取引を除外します。
+`getAccountBalances` は全期間の取引から資産ごとの計算上の残高を `income - expense - transfersOut + transfersIn` で計算します。残高画面は保存済み `kind` の順（現金、銀行、クレジットカード、デビットカード、電子マネー、その他）で表示します。現金・銀行・デビットカードは資産、クレジットカードは符号を反転して負債として表示します。
 
 日付欄は表示用 button と送信用 native date input の二重構造を持ちますが、overlay input に `tabIndex=-1` を設定して Tab stop を 1 つにします。表示 button はラベル、フォーカスリングを持ち、mouse/touch と Enter/Space の keyboard 操作から native picker を開きます。
 
@@ -71,18 +67,18 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 - `packages/db/src/money-manager-format.ts` はセル値の検証と金額・日付・カテゴリの正規化を担当します。データベースには接続しない純粋な関数です。
 - `packages/db/src/money-manager-xlsx.ts` は OOXML と ZIP を解析します。yauzl でエントリを必要な時に読み込み、saxes で XML を解析し、数式セル、DTD、外部実体を拒否します。`MONEY_MANAGER_XLSX_LIMITS` で ZIP のエントリ数を 128、エントリごとの未圧縮サイズを 8 MiB、全体の未圧縮サイズを 32 MiB、共有文字列を 100,000 件かつ 8 MiB までに制限します。ワークシートの取引行は読み込み時に 10,000 行まで、金額・日付シリアルの数値表記は 64 文字までです。共有文字列の参照先が不正な場合はファイルエラーにします。
-- `packages/db/src/imports.ts` はデータベース操作を担当します。`findMoneyManagerImport()` で重複を確認し、`commitMoneyManagerImport()` で一つのトランザクションとして確定します。家計を `SELECT FOR UPDATE` でロックし、カテゴリの並び順を 10 刻みで割り当てる処理もロック内で行います。
+- `packages/db/src/imports.ts` はデータベース操作を担当します。家計行を `SELECT FOR UPDATE` でロックし、カテゴリ・資産・取引・振替・取込結果を一つのトランザクションで確定します。資産は取込単位で新規作成し、同じ `operation_key` の再送信だけを冪等に処理します。
 - `packages/db/src/money-manager.ts` はインポート関連の公開サブパスを再エクスポートします。
 
 `apps/web/next.config.ts` では Server Action のリクエスト本文の上限を 6 MB に設定し、5 MiB のファイルと multipart の付加分を受け付けます。`yauzl` と `saxes` は Node.js サーバーの外部パッケージとして扱います。
 
-プレビューでは `moneyManagerImportAction` が `intent=preview` のファイルを受け取り、元のバイト列から SHA-256 ハッシュを計算して `parseMoneyManagerXlsx()` で正規化します。`findMoneyManagerImport()` によって同じ家計、提供元、ハッシュの記録を確認し、`money-manager-import-contract.ts` のシリアライズ可能な型で、ファイル名・サイズ・期間・収入/支出/振替の件数と合計・新規カテゴリ・新規口座・上限付きサンプル・ファイルエラー・行エラーを返します。既存記録は `alreadyImported` と前回日時で表し、ハッシュの詳細を UI に要求しません。
+プレビューでは `moneyManagerImportAction` が `intent=preview` のファイルを受け取り、元のバイト列から SHA-256 ハッシュと取込操作キーを生成して `parseMoneyManagerXlsx()` で正規化します。ハッシュは監査用に保存しますが再取込の判定には使わず、ファイル名・サイズ・期間・収入/支出/振替の件数と合計・新規カテゴリ・資産名・上限付きサンプル・ファイルエラー・行エラーを返します。
 
-確認では同じフォームから選択中のファイルをもう一度送信します。サーバーアクションはファイルを読み直して上限を検証し、ハッシュと内容を比較してから `commitMoneyManagerImport()` を呼びます。問題がなければ家計のロック、インポート記録、カテゴリ・口座の作成または再利用、収入/支出と振替の追加を一つのトランザクションで行います。振替行は「引き出し」を振替元 B「資産」、振替先 C「分類」、金額 F として保存します。J は JPY の確認に使い、保存しません。I/K も保存しません。手数料は推測しません。完了画面の一覧リンクは、取り込んだ期間の最新月を開きます。
+一回の確定では、取込元の同じ資産を同じ新規資産にまとめます。別の `operation_key` で同じファイルを確定すると、新しい資産・取引として追加され、重複分も月次収支と残高に反映されます。既存資産や既存カード設定は変更しません。
 
-対応する形式は Android 版だけです。先頭 11 列は日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順で、日付は 1900 年方式の Excel シリアル値、金額は `/^-?\d+(?:\.0+)?$/` に一致する整数または `.0` で終わる値だけを受け付けます。通貨は行ごとに JPY を確認します。通常行の B は口座名、振替行の B/C は元先口座名です。空の口座名、同一の元先口座、未知の種別、日付・金額不正は行エラーにし、未知だが空でない口座名はプレビューに新規口座として表示して確定時に作成します。
+対応する形式は Android 版だけです。先頭 11 列は日付、資産、分類、小分類、内容、JPY、収入/支出、メモ、金額、通貨、資産の順です。空の資産名、同一の振替元先、未知の種別、日付・金額不正は行エラーにし、未知だが空でない資産名は新規資産として扱います。
 
-`transaction_imports` にはファイル本体ではなく、ハッシュ、元ファイル名、提供元、全件数、種別ごとの件数、作成日時だけを保存します。SHA-256 は 64 文字の小文字 16 進数として CHECK で検証します。ZIP の過剰な展開は yauzl のサイズ検証で防ぎ、saxes は DOCTYPE を拒否します。数式セルも行エラーとして扱います。パーサーはサーバー側だけで動作し、ファイル本体をディスクへ書き込みません。
+`transaction_imports` にはファイル本体ではなく、ハッシュ、取込操作キー、元ファイル名、提供元、全件数、種別ごとの件数、作成日時だけを保存します。ハッシュは 64 文字の小文字 16 進数として CHECK で検証します。別操作の同じファイルは履歴・資産・取引を重複追加し、同じ操作キーの二重送信だけを部分一意制約で防ぎます。ZIP の過剰な展開は yauzl のサイズ検証で防ぎ、saxes は DOCTYPE を拒否します。数式セルも行エラーとして扱います。パーサーはサーバー側だけで動作し、ファイル本体をディスクへ書き込みません。
 
 ## 実行モデル
 

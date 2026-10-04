@@ -37,7 +37,7 @@ describe('transfer input validation', () => {
     expect(fromMissing.success).toBe(false);
     if (!fromMissing.success) {
       expect(fromMissing.error.flatten().fieldErrors.fromAccountId).toContain(
-        '振替元の口座を選択してください。',
+        '振替元の資産を選択してください。',
       );
     }
 
@@ -45,7 +45,7 @@ describe('transfer input validation', () => {
     expect(toMissing.success).toBe(false);
     if (!toMissing.success) {
       expect(toMissing.error.flatten().fieldErrors.toAccountId).toContain(
-        '振替先の口座を選択してください。',
+        '振替先の資産を選択してください。',
       );
     }
 
@@ -53,7 +53,7 @@ describe('transfer input validation', () => {
     expect(sameAccount.success).toBe(false);
     if (!sameAccount.success) {
       expect(sameAccount.error.flatten().fieldErrors.toAccountId).toContain(
-        '振替元と振替先は別の口座を選択してください。',
+        '振替元と振替先は別の資産を選択してください。',
       );
     }
   });
@@ -65,7 +65,7 @@ describe('transfer input validation', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.flatten().fieldErrors.fromAccountId).toContain(
-        '選択した口座は利用できません。',
+        '選択した資産は利用できません。',
       );
     }
   });
@@ -84,7 +84,7 @@ describe('transfer input validation', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.flatten().fieldErrors.toAccountId).toContain(
-        '選択した口座は利用できません。',
+        '選択した資産は利用できません。',
       );
     }
   });

@@ -110,9 +110,9 @@ test('allows ordinary registration and validates transfers with fewer than two a
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
   await expect(page.locator('.form-error-dialog')).toContainText(
-    '振替元の口座を選択してください。',
+    '振替元の資産を選択してください。',
   );
   await expect(page.locator('.form-error-dialog')).toContainText(
-    '振替先の口座を選択してください。',
+    '振替先の資産を選択してください。',
   );
 });

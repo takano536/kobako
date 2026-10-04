@@ -58,6 +58,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ i
               amount: String(transfer.amount),
               occurredOn: transfer.occurredOn,
               categoryId: '',
+              accountId: '',
               fromAccountId: String(transfer.fromAccountId),
               toAccountId: String(transfer.toAccountId),
               memo: transfer.memo,

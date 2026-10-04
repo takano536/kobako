@@ -62,6 +62,7 @@ export interface MoneyManagerLedgerRow {
   amount: number;
   occurredOn: string;
   accountName: string;
+  sourceAccountId?: string;
   categoryName: string;
   memo: string;
 }
@@ -73,6 +74,8 @@ export interface MoneyManagerTransferRow {
   occurredOn: string;
   fromAccountName: string;
   toAccountName: string;
+  fromSourceAccountId?: string;
+  toSourceAccountId?: string;
   memo: string;
 }
 
@@ -103,15 +106,6 @@ export interface ExistingMoneyManagerCategory {
 
 export interface MoneyManagerCategoryPlan {
   type: TransactionType;
-  name: string;
-  action: 'reuse' | 'create';
-}
-
-export interface ExistingMoneyManagerAccount {
-  name: string;
-}
-
-export interface MoneyManagerAccountPlan {
   name: string;
   action: 'reuse' | 'create';
 }
@@ -636,27 +630,6 @@ export function planMoneyManagerCategories(
       name: row.categoryName,
       action: existing.has(key) ? 'reuse' : 'create',
     });
-  }
-  return plan;
-}
-
-export function planMoneyManagerAccounts(
-  rows: readonly MoneyManagerNormalizedRow[],
-  existingAccounts: readonly ExistingMoneyManagerAccount[],
-): MoneyManagerAccountPlan[] {
-  const existing = new Set(existingAccounts.map((account) => account.name));
-  const seen = new Set<string>();
-  const plan: MoneyManagerAccountPlan[] = [];
-  for (const row of rows) {
-    const names =
-      row.type === 'transfer' ? [row.fromAccountName, row.toAccountName] : [row.accountName];
-    for (const name of names) {
-      if (seen.has(name)) {
-        continue;
-      }
-      seen.add(name);
-      plan.push({ name, action: existing.has(name) ? 'reuse' : 'create' });
-    }
   }
   return plan;
 }

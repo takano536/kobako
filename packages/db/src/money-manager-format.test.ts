@@ -4,7 +4,6 @@ import {
   MONEY_MANAGER_HEADERS,
   normalizeMoneyManagerCells,
   planMoneyManagerCategories,
-  planMoneyManagerAccounts,
   type MoneyManagerCell,
   type MoneyManagerCellGrid,
   type MoneyManagerGridRow,
@@ -305,26 +304,6 @@ describe('Money Manager pure cell normalizer', () => {
       }),
     ]);
     expect(firstError(negative)).toMatchObject({ code: 'invalid-amount', row: 2 });
-  });
-
-  it('plans one reusable account for repeated and existing asset names', () => {
-    const result = normalize([
-      headerRow(),
-      dataRow({ account: stringCell('銀行') }),
-      dataRow({ account: stringCell('銀行') }, 3),
-      dataRow(
-        {
-          account: stringCell('銀行'),
-          category: stringCell('現金'),
-          type: stringCell('引き出し'),
-        },
-        4,
-      ),
-    ]);
-    expect(planMoneyManagerAccounts(result.rows, [{ name: '銀行' }])).toEqual([
-      { name: '銀行', action: 'reuse' },
-      { name: '現金', action: 'create' },
-    ]);
   });
 
   it('rejects a memo over 200 characters', () => {
