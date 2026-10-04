@@ -8,15 +8,12 @@ import {
   transactionImports,
   transactions,
   transfers,
-  type TransactionImport,
   type TransactionType,
 } from './schema.js';
 import {
   MONEY_MANAGER_SOURCE,
-  planMoneyManagerAccounts,
   planMoneyManagerCategories,
   type MoneyManagerLedgerRow,
-  type ExistingMoneyManagerAccount,
   type ExistingMoneyManagerCategory,
   type MoneyManagerNormalizedRow,
   type MoneyManagerTransferRow,
@@ -31,12 +28,18 @@ import type {
 
 const TRANSACTION_INSERT_CHUNK_SIZE = 500;
 const CATEGORY_SORT_STEP = 10;
-const DUPLICATE_IMPORT_CONSTRAINT = 'transaction_imports_household_source_sha256_unique';
+const DUPLICATE_IMPORT_CONSTRAINT = 'transaction_imports_household_source_operation_unique';
+
+interface AccountImportResult {
+  summaries: MoneyManagerImportAccountSummary[];
+  byKey: Map<string, number>;
+}
 
 export interface MoneyManagerImportInput {
   householdId: string;
   source?: string;
   sha256: string;
+  operationKey?: string;
   originalFilename: string;
   rows: readonly MoneyManagerNormalizedRow[];
 }
@@ -75,35 +78,6 @@ async function lockHousehold(
   if (rows.length === 0) {
     throw new Error('Household not found');
   }
-}
-
-async function findExistingImport(
-  db: Database,
-  householdId: string,
-  source: string,
-  sha256: string,
-): Promise<TransactionImport | null> {
-  const rows = await db
-    .select()
-    .from(transactionImports)
-    .where(
-      and(
-        eq(transactionImports.householdId, householdId),
-        eq(transactionImports.source, source),
-        eq(transactionImports.sha256, sha256),
-      ),
-    )
-    .limit(1);
-  return rows[0] ?? null;
-}
-
-export async function findMoneyManagerImport(
-  db: Database,
-  householdId: string,
-  sha256: string,
-  source = MONEY_MANAGER_SOURCE,
-): Promise<TransactionImport | null> {
-  return findExistingImport(db, householdId, source, sha256);
 }
 
 function countsForRows(rows: readonly MoneyManagerNormalizedRow[]): MoneyManagerImportCounts {
@@ -208,51 +182,76 @@ async function insertMissingCategories(
   });
 }
 
+function accountIdentityKey(name: string, sourceAccountId?: string): string {
+  return sourceAccountId ? `id:${sourceAccountId}` : `name:${name}`;
+}
+
+function sourceAccounts(rows: readonly MoneyManagerNormalizedRow[]): {
+  name: string;
+  sourceAccountId?: string;
+  key: string;
+}[] {
+  const seen = new Set<string>();
+  const result: { name: string; sourceAccountId?: string; key: string }[] = [];
+  for (const row of rows) {
+    const accountsInRow =
+      row.type === 'transfer'
+        ? [
+            { name: row.fromAccountName, sourceAccountId: row.fromSourceAccountId },
+            { name: row.toAccountName, sourceAccountId: row.toSourceAccountId },
+          ]
+        : [{ name: row.accountName, sourceAccountId: row.sourceAccountId }];
+    for (const account of accountsInRow) {
+      const key = accountIdentityKey(account.name, account.sourceAccountId);
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push({ ...account, key });
+      }
+    }
+  }
+  return result;
+}
+
 async function insertMissingAccounts(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   rows: readonly MoneyManagerNormalizedRow[],
-): Promise<MoneyManagerImportAccountSummary[]> {
-  const current = await transaction
-    .select({ name: accounts.name })
+): Promise<AccountImportResult> {
+  const source = sourceAccounts(rows);
+  const maxRows = await transaction
+    .select({ maxSortOrder: sql<number | null>`max(${accounts.sortOrder})` })
     .from(accounts)
     .where(eq(accounts.householdId, householdId));
-  const existing: ExistingMoneyManagerAccount[] = current.map((account) => ({
-    name: account.name,
-  }));
-  const plan = planMoneyManagerAccounts(rows, existing);
-  const namesToCreate = plan.filter((account) => account.action === 'create');
-  if (namesToCreate.length > 0) {
-    await transaction
+  let nextSortOrder = Number(maxRows[0]?.maxSortOrder ?? 0) + 10;
+  const summaries: MoneyManagerImportAccountSummary[] = [];
+  const byKey = new Map<string, number>();
+  for (const item of source) {
+    const inserted = await transaction
       .insert(accounts)
-      .values(namesToCreate.map((account) => ({ householdId, name: account.name })))
-      .onConflictDoNothing({ target: [accounts.householdId, accounts.name] });
+      .values({
+        householdId,
+        name: item.name,
+        kind: 'other' as const,
+        status: 'active' as const,
+        sortOrder: nextSortOrder,
+      })
+      .returning({ id: accounts.id });
+    const accountId = inserted[0]?.id;
+    if (accountId === undefined) {
+      throw new Error('Import account was not created');
+    }
+    nextSortOrder += 10;
+    byKey.set(item.key, accountId);
+    summaries.push({ name: item.name, id: accountId, action: 'created' });
   }
-
-  const inserted = await transaction
-    .select({ id: accounts.id, name: accounts.name })
-    .from(accounts)
-    .where(eq(accounts.householdId, householdId));
-  const byName = new Map(inserted.map((account) => [account.name, account]));
-  return plan.flatMap((item) => {
-    const account = byName.get(item.name);
-    return account
-      ? [
-          {
-            name: item.name,
-            id: account.id,
-            action: item.action === 'create' ? ('created' as const) : ('reused' as const),
-          },
-        ]
-      : [];
-  });
+  return { summaries, byKey };
 }
 
 async function insertTransactions(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   rows: readonly MoneyManagerNormalizedRow[],
-  accountSummary: readonly MoneyManagerImportAccountSummary[],
+  accountByKey: ReadonlyMap<string, number>,
 ): Promise<void> {
   const normalRows = rows.filter((row): row is MoneyManagerLedgerRow => row.type !== 'transfer');
   if (normalRows.length === 0) {
@@ -265,10 +264,9 @@ async function insertTransactions(
   const categoryByKey = new Map(
     categoryRows.map((category) => [categoryKey(category.type, category.name), category.id]),
   );
-  const accountByName = new Map(accountSummary.map((account) => [account.name, account.id]));
   const values = normalRows.map((row) => {
     const categoryId = categoryByKey.get(categoryKey(row.type, row.categoryName));
-    const accountId = accountByName.get(row.accountName);
+    const accountId = accountByKey.get(accountIdentityKey(row.accountName, row.sourceAccountId));
     if (categoryId === undefined || accountId === undefined) {
       throw new Error('Import category or account was not created');
     }
@@ -293,7 +291,7 @@ async function insertTransfers(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
   rows: readonly MoneyManagerNormalizedRow[],
-  accountSummary: readonly MoneyManagerImportAccountSummary[],
+  accountByKey: ReadonlyMap<string, number>,
 ): Promise<void> {
   const transferRows = rows.filter(
     (row): row is MoneyManagerTransferRow => row.type === 'transfer',
@@ -301,10 +299,13 @@ async function insertTransfers(
   if (transferRows.length === 0) {
     return;
   }
-  const accountByName = new Map(accountSummary.map((account) => [account.name, account.id]));
   const values = transferRows.map((row) => {
-    const fromAccountId = accountByName.get(row.fromAccountName);
-    const toAccountId = accountByName.get(row.toAccountName);
+    const fromAccountId = accountByKey.get(
+      accountIdentityKey(row.fromAccountName, row.fromSourceAccountId),
+    );
+    const toAccountId = accountByKey.get(
+      accountIdentityKey(row.toAccountName, row.toSourceAccountId),
+    );
     if (fromAccountId === undefined || toAccountId === undefined) {
       throw new Error('Import transfer account was not created');
     }
@@ -338,17 +339,44 @@ export async function commitMoneyManagerImport(
     throw new Error('Money Manager import requires at least one row');
   }
   const source = input.source ?? MONEY_MANAGER_SOURCE;
+  const operationKey = input.operationKey?.trim() || null;
+  if (operationKey && operationKey.length > 120) {
+    throw new Error('Import operation key is too long');
+  }
   const counts = countsForRows(input.rows);
   const period = periodForRows(input.rows);
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, input.householdId);
+      const existingRows = operationKey
+        ? await transaction
+            .select({
+              id: transactionImports.id,
+            })
+            .from(transactionImports)
+            .where(
+              and(
+                eq(transactionImports.householdId, input.householdId),
+                eq(transactionImports.source, source),
+                eq(transactionImports.operationKey, operationKey),
+              ),
+            )
+            .limit(1)
+        : [];
+      const existing = existingRows[0];
+      if (existing) {
+        return {
+          status: 'duplicate' as const,
+          importId: existing.id,
+        };
+      }
       const inserted = await transaction
         .insert(transactionImports)
         .values({
           householdId: input.householdId,
           source,
           sha256: input.sha256,
+          operationKey,
           originalFilename: input.originalFilename,
           transactionCount: input.rows.length,
           incomeCount: counts.income.count,
@@ -365,13 +393,9 @@ export async function commitMoneyManagerImport(
         input.householdId,
         input.rows,
       );
-      const accountsSummary = await insertMissingAccounts(
-        transaction,
-        input.householdId,
-        input.rows,
-      );
-      await insertTransactions(transaction, input.householdId, input.rows, accountsSummary);
-      await insertTransfers(transaction, input.householdId, input.rows, accountsSummary);
+      const accountImport = await insertMissingAccounts(transaction, input.householdId, input.rows);
+      await insertTransactions(transaction, input.householdId, input.rows, accountImport.byKey);
+      await insertTransfers(transaction, input.householdId, input.rows, accountImport.byKey);
       return {
         status: 'imported' as const,
         importId,
@@ -379,20 +403,32 @@ export async function commitMoneyManagerImport(
         counts,
         period,
         createdCategories: categoriesSummary.filter((item) => item.action === 'created').length,
-        createdAccounts: accountsSummary.filter((item) => item.action === 'created').length,
+        createdAccounts: accountImport.summaries.filter((item) => item.action === 'created').length,
         categories: categoriesSummary,
-        accounts: accountsSummary,
+        accounts: accountImport.summaries,
       };
     });
   } catch (error) {
-    if (!isUniqueViolation(error, DUPLICATE_IMPORT_CONSTRAINT)) {
+    if (!operationKey || !isUniqueViolation(error, DUPLICATE_IMPORT_CONSTRAINT)) {
       throw error;
     }
-    const existing = await findExistingImport(db, input.householdId, source, input.sha256);
+    const existingRows = await db
+      .select({
+        id: transactionImports.id,
+      })
+      .from(transactionImports)
+      .where(
+        and(
+          eq(transactionImports.householdId, input.householdId),
+          eq(transactionImports.source, source),
+          eq(transactionImports.operationKey, operationKey),
+        ),
+      )
+      .limit(1);
+    const existing = existingRows[0];
     return {
       status: 'duplicate',
       importId: existing?.id,
-      previousImportDate: existing?.createdAt.toISOString(),
     };
   }
 }

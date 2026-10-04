@@ -58,6 +58,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
               amount: String(transaction.amount),
               occurredOn: transaction.occurredOn,
               categoryId: String(transaction.categoryId),
+              accountId: transaction.accountId ? String(transaction.accountId) : '',
               fromAccountId: '',
               toAccountId: '',
               memo: transaction.memo,

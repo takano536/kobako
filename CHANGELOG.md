@@ -1,4 +1,17 @@
 # Changelog
+## [Unreleased]
+
+### Features
+
+* unify asset registration and settings, add debit-card assets, logical deletion, and current card-condition editing
+* create new assets for each import operation, grouping the same provider asset only within that operation
+* add migration coverage for fresh databases and upgrades from the previous account schema
+* allow separate re-imports of the same file as new data (including monthly totals and balances) while making the same operation key idempotent
+
+### Bug Fixes
+
+* make asset and current card-condition saves atomic and reject updates to logically deleted assets
+
 
 ## [0.6.0](https://github.com/takano536/kobako/compare/v0.5.1...v0.6.0) (2026-10-03)
 

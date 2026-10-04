@@ -513,6 +513,13 @@ h3 {
   padding-block: var(--space-item);
   border-bottom: 1px solid var(--rule);
 }
+.balance-row-metrics {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-item);
+}
 
 .balance-account-name {
   flex: 1 1 auto;
@@ -524,11 +531,14 @@ h3 {
 .balance-amount {
   flex: 0 0 auto;
   width: var(--balance-amount-column);
+  min-width: 0;
+  max-width: 100%;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: var(--leading-body);
   text-align: right;
   white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .section-heading {
@@ -538,6 +548,17 @@ h3 {
   justify-content: space-between;
   gap: var(--space-group);
   margin-bottom: var(--space-within);
+}
+.account-form .section-heading {
+  display: block;
+  margin: var(--space-section) 0 var(--space-within);
+}
+
+.account-form .section-heading h2 {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+  line-height: var(--leading-meta);
 }
 
 .section-heading h2 {
@@ -1163,19 +1184,20 @@ h3 {
 }
 
 .ledger-form .category-field-income,
-.account-detail-grid,
+.transfer-account-detail-grid,
 .save-button-transfer {
   display: none;
 }
 
 .ledger-form:has(input[name='type'][value='income']:checked) .category-field-expense,
 .ledger-form:has(input[name='type'][value='transfer']:checked) .category-field-expense,
-.ledger-form:has(input[name='type'][value='transfer']:checked) .category-field-income {
+.ledger-form:has(input[name='type'][value='transfer']:checked) .category-field-income,
+.ledger-form:has(input[name='type'][value='transfer']:checked) .ordinary-account-detail-grid {
   display: none;
 }
 
 .ledger-form:has(input[name='type'][value='income']:checked) .category-field-income,
-.ledger-form:has(input[name='type'][value='transfer']:checked) .account-detail-grid {
+.ledger-form:has(input[name='type'][value='transfer']:checked) .transfer-account-detail-grid {
   display: grid;
 }
 
@@ -1290,8 +1312,11 @@ h3 {
 
 .entry-detail-grid .field-value > .field-select {
   appearance: none;
-  padding: 4px 0;
+  overflow: hidden;
+  padding: 4px 24px 4px 0;
   font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
   background-position: right center;
   background-repeat: no-repeat;
@@ -1702,7 +1727,7 @@ h3 {
 
 .import-file-change,
 .import-file-remove {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0.35rem 0.65rem;
   border-color: var(--rule);
   background: transparent;
@@ -1750,7 +1775,7 @@ h3 {
 }
 
 .import-fallback-submit {
-  min-height: 38px;
+  min-height: 44px;
   margin-top: 7px;
   padding: 0;
   border: 0;
@@ -2444,11 +2469,15 @@ h3 {
   }
 
   .header-inner {
-    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .site-nav {
-    gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
     margin-left: auto;
   }
 
@@ -2565,14 +2594,19 @@ h3 {
   }
 
   .balance-list {
-    --balance-amount-column: 52%;
+    --balance-amount-column: auto;
   }
 
   .balance-row {
     gap: var(--space-item);
   }
 
+  .balance-row-metrics {
+    gap: var(--space-within);
+  }
+
   .balance-amount {
+    width: auto;
     font-size: var(--text-body);
     letter-spacing: normal;
   }
@@ -2644,4 +2678,140 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.balance-account-link {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.balance-account-link:hover .balance-account-name {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.balance-groups {
+  display: grid;
+  gap: var(--space-section);
+  margin-top: var(--space-section);
+}
+
+.balance-group h3 {
+  min-height: 25px;
+  margin: 0;
+  padding-top: var(--space-within);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: var(--leading-meta);
+}
+
+.inline-form,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-item);
+}
+.account-form .form-actions {
+  justify-content: flex-end;
+}
+
+.account-form input[type='checkbox'] {
+  width: auto;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.field-error,
+.form-message {
+  color: #8f443d;
+}
+
+.checkbox-field {
+  display: flex;
+  min-height: 44px;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-group);
+  margin-top: var(--space-section);
+}
+
+.month-switcher-all {
+  display: flex;
+  width: auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-group);
+}
+
+.month-switcher-all .month-switcher-label {
+  min-width: 0;
+}
+
+.asset-transaction-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-group);
+  margin: var(--space-section) 0 var(--space-within);
+}
+
+.asset-transaction-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-item);
+}
+
+.asset-transaction-heading h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-heading);
+}
+
+.asset-settings-link {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-right: -24px;
+  color: var(--muted);
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.asset-settings-link svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.asset-settings-link:hover {
+  color: var(--accent);
 }

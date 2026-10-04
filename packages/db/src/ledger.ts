@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
@@ -40,6 +40,17 @@ export const DEFAULT_CATEGORY_SEEDS = [
   sortOrder: number;
 }>;
 
+function accountKindOrderSql() {
+  return sql<number>`case ${accounts.kind}
+    when 'cash' then 0
+    when 'bank' then 1
+    when 'credit_card' then 2
+    when 'debit_card' then 3
+    when 'electronic_money' then 4
+    else 5
+  end`;
+}
+
 export async function initializeDefaultLedger(db: Database): Promise<void> {
   await db.transaction(async (transaction) => {
     await transaction
@@ -72,7 +83,15 @@ export async function listAccounts(db: Database, householdId: string): Promise<A
     .select()
     .from(accounts)
     .where(eq(accounts.householdId, householdId))
-    .orderBy(asc(accounts.name), asc(accounts.id));
+    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
+}
+
+export async function listActiveAccounts(db: Database, householdId: string): Promise<Account[]> {
+  return db
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
+    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
 }
 
 export async function listCategories(
@@ -115,7 +134,9 @@ export interface TransactionFilters {
   month: string;
   type?: TransactionType;
   categoryId?: number;
+  accountId?: number;
   limit?: number;
+  offset?: number;
 }
 
 export interface LedgerEntryFilters extends Omit<TransactionFilters, 'type'> {
@@ -161,17 +182,20 @@ export type TransferDeleteResult =
   { status: 'ok'; occurredOn: string } | { status: 'not_found' } | { status: 'error' };
 
 function transactionConditions(householdId: string, filters: TransactionFilters): SQL[] {
-  const range = monthRange(filters.month);
-  const conditions: SQL[] = [
-    eq(transactions.householdId, householdId),
-    gte(transactions.occurredOn, range.start),
-    lt(transactions.occurredOn, range.endExclusive),
-  ];
+  const conditions: SQL[] = [eq(transactions.householdId, householdId)];
+  if (filters.month !== 'all') {
+    const range = monthRange(filters.month);
+    conditions.push(gte(transactions.occurredOn, range.start));
+    conditions.push(lt(transactions.occurredOn, range.endExclusive));
+  }
   if (filters.type === 'expense' || filters.type === 'income') {
     conditions.push(eq(transactions.type, filters.type));
   }
   if (filters.categoryId) {
     conditions.push(eq(transactions.categoryId, filters.categoryId));
+  }
+  if (filters.accountId !== undefined) {
+    conditions.push(eq(transactions.accountId, filters.accountId));
   }
   return conditions;
 }
@@ -208,7 +232,8 @@ export async function listTransactions(
     )
     .where(and(...transactionConditions(householdId, filters)))
     .orderBy(desc(transactions.occurredOn), desc(transactions.id));
-  return filters.limit ? query.limit(filters.limit) : query;
+  const limited = filters.limit ? query.limit(filters.limit) : query;
+  return filters.offset ? limited.offset(filters.offset) : limited;
 }
 
 export async function listLedgerEntries(
@@ -216,60 +241,142 @@ export async function listLedgerEntries(
   householdId: string,
   filters: LedgerEntryFilters,
 ): Promise<ListedLedgerEntry[]> {
-  const transactionRows =
-    filters.type === 'transfer'
-      ? []
-      : await listTransactions(db, householdId, {
-          month: filters.month,
-          type: filters.type,
-          categoryId: filters.categoryId,
-          limit: undefined,
-        });
-  if (filters.type !== 'transfer' && (filters.type || filters.categoryId)) {
-    return filters.limit ? transactionRows.slice(0, filters.limit) : transactionRows;
-  }
-
-  const range = monthRange(filters.month);
-  const fromAccounts = alias(accounts, 'transfer_from_accounts');
-  const toAccounts = alias(accounts, 'transfer_to_accounts');
-  const transferRows = await db
-    .select({
-      id: transfers.id,
-      amount: transfers.amount,
-      occurredOn: transfers.occurredOn,
-      fromAccountId: transfers.fromAccountId,
-      fromAccountName: fromAccounts.name,
-      toAccountId: transfers.toAccountId,
-      toAccountName: toAccounts.name,
-      memo: transfers.memo,
-    })
-    .from(transfers)
-    .innerJoin(
-      fromAccounts,
-      and(eq(fromAccounts.id, transfers.fromAccountId), eq(fromAccounts.householdId, householdId)),
-    )
-    .innerJoin(
-      toAccounts,
-      and(eq(toAccounts.id, transfers.toAccountId), eq(toAccounts.householdId, householdId)),
-    )
-    .where(
-      and(
-        eq(transfers.householdId, householdId),
-        gte(transfers.occurredOn, range.start),
-        lt(transfers.occurredOn, range.endExclusive),
-      ),
+  const includeTransactions = filters.type !== 'transfer';
+  const includeTransfers =
+    filters.type === 'transfer' || (filters.type === undefined && filters.categoryId === undefined);
+  const transactionWhere: SQL[] = [eq(transactions.householdId, householdId)];
+  const transferWhere: SQL[] = [eq(transfers.householdId, householdId)];
+  if (filters.month !== 'all') {
+    const range = monthRange(filters.month);
+    transactionWhere.push(
+      gte(transactions.occurredOn, range.start),
+      lt(transactions.occurredOn, range.endExclusive),
     );
-  const entries: ListedLedgerEntry[] = [
-    ...transactionRows,
-    ...transferRows.map((transfer) => ({ ...transfer, type: 'transfer' as const })),
-  ];
-  entries.sort(
-    (left, right) =>
-      right.occurredOn.localeCompare(left.occurredOn) ||
-      right.id - left.id ||
-      (right.type === 'transfer' ? 1 : -1),
+    transferWhere.push(
+      gte(transfers.occurredOn, range.start),
+      lt(transfers.occurredOn, range.endExclusive),
+    );
+  }
+  if (filters.type === 'expense' || filters.type === 'income') {
+    transactionWhere.push(eq(transactions.type, filters.type));
+  }
+  if (filters.categoryId && filters.type !== 'transfer') {
+    transactionWhere.push(eq(transactions.categoryId, filters.categoryId));
+  }
+  if (filters.accountId !== undefined) {
+    transactionWhere.push(eq(transactions.accountId, filters.accountId));
+    transferWhere.push(
+      or(
+        eq(transfers.fromAccountId, filters.accountId),
+        eq(transfers.toAccountId, filters.accountId),
+      )!,
+    );
+  }
+  const parts: SQL[] = [];
+  if (includeTransactions) {
+    parts.push(sql`
+      select
+        ${transactions.id} as id,
+        ${transactions.type}::text as entry_type,
+        ${transactions.amount} as amount,
+        ${transactions.occurredOn} as occurred_on,
+        ${transactions.categoryId} as category_id,
+        ${categories.name} as category_name,
+        ${transactions.accountId} as account_id,
+        ${accounts.name} as account_name,
+        null::integer as from_account_id,
+        null::text as from_account_name,
+        null::integer as to_account_id,
+        null::text as to_account_name,
+        ${transactions.memo} as memo
+      from ${transactions}
+      inner join ${categories}
+        on ${categories.id} = ${transactions.categoryId}
+        and ${categories.householdId} = ${householdId}
+        and ${categories.type} = ${transactions.type}
+      left join ${accounts}
+        on ${accounts.id} = ${transactions.accountId}
+        and ${accounts.householdId} = ${householdId}
+      where ${sql.join(transactionWhere, sql` and `)}
+    `);
+  }
+  if (includeTransfers) {
+    const fromAccounts = alias(accounts, 'transfer_from_accounts');
+    const toAccounts = alias(accounts, 'transfer_to_accounts');
+    parts.push(sql`
+      select
+        ${transfers.id} as id,
+        'transfer'::text as entry_type,
+        ${transfers.amount} as amount,
+        ${transfers.occurredOn} as occurred_on,
+        null::integer as category_id,
+        null::text as category_name,
+        null::integer as account_id,
+        null::text as account_name,
+        ${transfers.fromAccountId} as from_account_id,
+        ${fromAccounts.name} as from_account_name,
+        ${transfers.toAccountId} as to_account_id,
+        ${toAccounts.name} as to_account_name,
+        ${transfers.memo} as memo
+      from ${transfers}
+      inner join ${accounts} as transfer_from_accounts
+        on ${fromAccounts.id} = ${transfers.fromAccountId}
+        and ${fromAccounts.householdId} = ${householdId}
+      inner join ${accounts} as transfer_to_accounts
+        on ${toAccounts.id} = ${transfers.toAccountId}
+        and ${toAccounts.householdId} = ${householdId}
+      where ${sql.join(transferWhere, sql` and `)}
+    `);
+  }
+  if (parts.length === 0) return [];
+  const limit = filters.limit === undefined ? undefined : Math.max(0, filters.limit);
+  const offset = Math.max(0, filters.offset ?? 0);
+  const rows = await db.execute<{
+    id: number;
+    entry_type: string;
+    amount: number;
+    occurred_on: string;
+    category_id: number | null;
+    category_name: string | null;
+    account_id: number | null;
+    account_name: string | null;
+    from_account_id: number | null;
+    from_account_name: string | null;
+    to_account_id: number | null;
+    to_account_name: string | null;
+    memo: string;
+  }>(sql`
+    select *
+    from (${sql.join(parts, sql` union all `)}) as ledger_entries
+    order by occurred_on desc, id desc, (entry_type = 'transfer') desc
+    ${limit === undefined ? sql`` : sql`limit ${limit}`}
+    offset ${offset}
+  `);
+  return rows.map((row) =>
+    row.entry_type === 'transfer'
+      ? {
+          id: row.id,
+          type: 'transfer' as const,
+          amount: row.amount,
+          occurredOn: row.occurred_on,
+          fromAccountId: row.from_account_id!,
+          fromAccountName: row.from_account_name!,
+          toAccountId: row.to_account_id!,
+          toAccountName: row.to_account_name!,
+          memo: row.memo,
+        }
+      : {
+          id: row.id,
+          type: row.entry_type as TransactionType,
+          amount: row.amount,
+          occurredOn: row.occurred_on,
+          categoryId: row.category_id!,
+          categoryName: row.category_name!,
+          accountId: row.account_id,
+          accountName: row.account_name,
+          memo: row.memo,
+        },
   );
-  return filters.limit ? entries.slice(0, filters.limit) : entries;
 }
 
 export async function getTransaction(
@@ -404,7 +511,14 @@ export async function getAccountBalances(
       group by household_id, from_account_id
     ) tout on tout.household_id = a.household_id and tout.account_id = a.id
     where a.household_id = ${householdId}
-    order by a.name, a.id
+    order by case a.kind
+      when 'cash' then 0
+      when 'bank' then 1
+      when 'credit_card' then 2
+      when 'debit_card' then 3
+      when 'electronic_money' then 4
+      else 5
+    end, a.sort_order, a.id
   `);
   return rows;
 }
@@ -564,6 +678,7 @@ async function validateTransferAccounts(
   householdId: string,
   fromAccountId: number,
   toAccountId: number,
+  allowedDeletedAccountIds: readonly number[] = [],
 ): Promise<TransferValidationCode | null> {
   const fromInvalid =
     !Number.isSafeInteger(fromAccountId) || fromAccountId < 1 || fromAccountId > MAX_INT4_ID;
@@ -582,7 +697,7 @@ async function validateTransferAccounts(
     return 'same_account';
   }
   const accountRows = await db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, deletedAt: accounts.deletedAt })
     .from(accounts)
     .where(
       and(
@@ -590,9 +705,15 @@ async function validateTransferAccounts(
         inArray(accounts.id, [fromAccountId, toAccountId]),
       ),
     );
-  const accountIds = new Set(accountRows.map((account) => account.id));
-  const fromAvailable = accountIds.has(fromAccountId);
-  const toAvailable = accountIds.has(toAccountId);
+  const allowedDeleted = new Set(allowedDeletedAccountIds);
+  const accountAvailable = (id: number, deletedAt: Date | null) =>
+    deletedAt === null || allowedDeleted.has(id);
+  const fromAvailable = accountRows.some(
+    (account) => account.id === fromAccountId && accountAvailable(account.id, account.deletedAt),
+  );
+  const toAvailable = accountRows.some(
+    (account) => account.id === toAccountId && accountAvailable(account.id, account.deletedAt),
+  );
   if (fromAvailable && toAvailable) {
     return null;
   }
@@ -649,7 +770,11 @@ export async function updateTransfer(
   try {
     return await db.transaction(async (transaction) => {
       const targetRows = await transaction
-        .select({ id: transfers.id })
+        .select({
+          id: transfers.id,
+          fromAccountId: transfers.fromAccountId,
+          toAccountId: transfers.toAccountId,
+        })
         .from(transfers)
         .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
         .limit(1);
@@ -661,6 +786,7 @@ export async function updateTransfer(
         householdId,
         input.fromAccountId,
         input.toAccountId,
+        [targetRows[0].fromAccountId, targetRows[0].toAccountId],
       );
       if (validationCode) {
         return { status: 'validation_error', code: validationCode };

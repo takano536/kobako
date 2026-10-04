@@ -13,8 +13,9 @@ export interface MoneyManagerImportSuccessState {
   counts: MoneyManagerImportCounts;
   period?: MoneyManagerImportPeriod;
   months: string[];
-  createdCategories: number;
-  createdAccounts: number;
+  createdCategories?: number;
+  createdAccounts?: number;
+  duplicateOperation: boolean;
 }
 
 export interface MoneyManagerImportState {

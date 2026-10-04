@@ -45,6 +45,8 @@ type CategoryOption = {
 type AccountOption = {
   id: number;
   name: string;
+  status: 'active' | 'closed';
+  deletedAt: Date | null;
 };
 
 export interface TransactionFormProps {
@@ -61,6 +63,7 @@ export interface TransactionFormProps {
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
   'type',
   'amount',
+  'accountId',
   'fromAccountId',
   'toAccountId',
   'occurredOn',
@@ -195,6 +198,17 @@ export function TransactionForm({
   const formValues = state.values && !isDirty ? state.values : values;
   const selectedType: TransactionFormType =
     formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
+  const linkedFromAccountId = Number(formValues.fromAccountId);
+  const linkedToAccountId = Number(formValues.toAccountId);
+  const transferAccounts = accounts.filter(
+    (account) =>
+      account.deletedAt === null ||
+      account.id === linkedFromAccountId ||
+      account.id === linkedToAccountId,
+  );
+  const normalAccounts = accounts.filter(
+    (account) => account.deletedAt === null || account.id === Number(formValues.accountId),
+  );
 
   useEffect(() => {
     if (state.values) {
@@ -290,6 +304,7 @@ export function TransactionForm({
       amount: submittedValues.amount,
       occurredOn: submittedValues.occurredOn,
       categoryId: submittedValues.categoryId,
+      accountId: submittedValues.accountId,
       memo: submittedValues.memo,
     });
     if (result.success) {
@@ -317,6 +332,7 @@ export function TransactionForm({
   const toAccountError = firstTransactionFieldError(errors, 'toAccountId');
   const occurredOnError = firstTransactionFieldError(errors, 'occurredOn');
   const categoryError = firstTransactionFieldError(errors, 'categoryId');
+  const accountError = firstTransactionFieldError(errors, 'accountId');
   const memoError = firstTransactionFieldError(errors, 'memo');
   const messages = errorMessages(errors);
   const dialogMessages =
@@ -480,7 +496,10 @@ export function TransactionForm({
           })}
         </div>
 
-        <div className="entry-detail-grid account-detail-grid">
+        <div
+          id="transaction-transfer-accounts"
+          className="entry-detail-grid account-detail-grid transfer-account-detail-grid"
+        >
           <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
             <label htmlFor="transaction-from-account">振替元</label>
             <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
@@ -495,7 +514,7 @@ export function TransactionForm({
                 required
               >
                 <option value="">選択してください</option>
-                {accounts.map((account) => (
+                {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
                   </option>
@@ -520,7 +539,7 @@ export function TransactionForm({
                 required
               >
                 <option value="">選択してください</option>
-                {accounts.map((account) => (
+                {transferAccounts.map((account) => (
                   <option value={account.id} key={account.id}>
                     {account.name}
                   </option>
@@ -528,6 +547,32 @@ export function TransactionForm({
               </select>
               {toAccountError ? (
                 <FieldError id="transaction-to-account-error" message={toAccountError} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className="entry-detail-grid ordinary-account-detail-grid">
+          <div className={`field account-field${accountError ? ' has-error' : ''}`}>
+            <label htmlFor="transaction-account">資産</label>
+            <div className={`field-value${accountError ? ' has-error' : ''}`}>
+              <select
+                className="field-select"
+                id="transaction-account"
+                name="accountId"
+                value={formValues.accountId}
+                onChange={(event) => updateValue('accountId', event.currentTarget.value)}
+                aria-invalid={accountError ? true : undefined}
+                aria-describedby={accountError ? 'transaction-account-error' : undefined}
+              >
+                <option value="">選択してください</option>
+                {normalAccounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {accountError ? (
+                <FieldError id="transaction-account-error" message={accountError} />
               ) : null}
             </div>
           </div>
@@ -590,21 +635,32 @@ export function TransactionForm({
   );
 }
 
+export type DeleteAction = (
+  previousState: DeleteFormState,
+  formData: FormData,
+) => Promise<DeleteFormState>;
+
 export interface DeleteTransactionFormProps {
   transactionId: number;
   entryType?: 'transaction' | 'transfer';
   formId?: string;
+  action?: DeleteAction;
+  targetLabel?: string;
+  idFieldName?: string;
+  cancelHref?: string;
 }
 
 export function DeleteTransactionForm({
   transactionId,
   entryType = 'transaction',
   formId = 'delete-transaction-form',
+  action,
+  targetLabel = '取引',
+  idFieldName = 'id',
+  cancelHref,
 }: DeleteTransactionFormProps) {
-  const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(
-    deleteTransactionAction.bind(null, entryType),
-    {},
-  );
+  const deleteAction = action ?? deleteTransactionAction.bind(null, entryType);
+  const [state, formAction, pending] = useActionState<DeleteFormState, FormData>(deleteAction, {});
   const [hasHydrated, setHasHydrated] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -730,9 +786,10 @@ export function DeleteTransactionForm({
   }, [closeDeleteConfirm, hasHydrated, isDeleteConfirmOpen]);
 
   const editPath =
-    entryType === 'transfer'
+    cancelHref ??
+    (entryType === 'transfer'
       ? `/transactions/transfers/${transactionId}/edit`
-      : `/transactions/${transactionId}/edit`;
+      : `/transactions/${transactionId}/edit`);
 
   function handleCancel(event: MouseEvent<HTMLAnchorElement>): void {
     event.preventDefault();
@@ -768,9 +825,9 @@ export function DeleteTransactionForm({
             aria-modal="true"
             aria-labelledby={`${formId}-title`}
           >
-            <p id={`${formId}-title`}>この取引を削除しますか？</p>
+            <p id={`${formId}-title`}>この{targetLabel}を削除しますか？</p>
             <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
-              <input type="hidden" name="id" value={transactionId} />
+              <input type="hidden" name={idFieldName} value={transactionId} />
 
               <input type="hidden" name="confirm" value="delete" />
               <button

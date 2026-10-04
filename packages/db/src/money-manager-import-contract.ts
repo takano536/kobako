@@ -25,8 +25,8 @@ export interface MoneyManagerImportPreviewCategory {
 
 export interface MoneyManagerImportPreviewAccount {
   name: string;
+  sourceAccountId?: string;
 }
-
 /** A bounded, serializable row shown by the confirmation UI. */
 export interface MoneyManagerImportPreviewRow {
   sourceRow: number;
@@ -58,6 +58,7 @@ export interface MoneyManagerImportPreviewFileError {
  */
 export interface MoneyManagerImportPreview {
   hash: string;
+  operationKey: string;
   fileName: string;
   fileSize: number;
   readRowCount: number;
@@ -70,8 +71,6 @@ export interface MoneyManagerImportPreview {
   fileError?: MoneyManagerImportPreviewFileError;
   newCategories: MoneyManagerImportPreviewCategory[];
   newAccounts: MoneyManagerImportPreviewAccount[];
-  alreadyImported: boolean;
-  previousImportDate?: string;
 }
 
 export interface MoneyManagerImportCategorySummary {
@@ -84,7 +83,7 @@ export interface MoneyManagerImportCategorySummary {
 export interface MoneyManagerImportAccountSummary {
   name: string;
   id: number;
-  action: 'created' | 'reused';
+  action: 'created';
 }
 
 export interface MoneyManagerImportSuccess {
@@ -102,7 +101,6 @@ export interface MoneyManagerImportSuccess {
 export interface MoneyManagerImportDuplicate {
   status: 'duplicate';
   importId?: number;
-  previousImportDate?: string;
 }
 
 export type MoneyManagerImportCommitResult =
