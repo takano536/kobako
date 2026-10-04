@@ -25,8 +25,10 @@ export interface MoneyManagerImportPreviewCategory {
 
 export interface MoneyManagerImportPreviewAccount {
   name: string;
+  sourceAccountId?: string;
+  sourceKey?: string;
+  candidates?: { id: number; name: string; status?: 'active' | 'closed' }[];
 }
-
 /** A bounded, serializable row shown by the confirmation UI. */
 export interface MoneyManagerImportPreviewRow {
   sourceRow: number;
@@ -70,6 +72,8 @@ export interface MoneyManagerImportPreview {
   fileError?: MoneyManagerImportPreviewFileError;
   newCategories: MoneyManagerImportPreviewCategory[];
   newAccounts: MoneyManagerImportPreviewAccount[];
+  accountResolutionError?: MoneyManagerImportValidationError;
+  accountChoices?: MoneyManagerImportPreviewAccount[];
   alreadyImported: boolean;
   previousImportDate?: string;
 }
@@ -105,5 +109,20 @@ export interface MoneyManagerImportDuplicate {
   previousImportDate?: string;
 }
 
+export type MoneyManagerImportValidationCode =
+  | 'duplicate_account_target'
+  | 'same_account'
+  | 'invalid_account_selection'
+  | 'missing_account_resolution'
+  | 'unexpected_account_resolution'
+  | 'duplicate_account_resolution';
+
+export interface MoneyManagerImportValidationError {
+  status: 'validation_error';
+  code: MoneyManagerImportValidationCode;
+  sourceAccountNames?: string[];
+  sourceRow?: number;
+}
+
 export type MoneyManagerImportCommitResult =
-  MoneyManagerImportSuccess | MoneyManagerImportDuplicate;
+  MoneyManagerImportSuccess | MoneyManagerImportDuplicate | MoneyManagerImportValidationError;

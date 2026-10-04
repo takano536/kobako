@@ -39,12 +39,13 @@ describe('amount input format', () => {
 });
 
 describe('unified transaction form values', () => {
-  it('keeps category fields for ordinary transactions and ignores account fields', () => {
+  it('keeps the selected account for ordinary transactions and ignores transfer fields', () => {
     const formData = new FormData();
     formData.set('type', 'expense');
     formData.set('amount', '1200');
     formData.set('occurredOn', '2026-09-01');
     formData.set('categoryId', '3');
+    formData.set('accountId', '13');
     formData.set('fromAccountId', '11');
     formData.set('toAccountId', '12');
     formData.set('memo', '食費');
@@ -53,6 +54,7 @@ describe('unified transaction form values', () => {
       amount: '1200',
       occurredOn: '2026-09-01',
       categoryId: '3',
+      accountId: '13',
       fromAccountId: '',
       toAccountId: '',
       memo: '食費',
@@ -73,19 +75,21 @@ describe('unified transaction form values', () => {
       amount: '1200',
       occurredOn: '2026-09-01',
       categoryId: '',
+      accountId: '',
       fromAccountId: '11',
       toAccountId: '12',
       memo: '移動',
     });
   });
 
-  it('extracts income values while ignoring account ids', () => {
+  it('extracts income values with its account and ignores transfer fields', () => {
     const formData = new FormData();
     formData.set('type', 'income');
     formData.set('amount', '500');
     formData.set('occurredOn', '2026-09-01');
     formData.append('categoryId', 'expense-category');
     formData.append('categoryId', 'income-category');
+    formData.set('accountId', '21');
     formData.set('fromAccountId', '11');
     formData.set('toAccountId', '12');
     formData.set('memo', '給与');
@@ -94,6 +98,7 @@ describe('unified transaction form values', () => {
       amount: '500',
       occurredOn: '2026-09-01',
       categoryId: 'income-category',
+      accountId: '21',
       fromAccountId: '',
       toAccountId: '',
       memo: '給与',
@@ -106,6 +111,7 @@ describe('unified transaction form values', () => {
       amount: '1200',
       occurredOn: '2026-09-01',
       categoryId: '3',
+      accountId: '7',
       fromAccountId: '11',
       toAccountId: '12',
       memo: '維持',
@@ -131,6 +137,7 @@ describe('unified transaction form values', () => {
       ...values,
       type: 'expense',
       categoryId: '10',
+      accountId: '',
       fromAccountId: '',
       toAccountId: '',
     });

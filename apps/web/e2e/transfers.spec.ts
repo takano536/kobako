@@ -192,11 +192,11 @@ test.beforeAll(async () => {
     toName = `${marker}:先`;
     alternateName = `${marker}:変更先`;
     await databaseClient.sql`
-      insert into accounts (household_id, name)
+      insert into accounts (household_id, name, group_id)
       values
-        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}),
-        (${DEFAULT_HOUSEHOLD_ID}, ${toName}),
-        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName})
+        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他')),
+        (${DEFAULT_HOUSEHOLD_ID}, ${toName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他')),
+        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName}, (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
     `;
   } catch (error) {
     await databaseClient.close();

@@ -12,8 +12,8 @@ export function SiteNav() {
     : '/transactions/new';
   const overviewCurrent = pathname === '/';
   const transactionsCurrent = pathname.startsWith('/transactions');
+  const accountsCurrent = pathname.startsWith('/accounts');
   const balancesCurrent = pathname.startsWith('/balances');
-
   return (
     <nav className="site-nav" aria-label="メインナビゲーション">
       <Link href="/" aria-current={overviewCurrent ? 'page' : undefined}>
@@ -24,6 +24,9 @@ export function SiteNav() {
       </Link>
       <Link href="/balances" aria-current={balancesCurrent ? 'page' : undefined}>
         残高
+      </Link>
+      <Link href="/accounts" aria-current={accountsCurrent ? 'page' : undefined}>
+        口座
       </Link>
       <Link className="nav-add" href={addHref} aria-label="取引を登録" title="取引を登録">
         <span aria-hidden="true">＋</span>
@@ -38,6 +41,7 @@ export function SiteNavFallback() {
       <Link href="/">概要</Link>
       <Link href="/transactions">取引</Link>
       <Link href="/balances">残高</Link>
+      <Link href="/accounts">口座</Link>
       <Link className="nav-add" href="/transactions/new" aria-label="取引を登録" title="取引を登録">
         <span aria-hidden="true">＋</span>
       </Link>

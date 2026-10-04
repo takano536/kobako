@@ -7,11 +7,8 @@ export {
   MONEY_MANAGER_MEMO_LIMIT,
   MONEY_MANAGER_SOURCE,
   normalizeMoneyManagerCells,
-  planMoneyManagerAccounts,
   planMoneyManagerCategories,
-  type ExistingMoneyManagerAccount,
   type ExistingMoneyManagerCategory,
-  type MoneyManagerAccountPlan,
   type MoneyManagerCategoryPlan,
   type MoneyManagerCell,
   type MoneyManagerCellGrid,
@@ -43,4 +40,6 @@ export type {
   MoneyManagerImportPreviewRow,
   MoneyManagerImportPreviewRowError,
   MoneyManagerImportSuccess,
+  MoneyManagerImportValidationCode,
+  MoneyManagerImportValidationError,
 } from './money-manager-import-contract.js';
