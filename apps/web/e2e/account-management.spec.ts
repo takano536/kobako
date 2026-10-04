@@ -188,6 +188,8 @@ test('edits an imported account and returns to its filtered transaction list', a
     .locator('.account-transaction-header')
     .getByRole('link', { name: '口座設定', exact: true })
     .click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${account.id}/edit\\?return=`));
+  await expect(page.getByLabel('口座名', { exact: true })).toHaveValue(importedName);
   await page.getByLabel('口座名', { exact: true }).fill(editedName);
   await page.getByRole('button', { name: '保存する' }).click();
   await expect(page).toHaveURL(`/transactions?account=${account.id}&month=all&saved=1`);
@@ -466,6 +468,8 @@ test('preserves filtered page two through account settings and exposes the empty
   await expectPageTwoRows(accountName);
 
   await page.getByRole('link', { name: '口座設定', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${account.id}/edit\\?return=`));
+  await expect(page.getByLabel('口座名', { exact: true })).toHaveValue(accountName);
   await page.getByLabel('口座名', { exact: true }).fill(renamedAccountName);
   await page.getByRole('button', { name: '保存する', exact: true }).click();
   await expectFilterUrl(true);
@@ -762,6 +766,10 @@ test('records unset and partial card conditions and confirms past corrections', 
     .locator('.card-condition-history li')
     .filter({ hasText: '2025年2月1日の締め期間から' });
   await latestCondition.getByRole('link', { name: 'この条件を修正' }).click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${card.id}/card\\?conditionId=\\d+&return=`));
+  await expect(page.getByRole('textbox', { name: '適用開始日（未入力は初期条件）' })).toHaveValue(
+    '2025-02-01',
+  );
   await page.getByRole('textbox', { name: '適用開始日（未入力は初期条件）' }).fill('2025-03-01');
   await page.getByRole('button', { name: '変更内容を確認', exact: true }).click();
   await expect(page).toHaveURL(
