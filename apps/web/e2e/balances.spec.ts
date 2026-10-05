@@ -203,29 +203,41 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 }
 async function expectSummaryValuesFit(page: Page): Promise<void> {
   const values = await page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-value')).map((value) => ({
-      clientWidth: value.clientWidth,
-      scrollWidth: value.scrollWidth,
-      scrollHeight: value.scrollHeight,
-      text: value.textContent ?? '',
-      whiteSpace: getComputedStyle(value).whiteSpace,
-    })),
+    Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-value')).map((value) => {
+      const style = getComputedStyle(value);
+      return {
+        clientWidth: value.clientWidth,
+        scrollWidth: value.scrollWidth,
+        height: value.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(style.lineHeight),
+        scrollHeight: value.scrollHeight,
+        text: value.textContent ?? '',
+        whiteSpace: style.whiteSpace,
+      };
+    }),
   );
   expect(values).toHaveLength(3);
   for (const value of values) {
     expect(value.clientWidth).toBeGreaterThan(0);
     expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
-    expect(value.scrollHeight).toBeGreaterThan(0);
+    expect(value.height).toBeGreaterThanOrEqual(value.lineHeight - 1);
+    expect(value.height).toBeLessThanOrEqual(value.lineHeight + 1);
+    expect(value.scrollHeight).toBeLessThanOrEqual(value.lineHeight + 1);
     expect(value.text).not.toBe('');
+    expect(value.whiteSpace).toBe('nowrap');
   }
 }
-async function expectMobileSummaryLayout(page: Page): Promise<void> {
+async function expectMobileSummaryLayout(
+  page: Page,
+  options: { requireSingleRow?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
     const list = document.querySelector<HTMLElement>('.balance-summary-list');
     const items = Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-item'));
     if (!list || items.length !== 3) {
       throw new Error('balance summary layout elements are missing');
     }
+    const listBox = list.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
     const itemGeometry = items.map((item) => {
       const label = item.querySelector<HTMLElement>('.balance-summary-label');
@@ -258,57 +270,85 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
         valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
         valueTextAlign: valueStyle.textAlign,
         valueWhiteSpace: valueStyle.whiteSpace,
-        valueOverflowWrap: valueStyle.overflowWrap,
         valueScrollWidth: value.scrollWidth,
         valueClientWidth: value.clientWidth,
+        itemFlex: itemStyle.flex,
+        itemMinWidth: itemStyle.minWidth,
         borderInlineStart: itemStyle.borderInlineStartWidth,
         borderBlockStart: itemStyle.borderBlockStartWidth,
         dividerBorderBlockStart: dividerStyle.borderBlockStartWidth,
       };
     });
+    const rowTops: number[] = [];
+    for (const item of itemGeometry) {
+      if (!rowTops.some((rowTop) => Math.abs(rowTop - item.itemTop) <= 1)) {
+        rowTops.push(item.itemTop);
+      }
+    }
     return {
-      gridTemplateColumns: listStyle.gridTemplateColumns,
+      display: listStyle.display,
+      flexWrap: listStyle.flexWrap,
       columnGap: listStyle.columnGap,
+      rowGap: listStyle.rowGap,
       paddingInlineStart: listStyle.paddingInlineStart,
       paddingInlineEnd: listStyle.paddingInlineEnd,
       borderBlockStart: listStyle.borderBlockStartWidth,
       borderBlockEnd: listStyle.borderBlockEndWidth,
+      listLeft: listBox.left,
+      listRight: listBox.right,
+      rowTops,
       itemGeometry,
       summaryHeight: document
         .querySelector<HTMLElement>('.balance-summary')
         ?.getBoundingClientRect().height,
     };
   });
-  expect(layout.gridTemplateColumns.split(' ')).toHaveLength(3);
+  expect(layout.display).toBe('flex');
+  expect(layout.flexWrap).toBe('wrap');
   expect(layout.columnGap).toBe('16px');
+  expect(layout.rowGap).toBe('16px');
   expect(layout.paddingInlineStart).toBe('0px');
   expect(layout.paddingInlineEnd).toBe('0px');
   expect(layout.borderBlockStart).toBe('0px');
   expect(layout.borderBlockEnd).toBe('0px');
   expect(layout.itemGeometry.map((item) => item.label)).toEqual(['資産', '負債', '純資産']);
+  if (options.requireSingleRow) {
+    expect(layout.rowTops).toHaveLength(1);
+  }
   const firstItem = layout.itemGeometry[0];
   if (!firstItem) throw new Error('first mobile summary item is missing');
   const netItem = layout.itemGeometry[2];
   if (!netItem) throw new Error('net mobile summary item is missing');
-  for (const [index, item] of layout.itemGeometry.entries()) {
-    expect(Math.abs(item.itemTop - firstItem.itemTop)).toBeLessThanOrEqual(1);
-    expect(Math.abs(item.itemBottom - firstItem.itemBottom)).toBeLessThanOrEqual(1);
-    expect(Math.abs(item.itemHeight - firstItem.itemHeight)).toBeLessThanOrEqual(1);
-    if (index > 0) {
-      const previousItem = layout.itemGeometry[index - 1];
-      if (!previousItem) throw new Error('previous mobile summary item is missing');
-      expect(item.itemLeft).toBeGreaterThanOrEqual(previousItem.itemRight);
+  for (const rowTop of layout.rowTops) {
+    const rowItems = layout.itemGeometry.filter((item) => Math.abs(item.itemTop - rowTop) <= 1);
+    const firstRowItem = rowItems[0];
+    if (!firstRowItem) throw new Error('mobile summary row is missing');
+    expect(
+      Math.abs(Math.min(...rowItems.map((item) => item.itemLeft)) - layout.listLeft),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(Math.max(...rowItems.map((item) => item.itemRight)) - layout.listRight),
+    ).toBeLessThanOrEqual(1);
+    for (const [index, item] of rowItems.entries()) {
+      expect(Math.abs(item.itemBottom - firstRowItem.itemBottom)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.itemHeight - firstRowItem.itemHeight)).toBeLessThanOrEqual(1);
+      if (index > 0) {
+        const previousItem = rowItems[index - 1];
+        if (!previousItem) throw new Error('previous mobile summary item is missing');
+        expect(item.itemLeft).toBeGreaterThanOrEqual(previousItem.itemRight);
+      }
+      expect(Math.abs(item.labelCenter - item.itemCenter)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.valueCenter - item.itemCenter)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.valueBottom - firstRowItem.valueBottom)).toBeLessThanOrEqual(1);
+      expect(item.valueTextAlign).toBe('center');
+      expect(item.valueWhiteSpace).toBe('nowrap');
+      expect(item.valueScrollWidth).toBeLessThanOrEqual(item.valueClientWidth + 1);
+      expect(item.itemFlex).toBe('1 1 0px');
+      expect(item.itemMinWidth).toBe('max-content');
+      expect(item.borderInlineStart).toBe('0px');
+      expect(item.borderBlockStart).toBe('0px');
+      expect(item.dividerBorderBlockStart).toBe('0px');
     }
-    expect(Math.abs(item.labelCenter - item.itemCenter)).toBeLessThanOrEqual(1);
-    expect(Math.abs(item.valueCenter - item.itemCenter)).toBeLessThanOrEqual(1);
-    expect(Math.abs(item.valueBottom - firstItem.valueBottom)).toBeLessThanOrEqual(1);
-    expect(item.valueTextAlign).toBe('center');
-    expect(item.valueWhiteSpace).toBe('normal');
-    expect(item.valueOverflowWrap).toBe('anywhere');
-    expect(item.valueScrollWidth).toBeLessThanOrEqual(item.valueClientWidth + 1);
-    expect(item.borderInlineStart).toBe('0px');
-    expect(item.borderBlockStart).toBe('0px');
-    expect(item.dividerBorderBlockStart).toBe('0px');
   }
   expect(firstItem.valueFontSize).toBe(15);
   expect(firstItem.valueFontWeight).toBe(400);
@@ -938,7 +978,7 @@ test('captures natural summary fixtures for mobile and desktop visuals', async (
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/balances');
       await expectBalanceSummary(page, values);
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { requireSingleRow: true });
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);

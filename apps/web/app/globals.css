@@ -2524,14 +2524,18 @@ h3 {
   }
 
   .balance-summary-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    border-block: 0;
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-group);
+    border-block: 0;
     padding-inline: 0;
   }
 
   .balance-summary-item {
     position: static;
+    display: grid;
+    flex: 1 1 0;
+    min-width: max-content;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr;
     align-items: start;
@@ -2569,8 +2573,7 @@ h3 {
     letter-spacing: normal;
     line-height: var(--leading-tight);
     text-align: center;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 
   .balance-summary-item:has(.balance-summary-net) .balance-summary-label {
