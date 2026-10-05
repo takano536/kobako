@@ -2524,73 +2524,48 @@ h3 {
   }
 
   .balance-summary-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--space-within);
   }
 
   .balance-summary-item {
-    display: flex;
-    gap: var(--space-within);
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) max-content;
     align-items: baseline;
-    justify-content: space-between;
-    padding-block: var(--space-item);
-    padding-inline: var(--space-item);
-    text-align: right;
+    justify-items: stretch;
+    gap: var(--space-item);
+    padding-block: var(--space-within);
+    padding-inline: 0;
+    text-align: left;
   }
 
   .balance-summary-item + .balance-summary-item {
-    padding-inline-start: var(--space-item);
-    border-inline-start: 1px solid var(--rule);
-    border-top: 0;
-  }
-
-  .balance-summary-item:nth-child(1) {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .balance-summary-item:nth-child(2) {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .balance-summary-item:nth-child(3) {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    padding-inline-end: 0;
     border-inline-start: 0;
-    border-bottom: 1px solid var(--rule);
+    border-block-start: 0;
   }
 
-  .balance-summary-item:nth-child(1),
-  .balance-summary-item:nth-child(2) {
-    flex-direction: column;
-    gap: 0;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding-block: var(--space-within);
-    padding-inline-end: 0;
-  }
-
-  .balance-summary-item:nth-child(2) {
-    padding-inline-start: 0;
+  .balance-summary-item + .balance-summary-item::before {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    border-block-start: 1px solid var(--rule);
+    content: '';
   }
 
   .balance-summary-label {
-    font-size: var(--text-small);
+    justify-self: start;
+    text-align: left;
     white-space: nowrap;
   }
 
   .balance-summary-value {
+    justify-self: end;
     width: auto;
     max-width: 100%;
+    margin: 0;
     font-size: var(--text-body);
     letter-spacing: normal;
     text-align: right;
-  }
-
-  .balance-summary-item:nth-child(1) .balance-summary-value,
-  .balance-summary-item:nth-child(2) .balance-summary-value {
-    font-size: var(--text-small);
   }
 
   .balance-list {
