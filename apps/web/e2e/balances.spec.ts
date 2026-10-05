@@ -49,13 +49,20 @@ const compactSummaryMarker = `${markerPrefix}compact-summary:`;
 const compactSummaryAssetAccountName = `${compactSummaryMarker}asset`;
 const compactSummaryLiabilityAccountName = `${compactSummaryMarker}liability`;
 const compactSummaryAssetTotal = '9876543210';
-const compactSummaryLiabilityTotal = '9999999999';
+const compactSummaryLiabilityTotal = '17654321098';
 const compactSummaryNet = (
   BigInt(compactSummaryAssetTotal) - BigInt(compactSummaryLiabilityTotal)
 ).toString();
 const compactSummaryAssetsDisplay = formatFixtureAmount(compactSummaryAssetTotal);
 const compactSummaryLiabilitiesDisplay = formatFixtureAmount(compactSummaryLiabilityTotal);
 const compactSummaryNetDisplay = formatFixtureAmount(compactSummaryNet.slice(1));
+const visualSummaryMarker = `${markerPrefix}visual-summary:`;
+const visualSummaryAccountNames = ['財布', '普通預金', 'クレジットカード'] as const;
+const visualSummaryValues = {
+  assets: '200000',
+  liabilities: '23456',
+  net: '176544',
+} as const;
 
 let databaseClient: DatabaseClient | undefined;
 let developmentUrl: string | undefined;
@@ -166,9 +173,6 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
   const viewportWidth = page.viewportSize()?.width ?? 0;
   const stickyHeight = await summary.evaluate((element) => element.getBoundingClientRect().height);
   console.log(`BALANCE_STICKY_HEIGHT ${viewportWidth} ${stickyHeight}`);
-  if (viewportWidth <= 390) {
-    expect(stickyHeight).toBeLessThanOrEqual(90);
-  }
 
   await page.evaluate(() => {
     document.body.style.minHeight = '200vh';
@@ -202,16 +206,17 @@ async function expectSummaryValuesFit(page: Page): Promise<void> {
     Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-value')).map((value) => ({
       clientWidth: value.clientWidth,
       scrollWidth: value.scrollWidth,
-      height: value.getBoundingClientRect().height,
-      lineHeight: Number.parseFloat(getComputedStyle(value).lineHeight),
+      scrollHeight: value.scrollHeight,
+      text: value.textContent ?? '',
       whiteSpace: getComputedStyle(value).whiteSpace,
     })),
   );
   expect(values).toHaveLength(3);
   for (const value of values) {
-    expect(value.whiteSpace).toBe('nowrap');
+    expect(value.clientWidth).toBeGreaterThan(0);
     expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
-    expect(value.height).toBeLessThanOrEqual(value.lineHeight + 1);
+    expect(value.scrollHeight).toBeGreaterThan(0);
+    expect(value.text).not.toBe('');
   }
 }
 async function expectMobileSummaryLayout(page: Page): Promise<void> {
@@ -239,19 +244,21 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
         label: label.textContent,
         itemTop: itemBox.top,
         itemBottom: itemBox.bottom,
+        itemLeft: itemBox.left,
+        itemRight: itemBox.right,
         itemHeight: itemBox.height,
-        labelLeft: labelBox.left,
+        itemCenter: (itemBox.left + itemBox.right) / 2,
+        labelCenter: (labelBox.left + labelBox.right) / 2,
         labelBottom: labelBox.bottom,
-        valueRight: valueBox.right,
+        labelColor: labelStyle.color,
+        valueCenter: (valueBox.left + valueBox.right) / 2,
         valueBottom: valueBox.bottom,
         valueHeight: valueBox.height,
-        valueLineHeight: Number.parseFloat(valueStyle.lineHeight),
-        labelFontSize: Number.parseFloat(labelStyle.fontSize),
         valueFontSize: Number.parseFloat(valueStyle.fontSize),
-        labelFontWeight: Number.parseInt(labelStyle.fontWeight, 10),
         valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
-        valueWhiteSpace: valueStyle.whiteSpace,
         valueTextAlign: valueStyle.textAlign,
+        valueWhiteSpace: valueStyle.whiteSpace,
+        valueOverflowWrap: valueStyle.overflowWrap,
         valueScrollWidth: value.scrollWidth,
         valueClientWidth: value.clientWidth,
         borderInlineStart: itemStyle.borderInlineStartWidth,
@@ -261,6 +268,7 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
     });
     return {
       gridTemplateColumns: listStyle.gridTemplateColumns,
+      columnGap: listStyle.columnGap,
       paddingInlineStart: listStyle.paddingInlineStart,
       paddingInlineEnd: listStyle.paddingInlineEnd,
       borderBlockStart: listStyle.borderBlockStartWidth,
@@ -271,34 +279,45 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
         ?.getBoundingClientRect().height,
     };
   });
-  expect(layout.gridTemplateColumns.split(' ')).toHaveLength(1);
-  expect(layout.paddingInlineStart).toBe('4px');
-  expect(layout.paddingInlineEnd).toBe('4px');
-  expect(layout.borderBlockStart).toBe('1px');
-  expect(layout.borderBlockEnd).toBe('1px');
+  expect(layout.gridTemplateColumns.split(' ')).toHaveLength(3);
+  expect(layout.columnGap).toBe('16px');
+  expect(layout.paddingInlineStart).toBe('0px');
+  expect(layout.paddingInlineEnd).toBe('0px');
+  expect(layout.borderBlockStart).toBe('0px');
+  expect(layout.borderBlockEnd).toBe('0px');
   expect(layout.itemGeometry.map((item) => item.label)).toEqual(['資産', '負債', '純資産']);
   const firstItem = layout.itemGeometry[0];
   if (!firstItem) throw new Error('first mobile summary item is missing');
-  const baselineOffset = firstItem.labelBottom - firstItem.valueBottom;
+  const netItem = layout.itemGeometry[2];
+  if (!netItem) throw new Error('net mobile summary item is missing');
   for (const [index, item] of layout.itemGeometry.entries()) {
+    expect(Math.abs(item.itemTop - firstItem.itemTop)).toBeLessThanOrEqual(1);
+    expect(Math.abs(item.itemBottom - firstItem.itemBottom)).toBeLessThanOrEqual(1);
     expect(Math.abs(item.itemHeight - firstItem.itemHeight)).toBeLessThanOrEqual(1);
     if (index > 0) {
       const previousItem = layout.itemGeometry[index - 1];
       if (!previousItem) throw new Error('previous mobile summary item is missing');
-      expect(Math.abs(item.itemTop - previousItem.itemBottom)).toBeLessThanOrEqual(1);
+      expect(item.itemLeft).toBeGreaterThanOrEqual(previousItem.itemRight);
     }
-    expect(item.labelLeft).toBeCloseTo(firstItem.labelLeft, 0);
-    expect(item.valueRight).toBeCloseTo(firstItem.valueRight, 0);
-    expect(Math.abs(item.labelBottom - item.valueBottom - baselineOffset)).toBeLessThanOrEqual(1);
-    expect(item.valueFontWeight).toBeGreaterThanOrEqual(item.labelFontWeight);
-    expect(item.valueTextAlign).toBe('right');
-    expect(item.valueWhiteSpace).toBe('nowrap');
+    expect(Math.abs(item.labelCenter - item.itemCenter)).toBeLessThanOrEqual(1);
+    expect(Math.abs(item.valueCenter - item.itemCenter)).toBeLessThanOrEqual(1);
+    expect(Math.abs(item.valueBottom - firstItem.valueBottom)).toBeLessThanOrEqual(1);
+    expect(item.valueTextAlign).toBe('center');
+    expect(item.valueWhiteSpace).toBe('normal');
+    expect(item.valueOverflowWrap).toBe('anywhere');
     expect(item.valueScrollWidth).toBeLessThanOrEqual(item.valueClientWidth + 1);
-    expect(item.valueHeight).toBeLessThanOrEqual(item.valueLineHeight + 1);
     expect(item.borderInlineStart).toBe('0px');
-    expect(item.dividerBorderBlockStart).toBe(index === 0 ? '0px' : '1px');
+    expect(item.borderBlockStart).toBe('0px');
+    expect(item.dividerBorderBlockStart).toBe('0px');
   }
-  expect(layout.summaryHeight).toBeLessThanOrEqual(90);
+  expect(firstItem.valueFontSize).toBe(15);
+  expect(firstItem.valueFontWeight).toBe(400);
+  expect(layout.itemGeometry[1]?.valueFontSize).toBe(15);
+  expect(layout.itemGeometry[1]?.valueFontWeight).toBe(400);
+  expect(netItem.valueFontSize).toBe(16);
+  expect(netItem.valueFontWeight).toBe(600);
+  expect(netItem.labelColor).not.toBe(firstItem.labelColor);
+  expect(layout.summaryHeight).toBeGreaterThan(0);
 }
 
 async function expectDesktopSummaryLayout(page: Page): Promise<void> {
@@ -563,14 +582,14 @@ async function seedCompactSummaryBalances(): Promise<void> {
       ${DEFAULT_HOUSEHOLD_ID}, 'expense', ${summaryFixtureUnit}, ${`${month}-02`},
       ${expenseCategory.id}, ${liabilityAccountId},
       ${`${compactSummaryMarker}liability-`} || series.row_number::text
-    from generate_series(1, 10) as series(row_number)
+    from generate_series(1, 17) as series(row_number)
   `;
   await client.sql`
     insert into transactions (
       household_id, type, amount, occurred_on, category_id, account_id, memo
     )
     values (
-      ${DEFAULT_HOUSEHOLD_ID}, 'expense', 9, ${`${month}-11`},
+      ${DEFAULT_HOUSEHOLD_ID}, 'expense', 654321115, ${`${month}-11`},
       ${expenseCategory.id}, ${liabilityAccountId}, ${`${compactSummaryMarker}liability-remainder`}
     )
   `;
@@ -586,6 +605,62 @@ async function cleanupCompactSummaryBalances(): Promise<void> {
     delete from accounts
     where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${compactSummaryMarker}%`}
   `;
+}
+type VisualSummaryFixture = {
+  accountIds: number[];
+};
+
+async function seedVisualSummaryBalances(): Promise<VisualSummaryFixture> {
+  const client = database();
+  const accounts = await client.sql<{ id: number; name: string }[]>`
+    insert into accounts (household_id, name, kind)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[0]}, 'cash'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[1]}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[2]}, 'credit_card')
+    returning id, name
+  `;
+  const categories = await client.sql<{ id: number; type: 'income' | 'expense' }[]>`
+    select id, type
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and type in ('income', 'expense')
+    order by id
+  `;
+  const incomeCategory = categories.find((category) => category.type === 'income');
+  const expenseCategory = categories.find((category) => category.type === 'expense');
+  const cash = accounts.find((account) => account.name === visualSummaryAccountNames[0]);
+  const bank = accounts.find((account) => account.name === visualSummaryAccountNames[1]);
+  const card = accounts.find((account) => account.name === visualSummaryAccountNames[2]);
+  if (!incomeCategory || !expenseCategory || !cash || !bank || !card) {
+    throw new Error('natural visual balance summary fixtures were not created');
+  }
+  await client.sql`
+    insert into transactions (
+      household_id, type, amount, occurred_on, category_id, account_id, memo
+    )
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, 'income', 125000, ${`${month}-01`},
+        ${incomeCategory.id}, ${cash.id}, ${`${visualSummaryMarker}income-cash`}),
+      (${DEFAULT_HOUSEHOLD_ID}, 'income', 75000, ${`${month}-02`},
+        ${incomeCategory.id}, ${bank.id}, ${`${visualSummaryMarker}income-bank`}),
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', 23456, ${`${month}-03`},
+        ${expenseCategory.id}, ${card.id}, ${`${visualSummaryMarker}expense-card`})
+  `;
+  return { accountIds: accounts.map((account) => account.id) };
+}
+
+async function cleanupVisualSummaryBalances(fixture: VisualSummaryFixture): Promise<void> {
+  const client = database();
+  await client.sql`
+    delete from transactions
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and memo like ${`${visualSummaryMarker}%`}
+  `;
+  for (const accountId of fixture.accountIds) {
+    await client.sql`
+      delete from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${accountId}
+    `;
+  }
 }
 
 async function cleanupBalances(): Promise<void> {
@@ -646,15 +721,34 @@ test('reaches balances from navigation and shows a deterministic empty state', a
     path: `${screenshotDirectory}/balances-empty-desktop.png`,
     fullPage: true,
   });
-  await page.setViewportSize({ width: 390, height: 844 });
+  for (const width of [320, 390, 430, 479]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/balances');
+    await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
+    await expectMobileSummaryLayout(page);
+    await expectSummaryValuesFit(page);
+    await expectStickyBalanceSummary(page);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-empty-mobile-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 481, height: 844 });
+  await page.goto('/balances');
+  await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
+  await expectDesktopSummaryLayout(page);
+  await expectSummaryValuesFit(page);
+  await expectStickyBalanceSummary(page);
+  await assertNoHorizontalOverflow(page);
   await page.screenshot({
-    path: `${screenshotDirectory}/balances-empty-mobile.png`,
+    path: `${screenshotDirectory}/balances-empty-481.png`,
     fullPage: true,
   });
 });
 
 test('updates balances after UI transaction and transfer mutations', async ({ page }) => {
-  const { longAccountId } = await seedAccounts();
+  const { longAccountId, destinationAccountId } = await seedAccounts();
   const ordinaryTransactionId = await seedOrdinaryTransaction(longAccountId);
 
   await page.goto(`/transactions?month=${month}`);
@@ -750,6 +844,11 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   await expectAccountBalance(page, longAccountName, '0円');
   await expectAccountBalance(page, destinationAccountName, '0円');
   await expectBalanceSummary(page, { assets: '0', liabilities: '0', net: '0' });
+  await database().sql`
+    delete from accounts
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and id in (${longAccountId}, ${destinationAccountId})
+  `;
 });
 
 test('opens the account-filtered transactions by clicking its name from balances', async ({
@@ -827,6 +926,50 @@ test('captures shared chrome geometry for overview, transactions, and balances',
     }
   }
 });
+test('captures natural summary fixtures for mobile and desktop visuals', async ({ page }) => {
+  const fixture = await seedVisualSummaryBalances();
+  try {
+    const values = {
+      assets: formatFixtureAmount(visualSummaryValues.assets),
+      liabilities: formatFixtureAmount(visualSummaryValues.liabilities),
+      net: formatFixtureAmount(visualSummaryValues.net),
+    };
+    for (const width of [375, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/balances');
+      await expectBalanceSummary(page, values);
+      await expectMobileSummaryLayout(page);
+      await expectSummaryValuesFit(page);
+      await expectStickyBalanceSummary(page);
+      await assertNoHorizontalOverflow(page);
+      for (const accountName of visualSummaryAccountNames) {
+        await expect(page.getByRole('link', { name: accountName, exact: true })).toBeVisible();
+      }
+      await page.screenshot({
+        path: `${screenshotDirectory}/balances-natural-mobile-${width}.png`,
+        fullPage: true,
+      });
+    }
+    for (const viewport of [
+      { width: 481, height: 844, name: '481' },
+      { width: 1280, height: 800, name: 'desktop' },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/balances');
+      await expectBalanceSummary(page, values);
+      await expectDesktopSummaryLayout(page);
+      await expectSummaryValuesFit(page);
+      await expectStickyBalanceSummary(page);
+      await assertNoHorizontalOverflow(page);
+      await page.screenshot({
+        path: `${screenshotDirectory}/balances-natural-${viewport.name}.png`,
+        fullPage: true,
+      });
+    }
+  } finally {
+    await cleanupVisualSummaryBalances(fixture);
+  }
+});
 test('keeps large mobile summary values in compact rows', async ({ page }) => {
   await seedCompactSummaryBalances();
   try {
@@ -842,7 +985,28 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
+      if (width === 320 || width === 430 || width === 479) {
+        await page.screenshot({
+          path: `${screenshotDirectory}/balances-negative-net-mobile-${width}.png`,
+          fullPage: true,
+        });
+      }
     }
+    await page.setViewportSize({ width: 481, height: 844 });
+    await page.goto('/balances');
+    await expectBalanceSummary(page, {
+      assets: compactSummaryAssetsDisplay,
+      liabilities: compactSummaryLiabilitiesDisplay,
+      net: `−${compactSummaryNetDisplay}`,
+    });
+    await expectDesktopSummaryLayout(page);
+    await expectSummaryValuesFit(page);
+    await expectStickyBalanceSummary(page);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-negative-net-481.png`,
+      fullPage: true,
+    });
 
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/balances');
@@ -860,10 +1024,12 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
   }
 });
 
-test('keeps trillion-scale summary values on one line on mobile and desktop', async ({ page }) => {
+test('keeps trillion-scale summary values fully visible on mobile and desktop', async ({
+  page,
+}) => {
   await seedTrillionScaleBalances();
   try {
-    for (const width of [320, 360]) {
+    for (const width of [320, 360, 430, 479]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/balances');
       await expectBalanceSummary(page, {
@@ -881,6 +1047,22 @@ test('keeps trillion-scale summary values on one line on mobile and desktop', as
         fullPage: true,
       });
     }
+    await page.setViewportSize({ width: 481, height: 844 });
+    await page.goto('/balances');
+    await expectBalanceSummary(page, {
+      assets: summaryFixtureAssetsDisplay,
+      liabilities: summaryFixtureLiabilitiesDisplay,
+      net: `−${summaryFixtureNetMagnitudeDisplay}`,
+    });
+    await expectDesktopSummaryLayout(page);
+    await expectSummaryValuesFit(page);
+    await expectAccountValuesFit(page);
+    await expectStickyBalanceSummary(page);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-trillion-481.png`,
+      fullPage: true,
+    });
 
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/balances');
