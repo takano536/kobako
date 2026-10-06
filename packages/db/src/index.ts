@@ -48,10 +48,13 @@ export {
   type TransferMutationResult,
 } from './ledger.js';
 export {
+  aggregateBankPaymentSchedules,
+  deriveCardBalancePaymentSchedule,
   deriveCardBillingPeriods,
   getCardBillingSummary,
   getCardBillingSummaries,
   processDueCardPayments,
+  type CardBalancePaymentSchedule,
   type CardBillingCalendarError,
   type CardBillingNextPayment,
   type CardBillingPeriod,

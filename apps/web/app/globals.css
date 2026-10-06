@@ -548,7 +548,8 @@ h3 {
 }
 
 .balance-schedule-due {
-  overflow-wrap: anywhere;
+  font-size: var(--text-small);
+  white-space: nowrap;
 }
 .balance-settings-link {
   color: var(--ink);

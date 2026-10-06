@@ -1,11 +1,12 @@
 import Link from 'next/link';
 
-import { formatJapaneseDateWithYear } from '../../src/lib/format';
+import { formatJapaneseDate } from '../../src/lib/format';
 import { SignedYen } from '../_components/ui';
 
 interface PaymentSchedule {
   amount?: string;
   dueOn?: string;
+  balanceAmount?: string;
   settingsHref?: string;
 }
 
@@ -49,14 +50,20 @@ export function AccountBalanceRow({
               </span>
               {paymentSchedule.dueOn ? (
                 <span className="balance-schedule-due">
-                  支払日 {formatJapaneseDateWithYear(paymentSchedule.dueOn)}
+                  支払日 {formatJapaneseDate(paymentSchedule.dueOn)}
                 </span>
               ) : null}
             </>
           ) : null}
         </span>
-        <span className="balance-amount" aria-label="残高">
-          <SignedYen value={displayBalance.toString()} tone={liability ? 'negative' : 'positive'} />
+        <span
+          className="balance-amount"
+          aria-label={paymentSchedule?.balanceAmount !== undefined ? '未決済額' : '残高'}
+        >
+          <SignedYen
+            value={(paymentSchedule?.balanceAmount ?? displayBalance).toString()}
+            tone={liability ? 'negative' : 'positive'}
+          />
         </span>
       </div>
     </li>

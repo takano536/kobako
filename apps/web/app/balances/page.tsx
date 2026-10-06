@@ -1,5 +1,11 @@
 import type { Metadata } from 'next';
-import { currentTokyoMonth, getCardBillingSummaries, getManagedAccountBalances } from '@kobako/db';
+import {
+  aggregateBankPaymentSchedules,
+  currentTokyoMonth,
+  deriveCardBalancePaymentSchedule,
+  getCardBillingSummaries,
+  getManagedAccountBalances,
+} from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
@@ -36,24 +42,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
   );
   const billingByAccountId = new Map(cardSummaries.map((billing) => [billing.accountId, billing]));
   const currentMonth = currentTokyoMonth();
-  const scheduledByBankId = new Map<number, bigint>();
-  for (const billing of cardSummaries) {
-    if (!billing.settingsComplete || billing.calendarError !== null) continue;
-    const debitAccountId = billing.settings?.debitAccountId;
-    if (debitAccountId === null || debitAccountId === undefined) continue;
-    const dueThisMonth = billing.periods
-      .filter(
-        (period) =>
-          period.dueOn.startsWith(`${currentMonth}-`) &&
-          period.status !== 'unbilled' &&
-          BigInt(period.remaining) > 0n,
-      )
-      .reduce((sum, period) => sum + BigInt(period.remaining), 0n);
-    scheduledByBankId.set(
-      debitAccountId,
-      (scheduledByBankId.get(debitAccountId) ?? 0n) + dueThisMonth,
-    );
-  }
+  const scheduledByBankId = aggregateBankPaymentSchedules(cardSummaries, currentMonth);
   const summary = calculateBalanceSummary(allBalances);
   const groups: {
     kind: (typeof balances)[number]['kind'];
@@ -129,21 +118,27 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                         account.kind === 'credit_card'
                           ? billingByAccountId.get(account.accountId)
                           : undefined;
+                      const cardSchedule =
+                        account.kind === 'credit_card' &&
+                        billing?.settings &&
+                        billing.settingsComplete &&
+                        billing.calendarError === null
+                          ? deriveCardBalancePaymentSchedule(billing.periods)
+                          : null;
                       const paymentSchedule =
-                        account.kind === 'bank'
+                        account.kind === 'bank' && scheduledByBankId.has(account.accountId)
                           ? {
-                              amount: (scheduledByBankId.get(account.accountId) ?? 0n).toString(),
+                              amount: scheduledByBankId.get(account.accountId)!.toString(),
                             }
-                          : account.kind === 'credit_card' && billing?.settings
-                            ? billing.settingsComplete && billing.calendarError === null
-                              ? billing.nextPayment
-                                ? {
-                                    amount: billing.nextPayment.amount,
-                                    dueOn: billing.nextPayment.dueOn,
-                                  }
-                                : { amount: '0' }
-                              : { settingsHref: `/accounts/${account.accountId}/edit` }
-                            : undefined;
+                          : cardSchedule
+                            ? {
+                                amount: cardSchedule.scheduledAmount,
+                                dueOn: cardSchedule.scheduledDueOn ?? undefined,
+                                balanceAmount: cardSchedule.unbilledAmount,
+                              }
+                            : account.kind === 'credit_card' && billing?.settings
+                              ? { settingsHref: `/accounts/${account.accountId}/edit` }
+                              : undefined;
                       return (
                         <AccountBalanceRow
                           accountName={account.accountName}

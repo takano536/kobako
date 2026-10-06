@@ -5,7 +5,10 @@ import {
   DEFAULT_HOUSEHOLD_ID,
   assertSafeTestDatabaseTarget,
   createDatabaseClient,
+  currentTokyoDate,
+  currentTokyoMonth,
   initializeDefaultLedger,
+  shiftMonth,
   verifySafeTestDatabaseConnection,
   type DatabaseClient,
   type DatabaseTarget,
@@ -63,6 +66,19 @@ const visualSummaryValues = {
   liabilities: '23456',
   net: '176544',
 } as const;
+const paymentFixtureMarker = `${markerPrefix}payment-schedule:`;
+const paymentFixtureNames = {
+  primaryBank: `${paymentFixtureMarker}みずほ銀行`,
+  secondaryBank: `${paymentFixtureMarker}三井住友銀行`,
+  orphanBank: `${paymentFixtureMarker}未紐付銀行`,
+  primaryCard: `${paymentFixtureMarker}10日カード`,
+  secondPrimaryCard: `${paymentFixtureMarker}27日カード`,
+  secondaryCard: `${paymentFixtureMarker}別銀行カード`,
+  nextMonthCard: `${paymentFixtureMarker}翌月カード`,
+  partialCard: `${paymentFixtureMarker}一部支払カード`,
+  noSettingsCard: `${paymentFixtureMarker}設定なしカード`,
+  invalidSettingsCard: `${paymentFixtureMarker}設定不備カード`,
+} as const;
 
 let databaseClient: DatabaseClient | undefined;
 let developmentUrl: string | undefined;
@@ -76,9 +92,8 @@ function database(): DatabaseClient {
 }
 
 function balanceList(page: Page): Locator {
-  return page.getByRole('list', { name: /資産別残高/ }).first();
+  return page.getByRole('list', { name: /資産別残高/ });
 }
-
 function summaryAmount(page: Page, label: string): Locator {
   return page
     .locator('.balance-summary-item')
@@ -689,6 +704,121 @@ async function seedVisualSummaryBalances(): Promise<VisualSummaryFixture> {
   return { accountIds: accounts.map((account) => account.id) };
 }
 
+async function seedPaymentScheduleBalances(): Promise<void> {
+  const client = database();
+  const names = paymentFixtureNames;
+  await client.sql`
+    insert into accounts (household_id, name, kind)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.orphanBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondPrimaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.nextMonthCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.partialCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.noSettingsCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.invalidSettingsCard}, 'credit_card')
+  `;
+  const accounts = await client.sql<{ id: number; name: string }[]>`
+    select id, name
+    from accounts
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${paymentFixtureMarker}%`}
+  `;
+  const accountId = (name: string): number => {
+    const account = accounts.find((row) => row.name === name);
+    if (!account) throw new Error(`payment schedule account fixture is missing: ${name}`);
+    return account.id;
+  };
+  const expenseCategory = (
+    await client.sql<{ id: number }[]>`
+      select id
+      from categories
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'expense'
+      order by id
+      limit 1
+    `
+  )[0];
+  if (!expenseCategory) throw new Error('payment schedule expense category is missing');
+
+  const currentMonth = currentTokyoMonth();
+  const billedMonth = shiftMonth(currentMonth, -2);
+  const unbilledMonth = shiftMonth(currentMonth, -1);
+  const occurredOn = (monthValue: string, day: number): string =>
+    `${monthValue}-${String(day).padStart(2, '0')}`;
+  const addSetting = async (
+    cardName: string,
+    closingDay: string,
+    paymentDay: string | null,
+    bankName: string,
+  ): Promise<void> => {
+    await client.sql`
+      insert into account_card_settings (
+        household_id, account_id, closing_day, payment_day, payment_month_offset,
+        debit_account_id, auto_payment_starts_on
+      )
+      select
+        ${DEFAULT_HOUSEHOLD_ID}, card.id, ${closingDay}, ${paymentDay}, 'next_month',
+        bank.id, ${currentTokyoDate()}
+      from accounts card
+      cross join accounts bank
+      where card.household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and card.name = ${cardName}
+        and bank.household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and bank.name = ${bankName}
+    `;
+  };
+  const addExpense = async (
+    accountName: string,
+    amount: number,
+    date: string,
+    suffix: string,
+  ): Promise<void> => {
+    await client.sql`
+      insert into transactions (
+        household_id, type, amount, occurred_on, category_id, account_id, memo
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'expense', ${amount}, ${date},
+        ${expenseCategory.id}, ${accountId(accountName)}, ${`${paymentFixtureMarker}${suffix}`}
+      )
+    `;
+  };
+
+  await addSetting(names.primaryCard, '15', '10', names.primaryBank);
+  await addSetting(names.secondPrimaryCard, '15', '27', names.primaryBank);
+  await addSetting(names.secondaryCard, '15', '10', names.secondaryBank);
+  await addSetting(names.nextMonthCard, '15', '10', names.secondaryBank);
+  await addSetting(names.partialCard, '15', '10', names.primaryBank);
+  await addSetting(names.invalidSettingsCard, '15', null, names.secondaryBank);
+
+  await addExpense(names.primaryCard, 1000, occurredOn(billedMonth, 20), 'primary-billed');
+  await addExpense(names.primaryCard, 250, occurredOn(unbilledMonth, 20), 'primary-unbilled');
+  await addExpense(names.secondPrimaryCard, 2000, occurredOn(billedMonth, 20), 'second-billed');
+  await addExpense(names.secondPrimaryCard, 350, occurredOn(unbilledMonth, 20), 'second-unbilled');
+  await addExpense(names.secondaryCard, 3000, occurredOn(billedMonth, 20), 'secondary-billed');
+  await addExpense(names.nextMonthCard, 400, occurredOn(unbilledMonth, 20), 'next-month-only');
+  await addExpense(names.partialCard, 1200, occurredOn(billedMonth, 20), 'partial-billed');
+  await addExpense(names.noSettingsCard, 900, occurredOn(currentMonth, 2), 'no-settings');
+  await addExpense(
+    names.invalidSettingsCard,
+    1000,
+    occurredOn(billedMonth, 20),
+    'invalid-settings',
+  );
+
+  await client.sql`
+    insert into transfers (
+      household_id, from_account_id, to_account_id, amount, occurred_on, memo
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountId(names.primaryBank)}, ${accountId(names.partialCard)},
+      500, ${occurredOn(currentMonth, 1)}, ${`${paymentFixtureMarker}partial-payment`}
+    )
+  `;
+}
+
 async function cleanupVisualSummaryBalances(fixture: VisualSummaryFixture): Promise<void> {
   const client = database();
   await client.sql`
@@ -713,6 +843,22 @@ async function cleanupBalances(): Promise<void> {
   await client.sql`
     delete from transactions
     where household_id = ${DEFAULT_HOUSEHOLD_ID} and memo like ${`${markerPrefix}%`}
+  `;
+  await client.sql`
+    delete from account_card_conditions
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and account_id in (
+        select id from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${markerPrefix}%`}
+      )
+  `;
+  await client.sql`
+    delete from account_card_settings
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and account_id in (
+        select id from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${markerPrefix}%`}
+      )
   `;
   await client.sql`
     delete from accounts
@@ -941,6 +1087,73 @@ test('opens the account-filtered transactions by clicking its name from balances
     delete from accounts
     where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${account.id}
   `;
+});
+
+test('splits and aggregates card payment schedules on balances', async ({ page }) => {
+  await seedPaymentScheduleBalances();
+  const monthNumber = Number(currentTokyoMonth().slice(5));
+  try {
+    await page.goto('/balances');
+
+    await expect(
+      accountRow(page, paymentFixtureNames.primaryBank).locator('.balance-amount'),
+    ).toContainText('−500円');
+    await expect(
+      accountRow(page, paymentFixtureNames.primaryBank).locator('.balance-schedule-amount'),
+    ).toContainText('3,700円');
+    await expect(
+      accountRow(page, paymentFixtureNames.secondaryBank).locator('.balance-schedule-amount'),
+    ).toContainText('3,000円');
+    await expect(
+      accountRow(page, paymentFixtureNames.orphanBank).locator('.balance-schedule-amount'),
+    ).toHaveCount(0);
+
+    const primaryCard = accountRow(page, paymentFixtureNames.primaryCard);
+    await expect(primaryCard.locator('.balance-schedule-amount')).toContainText('1,000円');
+    await expect(primaryCard.locator('.balance-schedule-due')).toContainText(
+      `${monthNumber}月10日`,
+    );
+    await expect(primaryCard.locator('.balance-amount')).toContainText('250円');
+
+    const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
+    await expect(secondPrimaryCard.locator('.balance-schedule-amount')).toContainText('2,000円');
+    await expect(secondPrimaryCard.locator('.balance-schedule-due')).toContainText(
+      `${monthNumber}月27日`,
+    );
+    await expect(secondPrimaryCard.locator('.balance-amount')).toContainText('350円');
+
+    await expect(
+      accountRow(page, paymentFixtureNames.secondaryCard).locator('.balance-schedule-amount'),
+    ).toContainText('3,000円');
+    await expect(
+      accountRow(page, paymentFixtureNames.partialCard).locator('.balance-schedule-amount'),
+    ).toContainText('700円');
+    await expect(
+      accountRow(page, paymentFixtureNames.nextMonthCard).locator('.balance-schedule-amount'),
+    ).toContainText('0円');
+    await expect(
+      accountRow(page, paymentFixtureNames.nextMonthCard).locator('.balance-amount'),
+    ).toContainText('400円');
+
+    const noSettingsCard = accountRow(page, paymentFixtureNames.noSettingsCard);
+    await expect(noSettingsCard.locator('.balance-schedule-amount')).toHaveCount(0);
+    await expect(noSettingsCard.locator('.balance-amount')).toContainText('900円');
+    await expect(
+      accountRow(page, paymentFixtureNames.invalidSettingsCard).getByText('設定を確認'),
+    ).toBeVisible();
+
+    const rightColumnXs = await Promise.all(
+      [paymentFixtureNames.primaryCard, paymentFixtureNames.noSettingsCard].map(async (name) => {
+        const box = await accountRow(page, name).locator('.balance-amount').boundingBox();
+        if (!box) throw new Error(`balance amount box is missing for ${name}`);
+        return box.x;
+      }),
+    );
+    expect(Math.abs((rightColumnXs[0] ?? 0) - (rightColumnXs[1] ?? 0))).toBeLessThanOrEqual(1);
+  } finally {
+    await cleanupBalances();
+    await initializeDefaultLedger(database().db);
+  }
 });
 
 test('captures shared chrome geometry for overview, transactions, and balances', async ({

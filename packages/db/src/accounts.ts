@@ -500,6 +500,21 @@ async function currentCardSettingInTransaction(
   return rows[0] ?? null;
 }
 
+function hasCompleteCardSchedule(condition: {
+  closingDay: string | null | undefined;
+  paymentDay: string | null | undefined;
+  paymentMonthOffset: string | null | undefined;
+}): boolean {
+  return (
+    condition.closingDay !== null &&
+    condition.closingDay !== undefined &&
+    condition.paymentDay !== null &&
+    condition.paymentDay !== undefined &&
+    condition.paymentMonthOffset !== null &&
+    condition.paymentMonthOffset !== undefined
+  );
+}
+
 async function saveCardConditionInTransaction(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
@@ -528,9 +543,13 @@ async function saveCardConditionInTransaction(
     updatedAt: new Date(),
   };
   if (current) {
+    const updateValues =
+      !hasCompleteCardSchedule(current) && hasCompleteCardSchedule(values)
+        ? { ...values, autoPaymentStartsOn: currentTokyoDate() }
+        : values;
     const updated = await transaction
       .update(accountCardSettings)
-      .set(values)
+      .set(updateValues)
       .where(
         and(
           eq(accountCardSettings.id, current.id),

@@ -80,6 +80,65 @@ export interface CardBillingSummary {
   blockedAutoPayments: CardAutoPaymentNotice[];
 }
 
+export interface CardBalancePaymentSchedule {
+  scheduledAmount: string;
+  scheduledDueOn: string | null;
+  unbilledAmount: string;
+}
+
+function positiveRemaining(period: CardBillingPeriod): bigint {
+  const remaining = BigInt(period.remaining);
+  return remaining > 0n ? remaining : 0n;
+}
+
+export function deriveCardBalancePaymentSchedule(
+  periods: readonly CardBillingPeriod[],
+): CardBalancePaymentSchedule {
+  let scheduledAmount = 0n;
+  let unbilledAmount = 0n;
+  let scheduledDueOn: string | null = null;
+  for (const period of periods) {
+    const remaining = positiveRemaining(period);
+    if (period.status === 'unbilled') {
+      unbilledAmount += remaining;
+      continue;
+    }
+    if (period.status !== 'billed-unpaid' && period.status !== 'overdue') continue;
+    scheduledAmount += remaining;
+    if (remaining > 0n && (scheduledDueOn === null || period.dueOn < scheduledDueOn)) {
+      scheduledDueOn = period.dueOn;
+    }
+  }
+  return {
+    scheduledAmount: scheduledAmount.toString(),
+    scheduledDueOn,
+    unbilledAmount: unbilledAmount.toString(),
+  };
+}
+
+export function aggregateBankPaymentSchedules(
+  summaries: readonly CardBillingSummary[],
+  currentMonth: string,
+): ReadonlyMap<number, bigint> {
+  const amounts = new Map<number, bigint>();
+  for (const summary of summaries) {
+    if (!summary.settingsComplete || summary.calendarError !== null) continue;
+    const debitAccountId = summary.settings?.debitAccountId;
+    if (debitAccountId === null || debitAccountId === undefined) continue;
+    let amount = 0n;
+    for (const period of summary.periods) {
+      if (
+        period.dueOn.startsWith(`${currentMonth}-`) &&
+        (period.status === 'billed-unpaid' || period.status === 'overdue')
+      ) {
+        amount += positiveRemaining(period);
+      }
+    }
+    amounts.set(debitAccountId, (amounts.get(debitAccountId) ?? 0n) + amount);
+  }
+  return amounts;
+}
+
 export interface DerivedCardBilling {
   settingsComplete: boolean;
   periods: CardBillingPeriod[];

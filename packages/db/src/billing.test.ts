@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  aggregateBankPaymentSchedules,
+  deriveCardBalancePaymentSchedule,
   deriveCardBillingPeriods,
+  type CardBillingPeriod,
   type CardBillingSettings,
+  type CardBillingSummary,
   type CardBillingTransactionInput,
   type CardBillingTransferInput,
   type DerivedCardBilling,
@@ -37,6 +41,86 @@ function transfer(
 function remaining(result: DerivedCardBilling): string[] {
   return result.periods.map((period) => period.remaining);
 }
+
+function period(
+  status: CardBillingPeriod['status'],
+  remainingAmount: string,
+  dueOn: string,
+): CardBillingPeriod {
+  return {
+    periodStart: '2026-01-01',
+    periodEnd: '2026-01-31',
+    dueOn,
+    charge: remainingAmount,
+    paid: '0',
+    remaining: remainingAmount,
+    status,
+  };
+}
+
+function summary(
+  accountId: number,
+  debitAccountId: number | null,
+  periods: CardBillingPeriod[],
+): CardBillingSummary {
+  return {
+    accountId,
+    accountName: `カード${accountId}`,
+    settings: { ...settings, debitAccountId },
+    settingsComplete: true,
+    calendarError: null,
+    liability: '0',
+    periods,
+    nextPayment: null,
+    blockedAutoPayments: [],
+  };
+}
+
+describe('balance payment schedules', () => {
+  it('splits billed and unbilled remaining amounts and chooses the earliest due date', () => {
+    expect(
+      deriveCardBalancePaymentSchedule([
+        period('billed-unpaid', '30', '2026-02-20'),
+        period('overdue', '20', '2026-02-10'),
+        period('billed-unpaid', '0', '2026-02-05'),
+        period('unbilled', '45', '2026-02-27'),
+      ]),
+    ).toEqual({
+      scheduledAmount: '50',
+      scheduledDueOn: '2026-02-10',
+      unbilledAmount: '45',
+    });
+  });
+
+  it('does not show negative period remaining as a payment schedule after overpayment', () => {
+    expect(deriveCardBalancePaymentSchedule([period('paid', '-50', '2026-02-10')])).toEqual({
+      scheduledAmount: '0',
+      scheduledDueOn: null,
+      unbilledAmount: '0',
+    });
+  });
+
+  it('aggregates only complete cards assigned to each bank for the current month', () => {
+    const amounts = aggregateBankPaymentSchedules(
+      [
+        summary(1, 10, [
+          period('billed-unpaid', '30', '2026-02-10'),
+          period('overdue', '20', '2026-02-20'),
+        ]),
+        summary(2, 10, [period('billed-unpaid', '25', '2026-03-10')]),
+        summary(3, 11, [period('paid', '0', '2026-02-10')]),
+        summary(4, null, [period('billed-unpaid', '99', '2026-02-10')]),
+      ],
+      '2026-02',
+    );
+    expect(amounts).toEqual(
+      new Map([
+        [10, 50n],
+        [11, 0n],
+      ]),
+    );
+  });
+});
 
 describe('derived card billing FIFO', () => {
   it('returns no periods when closing or payment settings are incomplete', () => {

@@ -3,6 +3,7 @@ import type { MoneyManagerLedgerRow, MoneyManagerNormalizedRow } from './money-m
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDatabaseClient, type DatabaseClient } from './client.js';
+import { currentTokyoDate } from './month.js';
 import {
   DEFAULT_HOUSEHOLD_ID,
   convertTransactionToTransfer,
@@ -231,6 +232,76 @@ describe('PostgreSQL migrations and ledger', () => {
       debitAccountId: debit.account.id,
     });
   });
+  it('starts auto-payment when an incomplete card schedule becomes complete', async () => {
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '境界日カード',
+      kind: 'credit_card',
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '境界日引落口座',
+      kind: 'bank',
+    });
+    expect(card.status).toBe('ok');
+    expect(debit.status).toBe('ok');
+    if (card.status !== 'ok' || debit.status !== 'ok') {
+      throw new Error('boundary fixtures were not created');
+    }
+
+    await expect(
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: null,
+          paymentDay: null,
+          paymentMonthOffset: null,
+          debitAccountId: debit.account.id,
+        },
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    await client.sql`
+      update account_card_settings
+      set auto_payment_starts_on = '2020-01-01'
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and account_id = ${card.account.id}
+    `;
+
+    await expect(
+      updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        card.account.id,
+        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        {
+          closingDay: '15',
+          paymentDay: '10',
+          paymentMonthOffset: 'next_month',
+          debitAccountId: debit.account.id,
+        },
+      ),
+    ).resolves.toMatchObject({ status: 'ok' });
+    await expect(
+      getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).resolves.toMatchObject({ autoPaymentStartsOn: currentTokyoDate() });
+
+    await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+      {
+        closingDay: '20',
+        paymentDay: '27',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    await expect(
+      getCurrentCardCondition(client.db, DEFAULT_HOUSEHOLD_ID, card.account.id),
+    ).resolves.toMatchObject({ autoPaymentStartsOn: currentTokyoDate() });
+  });
+
   it('stores one current card setting and ignores legacy history rows', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '条件固定カード',
