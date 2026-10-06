@@ -18,6 +18,7 @@
 ### Bug Fixes
 
 * make asset and current card-condition saves atomic and reject updates to logically deleted assets
+* keep the mobile balance summary compact and show long amounts without truncation
 
 
 ## [0.6.0](https://github.com/takano536/kobako/compare/v0.5.1...v0.6.0) (2026-10-03)
