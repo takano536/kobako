@@ -26,6 +26,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { parseInt4Id } from '../../src/lib/ids';
+import { validatedTransactionReturn } from '../../src/lib/transaction-query';
 import {
   transferValidationErrors,
   transactionFormValuesFromFormData,
@@ -93,9 +94,9 @@ function revalidateLedger(): void {
   revalidatePath('/balances');
 }
 
-function redirectToMonth(month: string): never {
+function redirectToMonth(month: string, returnPath?: string): never {
   revalidateLedger();
-  redirect(`/transactions?month=${month}`);
+  redirect(returnPath ?? `/transactions?month=${month}`);
 }
 
 export async function createTransactionAction(
@@ -106,6 +107,12 @@ export async function createTransactionAction(
   const values = transactionFormValuesFromFormData(formData);
   const householdId = getCurrentHouseholdId();
   const db = getLedgerDatabase();
+  const paymentContext = textField(formData, 'payment') === '1';
+  if (paymentContext && values.type !== 'transfer') {
+    return validationState(values, {
+      type: ['カード支払いは振替として登録してください。'],
+    });
+  }
 
   if (values.type === 'transfer') {
     const parsed = transferInputSchema.safeParse(transferInputFromFormData(formData));
@@ -113,6 +120,43 @@ export async function createTransactionAction(
       return validationState(
         values,
         flattenTransferError(parsed.error).fieldErrors as TransactionFieldErrors,
+      );
+    }
+    let returnPath: string | undefined;
+    if (paymentContext) {
+      let fromAccount;
+      let toAccount;
+      try {
+        [fromAccount, toAccount] = await Promise.all([
+          getManagedAccount(db, householdId, parsed.data.fromAccountId),
+          getManagedAccount(db, householdId, parsed.data.toAccountId),
+        ]);
+      } catch (error) {
+        return databaseFailure('validate-payment-accounts', error);
+      }
+      if (
+        !fromAccount ||
+        fromAccount.deletedAt !== null ||
+        fromAccount.status !== 'active' ||
+        fromAccount.kind === 'credit_card'
+      ) {
+        return validationState(values, {
+          fromAccountId: ['支払元には有効なカード以外の資産を選択してください。'],
+        });
+      }
+      if (
+        !toAccount ||
+        toAccount.deletedAt !== null ||
+        toAccount.status !== 'active' ||
+        toAccount.kind !== 'credit_card'
+      ) {
+        return validationState(values, {
+          toAccountId: ['支払先には有効なクレジットカードを選択してください。'],
+        });
+      }
+      returnPath = validatedTransactionReturn(
+        textField(formData, 'return'),
+        parsed.data.toAccountId,
       );
     }
     let result;
@@ -127,7 +171,7 @@ export async function createTransactionAction(
     if (result.status === 'error') {
       return databaseFailure('create-transfer', new Error('database operation failed'));
     }
-    redirectToMonth(parsed.data.occurredOn.slice(0, 7));
+    redirectToMonth(parsed.data.occurredOn.slice(0, 7), returnPath);
   }
 
   const parsed = transactionInputSchema.safeParse(transactionInputFromFormData(formData));

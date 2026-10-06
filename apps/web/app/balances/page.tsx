@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getManagedAccountBalances } from '@kobako/db';
+import { getCardBillingSummaries, getManagedAccountBalances } from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
@@ -24,7 +24,18 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function BalancesPage({ searchParams }: { searchParams: SearchParams }) {
   void searchParams;
   const db = getLedgerDatabase();
-  const allBalances = await getManagedAccountBalances(db, getCurrentHouseholdId());
+  const householdId = getCurrentHouseholdId();
+  const allBalances = await getManagedAccountBalances(db, householdId);
+  const billingSummaries = await getCardBillingSummaries(
+    db,
+    householdId,
+    allBalances
+      .filter((account) => account.kind === 'credit_card')
+      .map((account) => account.accountId),
+  );
+  const billingByAccountId = new Map(
+    billingSummaries.map((billing) => [billing.accountId, billing]),
+  );
   const balances = allBalances.filter((account) => account.deletedAt === null);
   const summary = calculateBalanceSummary(allBalances);
   const groups: {
@@ -99,10 +110,16 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                     {group.accounts.map((account) => (
                       <AccountBalanceRow
                         key={account.accountId}
+                        accountId={account.accountId}
                         accountName={account.accountName}
                         balance={account.balance}
                         kind={account.kind}
                         transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                        billingSummary={
+                          account.kind === 'credit_card'
+                            ? billingByAccountId.get(account.accountId)
+                            : undefined
+                        }
                       />
                     ))}
                   </ul>

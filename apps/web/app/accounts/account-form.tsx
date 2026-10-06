@@ -10,6 +10,7 @@ export interface CardConditionValues {
   paymentDay: string;
   paymentMonthOffset: string;
   debitAccountId: string;
+  autoPaymentEnabled: boolean;
 }
 
 export interface AccountFormValues {
@@ -21,6 +22,7 @@ export interface AccountFormValues {
   paymentDay: string;
   paymentMonthOffset: string;
   debitAccountId: string;
+  autoPaymentEnabled: boolean;
 }
 
 export interface AccountFormState {
@@ -86,6 +88,7 @@ function cardConditionValues(condition?: Partial<CardConditionValues>): CardCond
     paymentDay: condition?.paymentDay ?? '',
     paymentMonthOffset: condition?.paymentMonthOffset ?? '',
     debitAccountId: condition?.debitAccountId ?? '',
+    autoPaymentEnabled: condition?.autoPaymentEnabled ?? false,
   };
 }
 
@@ -103,6 +106,10 @@ export function AccountForm({
   const current = state.values && !isDirty ? state.values : values;
   const nameError = state.fieldErrors?.name;
   const kindError = state.fieldErrors?.kind;
+  const closingDayError = state.fieldErrors?.closingDay;
+  const paymentDayError = state.fieldErrors?.paymentDay;
+  const paymentMonthOffsetError = state.fieldErrors?.paymentMonthOffset;
+  const debitAccountError = state.fieldErrors?.debitAccountId;
   useEffect(() => {
     if (state.values) {
       setValues(state.values);
@@ -116,10 +123,13 @@ export function AccountForm({
   }
 
   const card = cardConditionValues(current);
-  const setCardValue = (key: keyof CardConditionValues, value: string) => {
+  function setCardValue<K extends keyof CardConditionValues>(
+    key: K,
+    value: CardConditionValues[K],
+  ) {
     setIsDirty(true);
     setValues((previous) => ({ ...previous, [key]: value }));
-  };
+  }
 
   return (
     <form className="ledger-form account-form" action={formAction} noValidate>
@@ -178,6 +188,8 @@ export function AccountForm({
                   name="closingDay"
                   value={card.closingDay}
                   onChange={(event) => setCardValue('closingDay', event.currentTarget.value)}
+                  aria-invalid={closingDayError?.length ? true : undefined}
+                  aria-describedby={closingDayError?.length ? 'closing-day-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {dayOptions.map((day) => (
@@ -187,6 +199,7 @@ export function AccountForm({
                   ))}
                   <option value="last">月末</option>
                 </select>
+                <FieldError id="closing-day-error" messages={closingDayError} />
               </div>
             </div>
             <div className="field">
@@ -198,6 +211,8 @@ export function AccountForm({
                   name="paymentDay"
                   value={card.paymentDay}
                   onChange={(event) => setCardValue('paymentDay', event.currentTarget.value)}
+                  aria-invalid={paymentDayError?.length ? true : undefined}
+                  aria-describedby={paymentDayError?.length ? 'payment-day-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {dayOptions.map((day) => (
@@ -207,6 +222,7 @@ export function AccountForm({
                   ))}
                   <option value="last">月末</option>
                 </select>
+                <FieldError id="payment-day-error" messages={paymentDayError} />
               </div>
             </div>
             <div className="field">
@@ -220,12 +236,17 @@ export function AccountForm({
                   onChange={(event) =>
                     setCardValue('paymentMonthOffset', event.currentTarget.value)
                   }
+                  aria-invalid={paymentMonthOffsetError?.length ? true : undefined}
+                  aria-describedby={
+                    paymentMonthOffsetError?.length ? 'payment-month-offset-error' : undefined
+                  }
                 >
                   <option value="">未設定</option>
                   <option value="same_month">当月</option>
                   <option value="next_month">翌月</option>
                   <option value="two_months_later">翌々月</option>
                 </select>
+                <FieldError id="payment-month-offset-error" messages={paymentMonthOffsetError} />
               </div>
             </div>
             <div className="field">
@@ -237,6 +258,8 @@ export function AccountForm({
                   name="debitAccountId"
                   value={card.debitAccountId}
                   onChange={(event) => setCardValue('debitAccountId', event.currentTarget.value)}
+                  aria-invalid={debitAccountError?.length ? true : undefined}
+                  aria-describedby={debitAccountError?.length ? 'debit-account-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {accounts
@@ -252,6 +275,24 @@ export function AccountForm({
                         {account.name}
                       </option>
                     ))}
+                </select>
+                <FieldError id="debit-account-error" messages={debitAccountError} />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="auto-payment">自動決済</label>
+              <div className="field-value">
+                <select
+                  className="field-select"
+                  id="auto-payment"
+                  name="autoPaymentEnabled"
+                  value={card.autoPaymentEnabled ? 'on' : ''}
+                  onChange={(event) =>
+                    setCardValue('autoPaymentEnabled', event.currentTarget.value === 'on')
+                  }
+                >
+                  <option value="">しない</option>
+                  <option value="on">する</option>
                 </select>
               </div>
             </div>

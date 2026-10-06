@@ -34,6 +34,7 @@ export default async function NewAccountPage() {
             paymentDay: '',
             paymentMonthOffset: '',
             debitAccountId: '',
+            autoPaymentEnabled: false,
           }}
           submitLabel="登録する"
         />

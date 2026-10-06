@@ -70,6 +70,7 @@ export default async function EditAccountPage({
               debitAccountId: cardCondition?.debitAccountId
                 ? String(cardCondition.debitAccountId)
                 : '',
+              autoPaymentEnabled: cardCondition?.autoPaymentEnabled ?? false,
             }}
             submitLabel="保存する"
             returnTo={returnTo}

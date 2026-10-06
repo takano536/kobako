@@ -18,6 +18,7 @@ import {
   type MoneyManagerNormalizedRow,
   type MoneyManagerTransferRow,
 } from './money-manager-format.js';
+import { lockCardSettingsForAccounts } from './ledger.js';
 import type {
   MoneyManagerImportAccountSummary,
   MoneyManagerImportCategorySummary,
@@ -394,6 +395,9 @@ export async function commitMoneyManagerImport(
         input.rows,
       );
       const accountImport = await insertMissingAccounts(transaction, input.householdId, input.rows);
+      await lockCardSettingsForAccounts(transaction, input.householdId, [
+        ...accountImport.byKey.values(),
+      ]);
       await insertTransactions(transaction, input.householdId, input.rows, accountImport.byKey);
       await insertTransfers(transaction, input.householdId, input.rows, accountImport.byKey);
       return {

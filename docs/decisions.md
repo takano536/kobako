@@ -30,7 +30,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## Mutation と再検証
 
-Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は単一の `DELETE ... RETURNING occurred_on` で削除対象の日付を取得し（削除前に別 query で存在確認しません）、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
+Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
 
 ## 入力拒否とフォーカス可能な日付欄
 
@@ -42,7 +42,7 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 ## Worker
 
-worker は今すぐ job を処理しませんが、web request と将来の Import/Export 等を分離するプロセス境界には価値があります。そのため、起動時 DB check、signal による graceful shutdown、idle 待機だけを実装しました。
+worker は起動時 DB check 後に期限日までのカード自動決済を catch-up し、一定間隔の tick で期限到来分と blocked run を再試行します。worker 停止中の期限日も復帰後に処理し、`SIGTERM`/`SIGINT` では tick を停止して DB client を閉じ、正常終了します。
 
 ## Integration test の DB 安全性
 
@@ -106,7 +106,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ファイル本体のバイト列から SHA-256 ハッシュを計算し、監査用の値として保存します。ハッシュ自体は一意制約にせず、同じファイルを別の取込操作で再登録できます。各プレビューにランダムな `operation_key` を割り当て、`transaction_imports(household_id, source='realbyte-money-manager', operation_key)` の部分一意制約で同じ操作の二重送信だけを冪等に処理します。SHA-256 は 64 文字の小文字 16 進数として DB の CHECK で検証します。
 
-確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を `operation_key` と一緒に追加します。追加時の operation key 一意制約違反は同じ操作として既存の取込結果を返します。別の operation key なら、取込内の各提供元資産を新規資産へ一度だけ割り当て、必要なカテゴリを再利用・作成した後、取引と振替を一つのトランザクションで追加します。別操作で同じファイルを取り込んだ分も月次収支と残高に反映します。
+確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を `operation_key` と一緒に追加します。追加時の operation key 一意制約違反は同じ操作として既存の取込結果を返します。別の operation key なら、取込内の各提供元資産を新規資産へ一度だけ割り当て、必要なカテゴリを再利用・作成した後、取引と振替を一つのトランザクションで追加します。カード資産を含む行では影響するカード設定行（設定がなければカード資産行）もロックします。別操作で同じファイルを取り込んだ分も月次収支と残高に反映します。
 
 ## 再アップロードによる確定
 
@@ -120,8 +120,14 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ## インポート schema
 
-schema は `packages/db/src/schema.ts` に定義し、`0007` までの migration を空 DB・既存 migration 適用済み DB の両方へ適用する integration test で確認します。
+schema は `packages/db/src/schema.ts` に定義し、`0008` までの migration を空 DB・既存 migration 適用済み DB の両方へ適用する integration test で確認します。
 
 ## 統合フォームでの振替入力
 
 振替は通常の支出・収入と同じ登録・編集フォームの種別選択肢に含め、amount/date/memo を共有します。振替を選んだときだけ元資産・先資産を表示し、カテゴリは表示しません。新規振替は削除されていない資産（`deleted_at` が null、`status` が `closed` でも可）だけを受け付け、資産未選択や同一資産などの入力エラーはクライアント・サーバー検証と DB 制約で拒否します。
+
+## クレジットカード請求と自動決済
+
+カードの費用は利用日（transaction の `occurred_on`）に認識し、支払日は費用を新たに認識しない。支払は銀行口座からカード口座への通常の振替として元帳に記録する。導出した請求期間を古い順に並べ、カードへの振替・カードからの振替を含む全件を FIFO で未払い額へ帰属させるため、支払の allocation/link 行は作らない。過払いは許可し、超過分は次の請求またはカード残高のクレジットへ繰り越す。初期残高や as-of 境界はまだないため、台帳導入前の日付を含む全期間の行が計算対象です。
+
+期間・期限は現在のカード条件から毎回再計算する。設定変更時に過去設定の履歴や固定請求を復元しないため、過去に表示された期間境界・期限が変わり得ることを Phase 1 の制約とする。自動決済は有効化日以降の期限日までを対象に、run の household・カード・期限日一意制約で冪等に処理し、worker 停止中の期限日も catch-up する。引落口座不足・削除済み・カード種別など実行不能な条件は transfer を作らず blocked と理由を保存し、次回 tick に再試行する。自動作成済みの振替が通常 UI から削除されても completed run は再作成しない。保存済みの同月締め・支払日が不正な場合は請求期間を導出せず、自動決済もスキップする。

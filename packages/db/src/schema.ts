@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  boolean,
 } from 'drizzle-orm/pg-core';
 
 import { AMOUNT_LIMIT } from './amount.js';
@@ -51,6 +52,14 @@ export const cardPaymentMonthOffset = pgEnum('card_payment_month_offset', [
 ]);
 
 export type CardPaymentMonthOffset = (typeof cardPaymentMonthOffset.enumValues)[number];
+
+export const cardAutoPaymentStatus = pgEnum('card_auto_payment_status', [
+  'completed',
+  'settled',
+  'blocked',
+]);
+
+export type CardAutoPaymentStatus = (typeof cardAutoPaymentStatus.enumValues)[number];
 
 /** A transfer is deliberately kept out of the income/expense enum and totals. */
 export type TransferType = 'transfer';
@@ -230,6 +239,8 @@ export const accountCardSettings = pgTable(
     paymentDay: varchar('payment_day', { length: 5 }),
     paymentMonthOffset: cardPaymentMonthOffset('payment_month_offset'),
     debitAccountId: integer('debit_account_id'),
+    autoPaymentEnabled: boolean('auto_payment_enabled').notNull().default(false),
+    autoPaymentEnabledOn: date('auto_payment_enabled_on', { mode: 'string' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -252,6 +263,11 @@ export const accountCardSettings = pgTable(
     check(
       'account_card_settings_payment_day_check',
       sql`${table.paymentDay} is null or ${table.paymentDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
+    ),
+    check(
+      'account_card_settings_auto_payment_pair_check',
+      sql`(${table.autoPaymentEnabled} and ${table.autoPaymentEnabledOn} is not null) or
+        (not ${table.autoPaymentEnabled} and ${table.autoPaymentEnabledOn} is null)`,
     ),
   ],
 );
@@ -389,6 +405,40 @@ export const transfers = pgTable(
   ],
 );
 
+export const cardAutoPaymentRuns = pgTable(
+  'card_auto_payment_runs',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    cardAccountId: integer('card_account_id').notNull(),
+    dueOn: date('due_on', { mode: 'string' }).notNull(),
+    status: cardAutoPaymentStatus('status').notNull(),
+    transferId: integer('transfer_id').references(() => transfers.id, { onDelete: 'set null' }),
+    reason: varchar('reason', { length: 200 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'card_auto_payment_runs_card_account_household_fk',
+      columns: [table.cardAccountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    unique('card_auto_payment_runs_household_card_due_unique').on(
+      table.householdId,
+      table.cardAccountId,
+      table.dueOn,
+    ),
+    index('card_auto_payment_runs_household_card_due_idx').on(
+      table.householdId,
+      table.cardAccountId,
+      table.dueOn,
+    ),
+  ],
+);
+
 export type SystemHealthcheck = typeof systemHealthchecks.$inferSelect;
 export type NewSystemHealthcheck = typeof systemHealthchecks.$inferInsert;
 export type Household = typeof households.$inferSelect;
@@ -405,3 +455,5 @@ export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type Transfer = typeof transfers.$inferSelect;
 export type NewTransfer = typeof transfers.$inferInsert;
+export type CardAutoPaymentRun = typeof cardAutoPaymentRuns.$inferSelect;
+export type NewCardAutoPaymentRun = typeof cardAutoPaymentRuns.$inferInsert;

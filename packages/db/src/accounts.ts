@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { currentTokyoDate } from './month.js';
 import type { Database } from './client.js';
-import { getAccountBalances, type AccountBalance } from './ledger.js';
+import { getAccountBalances, lockCardSettingsForAccounts, type AccountBalance } from './ledger.js';
 import {
   accountCardSettings,
   accounts,
@@ -284,6 +285,7 @@ export async function updateAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      await lockCardSettingsForAccounts(transaction, householdId, [accountId]);
       const current = await transaction
         .select()
         .from(accounts)
@@ -388,6 +390,7 @@ export async function deleteAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      await lockCardSettingsForAccounts(transaction, householdId, [accountId]);
       const account = await transaction
         .select({ id: accounts.id, deletedAt: accounts.deletedAt })
         .from(accounts)
@@ -517,11 +520,17 @@ async function saveCardConditionInTransaction(
   ) {
     return { status: 'invalid_debit_account' };
   }
+  const autoPaymentEnabled = input.autoPaymentEnabled === true;
+  const autoPaymentEnabledOn = autoPaymentEnabled
+    ? (current?.autoPaymentEnabledOn ?? currentTokyoDate())
+    : null;
   const values = {
     closingDay: input.closingDay ?? null,
     paymentDay: input.paymentDay ?? null,
     paymentMonthOffset: input.paymentMonthOffset ?? null,
     debitAccountId: input.debitAccountId ?? null,
+    autoPaymentEnabled,
+    autoPaymentEnabledOn,
     updatedAt: new Date(),
   };
   if (current) {

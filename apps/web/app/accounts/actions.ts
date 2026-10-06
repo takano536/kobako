@@ -34,6 +34,7 @@ function accountState(formData: FormData, message?: string): AccountFormState {
       paymentDay: text(formData, 'paymentDay'),
       paymentMonthOffset: text(formData, 'paymentMonthOffset'),
       debitAccountId: text(formData, 'debitAccountId'),
+      autoPaymentEnabled: formData.get('autoPaymentEnabled') === 'on',
     },
     message,
   };
@@ -56,6 +57,7 @@ interface CardInput {
   paymentDay: string | null;
   paymentMonthOffset: string | null;
   debitAccountId: string | null;
+  autoPaymentEnabled: boolean;
 }
 
 function revalidateAssets(accountId?: number): void {
@@ -72,6 +74,7 @@ function cardInput(formData: FormData): CardInput {
     paymentDay: text(formData, 'paymentDay') || null,
     paymentMonthOffset: text(formData, 'paymentMonthOffset') || null,
     debitAccountId: text(formData, 'debitAccountId') || null,
+    autoPaymentEnabled: formData.get('autoPaymentEnabled') === 'on',
   };
 }
 

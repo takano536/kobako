@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
+  accountCardSettings,
   accounts,
   categories,
   households,
@@ -135,6 +136,8 @@ export interface TransactionFilters {
   type?: TransactionType;
   categoryId?: number;
   accountId?: number;
+  periodStart?: string;
+  periodEnd?: string;
   limit?: number;
   offset?: number;
 }
@@ -187,6 +190,12 @@ function transactionConditions(householdId: string, filters: TransactionFilters)
     const range = monthRange(filters.month);
     conditions.push(gte(transactions.occurredOn, range.start));
     conditions.push(lt(transactions.occurredOn, range.endExclusive));
+  }
+  if (filters.periodStart !== undefined) {
+    conditions.push(gte(transactions.occurredOn, filters.periodStart));
+  }
+  if (filters.periodEnd !== undefined) {
+    conditions.push(lte(transactions.occurredOn, filters.periodEnd));
   }
   if (filters.type === 'expense' || filters.type === 'income') {
     conditions.push(eq(transactions.type, filters.type));
@@ -256,6 +265,14 @@ export async function listLedgerEntries(
       gte(transfers.occurredOn, range.start),
       lt(transfers.occurredOn, range.endExclusive),
     );
+  }
+  if (filters.periodStart !== undefined) {
+    transactionWhere.push(gte(transactions.occurredOn, filters.periodStart));
+    transferWhere.push(gte(transfers.occurredOn, filters.periodStart));
+  }
+  if (filters.periodEnd !== undefined) {
+    transactionWhere.push(lte(transactions.occurredOn, filters.periodEnd));
+    transferWhere.push(lte(transfers.occurredOn, filters.periodEnd));
   }
   if (filters.type === 'expense' || filters.type === 'income') {
     transactionWhere.push(eq(transactions.type, filters.type));
@@ -618,21 +635,28 @@ export async function createTransaction(
   householdId: string,
   input: TransactionInput,
 ): Promise<Transaction> {
-  const values: NewTransaction = {
-    householdId,
-    type: input.type,
-    amount: input.amount,
-    occurredOn: input.occurredOn,
-    categoryId: input.categoryId,
-    accountId: input.accountId ?? null,
-    memo: input.memo,
-  };
-  const rows = await db.insert(transactions).values(values).returning();
-  const transaction = rows[0];
-  if (!transaction) {
-    throw new Error('Transaction insert returned no row');
-  }
-  return transaction;
+  return db.transaction(async (transaction) => {
+    await lockCardSettingsForAccounts(
+      transaction,
+      householdId,
+      input.accountId === undefined || input.accountId === null ? [] : [input.accountId],
+    );
+    const values: NewTransaction = {
+      householdId,
+      type: input.type,
+      amount: input.amount,
+      occurredOn: input.occurredOn,
+      categoryId: input.categoryId,
+      accountId: input.accountId ?? null,
+      memo: input.memo,
+    };
+    const rows = await transaction.insert(transactions).values(values).returning();
+    const created = rows[0];
+    if (!created) {
+      throw new Error('Transaction insert returned no row');
+    }
+    return created;
+  });
 }
 
 export async function updateTransaction(
@@ -641,21 +665,36 @@ export async function updateTransaction(
   id: number,
   input: TransactionInput,
 ): Promise<Transaction | null> {
-  const values = {
-    type: input.type,
-    amount: input.amount,
-    occurredOn: input.occurredOn,
-    categoryId: input.categoryId,
-    ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
-    memo: input.memo,
-    updatedAt: new Date(),
-  };
-  const rows = await db
-    .update(transactions)
-    .set(values)
-    .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
-    .returning();
-  return rows[0] ?? null;
+  return db.transaction(async (transaction) => {
+    const existingRows = await transaction
+      .select({ id: transactions.id, accountId: transactions.accountId })
+      .from(transactions)
+      .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+      .for('update')
+      .limit(1);
+    const existing = existingRows[0];
+    if (!existing) return null;
+    const nextAccountId = input.accountId === undefined ? existing.accountId : input.accountId;
+    await lockCardSettingsForAccounts(transaction, householdId, [
+      ...(existing.accountId === null ? [] : [existing.accountId]),
+      ...(nextAccountId === null || nextAccountId === undefined ? [] : [nextAccountId]),
+    ]);
+    const values = {
+      type: input.type,
+      amount: input.amount,
+      occurredOn: input.occurredOn,
+      categoryId: input.categoryId,
+      ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
+      memo: input.memo,
+      updatedAt: new Date(),
+    };
+    const rows = await transaction
+      .update(transactions)
+      .set(values)
+      .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+      .returning();
+    return rows[0] ?? null;
+  });
 }
 
 export async function deleteTransaction(
@@ -663,15 +702,73 @@ export async function deleteTransaction(
   householdId: string,
   id: number,
 ): Promise<Pick<Transaction, 'occurredOn'> | null> {
-  const rows = await db
-    .delete(transactions)
-    .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
-    .returning({ occurredOn: transactions.occurredOn });
-  return rows[0] ?? null;
+  return db.transaction(async (transaction) => {
+    const existingRows = await transaction
+      .select({ id: transactions.id, accountId: transactions.accountId })
+      .from(transactions)
+      .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+      .for('update')
+      .limit(1);
+    const existing = existingRows[0];
+    if (!existing) return null;
+    await lockCardSettingsForAccounts(
+      transaction,
+      householdId,
+      existing.accountId === null ? [] : [existing.accountId],
+    );
+    const rows = await transaction
+      .delete(transactions)
+      .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
+      .returning({ occurredOn: transactions.occurredOn });
+    return rows[0] ?? null;
+  });
 }
 
-type LedgerTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
-type LedgerExecutor = Database | LedgerTransaction;
+export type LedgerTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type LedgerExecutor = Database | LedgerTransaction;
+
+/**
+ * Serialize ledger, account, and import mutations touching a credit-card account
+ * with billing worker/settings updates. Cards without a settings row lock their
+ * account row so creating the first settings row is serialized as well.
+ */
+export async function lockCardSettingsForAccounts(
+  db: LedgerExecutor,
+  householdId: string,
+  accountIds: readonly number[],
+): Promise<void> {
+  const ids = [
+    ...new Set(accountIds.filter((id) => Number.isSafeInteger(id) && id > 0 && id <= MAX_INT4_ID)),
+  ];
+  if (ids.length === 0) return;
+  const endpointRows = await db
+    .select({ id: accounts.id, kind: accounts.kind })
+    .from(accounts)
+    .where(and(eq(accounts.householdId, householdId), inArray(accounts.id, ids)))
+    .orderBy(asc(accounts.id));
+  for (const account of endpointRows) {
+    if (account.kind !== 'credit_card') continue;
+    const settings = await db
+      .select({ id: accountCardSettings.id })
+      .from(accountCardSettings)
+      .where(
+        and(
+          eq(accountCardSettings.householdId, householdId),
+          eq(accountCardSettings.accountId, account.id),
+        ),
+      )
+      .for('update')
+      .limit(1);
+    if (settings.length === 0) {
+      await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(eq(accounts.householdId, householdId), eq(accounts.id, account.id)))
+        .for('update')
+        .limit(1);
+    }
+  }
+}
 
 async function validateTransferAccounts(
   db: LedgerExecutor,
@@ -730,6 +827,10 @@ export async function createTransfer(
 ): Promise<TransferMutationResult> {
   try {
     return await db.transaction(async (transaction) => {
+      await lockCardSettingsForAccounts(transaction, householdId, [
+        input.fromAccountId,
+        input.toAccountId,
+      ]);
       const validationCode = await validateTransferAccounts(
         transaction,
         householdId,
@@ -777,10 +878,17 @@ export async function updateTransfer(
         })
         .from(transfers)
         .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .for('update')
         .limit(1);
       if (!targetRows[0]) {
         return { status: 'not_found' };
       }
+      await lockCardSettingsForAccounts(transaction, householdId, [
+        targetRows[0].fromAccountId,
+        targetRows[0].toAccountId,
+        input.fromAccountId,
+        input.toAccountId,
+      ]);
       const validationCode = await validateTransferAccounts(
         transaction,
         householdId,
@@ -829,7 +937,7 @@ export async function convertTransactionToTransfer(
   try {
     return await db.transaction(async (transaction) => {
       const sourceRows = await transaction
-        .select({ id: transactions.id })
+        .select({ id: transactions.id, accountId: transactions.accountId })
         .from(transactions)
         .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
         .limit(1)
@@ -837,6 +945,13 @@ export async function convertTransactionToTransfer(
       if (!sourceRows[0]) {
         return { status: 'not_found' };
       }
+      await lockCardSettingsForAccounts(
+        transaction,
+        householdId,
+        sourceRows[0].accountId === null
+          ? [input.fromAccountId, input.toAccountId]
+          : [sourceRows[0].accountId, input.fromAccountId, input.toAccountId],
+      );
       const validationCode = await validateTransferAccounts(
         transaction,
         householdId,
@@ -887,7 +1002,11 @@ export async function convertTransferToTransaction(
   try {
     return await db.transaction(async (transaction) => {
       const sourceRows = await transaction
-        .select({ id: transfers.id })
+        .select({
+          id: transfers.id,
+          fromAccountId: transfers.fromAccountId,
+          toAccountId: transfers.toAccountId,
+        })
         .from(transfers)
         .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
         .limit(1)
@@ -895,6 +1014,10 @@ export async function convertTransferToTransaction(
       if (!sourceRows[0]) {
         return { status: 'not_found' };
       }
+      await lockCardSettingsForAccounts(transaction, householdId, [
+        sourceRows[0].fromAccountId,
+        sourceRows[0].toAccountId,
+      ]);
       const categoryRows = await transaction
         .select({ id: categories.id })
         .from(categories)
@@ -948,10 +1071,28 @@ export async function deleteTransfer(
   id: number,
 ): Promise<TransferDeleteResult> {
   try {
-    const rows = await db
-      .delete(transfers)
-      .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
-      .returning({ occurredOn: transfers.occurredOn });
+    const rows = await db.transaction(async (transaction) => {
+      const targetRows = await transaction
+        .select({
+          id: transfers.id,
+          fromAccountId: transfers.fromAccountId,
+          toAccountId: transfers.toAccountId,
+        })
+        .from(transfers)
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .for('update')
+        .limit(1);
+      const target = targetRows[0];
+      if (!target) return [];
+      await lockCardSettingsForAccounts(transaction, householdId, [
+        target.fromAccountId,
+        target.toAccountId,
+      ]);
+      return transaction
+        .delete(transfers)
+        .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
+        .returning({ occurredOn: transfers.occurredOn });
+    });
     const deleted = rows[0];
     return deleted ? { status: 'ok', occurredOn: deleted.occurredOn } : { status: 'not_found' };
   } catch (error) {
