@@ -93,7 +93,7 @@ function database(): DatabaseClient {
 }
 
 function balanceList(page: Page): Locator {
-  return page.getByRole('list', { name: /資産別残高/ });
+  return page.locator('.balance-list');
 }
 function summaryAmount(page: Page, label: string): Locator {
   return page
@@ -144,7 +144,7 @@ function accountRow(page: Page, accountName: string): Locator {
   return balanceList(page).getByRole('listitem').filter({ hasText: accountName });
 }
 function balanceMetric(row: Locator, label: string): Locator {
-  return row.locator('.balance-metric').filter({ hasText: label });
+  return row.locator(`.balance-metric[aria-label="${label}"]`);
 }
 
 async function expectAccountBalance(
@@ -1110,17 +1110,58 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
   try {
     await page.goto('/balances');
 
+    await expect(page.getByText('今月の支払予定', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('設定を確認', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('資産別の残高', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.balance-row .balance-metric-label')).toHaveCount(0);
+    await expect(page.locator('.balance-row').filter({ hasText: '支払予定' })).toHaveCount(0);
+
+    const bankGroup = page
+      .locator('.balance-group')
+      .filter({ has: page.locator('h3', { hasText: /^銀行$/ }) });
+    await expect(bankGroup.locator('.balance-group-heading-label')).toHaveText([
+      '支払予定',
+      '残高',
+    ]);
+    const cardGroups = page
+      .locator('.balance-group')
+      .filter({ has: page.locator('h3', { hasText: /^クレジットカード$/ }) });
+    await expect(cardGroups).toHaveCount(2);
+    await expect(cardGroups.nth(0).locator('.balance-group-heading-label')).toHaveText([
+      '支払予定',
+      '未請求',
+    ]);
+    await expect(cardGroups.nth(1).locator('.balance-group-heading-label')).toHaveText([
+      '支払予定',
+      '利用残高',
+    ]);
+
+    const expectMetricLabels = async (row: Locator, labels: string[]): Promise<void> => {
+      await expect(row.locator('.balance-metric')).toHaveCount(labels.length);
+      await expect
+        .poll(() =>
+          row
+            .locator('.balance-metric')
+            .evaluateAll((elements) =>
+              elements.map((element) => element.getAttribute('aria-label')),
+            ),
+        )
+        .toEqual(labels);
+    };
+
     const primaryBank = accountRow(page, paymentFixtureNames.primaryBank);
-    await expect(balanceMetric(primaryBank, '今月の支払予定')).toContainText('3,700円');
+    await expectMetricLabels(primaryBank, ['支払予定', '残高']);
+    await expect(balanceMetric(primaryBank, '支払予定')).toContainText('3,700円');
     await expect(balanceMetric(primaryBank, '残高')).toContainText('−1,200円');
     const secondaryBank = accountRow(page, paymentFixtureNames.secondaryBank);
-    await expect(balanceMetric(secondaryBank, '今月の支払予定')).toContainText('3,000円');
+    await expect(balanceMetric(secondaryBank, '支払予定')).toContainText('3,000円');
     await expect(balanceMetric(secondaryBank, '残高')).toContainText('0円');
     const orphanBank = accountRow(page, paymentFixtureNames.orphanBank);
-    await expect(balanceMetric(orphanBank, '今月の支払予定')).toContainText('0円');
+    await expect(balanceMetric(orphanBank, '支払予定')).toContainText('0円');
     await expect(balanceMetric(orphanBank, '残高')).toContainText('0円');
 
     const primaryCard = accountRow(page, paymentFixtureNames.primaryCard);
+    await expectMetricLabels(primaryCard, ['支払予定', '未請求']);
     await expect(balanceMetric(primaryCard, '支払予定')).toContainText('1,000円');
     await expect(balanceMetric(primaryCard, '未請求')).toContainText('250円');
     const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
@@ -1140,13 +1181,13 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
     ).toContainText('400円');
 
     const noSettingsCard = accountRow(page, paymentFixtureNames.noSettingsCard);
+    await expectMetricLabels(noSettingsCard, ['支払予定', '利用残高']);
     await expect(balanceMetric(noSettingsCard, '支払予定')).toContainText('—');
     await expect(balanceMetric(noSettingsCard, '利用残高')).toContainText('900円');
-    await expect(noSettingsCard.getByText('設定を確認')).toHaveCount(0);
     const invalidSettingsCard = accountRow(page, paymentFixtureNames.invalidSettingsCard);
+    await expectMetricLabels(invalidSettingsCard, ['支払予定', '利用残高']);
     await expect(balanceMetric(invalidSettingsCard, '支払予定')).toContainText('—');
     await expect(balanceMetric(invalidSettingsCard, '利用残高')).toContainText('1,000円');
-    await expect(invalidSettingsCard.getByText('設定を確認')).toBeVisible();
     expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
       '支払日',
     );
@@ -1169,7 +1210,7 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
     });
     const debtColor = moneyColors.debt;
     const positiveColor = moneyColors.positive;
-    await expect(balanceMetric(primaryBank, '今月の支払予定').locator('.money-amount')).toHaveCSS(
+    await expect(balanceMetric(primaryBank, '支払予定').locator('.money-amount')).toHaveCSS(
       'color',
       debtColor,
     );
@@ -1198,6 +1239,7 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       debtColor,
     );
     const overpaymentCard = accountRow(page, paymentFixtureNames.overpaymentCard);
+    await expectMetricLabels(overpaymentCard, ['支払予定', '利用残高']);
     await expect(balanceMetric(overpaymentCard, '支払予定')).toContainText('0円');
     await expect(balanceMetric(overpaymentCard, '利用残高')).toContainText('−200円');
     await expect(balanceMetric(overpaymentCard, '利用残高').locator('.money-amount')).toHaveCSS(
@@ -1220,12 +1262,24 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       await page.reload();
       await assertNoHorizontalOverflow(page);
       const row = accountRow(page, paymentFixtureNames.primaryCard);
+      const rowBox = await row.boundingBox();
       const nameBox = await row.locator('.balance-account-link').boundingBox();
       const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
-      if (!nameBox || !metricsBox) throw new Error('balance row geometry is missing');
+      if (!rowBox || !nameBox || !metricsBox) throw new Error('balance row geometry is missing');
       expect(metricsBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
-      expect(metricsBox.y).toBeLessThan(nameBox.y + nameBox.height);
+      expect(
+        Math.abs(metricsBox.y + metricsBox.height / 2 - (rowBox.y + rowBox.height / 2)),
+      ).toBeLessThanOrEqual(1);
 
+      const headingColumns = await cardGroups
+        .nth(0)
+        .locator('.balance-group-heading-label')
+        .evaluateAll((elements) =>
+          elements.map((element) => {
+            const box = element.getBoundingClientRect();
+            return { x: box.x, width: box.width };
+          }),
+        );
       const metricColumns = await Promise.all(
         cardRows.map((cardRow) =>
           cardRow.locator('.balance-metric').evaluateAll((elements) =>
@@ -1236,17 +1290,14 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
           ),
         ),
       );
+      expect(headingColumns).toHaveLength(2);
       for (const columns of metricColumns) {
         expect(columns).toHaveLength(2);
-      }
-      const referenceColumns = metricColumns[0];
-      if (!referenceColumns) throw new Error('balance metric columns are missing');
-      for (const columns of metricColumns.slice(1)) {
         for (const [index, column] of columns.entries()) {
-          const reference = referenceColumns[index];
-          if (!reference) throw new Error('balance metric column is missing');
-          expect(Math.abs(column.x - reference.x)).toBeLessThanOrEqual(1);
-          expect(Math.abs(column.width - reference.width)).toBeLessThanOrEqual(1);
+          const heading = headingColumns[index];
+          if (!heading) throw new Error('balance heading columns are missing');
+          expect(Math.abs(column.x - heading.x)).toBeLessThanOrEqual(1);
+          expect(Math.abs(column.width - heading.width)).toBeLessThanOrEqual(1);
         }
       }
     }

@@ -8,7 +8,6 @@ interface PaymentSchedule {
   scheduledAmount: string | null;
   balanceAmount: string | null;
   balanceLabel?: string;
-  settingsHref?: string;
 }
 
 interface AccountBalanceRowProps {
@@ -49,38 +48,22 @@ function BalanceMetric({
   label,
   value,
   tone,
-  settingsHref,
 }: {
   label: string;
   value: string | null;
   tone: MoneyTone;
-  settingsHref?: string;
 }) {
   return (
-    <div className="balance-metric">
-      <span className="balance-metric-label">
-        {label === '今月の支払予定' ? (
-          <>
-            今月の
-            <wbr />
-            支払予定
-          </>
-        ) : (
-          label
-        )}
-      </span>
+    <div className="balance-metric" role="group" aria-label={label}>
       {value === null ? (
-        <span className="balance-metric-unknown" aria-label={`${label}不明`}>
+        <span className="balance-amount balance-metric-unknown" aria-label={`${label}不明`}>
           —
         </span>
       ) : (
-        <SemanticYen value={value} tone={tone} />
+        <span className="balance-amount">
+          <SemanticYen value={value} tone={tone} />
+        </span>
       )}
-      {settingsHref ? (
-        <Link className="balance-settings-link" href={settingsHref}>
-          設定を確認
-        </Link>
-      ) : null}
     </div>
   );
 }
@@ -105,13 +88,12 @@ export function AccountBalanceRow({
       {paymentSchedule && hasPaymentMetrics ? (
         <div className="balance-row-metrics">
           <BalanceMetric
-            label={kind === 'bank' ? '今月の支払予定' : '支払予定'}
+            label="支払予定"
             value={paymentSchedule.scheduledAmount}
             tone={toneForAmount(
               paymentSchedule.scheduledAmount ?? '0',
               kind === 'bank' || kind === 'credit_card',
             )}
-            settingsHref={paymentSchedule.settingsHref}
           />
           <BalanceMetric
             label={kind === 'bank' ? '残高' : (paymentSchedule.balanceLabel ?? '未請求')}

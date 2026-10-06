@@ -497,52 +497,81 @@ h3 {
   font-weight: 600;
 }
 
+.balance-group {
+  --balance-metric-width: 12rem;
+  --balance-metrics-width: calc(24rem + var(--space-group));
+}
+
 .balance-list {
-  --balance-amount-column: minmax(0, 12rem);
   display: grid;
   gap: 0;
+  min-width: 0;
+}
+
+.balance-row,
+.balance-group-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-group);
+  min-width: 0;
+}
+
+.balance-row-with-metrics,
+.balance-group-heading-with-metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
+}
+
+.balance-group-heading {
+  align-items: center;
+  min-height: 25px;
+  padding-block: var(--space-within);
   border-top: 1px solid var(--rule);
 }
 
 .balance-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--space-group);
-  align-items: start;
-  min-width: 0;
+  align-items: center;
   min-height: 44px;
   padding-block: var(--space-item);
   border-bottom: 1px solid var(--rule);
 }
 
+.balance-group-heading-columns,
 .balance-row-metrics {
   display: grid;
-  grid-template-columns: repeat(2, var(--balance-amount-column));
   min-width: 0;
-  align-items: start;
+  align-items: center;
+}
+.balance-group-heading-columns {
+  grid-template-columns: auto;
+  justify-items: stretch;
+}
+
+.balance-group-heading-columns-with-metrics,
+.balance-row-metrics {
+  grid-template-columns: repeat(2, minmax(0, var(--balance-metric-width)));
   gap: var(--space-group);
+}
+
+.balance-group-heading-label {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+  overflow-wrap: normal;
+  text-align: right;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .balance-metric {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-within);
+  align-items: center;
+  justify-content: flex-end;
   text-align: right;
 }
 
 .balance-metric .money-amount {
   white-space: nowrap;
-}
-
-.balance-metric-label {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: var(--leading-meta);
-  overflow-wrap: normal;
-  white-space: nowrap;
-  word-break: keep-all;
 }
 
 .balance-metric-unknown {
@@ -568,35 +597,20 @@ h3 {
   overflow-wrap: anywhere;
 }
 
-.balance-settings-link {
-  color: var(--muted);
-  font-size: var(--text-small);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.2em;
-  white-space: nowrap;
-}
-
 @media (max-width: 44rem) {
-  .balance-list {
+  .balance-group {
     --balance-metrics-width: 60%;
   }
 
-  .balance-row {
+  .balance-row,
+  .balance-group-heading {
     column-gap: var(--space-item);
   }
 
-  .balance-row-with-metrics {
-    grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
-  }
-
+  .balance-group-heading-columns-with-metrics,
   .balance-row-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-item);
-  }
-
-  .balance-metric-label {
-    white-space: normal;
   }
 
   .balance-metric .money-amount {
@@ -605,7 +619,7 @@ h3 {
 }
 
 @media (max-width: 22.5rem) {
-  .balance-metric-label {
+  .balance-group-heading-label {
     font-size: 0.68rem;
   }
 
@@ -2666,6 +2680,7 @@ h3 {
     gap: var(--space-item);
   }
 
+  .balance-group-heading-columns-with-metrics,
   .balance-row-metrics {
     gap: var(--space-within);
   }
@@ -2743,7 +2758,7 @@ h3 {
   display: inline-flex;
   flex: 1 1 auto;
   min-width: 0;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   color: inherit;
   text-decoration: none;
@@ -2758,13 +2773,19 @@ h3 {
 .balance-groups {
   display: grid;
   gap: var(--space-section);
-  margin-top: var(--space-section);
+}
+
+.balance-group-card-continuation {
+  margin-top: calc(-1 * var(--space-section));
+}
+
+.balance-group-card-continuation .balance-group-heading {
+  border-top: 0;
 }
 
 .balance-group h3 {
-  min-height: 25px;
+  min-width: 0;
   margin: 0;
-  padding-top: var(--space-within);
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: 500;
