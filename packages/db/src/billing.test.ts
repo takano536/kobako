@@ -100,7 +100,7 @@ describe('balance payment schedules', () => {
     });
   });
 
-  it('aggregates only complete cards assigned to each bank for the current month', () => {
+  it('aggregates same-bank cards with different due dates and excludes other banks, future months, and paid periods', () => {
     const amounts = aggregateBankPaymentSchedules(
       [
         summary(1, 10, [
@@ -108,15 +108,16 @@ describe('balance payment schedules', () => {
           period('overdue', '20', '2026-02-20'),
         ]),
         summary(2, 10, [period('billed-unpaid', '25', '2026-03-10')]),
-        summary(3, 11, [period('paid', '0', '2026-02-10')]),
-        summary(4, null, [period('billed-unpaid', '99', '2026-02-10')]),
+        summary(3, 11, [period('billed-unpaid', '40', '2026-02-10')]),
+        summary(4, 11, [period('paid', '0', '2026-02-10')]),
+        summary(5, null, [period('billed-unpaid', '99', '2026-02-10')]),
       ],
       '2026-02',
     );
     expect(amounts).toEqual(
       new Map([
         [10, 50n],
-        [11, 0n],
+        [11, 40n],
       ]),
     );
   });

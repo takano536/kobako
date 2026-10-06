@@ -5,6 +5,7 @@ import {
   createAccount,
   createTransaction,
   createTransfer,
+  deleteTransfer,
   getAccountBalance,
   getCardBillingSummary,
   getExpenseCategoryTotals,
@@ -12,6 +13,7 @@ import {
   initializeDefaultLedger,
   processDueCardPayments,
   updateAccount,
+  updateTransfer,
   type DatabaseClient,
 } from '@kobako/db';
 import { createDatabaseClient } from './client.js';
@@ -86,7 +88,11 @@ async function createConfiguredCard(
   };
 }
 
-async function enableAutoPayment(client: DatabaseClient, cardId: number, startsOn = '2026-01-01') {
+async function setAutoPaymentStartsOn(
+  client: DatabaseClient,
+  cardId: number,
+  startsOn = '2026-01-01',
+) {
   await client.db
     .update(accountCardSettings)
     .set({ autoPaymentStartsOn: startsOn })
@@ -155,6 +161,8 @@ async function cardTransferRows(client: DatabaseClient, cardId: number) {
       fromAccountId: transfers.fromAccountId,
       toAccountId: transfers.toAccountId,
       amount: transfers.amount,
+      occurredOn: transfers.occurredOn,
+      memo: transfers.memo,
     })
     .from(transfers)
     .where(eq(transfers.toAccountId, cardId));
@@ -188,10 +196,10 @@ describe('derived card billing worker', () => {
     await client?.close();
   });
 
-  it('runs automatically for a complete card setting without an opt-in flag', async () => {
+  it('runs automatically for a complete card setting from its start boundary', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     const result = await processDueCardPayments(client.db, '2026-03-01');
     expect(result.completed).toBe(1);
     expect(await cardTransferRows(client, fixture.cardId)).toEqual([
@@ -202,7 +210,7 @@ describe('derived card billing worker', () => {
   it('skips a card that is no longer active without creating an auto-payment run', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await client.db
       .update(accounts)
       .set({ status: 'closed' })
@@ -237,7 +245,7 @@ describe('derived card billing worker', () => {
       paymentMonthOffset: 'next_month',
     });
     await addExpense(client, fixture, '9998-12-31', 100);
-    await enableAutoPayment(client, fixture.cardId, '9998-01-01');
+    await setAutoPaymentStartsOn(client, fixture.cardId, '9998-01-01');
 
     const summary = await getCardBillingSummary(
       client.db,
@@ -269,7 +277,7 @@ describe('derived card billing worker', () => {
   it('hides an invalid stored same-month schedule and skips the worker', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await client.db
       .update(accountCardSettings)
       .set({ closingDay: '30', paymentDay: '31', paymentMonthOffset: 'same_month' })
@@ -308,7 +316,7 @@ describe('derived card billing worker', () => {
   it('settles a due period already paid by a manual transfer', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await addTransfer(client, fixture.debitId, fixture.cardId, '2026-02-01', 100);
     const result = await processDueCardPayments(client.db, '2026-03-01');
     expect(result.settled).toBe(1);
@@ -321,7 +329,7 @@ describe('derived card billing worker', () => {
   it('auto pays only the remaining amount after a partial manual payment', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await addTransfer(client, fixture.debitId, fixture.cardId, '2026-02-01', 40);
     const result = await processDueCardPayments(client.db, '2026-03-01');
     expect(result.completed).toBe(1);
@@ -334,7 +342,7 @@ describe('derived card billing worker', () => {
   it('is idempotent when the worker is rerun', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await processDueCardPayments(client.db, '2026-03-01');
     const second = await processDueCardPayments(client.db, '2026-03-01');
     expect(second.completed).toBe(0);
@@ -344,7 +352,7 @@ describe('derived card billing worker', () => {
   it('allows concurrent worker calls to create one transfer', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await Promise.all([
       processDueCardPayments(client.db, '2026-03-01'),
       processDueCardPayments(client.db, '2026-03-01'),
@@ -352,10 +360,43 @@ describe('derived card billing worker', () => {
     expect(await cardTransferRows(client, fixture.cardId)).toHaveLength(1);
   });
 
+  it('does not recreate an auto-payment transfer after it is edited or deleted', async () => {
+    const fixture = await createConfiguredCard(client);
+    await addExpense(client, fixture, '2026-01-10', 100);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
+    await processDueCardPayments(client.db, '2026-03-01');
+    const [created] = await cardTransferRows(client, fixture.cardId);
+    if (!created) throw new Error('auto-payment transfer was not created');
+    expect(created).toMatchObject({
+      amount: 100,
+      occurredOn: '2026-02-10',
+      memo: '自動引落',
+    });
+
+    const edited = await updateTransfer(client.db, HOUSEHOLD_ID, created.id, {
+      fromAccountId: fixture.debitId,
+      toAccountId: fixture.cardId,
+      amount: 90,
+      occurredOn: '2026-02-10',
+      memo: '手動修正',
+    });
+    expect(edited.status).toBe('ok');
+    expect((await processDueCardPayments(client.db, '2026-03-01')).completed).toBe(0);
+    expect(await cardTransferRows(client, fixture.cardId)).toEqual([
+      expect.objectContaining({ id: created.id, amount: 90, memo: '手動修正' }),
+    ]);
+
+    expect(await deleteTransfer(client.db, HOUSEHOLD_ID, created.id)).toMatchObject({
+      status: 'ok',
+    });
+    expect((await processDueCardPayments(client.db, '2026-03-01')).completed).toBe(0);
+    expect(await cardTransferRows(client, fixture.cardId)).toEqual([]);
+  });
+
   it('serializes a manual transfer before auto payment and pays the amount once', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     const manual = addTransfer(client, fixture.debitId, fixture.cardId, '2026-02-10', 100);
     const worker = processDueCardPayments(client.db, '2026-03-01');
     await Promise.all([manual, worker]);
@@ -368,12 +409,12 @@ describe('derived card billing worker', () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
     await addExpense(client, fixture, '2026-02-10', 80);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     const result = await processDueCardPayments(client.db, '2026-04-01');
     expect(result.completed).toBe(2);
     expect(await cardTransferRows(client, fixture.cardId)).toEqual([
-      expect.objectContaining({ amount: 100 }),
-      expect.objectContaining({ amount: 80 }),
+      expect.objectContaining({ amount: 100, occurredOn: '2026-02-10', memo: '自動引落' }),
+      expect.objectContaining({ amount: 80, occurredOn: '2026-03-10', memo: '自動引落' }),
     ]);
   });
 
@@ -381,7 +422,7 @@ describe('derived card billing worker', () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
     await addExpense(client, fixture, '2026-02-10', 80);
-    await enableAutoPayment(client, fixture.cardId, '2026-03-01');
+    await setAutoPaymentStartsOn(client, fixture.cardId, '2026-03-01');
     const result = await processDueCardPayments(client.db, '2026-04-01');
     expect(result.completed).toBe(1);
     expect((await cardTransferRows(client, fixture.cardId))[0]?.amount).toBe(80);
@@ -389,7 +430,7 @@ describe('derived card billing worker', () => {
   it('includes a payment due exactly on the auto-payment start boundary', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId, '2026-02-10');
+    await setAutoPaymentStartsOn(client, fixture.cardId, '2026-02-10');
 
     const result = await processDueCardPayments(client.db, '2026-02-10');
 
@@ -408,8 +449,8 @@ describe('derived card billing worker', () => {
     });
     await addExpense(client, first, '2026-01-10', 100);
     await addExpense(client, second, '2026-01-15', 50);
-    await enableAutoPayment(client, first.cardId, '2026-01-01');
-    await enableAutoPayment(client, second.cardId, '2026-01-01');
+    await setAutoPaymentStartsOn(client, first.cardId, '2026-01-01');
+    await setAutoPaymentStartsOn(client, second.cardId, '2026-01-01');
 
     const result = await processDueCardPayments(client.db, '2026-02-20');
 
@@ -433,7 +474,7 @@ describe('derived card billing worker', () => {
       debitAccountId: null,
     });
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     const blocked = await processDueCardPayments(client.db, '2026-03-01');
     expect(blocked.blocked).toBe(1);
     expect(
@@ -451,7 +492,7 @@ describe('derived card billing worker', () => {
   it('blocks and recovers a deleted debit account and a card debit account', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
-    await enableAutoPayment(client, fixture.cardId);
+    await setAutoPaymentStartsOn(client, fixture.cardId);
     await client.db
       .update(accounts)
       .set({ deletedAt: new Date() })
@@ -465,7 +506,7 @@ describe('derived card billing worker', () => {
 
     const second = await createConfiguredCard(client);
     await addExpense(client, second, '2026-01-10', 100);
-    await enableAutoPayment(client, second.cardId);
+    await setAutoPaymentStartsOn(client, second.cardId);
     await client.db
       .update(accountCardSettings)
       .set({ debitAccountId: second.cardId })
