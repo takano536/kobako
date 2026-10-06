@@ -2524,73 +2524,69 @@ h3 {
   }
 
   .balance-summary-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-group);
+    border-block: 0;
+    padding-inline: 0;
   }
 
   .balance-summary-item {
-    display: flex;
+    position: static;
+    display: grid;
+    flex: 1 1 0;
+    min-width: max-content;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    justify-items: center;
     gap: var(--space-within);
-    align-items: baseline;
-    justify-content: space-between;
     padding-block: var(--space-item);
-    padding-inline: var(--space-item);
-    text-align: right;
+    padding-inline: 0;
+    text-align: center;
   }
 
   .balance-summary-item + .balance-summary-item {
-    padding-inline-start: var(--space-item);
-    border-inline-start: 1px solid var(--rule);
-    border-top: 0;
-  }
-
-  .balance-summary-item:nth-child(1) {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .balance-summary-item:nth-child(2) {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .balance-summary-item:nth-child(3) {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    padding-inline-end: 0;
     border-inline-start: 0;
-    border-bottom: 1px solid var(--rule);
+    border-block-start: 0;
   }
 
-  .balance-summary-item:nth-child(1),
-  .balance-summary-item:nth-child(2) {
-    flex-direction: column;
-    gap: 0;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding-block: var(--space-within);
-    padding-inline-end: 0;
-  }
-
-  .balance-summary-item:nth-child(2) {
-    padding-inline-start: 0;
+  .balance-summary-item + .balance-summary-item::before {
+    display: none;
   }
 
   .balance-summary-label {
-    font-size: var(--text-small);
+    justify-self: center;
+    text-align: center;
     white-space: nowrap;
   }
 
   .balance-summary-value {
-    width: auto;
+    align-self: end;
+    justify-self: center;
+    width: 100%;
     max-width: 100%;
+    margin: 0;
+    color: var(--ink);
     font-size: var(--text-body);
+    font-weight: 400;
     letter-spacing: normal;
-    text-align: right;
+    line-height: var(--leading-tight);
+    text-align: center;
+    white-space: nowrap;
   }
 
-  .balance-summary-item:nth-child(1) .balance-summary-value,
-  .balance-summary-item:nth-child(2) .balance-summary-value {
-    font-size: var(--text-small);
+  .balance-summary-item:has(.balance-summary-net) .balance-summary-label {
+    color: var(--ink);
+  }
+
+  .balance-summary-net {
+    font-size: var(--text-heading);
+    font-weight: 600;
+  }
+
+  .balances-list-section {
+    margin-top: calc(var(--space-section) + var(--space-item));
   }
 
   .balance-list {
