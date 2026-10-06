@@ -9,6 +9,7 @@ import {
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
 import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
+import { currentTokyoDate } from './month.js';
 
 const HOUSEHOLD_ID = '11111111-1111-1111-1111-111111111111';
 const MIGRATION_FILES = [
@@ -420,14 +421,12 @@ describe('legacy account migration', () => {
         closingDay: string | null;
         paymentDay: string | null;
         paymentMonthOffset: string | null;
-        autoPaymentEnabled: boolean;
-        autoPaymentEnabledOn: string | null;
+        autoPaymentStartsOn: string;
       }[]
     >`
       select closing_day as "closingDay", payment_day as "paymentDay",
              payment_month_offset as "paymentMonthOffset",
-             auto_payment_enabled as "autoPaymentEnabled",
-             auto_payment_enabled_on as "autoPaymentEnabledOn"
+             auto_payment_starts_on as "autoPaymentStartsOn"
       from account_card_settings
       where household_id = ${HOUSEHOLD_ID} and account_id = ${legacyCardId}
     `;
@@ -450,8 +449,7 @@ describe('legacy account migration', () => {
         closingDay: '4',
         paymentDay: '5',
         paymentMonthOffset: 'same_month',
-        autoPaymentEnabled: false,
-        autoPaymentEnabledOn: null,
+        autoPaymentStartsOn: currentTokyoDate(),
       },
     ]);
     expect(futureCardSetting).toEqual([]);

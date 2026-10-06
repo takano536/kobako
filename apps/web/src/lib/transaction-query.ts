@@ -11,19 +11,6 @@ function isValidMonth(value: string): boolean {
   return year >= MIN_SUPPORTED_YEAR && year <= MAX_SUPPORTED_YEAR;
 }
 
-function isCalendarDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (year < MIN_SUPPORTED_YEAR || year > MAX_SUPPORTED_YEAR) return false;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-  );
-}
-
 export type TransactionListType = 'expense' | 'income' | 'transfer';
 export type TransactionQueryValue = string | string[] | undefined;
 export interface FilterCategory {
@@ -37,8 +24,6 @@ export interface TransactionListFilters {
   categoryId?: number;
   accountId?: number;
   page?: number;
-  periodStart?: string;
-  periodEnd?: string;
 }
 
 export function firstQueryValue(value: TransactionQueryValue): string | undefined {
@@ -71,25 +56,17 @@ export function parseTransactionPage(value: TransactionQueryValue): number {
   return parsed ?? 1;
 }
 
-function parsePeriodDate(value: TransactionQueryValue): string | undefined {
-  const firstValue = firstQueryValue(value);
-  return firstValue && isCalendarDate(firstValue) ? firstValue : undefined;
-}
-
 export function parseTransactionListFilters(
   query: Record<string, TransactionQueryValue>,
 ): TransactionListFilters {
   const type = parseTransactionType(query.type);
   const categoryId = parseTransactionCategoryId(query.category);
   const accountId = parseTransactionAccountId(query.account);
-  const periodStart = parsePeriodDate(query.periodStart);
-  const periodEnd = parsePeriodDate(query.periodEnd);
   return {
     type,
     categoryId: type === 'transfer' ? undefined : categoryId,
     accountId,
     page: parseTransactionPage(query.page),
-    ...(periodStart && periodEnd && periodStart <= periodEnd ? { periodStart, periodEnd } : {}),
   };
 }
 
@@ -121,23 +98,7 @@ export function validatedTransactionReturn(
   if (pageValue && !/^\d+$/.test(pageValue)) return undefined;
   const page = pageValue ? parseTransactionPage(pageValue) : 1;
   if (pageValue && page < 1) return undefined;
-  const rawPeriodStart = url.searchParams.get('periodStart');
-  const rawPeriodEnd = url.searchParams.get('periodEnd');
-  const periodStart = parsePeriodDate(rawPeriodStart ?? undefined);
-  const periodEnd = parsePeriodDate(rawPeriodEnd ?? undefined);
-  if (
-    (rawPeriodStart !== null && periodStart === undefined) ||
-    (rawPeriodEnd !== null && periodEnd === undefined) ||
-    (periodStart && periodEnd && periodStart > periodEnd) ||
-    Boolean(periodStart) !== Boolean(periodEnd)
-  ) {
-    return undefined;
-  }
   const params = new URLSearchParams({ account: String(accountId), month });
-  if (periodStart && periodEnd) {
-    params.set('periodStart', periodStart);
-    params.set('periodEnd', periodEnd);
-  }
   if (type) params.set('type', type);
   if (category !== undefined && type !== 'transfer') params.set('category', String(category));
   if (page > 1) params.set('page', String(page));

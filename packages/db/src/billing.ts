@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 
 import { AMOUNT_LIMIT } from './amount.js';
 import {
@@ -43,8 +43,7 @@ export interface CardBillingSettings {
   paymentDay: string | null;
   paymentMonthOffset: CardPaymentMonthOffset | null;
   debitAccountId: number | null;
-  autoPaymentEnabled: boolean;
-  autoPaymentEnabledOn: string | null;
+  autoPaymentStartsOn: string;
 }
 
 export interface CardBillingPeriod {
@@ -129,8 +128,7 @@ function settingsFromRow(row: AccountCardSetting): CardBillingSettings {
     paymentDay: row.paymentDay,
     paymentMonthOffset: row.paymentMonthOffset,
     debitAccountId: row.debitAccountId,
-    autoPaymentEnabled: row.autoPaymentEnabled,
-    autoPaymentEnabledOn: row.autoPaymentEnabledOn,
+    autoPaymentStartsOn: row.autoPaymentStartsOn,
   };
 }
 
@@ -324,7 +322,11 @@ async function loadCardBillingRows(
 
 function nextPayment(periods: readonly CardBillingPeriod[]): CardBillingNextPayment | null {
   const candidate = periods
-    .filter((period) => BigInt(period.remaining) > 0n)
+    .filter(
+      (period) =>
+        (period.status === 'billed-unpaid' || period.status === 'overdue') &&
+        BigInt(period.remaining) > 0n,
+    )
     .sort(
       (left, right) =>
         left.dueOn.localeCompare(right.dueOn) || left.periodStart.localeCompare(right.periodStart),
@@ -460,6 +462,8 @@ async function processCardDuePayments(
   today: string,
 ): Promise<Pick<ProcessDueCardPaymentsResult, 'completed' | 'settled' | 'blocked'>> {
   return db.transaction(async (transaction) => {
+    // The settings row is the same lock used by account mutations, imports, and
+    // manual transfers. This serializes a due payment with edits/deletes.
     await lockCardSettingsForAccounts(transaction, householdId, [cardAccountId]);
     const settingRows = await transaction
       .select()
@@ -473,9 +477,8 @@ async function processCardDuePayments(
       .for('update')
       .limit(1);
     const setting = settingRows[0];
-    if (!setting || !setting.autoPaymentEnabled || !setting.autoPaymentEnabledOn) {
-      return { completed: 0, settled: 0, blocked: 0 };
-    }
+    if (!setting) return { completed: 0, settled: 0, blocked: 0 };
+
     const accountRows = await transaction
       .select({
         id: accounts.id,
@@ -512,11 +515,17 @@ async function processCardDuePayments(
     if (!initialDerived.settingsComplete || initialDerived.calendarError) {
       return { completed, settled, blocked };
     }
+
+    // The migration stamps legacy settings with the deployment date, while
+    // settings created by the asset form stamp their creation date. Updating
+    // closing/payment/debit fields preserves this boundary, so a deployment
+    // or settings edit never bulk-creates payments for earlier due dates.
+    const effectiveFrom = setting.autoPaymentStartsOn;
     const dueDates = [
       ...new Set(
         initialDerived.periods
           .map((period) => period.dueOn)
-          .filter((dueOn) => dueOn >= setting.autoPaymentEnabledOn! && dueOn <= today),
+          .filter((dueOn) => dueOn >= effectiveFrom && dueOn <= today),
       ),
     ].sort();
 
@@ -534,6 +543,9 @@ async function processCardDuePayments(
         .for('update')
         .limit(1);
       const existingRun = runRows[0];
+      // A completed run remains authoritative even if its transfer is edited
+      // or deleted from the normal transfer UI; do not create a surprise
+      // replacement on the next worker tick.
       if (existingRun?.status === 'completed' || existingRun?.status === 'settled') continue;
 
       const rows = await loadCardBillingRows(transaction, householdId, cardAccountId);
@@ -558,6 +570,7 @@ async function processCardDuePayments(
         settled += 1;
         continue;
       }
+
       const debitAccountId = setting.debitAccountId;
       const debitRows = debitAccountId
         ? await transaction
@@ -576,7 +589,7 @@ async function processCardDuePayments(
         !debit ||
         debit.deletedAt !== null ||
         debit.status !== 'active' ||
-        debit.kind === 'credit_card'
+        debit.kind !== 'bank'
       ) {
         await upsertAutoPaymentRun(
           transaction,
@@ -585,7 +598,7 @@ async function processCardDuePayments(
           dueOn,
           'blocked',
           null,
-          '引落口座を設定してください。',
+          '引落銀行口座を設定してください。',
         );
         blocked += 1;
         continue;
@@ -603,6 +616,10 @@ async function processCardDuePayments(
         blocked += 1;
         continue;
       }
+
+      // Transfers are intentionally allowed to overdraw the bank account. A
+      // normal ledger transfer updates both account balances without creating a
+      // second expense.
       const inserted = await transaction
         .insert(transfers)
         .values({
@@ -645,14 +662,7 @@ export async function processDueCardPayments(
         eq(accountCardSettings.accountId, accounts.id),
       ),
     )
-    .where(
-      and(
-        eq(accounts.kind, 'credit_card'),
-        eq(accountCardSettings.autoPaymentEnabled, true),
-        isNull(accounts.deletedAt),
-        lte(accountCardSettings.autoPaymentEnabledOn, today),
-      ),
-    );
+    .where(and(eq(accounts.kind, 'credit_card'), isNull(accounts.deletedAt)));
   const result: ProcessDueCardPaymentsResult = {
     cards: cards.length,
     completed: 0,

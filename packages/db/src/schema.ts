@@ -13,7 +13,6 @@ import {
   uniqueIndex,
   uuid,
   varchar,
-  boolean,
 } from 'drizzle-orm/pg-core';
 
 import { AMOUNT_LIMIT } from './amount.js';
@@ -239,8 +238,7 @@ export const accountCardSettings = pgTable(
     paymentDay: varchar('payment_day', { length: 5 }),
     paymentMonthOffset: cardPaymentMonthOffset('payment_month_offset'),
     debitAccountId: integer('debit_account_id'),
-    autoPaymentEnabled: boolean('auto_payment_enabled').notNull().default(false),
-    autoPaymentEnabledOn: date('auto_payment_enabled_on', { mode: 'string' }),
+    autoPaymentStartsOn: date('auto_payment_starts_on', { mode: 'string' }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -263,11 +261,6 @@ export const accountCardSettings = pgTable(
     check(
       'account_card_settings_payment_day_check',
       sql`${table.paymentDay} is null or ${table.paymentDay} ~ '^(?:[1-9]|[12][0-9]|3[01]|last)$'`,
-    ),
-    check(
-      'account_card_settings_auto_payment_pair_check',
-      sql`(${table.autoPaymentEnabled} and ${table.autoPaymentEnabledOn} is not null) or
-        (not ${table.autoPaymentEnabled} and ${table.autoPaymentEnabledOn} is null)`,
     ),
   ],
 );

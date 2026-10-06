@@ -36,28 +36,17 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
   const requestedMonth = firstQueryValue(query.month);
   const targetMonth =
     requestedMonth && isValidMonth(requestedMonth) ? requestedMonth : currentMonth;
-  const paymentContext = firstQueryValue(query.payment) === '1';
-  const occurredOn =
-    (paymentContext ? firstQueryValue(query.occurredOn) : undefined) ??
-    (targetMonth === currentMonth ? currentTokyoDate() : `${targetMonth}-01`);
-  const fromAccountId = paymentContext ? (firstQueryValue(query.fromAccountId) ?? '') : '';
-  const toAccountId = paymentContext ? (firstQueryValue(query.toAccountId) ?? '') : '';
-  const paymentAmount = paymentContext ? (firstQueryValue(query.amount) ?? '') : '';
-  const paymentRemaining = paymentContext ? firstQueryValue(query.remaining) : undefined;
-  const paymentReturn = paymentContext ? firstQueryValue(query.return) : undefined;
+  const occurredOn = targetMonth === currentMonth ? currentTokyoDate() : `${targetMonth}-01`;
   const householdId = getCurrentHouseholdId();
   const db = getLedgerDatabase();
   const [categories, accounts] = await Promise.all([
     listCategories(db, householdId),
     listActiveAccounts(db, householdId),
   ]);
-  const type = paymentContext ? 'transfer' : parseType(firstQueryValue(query.type));
+  const type = parseType(firstQueryValue(query.type));
   const firstExpense = categories.find((category) => category.type === 'expense');
   const firstIncome = categories.find((category) => category.type === 'income');
-  const backHref =
-    paymentReturn?.startsWith('/transactions') && !paymentReturn.startsWith('//')
-      ? paymentReturn
-      : `/transactions?month=${encodeURIComponent(targetMonth)}`;
+  const backHref = `/transactions?month=${encodeURIComponent(targetMonth)}`;
 
   return (
     <PageShell width="narrow">
@@ -76,7 +65,7 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
           accounts={accounts}
           initialValues={{
             type,
-            amount: paymentContext ? paymentAmount : '',
+            amount: '',
             occurredOn,
             categoryId:
               type === 'income'
@@ -87,14 +76,11 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
                   ? String(firstExpense.id)
                   : '',
             accountId: '',
-            fromAccountId,
-            toAccountId,
+            fromAccountId: '',
+            toAccountId: '',
             memo: '',
           }}
           submitLabel="登録する"
-          paymentContext={paymentContext}
-          paymentRemaining={paymentRemaining}
-          returnTo={paymentReturn}
         />
       </section>
     </PageShell>

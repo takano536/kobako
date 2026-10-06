@@ -196,8 +196,6 @@ export function FilterBar({
   type,
   categoryId,
   accountId,
-  periodStart,
-  periodEnd,
   categories,
   accounts,
   summary,
@@ -207,8 +205,6 @@ export function FilterBar({
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
-  periodStart?: string;
-  periodEnd?: string;
   categories: readonly FilterCategory[];
   accounts?: readonly FilterAccount[];
   summary?: string;
@@ -222,10 +218,6 @@ export function FilterBar({
         : categories;
   const clearParams = new URLSearchParams({ month });
   if (accountId !== undefined) clearParams.set('account', String(accountId));
-  if (periodStart && periodEnd) {
-    clearParams.set('periodStart', periodStart);
-    clearParams.set('periodEnd', periodEnd);
-  }
   const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
   const hasAdditionalFilter = Boolean(type || categoryId);
   return (
@@ -244,12 +236,6 @@ export function FilterBar({
           ) : null}
         </summary>
         <form className="filter-form" method="get">
-          {periodStart && periodEnd ? (
-            <>
-              <input type="hidden" name="periodStart" value={periodStart} />
-              <input type="hidden" name="periodEnd" value={periodEnd} />
-            </>
-          ) : null}
           <label id="filter-month-label" htmlFor="filter-month">
             月
             {accountId !== undefined ? (

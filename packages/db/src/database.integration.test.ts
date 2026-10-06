@@ -704,7 +704,7 @@ describe('PostgreSQL migrations and ledger', () => {
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '銀行からカードへの引落口座',
-      kind: 'cash',
+      kind: 'bank',
     });
     expect(bank.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -2650,6 +2650,7 @@ describe('PostgreSQL migrations and ledger', () => {
       paymentDay: '12',
       paymentMonthOffset: 'next_month',
       debitAccountId: null,
+      autoPaymentStartsOn: '2026-01-01',
     });
     const second = await commitMoneyManagerImport(client.db, {
       householdId: DEFAULT_HOUSEHOLD_ID,

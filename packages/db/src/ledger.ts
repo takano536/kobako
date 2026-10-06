@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
@@ -136,8 +136,6 @@ export interface TransactionFilters {
   type?: TransactionType;
   categoryId?: number;
   accountId?: number;
-  periodStart?: string;
-  periodEnd?: string;
   limit?: number;
   offset?: number;
 }
@@ -190,12 +188,6 @@ function transactionConditions(householdId: string, filters: TransactionFilters)
     const range = monthRange(filters.month);
     conditions.push(gte(transactions.occurredOn, range.start));
     conditions.push(lt(transactions.occurredOn, range.endExclusive));
-  }
-  if (filters.periodStart !== undefined) {
-    conditions.push(gte(transactions.occurredOn, filters.periodStart));
-  }
-  if (filters.periodEnd !== undefined) {
-    conditions.push(lte(transactions.occurredOn, filters.periodEnd));
   }
   if (filters.type === 'expense' || filters.type === 'income') {
     conditions.push(eq(transactions.type, filters.type));
@@ -265,14 +257,6 @@ export async function listLedgerEntries(
       gte(transfers.occurredOn, range.start),
       lt(transfers.occurredOn, range.endExclusive),
     );
-  }
-  if (filters.periodStart !== undefined) {
-    transactionWhere.push(gte(transactions.occurredOn, filters.periodStart));
-    transferWhere.push(gte(transfers.occurredOn, filters.periodStart));
-  }
-  if (filters.periodEnd !== undefined) {
-    transactionWhere.push(lte(transactions.occurredOn, filters.periodEnd));
-    transferWhere.push(lte(transfers.occurredOn, filters.periodEnd));
   }
   if (filters.type === 'expense' || filters.type === 'income') {
     transactionWhere.push(eq(transactions.type, filters.type));

@@ -63,22 +63,6 @@ describe('transaction list query parsing', () => {
     expect(parseTransactionListFilters({ page: '2x' }).page).toBe(1);
   });
 
-  it('drops invalid calendar dates and reversed periods', () => {
-    const invalidDate = parseTransactionListFilters({
-      periodStart: '2026-02-30',
-      periodEnd: '2026-03-01',
-    });
-    expect(invalidDate.periodStart).toBeUndefined();
-    expect(invalidDate.periodEnd).toBeUndefined();
-
-    const reversed = parseTransactionListFilters({
-      periodStart: '2026-03-01',
-      periodEnd: '2026-02-28',
-    });
-    expect(reversed.periodStart).toBeUndefined();
-    expect(reversed.periodEnd).toBeUndefined();
-  });
-
   it('accepts only a transaction return path for the same account', () => {
     expect(
       validatedTransactionReturn(
@@ -89,29 +73,5 @@ describe('transaction list query parsing', () => {
     expect(validatedTransactionReturn('/accounts/24/edit', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/transactions?month=all&account=25', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/transactions?month=bad&account=24', 24)).toBeUndefined();
-  });
-
-  it('rejects invalid period dates in return paths', () => {
-    expect(
-      validatedTransactionReturn(
-        '/transactions?account=7&month=all&periodStart=2026-02-30&periodEnd=2026-03-01',
-        7,
-      ),
-    ).toBeUndefined();
-    expect(
-      validatedTransactionReturn(
-        '/transactions?account=7&month=all&periodStart=2026-03-01&periodEnd=2026-02-28',
-        7,
-      ),
-    ).toBeUndefined();
-  });
-
-  it('preserves valid statement period return paths', () => {
-    expect(
-      validatedTransactionReturn(
-        '/transactions?account=7&month=all&periodStart=2026-02-01&periodEnd=2026-02-28',
-        7,
-      ),
-    ).toBe('/transactions?account=7&month=all&periodStart=2026-02-01&periodEnd=2026-02-28');
   });
 });

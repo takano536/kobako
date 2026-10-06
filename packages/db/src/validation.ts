@@ -233,7 +233,6 @@ export const accountCardConditionInputSchema = z
       .optional(),
     paymentMonthOffset: cardPaymentMonthOffsetSchema.nullable().optional(),
     debitAccountId: accountIdSchema,
-    autoPaymentEnabled: z.boolean().optional(),
   })
   .superRefine((input, context) => {
     if (

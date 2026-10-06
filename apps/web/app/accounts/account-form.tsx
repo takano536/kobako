@@ -10,7 +10,6 @@ export interface CardConditionValues {
   paymentDay: string;
   paymentMonthOffset: string;
   debitAccountId: string;
-  autoPaymentEnabled: boolean;
 }
 
 export interface AccountFormValues {
@@ -22,7 +21,6 @@ export interface AccountFormValues {
   paymentDay: string;
   paymentMonthOffset: string;
   debitAccountId: string;
-  autoPaymentEnabled: boolean;
 }
 
 export interface AccountFormState {
@@ -88,7 +86,6 @@ function cardConditionValues(condition?: Partial<CardConditionValues>): CardCond
     paymentDay: condition?.paymentDay ?? '',
     paymentMonthOffset: condition?.paymentMonthOffset ?? '',
     debitAccountId: condition?.debitAccountId ?? '',
-    autoPaymentEnabled: condition?.autoPaymentEnabled ?? false,
   };
 }
 
@@ -268,7 +265,7 @@ export function AccountForm({
                         (account.deletedAt === null ||
                           account.id === Number(card.debitAccountId)) &&
                         account.id !== accountId &&
-                        account.kind !== 'credit_card',
+                        account.kind === 'bank',
                     )
                     .map((account) => (
                       <option value={account.id} key={account.id}>
@@ -277,23 +274,6 @@ export function AccountForm({
                     ))}
                 </select>
                 <FieldError id="debit-account-error" messages={debitAccountError} />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="auto-payment">自動決済</label>
-              <div className="field-value">
-                <select
-                  className="field-select"
-                  id="auto-payment"
-                  name="autoPaymentEnabled"
-                  value={card.autoPaymentEnabled ? 'on' : ''}
-                  onChange={(event) =>
-                    setCardValue('autoPaymentEnabled', event.currentTarget.value === 'on')
-                  }
-                >
-                  <option value="">しない</option>
-                  <option value="on">する</option>
-                </select>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import {
   createAccount,
   createTransaction,
   createTransfer,
+  getAccountBalance,
   getCardBillingSummary,
   getExpenseCategoryTotals,
   getMonthlyTotals,
@@ -85,10 +86,10 @@ async function createConfiguredCard(
   };
 }
 
-async function enableAutoPayment(client: DatabaseClient, cardId: number, enabledOn = '2026-01-01') {
+async function enableAutoPayment(client: DatabaseClient, cardId: number, startsOn = '2026-01-01') {
   await client.db
     .update(accountCardSettings)
-    .set({ autoPaymentEnabled: true, autoPaymentEnabledOn: enabledOn })
+    .set({ autoPaymentStartsOn: startsOn })
     .where(
       and(
         eq(accountCardSettings.householdId, HOUSEHOLD_ID),
@@ -187,12 +188,15 @@ describe('derived card billing worker', () => {
     await client?.close();
   });
 
-  it('keeps auto payment off by default and does not create a run', async () => {
+  it('runs automatically for a complete card setting without an opt-in flag', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
+    await enableAutoPayment(client, fixture.cardId);
     const result = await processDueCardPayments(client.db, '2026-03-01');
-    expect(result.completed).toBe(0);
-    expect(await cardTransferRows(client, fixture.cardId)).toEqual([]);
+    expect(result.completed).toBe(1);
+    expect(await cardTransferRows(client, fixture.cardId)).toEqual([
+      expect.objectContaining({ amount: 100 }),
+    ]);
   });
 
   it('skips a card that is no longer active without creating an auto-payment run', async () => {
@@ -373,7 +377,7 @@ describe('derived card billing worker', () => {
     ]);
   });
 
-  it('respects the enabled-on boundary', async () => {
+  it('respects the auto-payment start boundary', async () => {
     const fixture = await createConfiguredCard(client);
     await addExpense(client, fixture, '2026-01-10', 100);
     await addExpense(client, fixture, '2026-02-10', 80);
@@ -381,6 +385,44 @@ describe('derived card billing worker', () => {
     const result = await processDueCardPayments(client.db, '2026-04-01');
     expect(result.completed).toBe(1);
     expect((await cardTransferRows(client, fixture.cardId))[0]?.amount).toBe(80);
+  });
+  it('includes a payment due exactly on the auto-payment start boundary', async () => {
+    const fixture = await createConfiguredCard(client);
+    await addExpense(client, fixture, '2026-01-10', 100);
+    await enableAutoPayment(client, fixture.cardId, '2026-02-10');
+
+    const result = await processDueCardPayments(client.db, '2026-02-10');
+
+    expect(result.completed).toBe(1);
+    expect(await cardTransferRows(client, fixture.cardId)).toEqual([
+      expect.objectContaining({ amount: 100 }),
+    ]);
+  });
+  it('aggregates different due dates for cards using one bank and allows overdraft', async () => {
+    const first = await createConfiguredCard(client);
+    const second = await createConfiguredCard(client, {
+      closingDay: '20',
+      paymentDay: '20',
+      paymentMonthOffset: 'next_month',
+      debitAccountId: first.debitId,
+    });
+    await addExpense(client, first, '2026-01-10', 100);
+    await addExpense(client, second, '2026-01-15', 50);
+    await enableAutoPayment(client, first.cardId, '2026-01-01');
+    await enableAutoPayment(client, second.cardId, '2026-01-01');
+
+    const result = await processDueCardPayments(client.db, '2026-02-20');
+
+    expect(result.completed).toBe(2);
+    expect(await cardTransferRows(client, first.cardId)).toEqual([
+      expect.objectContaining({ amount: 100 }),
+    ]);
+    expect(await cardTransferRows(client, second.cardId)).toEqual([
+      expect.objectContaining({ amount: 50 }),
+    ]);
+    await expect(getAccountBalance(client.db, HOUSEHOLD_ID, first.debitId)).resolves.toEqual(
+      expect.objectContaining({ balance: '-150' }),
+    );
   });
 
   it('blocks a missing debit account, then retries after settings recovery', async () => {
@@ -397,7 +439,7 @@ describe('derived card billing worker', () => {
     expect(
       (await getCardBillingSummary(client.db, HOUSEHOLD_ID, fixture.cardId, '2026-03-01'))
         ?.blockedAutoPayments,
-    ).toEqual([{ dueOn: '2026-02-10', reason: '引落口座を設定してください。' }]);
+    ).toEqual([{ dueOn: '2026-02-10', reason: '引落銀行口座を設定してください。' }]);
     await client.db
       .update(accountCardSettings)
       .set({ debitAccountId: fixture.debitId })

@@ -14,8 +14,7 @@ const settings: CardBillingSettings = {
   paymentDay: '10',
   paymentMonthOffset: 'next_month',
   debitAccountId: 1,
-  autoPaymentEnabled: false,
-  autoPaymentEnabledOn: null,
+  autoPaymentStartsOn: '2026-01-01',
 };
 
 function expense(occurredOn: string, amount: number): CardBillingTransactionInput {

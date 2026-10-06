@@ -476,7 +476,7 @@ async function validateDebitAccount(
   const debit = await cardAccount(transaction, householdId, debitAccountId);
   return (
     debit !== null &&
-    debit.kind !== 'credit_card' &&
+    debit.kind === 'bank' &&
     (debit.deletedAt === null || debit.id === allowedDeletedAccountId)
   );
 }
@@ -520,17 +520,11 @@ async function saveCardConditionInTransaction(
   ) {
     return { status: 'invalid_debit_account' };
   }
-  const autoPaymentEnabled = input.autoPaymentEnabled === true;
-  const autoPaymentEnabledOn = autoPaymentEnabled
-    ? (current?.autoPaymentEnabledOn ?? currentTokyoDate())
-    : null;
   const values = {
     closingDay: input.closingDay ?? null,
     paymentDay: input.paymentDay ?? null,
     paymentMonthOffset: input.paymentMonthOffset ?? null,
     debitAccountId: input.debitAccountId ?? null,
-    autoPaymentEnabled,
-    autoPaymentEnabledOn,
     updatedAt: new Date(),
   };
   if (current) {
@@ -553,6 +547,7 @@ async function saveCardConditionInTransaction(
       householdId,
       accountId: account.id,
       ...values,
+      autoPaymentStartsOn: currentTokyoDate(),
       createdAt: new Date(),
     })
     .returning();

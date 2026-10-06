@@ -58,9 +58,6 @@ export interface TransactionFormProps {
   accounts: AccountOption[];
   initialValues: TransactionFormValues;
   submitLabel: string;
-  paymentContext?: boolean;
-  paymentRemaining?: string;
-  returnTo?: string;
 }
 
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
@@ -185,9 +182,6 @@ export function TransactionForm({
   accounts,
   initialValues,
   submitLabel,
-  paymentContext = false,
-  paymentRemaining,
-  returnTo,
 }: TransactionFormProps) {
   const [state, formAction, pending] = useActionState(action, emptyTransactionFormState);
   const [values, setValues] = useState(initialValues);
@@ -205,15 +199,6 @@ export function TransactionForm({
   const formValues = state.values && !isDirty ? state.values : values;
   const selectedType: TransactionFormType =
     formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
-  const amountTextForWarning = formValues.amount.replace(/,/g, '');
-  const remainingTextForWarning = paymentRemaining?.replace(/,/g, '');
-  const overpaymentWarning =
-    paymentContext &&
-    selectedType === 'transfer' &&
-    remainingTextForWarning !== undefined &&
-    /^\d+$/.test(amountTextForWarning) &&
-    /^\d+$/.test(remainingTextForWarning) &&
-    BigInt(amountTextForWarning) > BigInt(remainingTextForWarning);
   const linkedFromAccountId = Number(formValues.fromAccountId);
   const linkedToAccountId = Number(formValues.toAccountId);
   const transferAccounts = accounts.filter(
@@ -420,12 +405,6 @@ export function TransactionForm({
         noValidate
         aria-busy={pending}
       >
-        {paymentContext ? (
-          <>
-            <input type="hidden" name="payment" value="1" />
-            {returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}
-          </>
-        ) : null}
         <fieldset
           className={`type-field${typeError ? ' has-error' : ''}`}
           aria-invalid={typeError ? true : undefined}
@@ -489,11 +468,6 @@ export function TransactionForm({
             </div>
           </div>
         </div>
-        {overpaymentWarning ? (
-          <p className="filter-summary" role="status">
-            選択した請求の残りを超えています。超過分は次の請求に充てられます。
-          </p>
-        ) : null}
 
         <div className="entry-detail-grid category-detail-grid">
           {(['expense', 'income'] as const).map((categoryType) => {
