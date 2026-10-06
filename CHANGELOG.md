@@ -1,4 +1,11 @@
 # Changelog
+## [0.7.1](https://github.com/takano536/kobako/compare/v0.7.0...v0.7.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **web:** show mobile balance summary as columns ([#39](https://github.com/takano536/kobako/issues/39)) ([9c6aab4](https://github.com/takano536/kobako/commit/9c6aab44c06ea6600281c6c8777dfc6bf956a02c))
+
 ## [0.7.0](https://github.com/takano536/kobako/compare/v0.6.0...v0.7.0) (2026-10-04)
 
 
