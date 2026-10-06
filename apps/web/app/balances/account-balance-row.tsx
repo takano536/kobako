@@ -1,25 +1,88 @@
 import Link from 'next/link';
 
-import { formatJapaneseDate } from '../../src/lib/format';
-import { SignedYen } from '../_components/ui';
+import { formatYen } from '../../src/lib/format';
+
+type AccountKind = 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
 
 interface PaymentSchedule {
-  amount?: string;
-  dueOn?: string;
-  balanceAmount?: string;
+  scheduledAmount: string | null;
+  balanceAmount: string | null;
+  balanceLabel?: string;
   settingsHref?: string;
 }
 
 interface AccountBalanceRowProps {
   accountName: string;
   balance: string;
-  kind: 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
+  kind: AccountKind;
   transactionsHref: string;
   paymentSchedule?: PaymentSchedule;
 }
 
-function isLiability(kind: AccountBalanceRowProps['kind'], rawBalance: bigint): boolean {
+type MoneyTone = 'positive' | 'negative' | 'neutral';
+
+function isLiability(kind: AccountKind, rawBalance: bigint): boolean {
   return kind === 'credit_card' || (kind === 'other' && rawBalance < 0n);
+}
+
+function toneForAmount(value: string, debt: boolean): MoneyTone {
+  const amount = BigInt(value);
+  if (amount === 0n) return 'neutral';
+  if (debt) return amount > 0n ? 'negative' : 'positive';
+  return amount < 0n ? 'negative' : 'positive';
+}
+
+function SemanticYen({ value, tone }: { value: string; tone: MoneyTone }) {
+  const amount = BigInt(value);
+  const negative = amount < 0n;
+  const absoluteValue = (negative ? -amount : amount).toString();
+  return (
+    <span className={`money-amount money-${tone}`}>
+      {negative ? <span className="sr-only">マイナス</span> : null}
+      <span aria-hidden="true">{negative ? '−' : ''}</span>
+      {formatYen(absoluteValue)}
+    </span>
+  );
+}
+
+function BalanceMetric({
+  label,
+  value,
+  tone,
+  settingsHref,
+}: {
+  label: string;
+  value: string | null;
+  tone: MoneyTone;
+  settingsHref?: string;
+}) {
+  return (
+    <div className="balance-metric">
+      <span className="balance-metric-label">
+        {label === '今月の支払予定' ? (
+          <>
+            今月の
+            <wbr />
+            支払予定
+          </>
+        ) : (
+          label
+        )}
+      </span>
+      {value === null ? (
+        <span className="balance-metric-unknown" aria-label={`${label}不明`}>
+          —
+        </span>
+      ) : (
+        <SemanticYen value={value} tone={tone} />
+      )}
+      {settingsHref ? (
+        <Link className="balance-settings-link" href={settingsHref}>
+          設定を確認
+        </Link>
+      ) : null}
+    </div>
+  );
 }
 
 export function AccountBalanceRow({
@@ -32,40 +95,50 @@ export function AccountBalanceRow({
   const rawBalance = BigInt(balance);
   const liability = isLiability(kind, rawBalance);
   const displayBalance = kind === 'credit_card' ? -rawBalance : rawBalance;
+  const hasPaymentMetrics =
+    paymentSchedule !== undefined && (kind === 'bank' || kind === 'credit_card');
   return (
-    <li className="balance-row">
+    <li className={`balance-row${hasPaymentMetrics ? ' balance-row-with-metrics' : ''}`}>
       <Link className="balance-account-link" href={transactionsHref}>
         <span className="balance-account-name">{accountName}</span>
       </Link>
-      <div className="balance-row-metrics">
-        <span className="balance-schedule" aria-label={paymentSchedule ? '決済予定' : undefined}>
-          {paymentSchedule?.settingsHref ? (
-            <Link className="balance-settings-link" href={paymentSchedule.settingsHref}>
-              設定を確認
-            </Link>
-          ) : paymentSchedule?.amount !== undefined ? (
-            <>
-              <span className="balance-schedule-amount">
-                <SignedYen value={paymentSchedule.amount} tone="neutral" />
-              </span>
-              {paymentSchedule.dueOn ? (
-                <span className="balance-schedule-due">
-                  支払日 {formatJapaneseDate(paymentSchedule.dueOn)}
-                </span>
-              ) : null}
-            </>
-          ) : null}
-        </span>
-        <span
-          className="balance-amount"
-          aria-label={paymentSchedule?.balanceAmount !== undefined ? '未決済額' : '残高'}
-        >
-          <SignedYen
-            value={(paymentSchedule?.balanceAmount ?? displayBalance).toString()}
-            tone={liability ? 'negative' : 'positive'}
+      {paymentSchedule && hasPaymentMetrics ? (
+        <div className="balance-row-metrics">
+          <BalanceMetric
+            label={kind === 'bank' ? '今月の支払予定' : '支払予定'}
+            value={paymentSchedule.scheduledAmount}
+            tone={toneForAmount(
+              paymentSchedule.scheduledAmount ?? '0',
+              kind === 'bank' || kind === 'credit_card',
+            )}
+            settingsHref={paymentSchedule.settingsHref}
+          />
+          <BalanceMetric
+            label={kind === 'bank' ? '残高' : (paymentSchedule.balanceLabel ?? '未請求')}
+            value={paymentSchedule.balanceAmount}
+            tone={
+              paymentSchedule.balanceAmount === null
+                ? 'neutral'
+                : toneForAmount(paymentSchedule.balanceAmount, kind === 'credit_card')
+            }
+          />
+        </div>
+      ) : (
+        <span className="balance-amount" aria-label="残高">
+          <SemanticYen
+            value={displayBalance.toString()}
+            tone={
+              displayBalance === 0n
+                ? 'neutral'
+                : kind === 'credit_card' && displayBalance < 0n
+                  ? 'positive'
+                  : liability
+                    ? 'negative'
+                    : 'positive'
+            }
           />
         </span>
-      </div>
+      )}
     </li>
   );
 }

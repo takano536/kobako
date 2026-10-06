@@ -505,57 +505,57 @@ h3 {
 }
 
 .balance-row {
-  display: flex;
-  gap: var(--space-group);
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-group);
+  align-items: start;
   min-width: 0;
   min-height: 44px;
   padding-block: var(--space-item);
   border-bottom: 1px solid var(--rule);
 }
+
 .balance-row-metrics {
   display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: var(--balance-amount-column) var(--balance-amount-column);
+  grid-template-columns: repeat(2, var(--balance-amount-column));
   min-width: 0;
-  align-items: baseline;
+  align-items: start;
   gap: var(--space-group);
 }
 
-.balance-account-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: var(--leading-body);
-}
-
-.balance-schedule {
+.balance-metric {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
+  gap: var(--space-within);
+  text-align: right;
+}
+
+.balance-metric .money-amount {
+  white-space: nowrap;
+}
+
+.balance-metric-label {
   color: var(--muted);
   font-size: var(--text-small);
   line-height: var(--leading-meta);
-  text-align: left;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
-.balance-schedule-amount {
-  color: var(--ink);
+.balance-metric-unknown {
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   line-height: var(--leading-body);
   white-space: nowrap;
 }
 
-.balance-schedule-due {
-  font-size: var(--text-small);
-  white-space: nowrap;
-}
-.balance-settings-link {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.2em;
+.balance-account-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: var(--leading-body);
 }
 
 .balance-amount {
@@ -568,14 +568,49 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.balance-settings-link {
+  color: var(--muted);
+  font-size: var(--text-small);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+}
+
 @media (max-width: 44rem) {
+  .balance-list {
+    --balance-metrics-width: 60%;
+  }
+
   .balance-row {
-    flex-wrap: wrap;
+    column-gap: var(--space-item);
+  }
+
+  .balance-row-with-metrics {
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
   }
 
   .balance-row-metrics {
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-item);
+  }
+
+  .balance-metric-label {
+    white-space: normal;
+  }
+
+  .balance-metric .money-amount {
+    font-size: clamp(0.75rem, 3.8vw, var(--text-body));
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .balance-metric-label {
+    font-size: 0.68rem;
+  }
+
+  .balance-metric .money-amount {
+    font-size: 0.7rem;
   }
 }
 

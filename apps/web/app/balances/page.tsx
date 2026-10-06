@@ -118,6 +118,8 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                         account.kind === 'credit_card'
                           ? billingByAccountId.get(account.accountId)
                           : undefined;
+                      const cardBalance =
+                        account.kind === 'credit_card' ? -BigInt(account.balance) : null;
                       const cardSchedule =
                         account.kind === 'credit_card' &&
                         billing?.settings &&
@@ -126,21 +128,36 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                           ? deriveCardBalancePaymentSchedule(billing.periods)
                           : null;
                       const paymentSchedule =
-                        account.kind === 'bank' && scheduledByBankId.has(account.accountId)
+                        account.kind === 'bank'
                           ? {
-                              amount: scheduledByBankId.get(account.accountId)!.toString(),
+                              scheduledAmount: (
+                                scheduledByBankId.get(account.accountId) ?? 0n
+                              ).toString(),
+                              balanceAmount: account.balance,
                             }
-                          : cardSchedule
+                          : account.kind === 'credit_card' && cardSchedule
                             ? {
-                                amount: cardSchedule.scheduledAmount,
-                                dueOn: cardSchedule.scheduledDueOn ?? undefined,
-                                balanceAmount: cardSchedule.unbilledAmount,
+                                scheduledAmount: cardSchedule.scheduledAmount,
+                                balanceAmount:
+                                  cardBalance !== null && cardBalance < 0n
+                                    ? cardBalance.toString()
+                                    : cardSchedule.unbilledAmount,
+                                balanceLabel:
+                                  cardBalance !== null && cardBalance < 0n ? '利用残高' : undefined,
                               }
-                            : account.kind === 'credit_card' && billing?.settings
-                              ? { settingsHref: `/accounts/${account.accountId}/edit` }
+                            : account.kind === 'credit_card'
+                              ? {
+                                  scheduledAmount: null,
+                                  balanceAmount: cardBalance?.toString() ?? null,
+                                  balanceLabel: '利用残高',
+                                  settingsHref: billing?.settings
+                                    ? `/accounts/${account.accountId}/edit`
+                                    : undefined,
+                                }
                               : undefined;
                       return (
                         <AccountBalanceRow
+                          key={account.accountId}
                           accountName={account.accountName}
                           balance={account.balance}
                           kind={account.kind}

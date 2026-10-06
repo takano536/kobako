@@ -76,6 +76,7 @@ const paymentFixtureNames = {
   secondaryCard: `${paymentFixtureMarker}別銀行カード`,
   nextMonthCard: `${paymentFixtureMarker}翌月カード`,
   partialCard: `${paymentFixtureMarker}一部支払カード`,
+  overpaymentCard: `${paymentFixtureMarker}過払いカード`,
   noSettingsCard: `${paymentFixtureMarker}設定なしカード`,
   invalidSettingsCard: `${paymentFixtureMarker}設定不備カード`,
 } as const;
@@ -141,6 +142,9 @@ async function captureSharedGeometry(page: Page, name: string): Promise<void> {
 
 function accountRow(page: Page, accountName: string): Locator {
   return balanceList(page).getByRole('listitem').filter({ hasText: accountName });
+}
+function balanceMetric(row: Locator, label: string): Locator {
+  return row.locator('.balance-metric').filter({ hasText: label });
 }
 
 async function expectAccountBalance(
@@ -718,6 +722,7 @@ async function seedPaymentScheduleBalances(): Promise<void> {
       (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryCard}, 'credit_card'),
       (${DEFAULT_HOUSEHOLD_ID}, ${names.nextMonthCard}, 'credit_card'),
       (${DEFAULT_HOUSEHOLD_ID}, ${names.partialCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.overpaymentCard}, 'credit_card'),
       (${DEFAULT_HOUSEHOLD_ID}, ${names.noSettingsCard}, 'credit_card'),
       (${DEFAULT_HOUSEHOLD_ID}, ${names.invalidSettingsCard}, 'credit_card')
   `;
@@ -791,6 +796,7 @@ async function seedPaymentScheduleBalances(): Promise<void> {
   await addSetting(names.secondaryCard, '15', '10', names.secondaryBank);
   await addSetting(names.nextMonthCard, '15', '10', names.secondaryBank);
   await addSetting(names.partialCard, '15', '10', names.primaryBank);
+  await addSetting(names.overpaymentCard, '15', '10', names.primaryBank);
   await addSetting(names.invalidSettingsCard, '15', null, names.secondaryBank);
 
   await addExpense(names.primaryCard, 1000, occurredOn(billedMonth, 20), 'primary-billed');
@@ -800,6 +806,7 @@ async function seedPaymentScheduleBalances(): Promise<void> {
   await addExpense(names.secondaryCard, 3000, occurredOn(billedMonth, 20), 'secondary-billed');
   await addExpense(names.nextMonthCard, 400, occurredOn(unbilledMonth, 20), 'next-month-only');
   await addExpense(names.partialCard, 1200, occurredOn(billedMonth, 20), 'partial-billed');
+  await addExpense(names.overpaymentCard, 500, occurredOn(billedMonth, 20), 'overpayment-billed');
   await addExpense(names.noSettingsCard, 900, occurredOn(currentMonth, 2), 'no-settings');
   await addExpense(
     names.invalidSettingsCard,
@@ -815,6 +822,15 @@ async function seedPaymentScheduleBalances(): Promise<void> {
     values (
       ${DEFAULT_HOUSEHOLD_ID}, ${accountId(names.primaryBank)}, ${accountId(names.partialCard)},
       500, ${occurredOn(currentMonth, 1)}, ${`${paymentFixtureMarker}partial-payment`}
+    )
+  `;
+  await client.sql`
+    insert into transfers (
+      household_id, from_account_id, to_account_id, amount, occurred_on, memo
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountId(names.primaryBank)}, ${accountId(names.overpaymentCard)},
+      700, ${occurredOn(currentMonth, 2)}, ${`${paymentFixtureMarker}overpayment`}
     )
   `;
 }
@@ -1091,65 +1107,149 @@ test('opens the account-filtered transactions by clicking its name from balances
 
 test('splits and aggregates card payment schedules on balances', async ({ page }) => {
   await seedPaymentScheduleBalances();
-  const monthNumber = Number(currentTokyoMonth().slice(5));
   try {
     await page.goto('/balances');
 
-    await expect(
-      accountRow(page, paymentFixtureNames.primaryBank).locator('.balance-amount'),
-    ).toContainText('−500円');
-    await expect(
-      accountRow(page, paymentFixtureNames.primaryBank).locator('.balance-schedule-amount'),
-    ).toContainText('3,700円');
-    await expect(
-      accountRow(page, paymentFixtureNames.secondaryBank).locator('.balance-schedule-amount'),
-    ).toContainText('3,000円');
-    await expect(
-      accountRow(page, paymentFixtureNames.orphanBank).locator('.balance-schedule-amount'),
-    ).toHaveCount(0);
+    const primaryBank = accountRow(page, paymentFixtureNames.primaryBank);
+    await expect(balanceMetric(primaryBank, '今月の支払予定')).toContainText('3,700円');
+    await expect(balanceMetric(primaryBank, '残高')).toContainText('−1,200円');
+    const secondaryBank = accountRow(page, paymentFixtureNames.secondaryBank);
+    await expect(balanceMetric(secondaryBank, '今月の支払予定')).toContainText('3,000円');
+    await expect(balanceMetric(secondaryBank, '残高')).toContainText('0円');
+    const orphanBank = accountRow(page, paymentFixtureNames.orphanBank);
+    await expect(balanceMetric(orphanBank, '今月の支払予定')).toContainText('0円');
+    await expect(balanceMetric(orphanBank, '残高')).toContainText('0円');
 
     const primaryCard = accountRow(page, paymentFixtureNames.primaryCard);
-    await expect(primaryCard.locator('.balance-schedule-amount')).toContainText('1,000円');
-    await expect(primaryCard.locator('.balance-schedule-due')).toContainText(
-      `${monthNumber}月10日`,
-    );
-    await expect(primaryCard.locator('.balance-amount')).toContainText('250円');
-
+    await expect(balanceMetric(primaryCard, '支払予定')).toContainText('1,000円');
+    await expect(balanceMetric(primaryCard, '未請求')).toContainText('250円');
     const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
-    await expect(secondPrimaryCard.locator('.balance-schedule-amount')).toContainText('2,000円');
-    await expect(secondPrimaryCard.locator('.balance-schedule-due')).toContainText(
-      `${monthNumber}月27日`,
-    );
-    await expect(secondPrimaryCard.locator('.balance-amount')).toContainText('350円');
-
+    await expect(balanceMetric(secondPrimaryCard, '支払予定')).toContainText('2,000円');
+    await expect(balanceMetric(secondPrimaryCard, '未請求')).toContainText('350円');
     await expect(
-      accountRow(page, paymentFixtureNames.secondaryCard).locator('.balance-schedule-amount'),
+      balanceMetric(accountRow(page, paymentFixtureNames.secondaryCard), '支払予定'),
     ).toContainText('3,000円');
     await expect(
-      accountRow(page, paymentFixtureNames.partialCard).locator('.balance-schedule-amount'),
+      balanceMetric(accountRow(page, paymentFixtureNames.partialCard), '支払予定'),
     ).toContainText('700円');
     await expect(
-      accountRow(page, paymentFixtureNames.nextMonthCard).locator('.balance-schedule-amount'),
+      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '支払予定'),
     ).toContainText('0円');
     await expect(
-      accountRow(page, paymentFixtureNames.nextMonthCard).locator('.balance-amount'),
+      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '未請求'),
     ).toContainText('400円');
 
     const noSettingsCard = accountRow(page, paymentFixtureNames.noSettingsCard);
-    await expect(noSettingsCard.locator('.balance-schedule-amount')).toHaveCount(0);
-    await expect(noSettingsCard.locator('.balance-amount')).toContainText('900円');
-    await expect(
-      accountRow(page, paymentFixtureNames.invalidSettingsCard).getByText('設定を確認'),
-    ).toBeVisible();
-
-    const rightColumnXs = await Promise.all(
-      [paymentFixtureNames.primaryCard, paymentFixtureNames.noSettingsCard].map(async (name) => {
-        const box = await accountRow(page, name).locator('.balance-amount').boundingBox();
-        if (!box) throw new Error(`balance amount box is missing for ${name}`);
-        return box.x;
-      }),
+    await expect(balanceMetric(noSettingsCard, '支払予定')).toContainText('—');
+    await expect(balanceMetric(noSettingsCard, '利用残高')).toContainText('900円');
+    await expect(noSettingsCard.getByText('設定を確認')).toHaveCount(0);
+    const invalidSettingsCard = accountRow(page, paymentFixtureNames.invalidSettingsCard);
+    await expect(balanceMetric(invalidSettingsCard, '支払予定')).toContainText('—');
+    await expect(balanceMetric(invalidSettingsCard, '利用残高')).toContainText('1,000円');
+    await expect(invalidSettingsCard.getByText('設定を確認')).toBeVisible();
+    expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
+      '支払日',
     );
-    expect(Math.abs((rightColumnXs[0] ?? 0) - (rightColumnXs[1] ?? 0))).toBeLessThanOrEqual(1);
+
+    const moneyColors = await page.evaluate(() => {
+      const readToken = (name: string): string => {
+        const probe = document.createElement('span');
+        probe.style.color = getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+        document.body.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      };
+      return {
+        debt: readToken('--money-negative'),
+        positive: readToken('--money-positive'),
+      };
+    });
+    const debtColor = moneyColors.debt;
+    const positiveColor = moneyColors.positive;
+    await expect(balanceMetric(primaryBank, '今月の支払予定').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryCard, '支払予定').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryCard, '未請求').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryBank, '残高').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(invalidSettingsCard, '利用残高').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(noSettingsCard, '利用残高').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(secondaryBank, '残高').locator('.money-amount')).not.toHaveCSS(
+      'color',
+      debtColor,
+    );
+    const overpaymentCard = accountRow(page, paymentFixtureNames.overpaymentCard);
+    await expect(balanceMetric(overpaymentCard, '支払予定')).toContainText('0円');
+    await expect(balanceMetric(overpaymentCard, '利用残高')).toContainText('−200円');
+    await expect(balanceMetric(overpaymentCard, '利用残高').locator('.money-amount')).toHaveCSS(
+      'color',
+      positiveColor,
+    );
+
+    const cardRows = [
+      primaryCard,
+      secondPrimaryCard,
+      accountRow(page, paymentFixtureNames.secondaryCard),
+      accountRow(page, paymentFixtureNames.nextMonthCard),
+      accountRow(page, paymentFixtureNames.partialCard),
+      overpaymentCard,
+      noSettingsCard,
+      invalidSettingsCard,
+    ];
+    for (const width of [320, 375, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.reload();
+      await assertNoHorizontalOverflow(page);
+      const row = accountRow(page, paymentFixtureNames.primaryCard);
+      const nameBox = await row.locator('.balance-account-link').boundingBox();
+      const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
+      if (!nameBox || !metricsBox) throw new Error('balance row geometry is missing');
+      expect(metricsBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
+      expect(metricsBox.y).toBeLessThan(nameBox.y + nameBox.height);
+
+      const metricColumns = await Promise.all(
+        cardRows.map((cardRow) =>
+          cardRow.locator('.balance-metric').evaluateAll((elements) =>
+            elements.map((element) => {
+              const box = element.getBoundingClientRect();
+              return { x: box.x, width: box.width };
+            }),
+          ),
+        ),
+      );
+      for (const columns of metricColumns) {
+        expect(columns).toHaveLength(2);
+      }
+      const referenceColumns = metricColumns[0];
+      if (!referenceColumns) throw new Error('balance metric columns are missing');
+      for (const columns of metricColumns.slice(1)) {
+        for (const [index, column] of columns.entries()) {
+          const reference = referenceColumns[index];
+          if (!reference) throw new Error('balance metric column is missing');
+          expect(Math.abs(column.x - reference.x)).toBeLessThanOrEqual(1);
+          expect(Math.abs(column.width - reference.width)).toBeLessThanOrEqual(1);
+        }
+      }
+    }
   } finally {
     await cleanupBalances();
     await initializeDefaultLedger(database().db);
