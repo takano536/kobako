@@ -333,9 +333,9 @@ test('edit: submit with empty name, fix and save succeeds', async ({ page }) => 
   expect(accountRow).toEqual([{ name: fixedName }]);
 });
 
-test('kind change: select credit_card, confirmation required on save, check and edit card field', async ({
+test('kind change: saves credit_card and card fields with one click', async ({
   page,
-}) => {
+}, testInfo) => {
   const kindChangeAccountName = `${reviewPrefix}kind-change`;
   await page.goto('/accounts/new');
   await page.getByLabel('名前', { exact: true }).fill(kindChangeAccountName);
@@ -345,14 +345,14 @@ test('kind change: select credit_card, confirmation required on save, check and 
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
   await page.getByRole('link', { name: '資産設定', exact: true }).click();
   await page.getByLabel('種別', { exact: true }).selectOption('credit_card');
-  await page.getByRole('button', { name: '保存する' }).click();
-  const confirmCheckbox = page.getByLabel('種別を変更することを確認しました');
-  await expect(confirmCheckbox).toBeVisible();
-  await confirmCheckbox.check();
-  await expect(confirmCheckbox).toBeChecked();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
   const closingDay = page.getByLabel('締め日');
   await closingDay.selectOption('last');
   await expect(closingDay).toHaveValue('last');
+  await testInfo.attach('account-kind-change-without-confirmation', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
   await page.getByRole('button', { name: '保存する' }).click();
   await expect(page).toHaveURL(
     new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
@@ -367,7 +367,7 @@ test('kind change: select credit_card, confirmation required on save, check and 
   expect(settingsRow[0]?.closing_day).toBe('last');
 });
 
-test('kind change with field error: empty name, confirmation required, fix and confirm', async ({
+test('kind change with field error: fix name and save without another confirmation', async ({
   page,
 }) => {
   const errorThenKindChangeAccountName = `${reviewPrefix}error-kind-change`;
@@ -384,14 +384,10 @@ test('kind change with field error: empty name, confirmation required, fix and c
   await page.getByRole('button', { name: '保存する' }).click();
   const nameErrorId = 'account-name-error';
   await expect(page.locator(`#${nameErrorId}`)).toBeVisible();
-  const confirmCheckbox = page.getByLabel('種別を変更することを確認しました');
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
   const fixedName = `${errorThenKindChangeAccountName}修正`;
   await nameInput.fill(fixedName);
   await expect(nameInput).toHaveValue(fixedName);
-  await page.getByRole('button', { name: '保存する' }).click();
-  await expect(confirmCheckbox).toBeVisible();
-  await confirmCheckbox.check();
-  await expect(confirmCheckbox).toBeChecked();
   const paymentDay = page.getByLabel('支払日');
   await paymentDay.selectOption('10');
   await expect(paymentDay).toHaveValue('10');

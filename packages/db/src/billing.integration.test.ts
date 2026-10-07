@@ -69,7 +69,6 @@ async function createConfiguredCard(
       name: cardResult.account.name,
       kind: 'credit_card',
       expectedKind: 'credit_card',
-      confirmKindChange: false,
     },
     cardCondition,
   );
