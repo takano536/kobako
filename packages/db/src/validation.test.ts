@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
 import {
   AMOUNT_LIMIT,
+  accountCardConditionInputSchema,
+  isValidCardBillingSchedule,
   transactionInputFromFormData,
   transactionInputSchema,
   transferInputSchema,
@@ -262,5 +264,41 @@ describe('transaction input validation', () => {
         memo: '',
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('card billing setting validation', () => {
+  const base = {
+    closingDay: '25',
+    paymentDay: '10',
+    paymentMonthOffset: 'same_month' as const,
+    debitAccountId: null,
+  };
+
+  it('rejects same-month payment dates that are not after every resolved close date', () => {
+    const result = accountCardConditionInputSchema.safeParse(base);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.paymentDay).toContain(
+        '同月払いでは、支払日が締め日より後になる設定にしてください。',
+      );
+    }
+    expect(
+      accountCardConditionInputSchema.safeParse({
+        ...base,
+        closingDay: '30',
+        paymentDay: '31',
+      }).success,
+    ).toBe(false);
+    expect(
+      accountCardConditionInputSchema.safeParse({
+        ...base,
+        closingDay: '27',
+        paymentDay: '28',
+      }).success,
+    ).toBe(true);
+    expect(isValidCardBillingSchedule('last', 'last', 'same_month')).toBe(false);
+    expect(isValidCardBillingSchedule('25', 'last', 'same_month')).toBe(true);
+    expect(isValidCardBillingSchedule('25', '10', 'next_month')).toBe(true);
   });
 });

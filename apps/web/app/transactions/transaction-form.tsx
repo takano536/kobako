@@ -195,6 +195,7 @@ export function TransactionForm({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const modalOpenRef = useRef(false);
   const convertingDialogRef = useRef(false);
+  const submitGuardRef = useRef(false);
   const formValues = state.values && !isDirty ? state.values : values;
   const selectedType: TransactionFormType =
     formValues.type === 'income' || formValues.type === 'transfer' ? formValues.type : 'expense';
@@ -218,6 +219,12 @@ export function TransactionForm({
       setAmountInputError(undefined);
     }
   }, [state.values]);
+
+  useEffect(() => {
+    if (!pending) {
+      submitGuardRef.current = false;
+    }
+  }, [pending]);
 
   useEffect(() => {
     const memo = memoRef.current;
@@ -278,6 +285,10 @@ export function TransactionForm({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    if (pending || submitGuardRef.current) {
+      event.preventDefault();
+      return;
+    }
     const submittedValues = transactionFormValuesFromFormData(new FormData(event.currentTarget));
     const completeAmount = isAmountText(submittedValues.amount);
     setAmountInputError(completeAmount ? undefined : AMOUNT_FORMAT_MESSAGE);
@@ -291,6 +302,7 @@ export function TransactionForm({
       });
       if (result.success) {
         setClientErrors(undefined);
+        submitGuardRef.current = true;
         return;
       }
       event.preventDefault();
@@ -309,6 +321,7 @@ export function TransactionForm({
     });
     if (result.success) {
       setClientErrors(undefined);
+      submitGuardRef.current = true;
       return;
     }
     event.preventDefault();

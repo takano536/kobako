@@ -2,9 +2,12 @@ import {
   checkDatabaseConnection,
   createDatabaseClient,
   getDatabaseUrl,
+  processDueCardPayments,
   redactDatabaseUrl,
   type DatabaseClient,
 } from '@kobako/db';
+
+const WORKER_INTERVAL_MS = 60_000;
 
 async function runWorker(): Promise<void> {
   let client: DatabaseClient | undefined;
@@ -18,17 +21,35 @@ async function runWorker(): Promise<void> {
       database: redactDatabaseUrl(connectionString),
     });
 
-    // Keep one ref'd handle alive until pg-boss lands; this does no work or polling.
-    const keepAlive = setInterval(() => undefined, 2 ** 31 - 1);
+    let tickRunning = false;
+    let tickPromise = Promise.resolve();
+    const tick = (): void => {
+      if (tickRunning || !client) return;
+      tickRunning = true;
+      tickPromise = processDueCardPayments(client.db)
+        .then((result) => {
+          if (result.completed + result.settled + result.blocked + result.errors > 0) {
+            console.log('[worker] card billing tick complete', result);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error('[worker] card billing tick failed', {
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+          });
+        })
+        .finally(() => {
+          tickRunning = false;
+        });
+    };
+    tick();
+    const interval = setInterval(tick, WORKER_INTERVAL_MS);
     let resolveShutdown: (() => void) | undefined;
     const shutdownRequested = new Promise<void>((resolve) => {
       resolveShutdown = resolve;
     });
     let shuttingDown = false;
     const handleSignal = (signal: NodeJS.Signals): void => {
-      if (shuttingDown) {
-        return;
-      }
+      if (shuttingDown) return;
       shuttingDown = true;
       console.log(`[worker] received ${signal}; shutting down`);
       resolveShutdown?.();
@@ -39,7 +60,8 @@ async function runWorker(): Promise<void> {
     try {
       await shutdownRequested;
     } finally {
-      clearInterval(keepAlive);
+      clearInterval(interval);
+      await tickPromise;
     }
 
     await client.close();

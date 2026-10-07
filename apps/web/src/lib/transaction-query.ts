@@ -1,5 +1,16 @@
 import { parseInt4Id } from './ids';
 
+const MIN_SUPPORTED_YEAR = 1900;
+const MAX_SUPPORTED_YEAR = 9998;
+const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+function isValidMonth(value: string): boolean {
+  const match = MONTH_PATTERN.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  return year >= MIN_SUPPORTED_YEAR && year <= MAX_SUPPORTED_YEAR;
+}
+
 export type TransactionListType = 'expense' | 'income' | 'transfer';
 export type TransactionQueryValue = string | string[] | undefined;
 export interface FilterCategory {
@@ -49,10 +60,12 @@ export function parseTransactionListFilters(
   query: Record<string, TransactionQueryValue>,
 ): TransactionListFilters {
   const type = parseTransactionType(query.type);
+  const categoryId = parseTransactionCategoryId(query.category);
+  const accountId = parseTransactionAccountId(query.account);
   return {
     type,
-    categoryId: type === 'transfer' ? undefined : parseTransactionCategoryId(query.category),
-    accountId: parseTransactionAccountId(query.account),
+    categoryId: type === 'transfer' ? undefined : categoryId,
+    accountId,
     page: parseTransactionPage(query.page),
   };
 }
@@ -70,7 +83,7 @@ export function validatedTransactionReturn(
   }
   if (url.pathname !== '/transactions') return undefined;
   const month = url.searchParams.get('month');
-  if (!month || (month !== 'all' && !/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month))) {
+  if (!month || (month !== 'all' && !isValidMonth(month))) {
     return undefined;
   }
   const account = parseTransactionAccountId(url.searchParams.get('account') ?? undefined);
@@ -88,7 +101,6 @@ export function validatedTransactionReturn(
   const params = new URLSearchParams({ account: String(accountId), month });
   if (type) params.set('type', type);
   if (category !== undefined && type !== 'transfer') params.set('category', String(category));
-  params.set('account', String(accountId));
   if (page > 1) params.set('page', String(page));
   return `/transactions?${params.toString()}`;
 }

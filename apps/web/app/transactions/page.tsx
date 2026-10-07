@@ -70,14 +70,17 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const accountId = parseTransactionAccountId(rawAccount);
   if (rawAccount !== undefined && rawAccount !== '' && accountId === undefined) notFound();
   const rawMonth = firstQueryValue(query.month);
+  const { type, categoryId, page = 1 } = parseTransactionListFilters(query);
+  const db = getLedgerDatabase();
+  const householdId = getCurrentHouseholdId();
+  const account =
+    accountId === undefined ? null : await getManagedAccount(db, householdId, accountId);
+  if (accountId !== undefined && !account) notFound();
   const month =
     accountId !== undefined && rawMonth === 'all'
       ? 'all'
       : parseMonth(rawMonth, currentTokyoMonth());
-  const { type, categoryId, page = 1 } = parseTransactionListFilters(query);
-  const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
-  const [fetchedRows, categories, accounts, account] = await Promise.all([
+  const [fetchedRows, categories, accounts] = await Promise.all([
     listLedgerEntries(db, householdId, {
       month,
       type,
@@ -88,9 +91,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     }),
     listCategories(db, householdId),
     listManagedAccounts(db, householdId),
-    accountId === undefined ? Promise.resolve(null) : getManagedAccount(db, householdId, accountId),
   ]);
-  if (accountId !== undefined && !account) notFound();
   const hasNextPage = fetchedRows.length > PAGE_SIZE;
   const rows = hasNextPage ? fetchedRows.slice(0, PAGE_SIZE) : fetchedRows;
   const hasFilter = Boolean(type || categoryId || accountId);

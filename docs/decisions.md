@@ -30,7 +30,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## Mutation と再検証
 
-Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は単一の `DELETE ... RETURNING occurred_on` で削除対象の日付を取得し（削除前に別 query で存在確認しません）、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
+Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
 
 ## 入力拒否とフォーカス可能な日付欄
 
@@ -42,7 +42,7 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 ## Worker
 
-worker は今すぐ job を処理しませんが、web request と将来の Import/Export 等を分離するプロセス境界には価値があります。そのため、起動時 DB check、signal による graceful shutdown、idle 待機だけを実装しました。
+worker は起動時 DB check 後に期限日までのカード自動決済を catch-up し、一定間隔の tick で期限到来分と blocked run を再試行します。worker 停止中の期限日も復帰後に処理し、`SIGTERM`/`SIGINT` では tick を停止して DB client を閉じ、正常終了します。
 
 ## Integration test の DB 安全性
 
@@ -106,7 +106,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ファイル本体のバイト列から SHA-256 ハッシュを計算し、監査用の値として保存します。ハッシュ自体は一意制約にせず、同じファイルを別の取込操作で再登録できます。各プレビューにランダムな `operation_key` を割り当て、`transaction_imports(household_id, source='realbyte-money-manager', operation_key)` の部分一意制約で同じ操作の二重送信だけを冪等に処理します。SHA-256 は 64 文字の小文字 16 進数として DB の CHECK で検証します。
 
-確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を `operation_key` と一緒に追加します。追加時の operation key 一意制約違反は同じ操作として既存の取込結果を返します。別の operation key なら、取込内の各提供元資産を新規資産へ一度だけ割り当て、必要なカテゴリを再利用・作成した後、取引と振替を一つのトランザクションで追加します。別操作で同じファイルを取り込んだ分も月次収支と残高に反映します。
+確定処理では、まず家計の行を `SELECT FOR UPDATE` でロックし、次に `transaction_imports` を `operation_key` と一緒に追加します。追加時の operation key 一意制約違反は同じ操作として既存の取込結果を返します。別の operation key なら、取込内の各提供元資産を新規資産へ一度だけ割り当て、必要なカテゴリを再利用・作成した後、取引と振替を一つのトランザクションで追加します。カード資産を含む行では影響するカード設定行（設定がなければカード資産行）もロックします。別操作で同じファイルを取り込んだ分も月次収支と残高に反映します。
 
 ## 再アップロードによる確定
 
@@ -120,8 +120,18 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ## インポート schema
 
-schema は `packages/db/src/schema.ts` に定義し、`0007` までの migration を空 DB・既存 migration 適用済み DB の両方へ適用する integration test で確認します。
+schema は `packages/db/src/schema.ts` に定義し、`0008` までの migration を空 DB・既存 migration 適用済み DB の両方へ適用する integration test で確認します。
 
 ## 統合フォームでの振替入力
 
 振替は通常の支出・収入と同じ登録・編集フォームの種別選択肢に含め、amount/date/memo を共有します。振替を選んだときだけ元資産・先資産を表示し、カテゴリは表示しません。新規振替は削除されていない資産（`deleted_at` が null、`status` が `closed` でも可）だけを受け付け、資産未選択や同一資産などの入力エラーはクライアント・サーバー検証と DB 制約で拒否します。
+
+## クレジットカード請求と自動決済
+
+カードの費用は利用日（`transactions.occurred_on`）に認識し、支払日は費用を新たに認識しない。支払は銀行口座からカード口座への通常の振替として元帳に記録する。締め済みの期間へ、カードへの振替・カードからの振替を日付順 FIFO で割り当てて未払い額を導出するため、支払の allocation/link 行は作らない。過払いは次の期間へ繰り越し、支払時に支出を二重計上しない。
+
+自動決済の ON/OFF 列は持たない。`account_card_settings` の行が存在し、締め日・支払日・支払月・引落口座が有効なカードだけを対象にする。catch-up の下限は `auto_payment_starts_on` とし、`due_on >= 下限` かつ当日までの支払日を対象にする（境界日の支払日は含む）。0008 migration は既存の設定行へ migration 適用時点の東京日付を設定し、新規設定行も作成時の東京日付を保存する。設定行が不完全な状態から完全な状態へ更新されたときは更新時点の東京日付へ境界を進め、完全な設定の値変更や不完全なままの編集では境界を維持する。これにより、既存ユーザーの導入前履歴や不完全な設定を後から完成した時点より前の履歴を一括決済しない。設定行を削除して再作成した場合も、新しい作成日の境界になる。
+
+worker は起動時と一定間隔で期限到来分を処理する。`(household_id, card_account_id, due_on)` の一意制約と設定行の `FOR UPDATE` ロックで再実行・再起動・並行実行を冪等にする。既存の手動振替やインポート振替を含む現在の FIFO 残額だけを振替額とし、残額が 0 以下なら `settled` run のみ記録する。自動作成済み振替が通常 UI で編集・削除されても completed run は再作成せず、意図しない追加決済を防ぐ。
+
+引落口座が未設定、銀行種別でない、削除済み、またはカード条件が不足している場合は口座を推測せず、transfer を作らない。期限ごとの `blocked` run に理由を保存し、設定修正後の tick で再試行する。銀行残高の不足はブロック理由にせず、通常の振替として残高をマイナスにする。期間境界は締め日を含み翌日から次期間、日付 31 は短い月の末日、月末・年跨ぎも同じ calendar helper で解決する。

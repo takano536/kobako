@@ -93,9 +93,9 @@ function revalidateLedger(): void {
   revalidatePath('/balances');
 }
 
-function redirectToMonth(month: string): never {
+function redirectToMonth(month: string, returnPath?: string): never {
   revalidateLedger();
-  redirect(`/transactions?month=${month}`);
+  redirect(returnPath ?? `/transactions?month=${month}`);
 }
 
 export async function createTransactionAction(
