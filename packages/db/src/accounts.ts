@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { currentTokyoDate } from './month.js';
 import type { Database } from './client.js';
-import { getAccountBalances, type AccountBalance } from './ledger.js';
+import { getAccountBalances, lockCardSettingsForAccounts, type AccountBalance } from './ledger.js';
 import {
   accountCardSettings,
   accounts,
@@ -284,6 +285,7 @@ export async function updateAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      await lockCardSettingsForAccounts(transaction, householdId, [accountId]);
       const current = await transaction
         .select()
         .from(accounts)
@@ -388,6 +390,7 @@ export async function deleteAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      await lockCardSettingsForAccounts(transaction, householdId, [accountId]);
       const account = await transaction
         .select({ id: accounts.id, deletedAt: accounts.deletedAt })
         .from(accounts)
@@ -473,7 +476,7 @@ async function validateDebitAccount(
   const debit = await cardAccount(transaction, householdId, debitAccountId);
   return (
     debit !== null &&
-    debit.kind !== 'credit_card' &&
+    debit.kind === 'bank' &&
     (debit.deletedAt === null || debit.id === allowedDeletedAccountId)
   );
 }
@@ -495,6 +498,21 @@ async function currentCardSettingInTransaction(
     .for('update')
     .limit(1);
   return rows[0] ?? null;
+}
+
+function hasCompleteCardSchedule(condition: {
+  closingDay: string | null | undefined;
+  paymentDay: string | null | undefined;
+  paymentMonthOffset: string | null | undefined;
+}): boolean {
+  return (
+    condition.closingDay !== null &&
+    condition.closingDay !== undefined &&
+    condition.paymentDay !== null &&
+    condition.paymentDay !== undefined &&
+    condition.paymentMonthOffset !== null &&
+    condition.paymentMonthOffset !== undefined
+  );
 }
 
 async function saveCardConditionInTransaction(
@@ -525,9 +543,13 @@ async function saveCardConditionInTransaction(
     updatedAt: new Date(),
   };
   if (current) {
+    const updateValues =
+      !hasCompleteCardSchedule(current) && hasCompleteCardSchedule(values)
+        ? { ...values, autoPaymentStartsOn: currentTokyoDate() }
+        : values;
     const updated = await transaction
       .update(accountCardSettings)
-      .set(values)
+      .set(updateValues)
       .where(
         and(
           eq(accountCardSettings.id, current.id),
@@ -544,6 +566,7 @@ async function saveCardConditionInTransaction(
       householdId,
       accountId: account.id,
       ...values,
+      autoPaymentStartsOn: currentTokyoDate(),
       createdAt: new Date(),
     })
     .returning();

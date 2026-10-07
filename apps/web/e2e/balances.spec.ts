@@ -5,7 +5,9 @@ import {
   DEFAULT_HOUSEHOLD_ID,
   assertSafeTestDatabaseTarget,
   createDatabaseClient,
+  currentTokyoDate,
   initializeDefaultLedger,
+  shiftMonth,
   verifySafeTestDatabaseConnection,
   type DatabaseClient,
   type DatabaseTarget,
@@ -63,6 +65,20 @@ const visualSummaryValues = {
   liabilities: '23456',
   net: '176544',
 } as const;
+const paymentFixtureMarker = `${markerPrefix}payment-schedule:`;
+const paymentFixtureNames = {
+  primaryBank: `${paymentFixtureMarker}みずほ銀行`,
+  secondaryBank: `${paymentFixtureMarker}三井住友銀行`,
+  orphanBank: `${paymentFixtureMarker}未紐付銀行`,
+  primaryCard: `${paymentFixtureMarker}10日カード`,
+  secondPrimaryCard: `${paymentFixtureMarker}27日カード`,
+  secondaryCard: `${paymentFixtureMarker}別銀行カード`,
+  nextMonthCard: `${paymentFixtureMarker}翌月カード`,
+  partialCard: `${paymentFixtureMarker}一部支払カード`,
+  overpaymentCard: `${paymentFixtureMarker}過払いカード`,
+  noSettingsCard: `${paymentFixtureMarker}設定なしカード`,
+  invalidSettingsCard: `${paymentFixtureMarker}設定不備カード`,
+} as const;
 
 let databaseClient: DatabaseClient | undefined;
 let developmentUrl: string | undefined;
@@ -76,9 +92,8 @@ function database(): DatabaseClient {
 }
 
 function balanceList(page: Page): Locator {
-  return page.getByRole('list', { name: /資産別残高/ }).first();
+  return page.locator('.balance-list');
 }
-
 function summaryAmount(page: Page, label: string): Locator {
   return page
     .locator('.balance-summary-item')
@@ -126,6 +141,9 @@ async function captureSharedGeometry(page: Page, name: string): Promise<void> {
 
 function accountRow(page: Page, accountName: string): Locator {
   return balanceList(page).getByRole('listitem').filter({ hasText: accountName });
+}
+function balanceMetric(row: Locator, label: string): Locator {
+  return row.locator(`.balance-metric[aria-label="${label}"]`);
 }
 
 async function expectAccountBalance(
@@ -689,6 +707,133 @@ async function seedVisualSummaryBalances(): Promise<VisualSummaryFixture> {
   return { accountIds: accounts.map((account) => account.id) };
 }
 
+async function seedPaymentScheduleBalances(): Promise<void> {
+  const client = database();
+  const names = paymentFixtureNames;
+  await client.sql`
+    insert into accounts (household_id, name, kind)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.orphanBank}, 'bank'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondPrimaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.nextMonthCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.partialCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.overpaymentCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.noSettingsCard}, 'credit_card'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.invalidSettingsCard}, 'credit_card')
+  `;
+  const accounts = await client.sql<{ id: number; name: string }[]>`
+    select id, name
+    from accounts
+    where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${paymentFixtureMarker}%`}
+  `;
+  const accountId = (name: string): number => {
+    const account = accounts.find((row) => row.name === name);
+    if (!account) throw new Error(`payment schedule account fixture is missing: ${name}`);
+    return account.id;
+  };
+  const expenseCategory = (
+    await client.sql<{ id: number }[]>`
+      select id
+      from categories
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'expense'
+      order by id
+      limit 1
+    `
+  )[0];
+  if (!expenseCategory) throw new Error('payment schedule expense category is missing');
+
+  const today = currentTokyoDate();
+  const currentMonth = today.slice(0, 7);
+  const billedMonth = shiftMonth(currentMonth, -2);
+  const occurredOn = (monthValue: string, day: number): string =>
+    `${monthValue}-${String(day).padStart(2, '0')}`;
+  const addSetting = async (
+    cardName: string,
+    closingDay: string,
+    paymentDay: string | null,
+    bankName: string,
+  ): Promise<void> => {
+    await client.sql`
+      insert into account_card_settings (
+        household_id, account_id, closing_day, payment_day, payment_month_offset,
+        debit_account_id, auto_payment_starts_on
+      )
+      select
+        ${DEFAULT_HOUSEHOLD_ID}, card.id, ${closingDay}, ${paymentDay}, 'next_month',
+        bank.id, ${today}
+      from accounts card
+      cross join accounts bank
+      where card.household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and card.name = ${cardName}
+        and bank.household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and bank.name = ${bankName}
+    `;
+  };
+  const addExpense = async (
+    accountName: string,
+    amount: number,
+    date: string,
+    suffix: string,
+  ): Promise<void> => {
+    await client.sql`
+      insert into transactions (
+        household_id, type, amount, occurred_on, category_id, account_id, memo
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'expense', ${amount}, ${date},
+        ${expenseCategory.id}, ${accountId(accountName)}, ${`${paymentFixtureMarker}${suffix}`}
+      )
+    `;
+  };
+
+  await addSetting(names.primaryCard, '15', '10', names.primaryBank);
+  await addSetting(names.secondPrimaryCard, '15', '27', names.primaryBank);
+  await addSetting(names.secondaryCard, '15', '10', names.secondaryBank);
+  await addSetting(names.nextMonthCard, '15', '10', names.secondaryBank);
+  await addSetting(names.partialCard, '15', '10', names.primaryBank);
+  await addSetting(names.overpaymentCard, '15', '10', names.primaryBank);
+  await addSetting(names.invalidSettingsCard, '15', null, names.secondaryBank);
+
+  await addExpense(names.primaryCard, 12000, occurredOn(billedMonth, 20), 'primary-billed');
+  await addExpense(names.primaryCard, 3000, today, 'primary-unbilled');
+  await addExpense(names.secondPrimaryCard, 2000, occurredOn(billedMonth, 20), 'second-billed');
+  await addExpense(names.secondPrimaryCard, 350, today, 'second-unbilled');
+  await addExpense(names.secondaryCard, 3000, occurredOn(billedMonth, 20), 'secondary-billed');
+  await addExpense(names.nextMonthCard, 400, today, 'next-month-only');
+  await addExpense(names.partialCard, 1200, occurredOn(billedMonth, 20), 'partial-billed');
+  await addExpense(names.overpaymentCard, 500, occurredOn(billedMonth, 20), 'overpayment-billed');
+  await addExpense(names.noSettingsCard, 900, today, 'no-settings');
+  await addExpense(
+    names.invalidSettingsCard,
+    1000,
+    occurredOn(billedMonth, 20),
+    'invalid-settings',
+  );
+
+  await client.sql`
+    insert into transfers (
+      household_id, from_account_id, to_account_id, amount, occurred_on, memo
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountId(names.primaryBank)}, ${accountId(names.partialCard)},
+      500, ${occurredOn(currentMonth, 1)}, ${`${paymentFixtureMarker}partial-payment`}
+    )
+  `;
+  await client.sql`
+    insert into transfers (
+      household_id, from_account_id, to_account_id, amount, occurred_on, memo
+    )
+    values (
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountId(names.primaryBank)}, ${accountId(names.overpaymentCard)},
+      700, ${occurredOn(currentMonth, 2)}, ${`${paymentFixtureMarker}overpayment`}
+    )
+  `;
+}
+
 async function cleanupVisualSummaryBalances(fixture: VisualSummaryFixture): Promise<void> {
   const client = database();
   await client.sql`
@@ -713,6 +858,22 @@ async function cleanupBalances(): Promise<void> {
   await client.sql`
     delete from transactions
     where household_id = ${DEFAULT_HOUSEHOLD_ID} and memo like ${`${markerPrefix}%`}
+  `;
+  await client.sql`
+    delete from account_card_conditions
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and account_id in (
+        select id from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${markerPrefix}%`}
+      )
+  `;
+  await client.sql`
+    delete from account_card_settings
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and account_id in (
+        select id from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name like ${`${markerPrefix}%`}
+      )
   `;
   await client.sql`
     delete from accounts
@@ -941,6 +1102,293 @@ test('opens the account-filtered transactions by clicking its name from balances
     delete from accounts
     where household_id = ${DEFAULT_HOUSEHOLD_ID} and id = ${account.id}
   `;
+});
+
+test('keeps and aggregates card payment schedules on balances', async ({ page }) => {
+  await seedPaymentScheduleBalances();
+  try {
+    await page.goto('/balances');
+
+    await expect(page.getByText('今月の支払予定', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('設定を確認', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('資産別の残高', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.balance-row .balance-metric-label')).toHaveCount(0);
+    await expect(page.locator('.balance-row').filter({ hasText: '支払予定' })).toHaveCount(0);
+
+    const bankGroup = page
+      .locator('.balance-group')
+      .filter({ has: page.locator('h3', { hasText: /^銀行$/ }) });
+    await expect(bankGroup.locator('.balance-group-heading-label')).toHaveText([
+      '支払予定',
+      '残高',
+    ]);
+    const cardGroup = page
+      .locator('.balance-group')
+      .filter({ has: page.locator('h3', { hasText: /^クレジットカード$/ }) });
+    await expect(cardGroup).toHaveCount(1);
+    await expect(cardGroup.locator('.balance-group-heading-label')).toHaveText([
+      '決済予定',
+      '未決済',
+    ]);
+
+    const expectGroupRows = async (group: Locator, names: readonly string[]): Promise<void> => {
+      const rows = group.locator('.balance-row');
+      await expect(rows).toHaveCount(names.length);
+      await expect(rows.locator('.balance-account-name')).toHaveText([...names]);
+    };
+    await expectGroupRows(bankGroup, [
+      paymentFixtureNames.primaryBank,
+      paymentFixtureNames.secondaryBank,
+      paymentFixtureNames.orphanBank,
+    ]);
+    await expectGroupRows(cardGroup, [
+      paymentFixtureNames.primaryCard,
+      paymentFixtureNames.secondPrimaryCard,
+      paymentFixtureNames.secondaryCard,
+      paymentFixtureNames.nextMonthCard,
+      paymentFixtureNames.partialCard,
+      paymentFixtureNames.overpaymentCard,
+      paymentFixtureNames.noSettingsCard,
+      paymentFixtureNames.invalidSettingsCard,
+    ]);
+
+    const expectMetricLabels = async (row: Locator, labels: string[]): Promise<void> => {
+      await expect(row.locator('.balance-metric')).toHaveCount(labels.length);
+      await expect
+        .poll(() =>
+          row
+            .locator('.balance-metric')
+            .evaluateAll((elements) =>
+              elements.map((element) => element.getAttribute('aria-label')),
+            ),
+        )
+        .toEqual(labels);
+    };
+
+    const primaryBank = accountRow(page, paymentFixtureNames.primaryBank);
+    await expectMetricLabels(primaryBank, ['支払予定', '残高']);
+    await expect(balanceMetric(primaryBank, '支払予定')).toContainText('14,700円');
+    await expect(balanceMetric(primaryBank, '残高')).toContainText('−1,200円');
+    const secondaryBank = accountRow(page, paymentFixtureNames.secondaryBank);
+    await expect(balanceMetric(secondaryBank, '支払予定')).toContainText('3,000円');
+    await expect(balanceMetric(secondaryBank, '残高')).toContainText('0円');
+    const orphanBank = accountRow(page, paymentFixtureNames.orphanBank);
+    await expect(balanceMetric(orphanBank, '支払予定')).toContainText('0円');
+    await expect(balanceMetric(orphanBank, '残高')).toContainText('0円');
+
+    const primaryCard = accountRow(page, paymentFixtureNames.primaryCard);
+    await expectMetricLabels(primaryCard, ['決済予定', '未決済']);
+    await expect(balanceMetric(primaryCard, '決済予定')).toContainText('12,000円');
+    await expect(balanceMetric(primaryCard, '未決済')).toContainText('3,000円');
+    const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
+    await expectMetricLabels(secondPrimaryCard, ['決済予定', '未決済']);
+    await expect(balanceMetric(secondPrimaryCard, '決済予定')).toContainText('2,000円');
+    await expect(balanceMetric(secondPrimaryCard, '未決済')).toContainText('350円');
+    await expect(
+      balanceMetric(accountRow(page, paymentFixtureNames.secondaryCard), '決済予定'),
+    ).toContainText('3,000円');
+    await expect(
+      balanceMetric(accountRow(page, paymentFixtureNames.partialCard), '決済予定'),
+    ).toContainText('700円');
+    await expect(
+      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '決済予定'),
+    ).toContainText('0円');
+    await expect(
+      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '未決済'),
+    ).toContainText('400円');
+    await expectBalanceSummary(page, {
+      assets: '−1,200',
+      liabilities: '23,150',
+      net: '−24,350',
+    });
+    await expect(primaryCard).not.toContainText('15,000円');
+    const primaryCardAccount = (
+      await database().sql<{ id: number }[]>`
+        select id
+        from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = ${paymentFixtureNames.primaryCard}
+      `
+    )[0];
+    const expenseCategory = (
+      await database().sql<{ id: number }[]>`
+        select id
+        from categories
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and type = 'expense'
+        order by id
+        limit 1
+      `
+    )[0];
+    if (!primaryCardAccount || !expenseCategory) {
+      throw new Error('card column mutation fixtures are missing');
+    }
+    await database().sql`
+      insert into transactions (
+        household_id, type, amount, occurred_on, category_id, account_id, memo
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'expense', 2000, ${currentTokyoDate()},
+        ${expenseCategory.id}, ${primaryCardAccount.id}, ${`${paymentFixtureMarker}primary-added`}
+      )
+    `;
+    await page.reload();
+    await expect(balanceMetric(primaryCard, '決済予定')).toContainText('12,000円');
+    await expect(balanceMetric(primaryCard, '未決済')).toContainText('5,000円');
+    await expect(primaryCard).not.toContainText('15,000円');
+
+    const noSettingsCard = accountRow(page, paymentFixtureNames.noSettingsCard);
+    await expectMetricLabels(noSettingsCard, ['決済予定', '未決済']);
+    await expect(balanceMetric(noSettingsCard, '決済予定')).toContainText('—');
+    await expect(balanceMetric(noSettingsCard, '未決済')).toContainText('—');
+    const invalidSettingsCard = accountRow(page, paymentFixtureNames.invalidSettingsCard);
+    await expectMetricLabels(invalidSettingsCard, ['決済予定', '未決済']);
+    await expect(balanceMetric(invalidSettingsCard, '決済予定')).toContainText('—');
+    await expect(balanceMetric(invalidSettingsCard, '未決済')).toContainText('—');
+    await expect(cardGroup).not.toContainText('利用残高');
+    expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
+      '支払日',
+    );
+
+    const moneyColors = await page.evaluate(() => {
+      const readToken = (name: string): string => {
+        const probe = document.createElement('span');
+        probe.style.color = getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+        document.body.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      };
+      return {
+        debt: readToken('--money-negative'),
+      };
+    });
+    const debtColor = moneyColors.debt;
+    await expect(balanceMetric(primaryBank, '支払予定').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryCard, '決済予定').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryCard, '未決済').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(primaryBank, '残高').locator('.money-amount')).toHaveCSS(
+      'color',
+      debtColor,
+    );
+    await expect(balanceMetric(secondaryBank, '残高').locator('.money-amount')).not.toHaveCSS(
+      'color',
+      debtColor,
+    );
+    const overpaymentCard = accountRow(page, paymentFixtureNames.overpaymentCard);
+    await expectMetricLabels(overpaymentCard, ['決済予定', '未決済']);
+    await expect(balanceMetric(overpaymentCard, '決済予定')).toContainText('0円');
+    await expect(balanceMetric(overpaymentCard, '未決済')).toContainText('0円');
+
+    const cardGroupWithRows = {
+      group: cardGroup,
+      rows: cardGroup.locator('.balance-row'),
+    };
+    for (const width of [320, 375, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.reload();
+      await assertNoHorizontalOverflow(page);
+      const row = accountRow(page, paymentFixtureNames.primaryCard);
+      const rowBox = await row.boundingBox();
+      const nameBox = await row.locator('.balance-account-link').boundingBox();
+      const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
+      if (!rowBox || !nameBox || !metricsBox) throw new Error('balance row geometry is missing');
+      expect(metricsBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
+      expect(
+        Math.abs(metricsBox.y + metricsBox.height / 2 - (rowBox.y + rowBox.height / 2)),
+      ).toBeLessThanOrEqual(1);
+
+      for (const { group, rows } of [cardGroupWithRows]) {
+        const headingColumns = await group
+          .locator('.balance-group-heading-label')
+          .evaluateAll((elements) =>
+            elements.map((element) => {
+              const box = element.getBoundingClientRect();
+              return { x: box.x, width: box.width };
+            }),
+          );
+        const metricColumns = await rows.evaluateAll((rowElements) =>
+          rowElements.map((rowElement) =>
+            Array.from(rowElement.querySelectorAll('.balance-metric')).map((element) => {
+              const box = element.getBoundingClientRect();
+              return { x: box.x, width: box.width };
+            }),
+          ),
+        );
+        expect(headingColumns).toHaveLength(2);
+        for (const columns of metricColumns) {
+          expect(columns).toHaveLength(2);
+          for (const [index, column] of columns.entries()) {
+            const heading = headingColumns[index];
+            if (!heading) throw new Error('balance heading columns are missing');
+            expect(Math.abs(column.x - heading.x)).toBeLessThanOrEqual(1);
+            expect(Math.abs(column.width - heading.width)).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+      const amountGeometry = await page.locator('.balance-group').evaluateAll((groups) =>
+        groups.map((group) => {
+          const list = group.querySelector<HTMLElement>('.balance-list');
+          if (!list) throw new Error('balance list is missing');
+          const readRect = (element: Element) => {
+            const box = element.getBoundingClientRect();
+            return { right: box.right, top: box.top, bottom: box.bottom };
+          };
+          const headers = Array.from(
+            group.querySelectorAll<HTMLElement>('.balance-group-heading-label'),
+          ).map(readRect);
+          const rows = Array.from(group.querySelectorAll<HTMLElement>('.balance-row')).map((row) =>
+            Array.from(row.querySelectorAll<HTMLElement>('.balance-metric')).map((metric) => {
+              const amount =
+                metric.querySelector<HTMLElement>('.money-amount') ??
+                metric.querySelector<HTMLElement>('.balance-amount');
+              if (!amount) throw new Error('balance amount is missing');
+              return readRect(amount);
+            }),
+          );
+          return { list: readRect(list), headers, rows };
+        }),
+      );
+      for (const group of amountGeometry) {
+        const columns: { right: number; top: number; bottom: number }[][] = [];
+        for (const row of group.rows) {
+          for (const [index, amount] of row.entries()) {
+            const header = group.headers[index];
+            if (!header) throw new Error('balance amount header is missing');
+            expect(amount.right).toBeLessThanOrEqual(group.list.right + 1);
+            expect(amount.right).toBeLessThanOrEqual(header.right + 1);
+            columns[index] ??= [];
+            columns[index].push(amount);
+          }
+        }
+        for (const amounts of columns) {
+          for (let first = 0; first < amounts.length; first += 1) {
+            for (let second = first + 1; second < amounts.length; second += 1) {
+              const firstAmount = amounts[first];
+              const secondAmount = amounts[second];
+              if (!firstAmount || !secondAmount) throw new Error('balance amounts are missing');
+              expect(
+                firstAmount.bottom <= secondAmount.top + 1 ||
+                  secondAmount.bottom <= firstAmount.top + 1,
+              ).toBe(true);
+            }
+          }
+        }
+      }
+    }
+  } finally {
+    await cleanupBalances();
+    await initializeDefaultLedger(database().db);
+  }
 });
 
 test('captures shared chrome geometry for overview, transactions, and balances', async ({

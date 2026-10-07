@@ -5,7 +5,7 @@
 kobako は pnpm workspace の modular monolith として始めます。
 
 - `apps/web`: Next.js App Router。家計簿の表示・フォーム・Server Actions と health endpoint を提供します。
-- `apps/worker`: 将来の非同期処理のプロセス境界。現段階では起動時の DB check 後に待機し、job 実装は持ちません。
+- `apps/worker`: 自動決済などの非同期処理のプロセス境界。起動時に DB check を行い、期限日までのカード自動決済を catch-up し、一定間隔で再試行します。`SIGTERM`/`SIGINT` で接続を閉じて終了します。
 - `packages/db`: PostgreSQL 接続、Drizzle schema、migration、家計簿 query、入力 validation、環境変数検証を提供します。
 
 依存方向は apps → packages です。package から app へ依存しません。ブラウザに DB 接続や秘密情報が入らないよう、`@kobako/db` の client/query/parser は Server Component と Server Action から利用し、Client Component はサーバーアクション参照以外で DB/parser を直接 import しません。
@@ -43,13 +43,13 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 ## 表示と mutation
 
-概要と一覧は Server Component で URL query (`month`、`type`、`category`、`account`、`page`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
+概要と一覧は Server Component で URL query（`month`、`type`、`category`、`account`、`page`）を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
 `/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、ページング・月・種別・カテゴリと組み合わせても重複を出しません。
 
 - 登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、Zod schema を Server Action でも再検証します。新規操作の資産候補は削除されていない資産にし、既存取引を編集する場合は参照中の削除済み資産を保持します。新規振替も削除されていない資産を受け付けます。
 - 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧はなく、取引一覧で資産を絞り込んだときだけ削除されていない資産に設定歯車を表示します。資産設定フォームは名前・種別・カード現在条件をまとめて扱い、論理削除は `accounts.deleted_at` に日時を設定して参照行を保持します。
-- 資産とカード現在条件の保存は同一トランザクションで確定し、保存時点で論理削除済みの資産は変更せず拒否します。
+- 資産とカード現在条件の保存は同一トランザクションで確定し、カード資産の設定更新・種別変更・論理削除は請求処理と同じカード設定ロックを取得します。保存時点で論理削除済みの資産は変更せず拒否します。
 
 `getAccountBalances` は全期間の取引から資産ごとの計算上の残高を `income - expense - transfersOut + transfersIn` で計算します。残高画面は保存済み `kind` の順（現金、銀行、クレジットカード、デビットカード、電子マネー、その他）で表示します。現金・銀行・デビットカードは資産、クレジットカードは符号を反転して負債として表示します。
 
@@ -67,7 +67,7 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 - `packages/db/src/money-manager-format.ts` はセル値の検証と金額・日付・カテゴリの正規化を担当します。データベースには接続しない純粋な関数です。
 - `packages/db/src/money-manager-xlsx.ts` は OOXML と ZIP を解析します。yauzl でエントリを必要な時に読み込み、saxes で XML を解析し、数式セル、DTD、外部実体を拒否します。`MONEY_MANAGER_XLSX_LIMITS` で ZIP のエントリ数を 128、エントリごとの未圧縮サイズを 8 MiB、全体の未圧縮サイズを 32 MiB、共有文字列を 100,000 件かつ 8 MiB までに制限します。ワークシートの取引行は読み込み時に 10,000 行まで、金額・日付シリアルの数値表記は 64 文字までです。共有文字列の参照先が不正な場合はファイルエラーにします。
-- `packages/db/src/imports.ts` はデータベース操作を担当します。家計行を `SELECT FOR UPDATE` でロックし、カテゴリ・資産・取引・振替・取込結果を一つのトランザクションで確定します。資産は取込単位で新規作成し、同じ `operation_key` の再送信だけを冪等に処理します。
+- `packages/db/src/imports.ts` はデータベース操作を担当します。家計の行を `SELECT FOR UPDATE` でロックし、カテゴリ・資産・取引・振替・取込結果を一つのトランザクションで確定します。カード資産を含む取引・振替の追加では、影響するカードの設定行（設定がなければカード資産行）も決定的な順序でロックし、請求導出と同時更新が競合しないようにします。
 - `packages/db/src/money-manager.ts` はインポート関連の公開サブパスを再エクスポートします。
 
 `apps/web/next.config.ts` では Server Action のリクエスト本文の上限を 6 MB に設定し、5 MiB のファイルと multipart の付加分を受け付けます。`yauzl` と `saxes` は Node.js サーバーの外部パッケージとして扱います。
@@ -88,4 +88,10 @@ migration 中に受け取った `SIGTERM`/`SIGINT` は、Compose の `init: true
 
 Drizzle の postgres-js migrator は migration SQL と journal の記録を一つの transaction で実行します（schema と migration table の準備はその前です）。そのため migration が失敗すると、その migration の SQL と記録はまとめて rollback されます。
 
-worker は busy loop やダミー job を持ちません。DB check が成功した後、signal を解決条件とする promise を待ちます。`SIGTERM`/`SIGINT` で DB client を閉じ、正常終了します。
+worker は busy loop やダミー job を持ちません。DB check が成功した後、起動時に期限日までのカード自動決済を処理し、一定間隔の tick で catch-up と blocked の再試行を行います。`SIGTERM`/`SIGINT` で tick を停止し DB client を閉じ、正常終了します。
+
+## クレジットカード請求・自動決済
+
+クレジットカードの利用費用は利用日（`transactions.occurred_on`）に認識し、支払専用行や請求スナップショットは保存しない。締め日・支払日・支払月から期間を導出し、カードの取引と振替を FIFO で割り当てて締め済み未払い額を計算する。通常の取引一覧には追加の請求期間フィルターや請求セクションを設けず、カード名から既存のカード別取引一覧へ移動する。
+
+`account_card_settings` の条件が完全なカードについて、worker は `auto_payment_starts_on`（migration で既存行に適用時点の東京日付、新規行に作成時の東京日付を保存）以降で期限到来した未払い額を銀行→カード振替として記録する。不完全な設定行が完全な設定へ更新された時点では境界を更新し、完全な設定の値変更では境界を維持する。境界日の期限日は含み、締め日・支払日・支払月・引落銀行の編集ではそれ以外の境界を動かさない。銀行残高不足でも振替を実行する。期限ごとの一意 run とカード設定ロックで並行実行を直列化し、完了済み run は振替の編集・削除後も再作成しない。必須条件や引落銀行が不足する場合は口座を推測せず blocked run に理由を保存し、資産設定の修正後に再試行する。

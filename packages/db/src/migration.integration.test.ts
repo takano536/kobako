@@ -9,6 +9,7 @@ import {
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
 import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
+import { currentTokyoDate } from './month.js';
 
 const HOUSEHOLD_ID = '11111111-1111-1111-1111-111111111111';
 const MIGRATION_FILES = [
@@ -20,6 +21,7 @@ const MIGRATION_FILES = [
   '0005_debit_asset_group.sql',
   '0006_fuzzy_argent.sql',
   '0007_amusing_king_bedlam.sql',
+  '0008_busy_gwen_stacy.sql',
 ] as const;
 
 async function executeMigrationFile(sql: Sql, fileName: string): Promise<void> {
@@ -415,10 +417,16 @@ describe('legacy account migration', () => {
       throw new Error('legacy card id is missing');
     }
     const currentCard = await legacyClient.sql<
-      { closingDay: string | null; paymentDay: string | null; paymentMonthOffset: string | null }[]
+      {
+        closingDay: string | null;
+        paymentDay: string | null;
+        paymentMonthOffset: string | null;
+        autoPaymentStartsOn: string;
+      }[]
     >`
       select closing_day as "closingDay", payment_day as "paymentDay",
-             payment_month_offset as "paymentMonthOffset"
+             payment_month_offset as "paymentMonthOffset",
+             auto_payment_starts_on as "autoPaymentStartsOn"
       from account_card_settings
       where household_id = ${HOUSEHOLD_ID} and account_id = ${legacyCardId}
     `;
@@ -437,7 +445,12 @@ describe('legacy account migration', () => {
       { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
     ]);
     expect(currentCard).toEqual([
-      { closingDay: '4', paymentDay: '5', paymentMonthOffset: 'same_month' },
+      {
+        closingDay: '4',
+        paymentDay: '5',
+        paymentMonthOffset: 'same_month',
+        autoPaymentStartsOn: currentTokyoDate(),
+      },
     ]);
     expect(futureCardSetting).toEqual([]);
     expect(migratedAccounts).toEqual([
@@ -525,6 +538,9 @@ describe('legacy account migration', () => {
         await executeMigrationFile(emptyClient.sql, fileName);
       }
       await executeMigrationFile(emptyClient.sql, '0007_amusing_king_bedlam.sql');
+      expect(
+        await emptyClient.sql`select count(*)::int as count from card_auto_payment_runs`,
+      ).toEqual([{ count: 0 }]);
       expect(await emptyClient.sql`select count(*)::int as count from households`).toEqual([
         { count: 0 },
       ]);

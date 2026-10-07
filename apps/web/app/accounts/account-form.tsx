@@ -103,6 +103,10 @@ export function AccountForm({
   const current = state.values && !isDirty ? state.values : values;
   const nameError = state.fieldErrors?.name;
   const kindError = state.fieldErrors?.kind;
+  const closingDayError = state.fieldErrors?.closingDay;
+  const paymentDayError = state.fieldErrors?.paymentDay;
+  const paymentMonthOffsetError = state.fieldErrors?.paymentMonthOffset;
+  const debitAccountError = state.fieldErrors?.debitAccountId;
   useEffect(() => {
     if (state.values) {
       setValues(state.values);
@@ -116,10 +120,13 @@ export function AccountForm({
   }
 
   const card = cardConditionValues(current);
-  const setCardValue = (key: keyof CardConditionValues, value: string) => {
+  function setCardValue<K extends keyof CardConditionValues>(
+    key: K,
+    value: CardConditionValues[K],
+  ) {
     setIsDirty(true);
     setValues((previous) => ({ ...previous, [key]: value }));
-  };
+  }
 
   return (
     <form className="ledger-form account-form" action={formAction} noValidate>
@@ -178,6 +185,8 @@ export function AccountForm({
                   name="closingDay"
                   value={card.closingDay}
                   onChange={(event) => setCardValue('closingDay', event.currentTarget.value)}
+                  aria-invalid={closingDayError?.length ? true : undefined}
+                  aria-describedby={closingDayError?.length ? 'closing-day-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {dayOptions.map((day) => (
@@ -187,6 +196,7 @@ export function AccountForm({
                   ))}
                   <option value="last">月末</option>
                 </select>
+                <FieldError id="closing-day-error" messages={closingDayError} />
               </div>
             </div>
             <div className="field">
@@ -198,6 +208,8 @@ export function AccountForm({
                   name="paymentDay"
                   value={card.paymentDay}
                   onChange={(event) => setCardValue('paymentDay', event.currentTarget.value)}
+                  aria-invalid={paymentDayError?.length ? true : undefined}
+                  aria-describedby={paymentDayError?.length ? 'payment-day-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {dayOptions.map((day) => (
@@ -207,6 +219,7 @@ export function AccountForm({
                   ))}
                   <option value="last">月末</option>
                 </select>
+                <FieldError id="payment-day-error" messages={paymentDayError} />
               </div>
             </div>
             <div className="field">
@@ -220,12 +233,17 @@ export function AccountForm({
                   onChange={(event) =>
                     setCardValue('paymentMonthOffset', event.currentTarget.value)
                   }
+                  aria-invalid={paymentMonthOffsetError?.length ? true : undefined}
+                  aria-describedby={
+                    paymentMonthOffsetError?.length ? 'payment-month-offset-error' : undefined
+                  }
                 >
                   <option value="">未設定</option>
                   <option value="same_month">当月</option>
                   <option value="next_month">翌月</option>
                   <option value="two_months_later">翌々月</option>
                 </select>
+                <FieldError id="payment-month-offset-error" messages={paymentMonthOffsetError} />
               </div>
             </div>
             <div className="field">
@@ -237,6 +255,8 @@ export function AccountForm({
                   name="debitAccountId"
                   value={card.debitAccountId}
                   onChange={(event) => setCardValue('debitAccountId', event.currentTarget.value)}
+                  aria-invalid={debitAccountError?.length ? true : undefined}
+                  aria-describedby={debitAccountError?.length ? 'debit-account-error' : undefined}
                 >
                   <option value="">未設定</option>
                   {accounts
@@ -245,7 +265,7 @@ export function AccountForm({
                         (account.deletedAt === null ||
                           account.id === Number(card.debitAccountId)) &&
                         account.id !== accountId &&
-                        account.kind !== 'credit_card',
+                        account.kind === 'bank',
                     )
                     .map((account) => (
                       <option value={account.id} key={account.id}>
@@ -253,6 +273,7 @@ export function AccountForm({
                       </option>
                     ))}
                 </select>
+                <FieldError id="debit-account-error" messages={debitAccountError} />
               </div>
             </div>
           </div>

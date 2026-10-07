@@ -6,7 +6,7 @@ import {
   formatYen,
   moneyTone,
   moneyToneClass,
-  type MoneyDirection,
+  type MoneyTone,
   monthLabel,
 } from '../../src/lib/format';
 import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
@@ -35,11 +35,11 @@ export function ActionLink({ href, children, variant = 'quiet', icon }: ActionLi
   );
 }
 
-export function SignedYen({ value, tone }: { value: string | number; tone?: MoneyDirection }) {
+export function SignedYen({ value, tone }: { value: string | number; tone?: MoneyTone }) {
   const source =
     typeof value === 'number' ? Math.trunc(value).toString() : value.trim().replace(/^−/, '-');
-  const resolvedTone = moneyTone(value, tone);
-  const negative = source.startsWith('-') && resolvedTone === 'negative';
+  const resolvedTone = tone === 'neutral' ? 'neutral' : moneyTone(value, tone);
+  const negative = source.startsWith('-');
   const absoluteValue = negative ? source.slice(1) : source;
   return (
     <span className={moneyToneClass(resolvedTone)}>

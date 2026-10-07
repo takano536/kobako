@@ -202,10 +202,11 @@ test('rejects a stale edit after a credit card is soft-deleted', async ({ page }
   if (!account) throw new Error('stale deleted card fixture was not created');
   await database().sql`
     insert into account_card_settings (
-      household_id, account_id, closing_day, payment_day, payment_month_offset
+      household_id, account_id, closing_day, payment_day, payment_month_offset,
+      auto_payment_starts_on
     )
     values (
-      ${DEFAULT_HOUSEHOLD_ID}, ${account.id}, 'last', '10', 'next_month'
+      ${DEFAULT_HOUSEHOLD_ID}, ${account.id}, 'last', '10', 'next_month', '2026-01-01'
     )
   `;
   await page.goto(`/accounts/${account.id}/edit`);

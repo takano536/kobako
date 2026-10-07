@@ -21,11 +21,13 @@
 * create new assets for each import operation, grouping the same provider asset only within that operation
 * add migration coverage for fresh databases and upgrades from the previous account schema
 * allow separate re-imports of the same file as new data (including monthly totals and balances) while making the same operation key idempotent
+* derive card payment schedules from usage-date FIFO balances, aggregate bank schedules across cards, and run idempotent payments from an explicit migration-safe start boundary
 
 ### Bug Fixes
 
 * make asset and current card-condition saves atomic and reject updates to logically deleted assets
 * keep the mobile balance summary compact and show long amounts without truncation
+* fix credit-card balance columns to show scheduled bills and current-period unbilled usage separately
 
 
 ## [0.6.0](https://github.com/takano536/kobako/compare/v0.5.1...v0.6.0) (2026-10-03)

@@ -62,6 +62,7 @@ describe('transaction list query parsing', () => {
     });
     expect(parseTransactionListFilters({ page: '2x' }).page).toBe(1);
   });
+
   it('accepts only a transaction return path for the same account', () => {
     expect(
       validatedTransactionReturn(

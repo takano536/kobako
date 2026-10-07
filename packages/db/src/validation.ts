@@ -193,20 +193,63 @@ export const accountUpdateInputSchema = z.object({
   confirmKindChange: z.boolean().default(false),
 });
 
-export const accountCardConditionInputSchema = z.object({
-  closingDay: z
-    .string()
-    .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '締め日を選択してください。' })
-    .nullable()
-    .optional(),
-  paymentDay: z
-    .string()
-    .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '支払日を選択してください。' })
-    .nullable()
-    .optional(),
-  paymentMonthOffset: cardPaymentMonthOffsetSchema.nullable().optional(),
-  debitAccountId: accountIdSchema,
-});
+function resolvedBillingDayForMonthLength(day: string, monthLength: number): number {
+  return day === 'last' ? monthLength : Math.min(Number(day), monthLength);
+}
+
+export function isValidCardBillingSchedule(
+  closingDay: string,
+  paymentDay: string,
+  paymentMonthOffset: CardPaymentMonthOffsetInput,
+): boolean {
+  const dayPattern = /^(?:[1-9]|[12]\d|3[01]|last)$/;
+  if (!dayPattern.test(closingDay) || !dayPattern.test(paymentDay)) return false;
+  if (
+    paymentMonthOffset !== 'same_month' &&
+    paymentMonthOffset !== 'next_month' &&
+    paymentMonthOffset !== 'two_months_later'
+  ) {
+    return false;
+  }
+  if (paymentMonthOffset !== 'same_month') return true;
+  return [28, 29, 30, 31].every(
+    (monthLength) =>
+      resolvedBillingDayForMonthLength(paymentDay, monthLength) >
+      resolvedBillingDayForMonthLength(closingDay, monthLength),
+  );
+}
+
+export const accountCardConditionInputSchema = z
+  .object({
+    closingDay: z
+      .string()
+      .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '締め日を選択してください。' })
+      .nullable()
+      .optional(),
+    paymentDay: z
+      .string()
+      .regex(/^(?:[1-9]|[12]\d|3[01]|last)$/, { error: '支払日を選択してください。' })
+      .nullable()
+      .optional(),
+    paymentMonthOffset: cardPaymentMonthOffsetSchema.nullable().optional(),
+    debitAccountId: accountIdSchema,
+  })
+  .superRefine((input, context) => {
+    if (
+      input.closingDay !== null &&
+      input.closingDay !== undefined &&
+      input.paymentDay !== null &&
+      input.paymentDay !== undefined &&
+      input.paymentMonthOffset === 'same_month' &&
+      !isValidCardBillingSchedule(input.closingDay, input.paymentDay, input.paymentMonthOffset)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['paymentDay'],
+        message: '同月払いでは、支払日が締め日より後になる設定にしてください。',
+      });
+    }
+  });
 
 export type AccountKindInput = z.infer<typeof accountKindSchema>;
 export type AccountStatusInput = z.infer<typeof accountStatusSchema>;

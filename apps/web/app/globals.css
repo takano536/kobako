@@ -447,6 +447,10 @@ h3 {
   margin-top: var(--space-section);
 }
 
+.balances-list-section {
+  margin-top: calc(var(--space-section) - 3px);
+}
+
 .balance-summary {
   position: sticky;
   top: 0;
@@ -497,48 +501,139 @@ h3 {
   font-weight: 600;
 }
 
-.balance-list {
+.balance-group {
   --balance-amount-column: minmax(0, 12rem);
+  --balance-metrics-width: calc(24rem + var(--space-group));
+}
+
+.balance-list {
   display: grid;
   gap: 0;
+  min-width: 0;
   border-top: 1px solid var(--rule);
 }
 
-.balance-row {
-  display: flex;
-  gap: var(--space-group);
-  align-items: baseline;
+.balance-row,
+.balance-group-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-group);
   min-width: 0;
+}
+
+.balance-row-with-metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
+}
+
+.balance-group-heading-with-metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
+}
+
+.balance-group-heading {
+  align-items: center;
+  min-height: 0;
+  padding-block: var(--space-item);
+}
+
+.balance-row {
+  align-items: center;
   min-height: 44px;
   padding-block: var(--space-item);
   border-bottom: 1px solid var(--rule);
 }
+
+.balance-group-heading-columns,
 .balance-row-metrics {
-  display: flex;
-  flex: 0 0 auto;
+  display: grid;
   min-width: 0;
-  align-items: baseline;
-  gap: var(--space-item);
+  align-items: center;
+}
+.balance-group-heading-columns {
+  grid-template-columns: auto;
+  justify-items: stretch;
+}
+
+.balance-group-heading-columns-with-metrics,
+.balance-row-metrics {
+  grid-template-columns: repeat(2, var(--balance-amount-column));
+  gap: var(--space-group);
+}
+
+.balance-group-heading-label {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.25;
+  overflow-wrap: normal;
+  text-align: right;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.balance-metric {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.balance-metric-unknown {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  white-space: nowrap;
 }
 
 .balance-account-name {
-  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: var(--leading-body);
 }
 
 .balance-amount {
-  flex: 0 0 auto;
-  width: var(--balance-amount-column);
   min-width: 0;
-  max-width: 100%;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   line-height: var(--leading-body);
   text-align: right;
   white-space: nowrap;
   overflow-wrap: anywhere;
+}
+
+.balance-amount-content {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@media (max-width: 44rem) {
+  .balance-group {
+    --balance-metrics-width: 60%;
+  }
+
+  .balance-row,
+  .balance-group-heading {
+    column-gap: var(--space-item);
+  }
+
+  .balance-group-heading-columns-with-metrics,
+  .balance-row-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-item);
+  }
+
+  .balance-metric .balance-amount:not(.balance-metric-unknown) .balance-amount-content {
+    font-size: clamp(0.75rem, 3.8vw, var(--text-body));
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .balance-group-heading-label {
+    font-size: 0.68rem;
+  }
+
+  .balance-metric .balance-amount:not(.balance-metric-unknown) .balance-amount-content {
+    font-size: 0.7rem;
+  }
 }
 
 .section-heading {
@@ -2586,25 +2681,16 @@ h3 {
   }
 
   .balances-list-section {
-    margin-top: calc(var(--space-section) + var(--space-item));
-  }
-
-  .balance-list {
-    --balance-amount-column: auto;
+    margin-top: calc(var(--space-section) + var(--space-item) - 3px);
   }
 
   .balance-row {
     gap: var(--space-item);
   }
 
+  .balance-group-heading-columns-with-metrics,
   .balance-row-metrics {
     gap: var(--space-within);
-  }
-
-  .balance-amount {
-    width: auto;
-    font-size: var(--text-body);
-    letter-spacing: normal;
   }
 
   .category-list {
@@ -2680,7 +2766,7 @@ h3 {
   display: inline-flex;
   flex: 1 1 auto;
   min-width: 0;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   color: inherit;
   text-decoration: none;
@@ -2694,19 +2780,18 @@ h3 {
 
 .balance-groups {
   display: grid;
-  gap: var(--space-section);
-  margin-top: var(--space-section);
+  gap: calc(var(--space-section) - 3px);
+  margin-top: calc(var(--space-section) - 3px);
 }
 
 .balance-group h3 {
-  min-height: 25px;
+  min-width: 0;
   margin: 0;
-  padding-top: var(--space-within);
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: var(--leading-meta);
+  line-height: 1.25;
 }
 
 .inline-form,

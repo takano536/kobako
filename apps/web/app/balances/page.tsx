@@ -1,5 +1,11 @@
 import type { Metadata } from 'next';
-import { getManagedAccountBalances } from '@kobako/db';
+import {
+  aggregateBankPaymentSchedules,
+  currentTokyoDate,
+  deriveCardBalancePaymentSchedule,
+  getCardBillingSummaries,
+  getManagedAccountBalances,
+} from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
@@ -24,11 +30,53 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function BalancesPage({ searchParams }: { searchParams: SearchParams }) {
   void searchParams;
   const db = getLedgerDatabase();
-  const allBalances = await getManagedAccountBalances(db, getCurrentHouseholdId());
+  const householdId = getCurrentHouseholdId();
+  const today = currentTokyoDate();
+  const allBalances = await getManagedAccountBalances(db, householdId);
   const balances = allBalances.filter((account) => account.deletedAt === null);
+  const cardSummaries = await getCardBillingSummaries(
+    db,
+    householdId,
+    balances
+      .filter((account) => account.kind === 'credit_card')
+      .map((account) => account.accountId),
+    today,
+  );
+  const billingByAccountId = new Map(cardSummaries.map((billing) => [billing.accountId, billing]));
+  const currentMonth = today.slice(0, 7);
+  const scheduledByBankId = aggregateBankPaymentSchedules(cardSummaries, currentMonth);
   const summary = calculateBalanceSummary(allBalances);
+  type BalanceAccount = (typeof balances)[number];
+  type PaymentSchedule = {
+    primaryAmount: string | null;
+    secondaryAmount: string | null;
+  };
+  const paymentScheduleFor = (account: BalanceAccount): PaymentSchedule | undefined => {
+    const billing =
+      account.kind === 'credit_card' ? billingByAccountId.get(account.accountId) : undefined;
+    const cardSchedule =
+      account.kind === 'credit_card' &&
+      billing?.settings &&
+      billing.settingsComplete &&
+      billing.calendarError === null
+        ? deriveCardBalancePaymentSchedule(billing.periods, today)
+        : null;
+    if (account.kind === 'bank') {
+      return {
+        primaryAmount: (scheduledByBankId.get(account.accountId) ?? 0n).toString(),
+        secondaryAmount: account.balance,
+      };
+    }
+    if (account.kind === 'credit_card') {
+      return {
+        primaryAmount: cardSchedule?.scheduledAmount ?? null,
+        secondaryAmount: cardSchedule?.unbilledAmount ?? null,
+      };
+    }
+    return undefined;
+  };
   const groups: {
-    kind: (typeof balances)[number]['kind'];
+    kind: BalanceAccount['kind'];
     name: string;
     accounts: typeof balances;
   }[] = [
@@ -75,8 +123,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           </div>
         </dl>
       </section>
-      <section className="section balances-list-section" aria-labelledby="asset-balances-title">
-        <SectionHeading id="asset-balances-title" title="資産別の残高" />
+      <section className="section balances-list-section" aria-label="残高一覧">
         {balances.length === 0 ? (
           <EmptyState
             title="表示する資産がありません"
@@ -92,22 +139,46 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           <div className="balance-groups">
             {groups
               .filter((group) => group.accounts.length > 0)
-              .map((group) => (
-                <section className="balance-group" key={group.kind}>
-                  <h3>{group.name}</h3>
-                  <ul className="balance-list" aria-label={`${group.name}の資産別残高`}>
-                    {group.accounts.map((account) => (
-                      <AccountBalanceRow
-                        key={account.accountId}
-                        accountName={account.accountName}
-                        balance={account.balance}
-                        kind={account.kind}
-                        transactionsHref={`/transactions?account=${account.accountId}&month=all`}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ))}
+              .map((group, index) => {
+                const headingId = `balance-group-heading-${group.kind}-${index}`;
+                const hasMetrics = group.kind === 'bank' || group.kind === 'credit_card';
+                const columns: readonly string[] =
+                  group.kind === 'bank'
+                    ? ['支払予定', '残高']
+                    : group.kind === 'credit_card'
+                      ? ['決済予定', '未決済']
+                      : ['残高'];
+                return (
+                  <section className="balance-group" key={group.kind} aria-labelledby={headingId}>
+                    <div
+                      className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
+                    >
+                      <h3 id={headingId}>{group.name}</h3>
+                      <div
+                        className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
+                      >
+                        {columns.map((column) => (
+                          <span className="balance-group-heading-label" key={column}>
+                            {column}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <ul className="balance-list" aria-labelledby={headingId}>
+                      {group.accounts.map((account) => (
+                        <AccountBalanceRow
+                          key={account.accountId}
+                          accountName={account.accountName}
+                          balance={account.balance}
+                          kind={account.kind}
+                          transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                          paymentSchedule={paymentScheduleFor(account)}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
           </div>
         )}
       </section>
