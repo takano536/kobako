@@ -1,4 +1,11 @@
 # Changelog
+## [0.8.1](https://github.com/takano536/kobako/compare/v0.8.0...v0.8.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* remove account kind change confirmation ([#43](https://github.com/takano536/kobako/issues/43)) ([051c5ac](https://github.com/takano536/kobako/commit/051c5ac9060c492461fea49730e7c638b17dc447))
+
 ## [0.8.0](https://github.com/takano536/kobako/compare/v0.7.1...v0.8.0) (2026-10-07)
 
 
