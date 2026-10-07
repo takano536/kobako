@@ -46,14 +46,12 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
   const summary = calculateBalanceSummary(allBalances);
   type BalanceAccount = (typeof balances)[number];
   type PaymentSchedule = {
-    scheduledAmount: string | null;
-    balanceAmount: string | null;
-    balanceLabel?: '未請求' | '利用残高';
+    primaryAmount: string | null;
+    secondaryAmount: string | null;
   };
   const paymentScheduleFor = (account: BalanceAccount): PaymentSchedule | undefined => {
     const billing =
       account.kind === 'credit_card' ? billingByAccountId.get(account.accountId) : undefined;
-    const cardBalance = account.kind === 'credit_card' ? -BigInt(account.balance) : null;
     const cardSchedule =
       account.kind === 'credit_card' &&
       billing?.settings &&
@@ -63,25 +61,14 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
         : null;
     if (account.kind === 'bank') {
       return {
-        scheduledAmount: (scheduledByBankId.get(account.accountId) ?? 0n).toString(),
-        balanceAmount: account.balance,
-      };
-    }
-    if (account.kind === 'credit_card' && cardSchedule) {
-      return {
-        scheduledAmount: cardSchedule.scheduledAmount,
-        balanceAmount:
-          cardBalance !== null && cardBalance < 0n
-            ? cardBalance.toString()
-            : cardSchedule.unbilledAmount,
-        balanceLabel: cardBalance !== null && cardBalance < 0n ? '利用残高' : '未請求',
+        primaryAmount: (scheduledByBankId.get(account.accountId) ?? 0n).toString(),
+        secondaryAmount: account.balance,
       };
     }
     if (account.kind === 'credit_card') {
       return {
-        scheduledAmount: null,
-        balanceAmount: cardBalance?.toString() ?? null,
-        balanceLabel: '利用残高',
+        primaryAmount: billing?.liability ?? null,
+        secondaryAmount: cardSchedule?.unbilledAmount ?? null,
       };
     }
     return undefined;
@@ -157,7 +144,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                   group.kind === 'bank'
                     ? ['支払予定', '残高']
                     : group.kind === 'credit_card'
-                      ? ['支払予定', 'カード残高']
+                      ? ['未決済残高', 'カード残高']
                       : ['残高'];
                 return (
                   <section className="balance-group" key={group.kind} aria-labelledby={headingId}>

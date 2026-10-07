@@ -1,13 +1,13 @@
 import Link from 'next/link';
 
+import { FitAmount } from './fit-amount';
 import { formatYen } from '../../src/lib/format';
 
 type AccountKind = 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
 
 interface PaymentSchedule {
-  scheduledAmount: string | null;
-  balanceAmount: string | null;
-  balanceLabel?: string;
+  primaryAmount: string | null;
+  secondaryAmount: string | null;
 }
 
 interface AccountBalanceRowProps {
@@ -53,22 +53,16 @@ function BalanceMetric({
   value: string | null;
   tone: MoneyTone;
 }) {
-  const showContext = label === '利用残高';
   return (
-    <div
-      className={`balance-metric${showContext ? ' balance-metric-with-context' : ''}`}
-      role="group"
-      aria-label={label}
-    >
-      {showContext ? <span className="balance-metric-context">{label}</span> : null}
+    <div className="balance-metric" role="group" aria-label={label}>
       {value === null ? (
-        <span className="balance-amount balance-metric-unknown" aria-label={`${label}不明`}>
+        <FitAmount className="balance-amount balance-metric-unknown" ariaLabel={`${label}不明`}>
           —
-        </span>
+        </FitAmount>
       ) : (
-        <span className="balance-amount">
+        <FitAmount className="balance-amount">
           <SemanticYen value={value} tone={tone} />
-        </span>
+        </FitAmount>
       )}
     </div>
   );
@@ -94,25 +88,25 @@ export function AccountBalanceRow({
       {paymentSchedule && hasPaymentMetrics ? (
         <div className="balance-row-metrics">
           <BalanceMetric
-            label="支払予定"
-            value={paymentSchedule.scheduledAmount}
+            label={kind === 'credit_card' ? '未決済残高' : '支払予定'}
+            value={paymentSchedule.primaryAmount}
             tone={toneForAmount(
-              paymentSchedule.scheduledAmount ?? '0',
+              paymentSchedule.primaryAmount ?? '0',
               kind === 'bank' || kind === 'credit_card',
             )}
           />
           <BalanceMetric
-            label={kind === 'bank' ? '残高' : (paymentSchedule.balanceLabel ?? '未請求')}
-            value={paymentSchedule.balanceAmount}
+            label={kind === 'credit_card' ? '未請求' : '残高'}
+            value={paymentSchedule.secondaryAmount}
             tone={
-              paymentSchedule.balanceAmount === null
+              paymentSchedule.secondaryAmount === null
                 ? 'neutral'
-                : toneForAmount(paymentSchedule.balanceAmount, kind === 'credit_card')
+                : toneForAmount(paymentSchedule.secondaryAmount, kind === 'credit_card')
             }
           />
         </div>
       ) : (
-        <span className="balance-amount" aria-label="残高">
+        <FitAmount className="balance-amount" ariaLabel="残高">
           <SemanticYen
             value={displayBalance.toString()}
             tone={
@@ -125,7 +119,7 @@ export function AccountBalanceRow({
                     : 'positive'
             }
           />
-        </span>
+        </FitAmount>
       )}
     </li>
   );

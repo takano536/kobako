@@ -447,6 +447,10 @@ h3 {
   margin-top: var(--space-section);
 }
 
+.balances-list-section {
+  margin-top: calc(var(--space-section) - 3px);
+}
+
 .balance-summary {
   position: sticky;
   top: 0;
@@ -518,7 +522,7 @@ h3 {
 }
 
 .balance-row-with-metrics {
-  grid-template-columns: minmax(0, 1fr) minmax(var(--balance-metrics-width), max-content);
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
 }
 
 .balance-group-heading-with-metrics {
@@ -527,8 +531,8 @@ h3 {
 
 .balance-group-heading {
   align-items: center;
-  min-height: 25px;
-  padding-top: var(--space-within);
+  min-height: 0;
+  padding-block: var(--space-item);
 }
 
 .balance-row {
@@ -558,7 +562,7 @@ h3 {
 .balance-group-heading-label {
   color: var(--muted);
   font-size: var(--text-small);
-  line-height: var(--leading-meta);
+  line-height: 1.25;
   overflow-wrap: normal;
   text-align: right;
   white-space: nowrap;
@@ -571,22 +575,6 @@ h3 {
   align-items: center;
   justify-content: flex-end;
   text-align: right;
-}
-.balance-metric-with-context {
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-within);
-}
-
-.balance-metric-context {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: var(--leading-meta);
-  white-space: nowrap;
-}
-
-.balance-metric .money-amount {
-  white-space: nowrap;
 }
 
 .balance-metric-unknown {
@@ -612,6 +600,11 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.balance-amount-content {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 @media (max-width: 44rem) {
   .balance-group {
     --balance-metrics-width: 60%;
@@ -628,7 +621,7 @@ h3 {
     gap: var(--space-item);
   }
 
-  .balance-metric .money-amount {
+  .balance-metric .balance-amount:not(.balance-metric-unknown) .balance-amount-content {
     font-size: clamp(0.75rem, 3.8vw, var(--text-body));
   }
 }
@@ -638,7 +631,7 @@ h3 {
     font-size: 0.68rem;
   }
 
-  .balance-metric .money-amount {
+  .balance-metric .balance-amount:not(.balance-metric-unknown) .balance-amount-content {
     font-size: 0.7rem;
   }
 }
@@ -2688,7 +2681,7 @@ h3 {
   }
 
   .balances-list-section {
-    margin-top: calc(var(--space-section) + var(--space-item));
+    margin-top: calc(var(--space-section) + var(--space-item) - 3px);
   }
 
   .balance-row {
@@ -2787,8 +2780,8 @@ h3 {
 
 .balance-groups {
   display: grid;
-  gap: var(--space-section);
-  margin-top: var(--space-section);
+  gap: calc(var(--space-section) - 3px);
+  margin-top: calc(var(--space-section) - 3px);
 }
 
 .balance-group h3 {
@@ -2798,7 +2791,7 @@ h3 {
   font-size: var(--text-small);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: var(--leading-meta);
+  line-height: 1.25;
 }
 
 .inline-form,

@@ -1128,7 +1128,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       .filter({ has: page.locator('h3', { hasText: /^クレジットカード$/ }) });
     await expect(cardGroup).toHaveCount(1);
     await expect(cardGroup.locator('.balance-group-heading-label')).toHaveText([
-      '支払予定',
+      '未決済残高',
       'カード残高',
     ]);
 
@@ -1178,36 +1178,34 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await expect(balanceMetric(orphanBank, '残高')).toContainText('0円');
 
     const primaryCard = accountRow(page, paymentFixtureNames.primaryCard);
-    await expectMetricLabels(primaryCard, ['支払予定', '未請求']);
-    await expect(balanceMetric(primaryCard, '支払予定')).toContainText('1,000円');
+    await expectMetricLabels(primaryCard, ['未決済残高', '未請求']);
+    await expect(balanceMetric(primaryCard, '未決済残高')).toContainText('1,250円');
     await expect(balanceMetric(primaryCard, '未請求')).toContainText('250円');
-    await expect(primaryCard.locator('.balance-metric-context')).toHaveCount(0);
     const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
-    await expect(balanceMetric(secondPrimaryCard, '支払予定')).toContainText('2,000円');
+    await expect(balanceMetric(secondPrimaryCard, '未決済残高')).toContainText('2,350円');
     await expect(balanceMetric(secondPrimaryCard, '未請求')).toContainText('350円');
     await expect(
-      balanceMetric(accountRow(page, paymentFixtureNames.secondaryCard), '支払予定'),
+      balanceMetric(accountRow(page, paymentFixtureNames.secondaryCard), '未決済残高'),
     ).toContainText('3,000円');
     await expect(
-      balanceMetric(accountRow(page, paymentFixtureNames.partialCard), '支払予定'),
+      balanceMetric(accountRow(page, paymentFixtureNames.partialCard), '未決済残高'),
     ).toContainText('700円');
     await expect(
-      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '支払予定'),
-    ).toContainText('0円');
+      balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '未決済残高'),
+    ).toContainText('400円');
     await expect(
       balanceMetric(accountRow(page, paymentFixtureNames.nextMonthCard), '未請求'),
     ).toContainText('400円');
 
     const noSettingsCard = accountRow(page, paymentFixtureNames.noSettingsCard);
-    await expectMetricLabels(noSettingsCard, ['支払予定', '利用残高']);
-    await expect(balanceMetric(noSettingsCard, '支払予定')).toContainText('—');
-    await expect(balanceMetric(noSettingsCard, '利用残高')).toContainText('900円');
-    await expect(noSettingsCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
+    await expectMetricLabels(noSettingsCard, ['未決済残高', '未請求']);
+    await expect(balanceMetric(noSettingsCard, '未決済残高')).toContainText('900円');
+    await expect(balanceMetric(noSettingsCard, '未請求')).toContainText('—');
     const invalidSettingsCard = accountRow(page, paymentFixtureNames.invalidSettingsCard);
-    await expectMetricLabels(invalidSettingsCard, ['支払予定', '利用残高']);
-    await expect(balanceMetric(invalidSettingsCard, '支払予定')).toContainText('—');
-    await expect(balanceMetric(invalidSettingsCard, '利用残高')).toContainText('1,000円');
-    await expect(invalidSettingsCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
+    await expectMetricLabels(invalidSettingsCard, ['未決済残高', '未請求']);
+    await expect(balanceMetric(invalidSettingsCard, '未決済残高')).toContainText('1,000円');
+    await expect(balanceMetric(invalidSettingsCard, '未請求')).toContainText('—');
+    await expect(cardGroup).not.toContainText('利用残高');
     expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
       '支払日',
     );
@@ -1234,7 +1232,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       'color',
       debtColor,
     );
-    await expect(balanceMetric(primaryCard, '支払予定').locator('.money-amount')).toHaveCSS(
+    await expect(balanceMetric(primaryCard, '未決済残高').locator('.money-amount')).toHaveCSS(
       'color',
       debtColor,
     );
@@ -1246,11 +1244,10 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       'color',
       debtColor,
     );
-    await expect(balanceMetric(invalidSettingsCard, '利用残高').locator('.money-amount')).toHaveCSS(
-      'color',
-      debtColor,
-    );
-    await expect(balanceMetric(noSettingsCard, '利用残高').locator('.money-amount')).toHaveCSS(
+    await expect(
+      balanceMetric(invalidSettingsCard, '未決済残高').locator('.money-amount'),
+    ).toHaveCSS('color', debtColor);
+    await expect(balanceMetric(noSettingsCard, '未決済残高').locator('.money-amount')).toHaveCSS(
       'color',
       debtColor,
     );
@@ -1259,14 +1256,13 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       debtColor,
     );
     const overpaymentCard = accountRow(page, paymentFixtureNames.overpaymentCard);
-    await expectMetricLabels(overpaymentCard, ['支払予定', '利用残高']);
-    await expect(balanceMetric(overpaymentCard, '支払予定')).toContainText('0円');
-    await expect(balanceMetric(overpaymentCard, '利用残高')).toContainText('−200円');
-    await expect(balanceMetric(overpaymentCard, '利用残高').locator('.money-amount')).toHaveCSS(
+    await expectMetricLabels(overpaymentCard, ['未決済残高', '未請求']);
+    await expect(balanceMetric(overpaymentCard, '未決済残高')).toContainText('−200円');
+    await expect(balanceMetric(overpaymentCard, '未請求')).toContainText('0円');
+    await expect(balanceMetric(overpaymentCard, '未決済残高').locator('.money-amount')).toHaveCSS(
       'color',
       positiveColor,
     );
-    await expect(overpaymentCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
 
     const cardGroupWithRows = {
       group: cardGroup,
