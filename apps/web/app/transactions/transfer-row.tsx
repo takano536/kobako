@@ -3,26 +3,29 @@ import Link from 'next/link';
 import type { ListedTransfer } from '@kobako/db';
 
 import { formatJapaneseDate, formatYen, moneyToneClass } from '../../src/lib/format';
+import { withSelectedMonth } from '../../src/lib/month-navigation';
+
+function transferEditHref(transferId: number, selectedMonth: string | null | undefined): string {
+  return withSelectedMonth(`/transactions/transfers/${transferId}/edit`, selectedMonth);
+}
 
 export function TransferRow({
   transfer,
   showMemo = false,
   dateHeading,
+  selectedMonth,
 }: {
   transfer: ListedTransfer;
   showMemo?: boolean;
   dateHeading?: string;
+  selectedMonth?: string | null;
 }) {
+  const editHref = transferEditHref(transfer.id, selectedMonth);
   const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}`;
   return (
     <li className="transaction-row">
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
-      <Link
-        className="transaction-link"
-        href={`/transactions/transfers/${transfer.id}/edit`}
-        prefetch={false}
-        aria-label={label}
-      >
+      <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
         <span className="category-dot transfer-dot" aria-hidden="true" />
         <span className="transaction-main">
           <span className="transaction-category transfer-category">

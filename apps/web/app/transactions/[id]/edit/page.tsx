@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 
 import { getTransaction, listAccounts, listCategories } from '@kobako/db';
 
+import { withSelectedMonth } from '../../../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
+import { firstQueryValue } from '../../../../src/lib/transaction-query';
 import { parseInt4Id } from '../../../../src/lib/ids';
 import { ActionLink, PageHeader, PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../transaction-form';
@@ -15,8 +17,17 @@ export const metadata = {
   title: '取引を編集',
 };
 
-export default async function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function EditTransactionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   const { id: idText } = await params;
+  const query = await searchParams;
   const id = parseInt4Id(idText);
   if (id === undefined) {
     notFound();
@@ -34,6 +45,10 @@ export default async function EditTransactionPage({ params }: { params: Promise<
   }
 
   const action = updateTransactionAction.bind(null, idText, 'transaction');
+  const cancelHref = withSelectedMonth(
+    `/transactions/${transaction.id}/edit`,
+    firstQueryValue(query.month),
+  );
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -65,7 +80,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
             }}
             submitLabel="変更を保存"
           />
-          <DeleteTransactionForm transactionId={transaction.id} />
+          <DeleteTransactionForm transactionId={transaction.id} cancelHref={cancelHref} />
         </div>
       </section>
     </PageShell>

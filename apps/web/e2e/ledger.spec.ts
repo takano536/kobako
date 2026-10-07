@@ -196,7 +196,7 @@ test('keeps the selected month across global navigation and browser history', as
     const createdRow = page.locator('.transaction-link').filter({ hasText: createMarker });
     await expect(createdRow).toHaveCount(1);
     await createdRow.click();
-    await expect(page).toHaveURL(/\/transactions\/\d+\/edit$/);
+    await expect(page).toHaveURL(new RegExp(`/transactions/\\d+/edit\\?month=${nextMonth}$`));
     await page.getByLabel('金額').fill('222');
     await page.getByRole('button', { name: '変更を保存', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
@@ -232,6 +232,121 @@ test('keeps the selected month across global navigation and browser history', as
       delete from transactions
       where household_id = ${DEFAULT_HOUSEHOLD_ID}
         and (memo = ${currentMarker} or memo = ${nextMarker} or memo = ${createMarker})
+    `;
+  }
+});
+test('keeps the selected month through transaction edit navigation, save, and cancel', async ({
+  page,
+}) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+  const categoryRows = await databaseClient.sql<{ id: string }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+      and name = '食費'
+    limit 1
+  `;
+  const categoryId = categoryRows[0]?.id;
+  if (!categoryId) {
+    throw new Error('edit navigation category fixture was not found');
+  }
+  const selectedMarker = markerFor('edit-navigation-selected');
+  const otherMonthMarker = markerFor('edit-navigation-other-month');
+  const selectedRows = await databaseClient.sql<{ id: number }[]>`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', 4321, ${`${month}-28`}, ${categoryId}, ${selectedMarker}),
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', 6543, ${`${nextMonth}-28`}, ${categoryId}, ${otherMonthMarker})
+    returning id
+  `;
+  const selectedTransactionId = Number(selectedRows[0]?.id);
+  if (!Number.isInteger(selectedTransactionId)) {
+    throw new Error('edit navigation transaction fixture was not created');
+  }
+
+  const expectSelectedList = async (amount: string) => {
+    await expect(page.locator('.transaction-link').filter({ hasText: selectedMarker })).toHaveCount(
+      1,
+    );
+    await expect(
+      page.locator('.transaction-link').filter({ hasText: otherMonthMarker }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('.transaction-link').filter({ hasText: selectedMarker }),
+    ).toContainText(amount);
+  };
+  const expectSelectedOverview = async (amount: string) => {
+    await expect(page.getByRole('link', { name: new RegExp(`支出.*${amount}`) })).toBeVisible();
+    await expect(page.getByRole('link', { name: /支出.*6,543円/ })).toHaveCount(0);
+  };
+  const editUrl = new RegExp(`/transactions/${selectedTransactionId}/edit\\?month=${month}$`);
+  const overviewUrl = new RegExp(`/\\?month=${month}$`);
+  const listUrl = new RegExp(`/transactions\\?month=${month}$`);
+
+  try {
+    await page.goto(`/transactions?month=${month}`);
+    await expectSelectedList('4,321円');
+
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
+    await expect(page.getByRole('link', { name: '一覧へ戻る', exact: true })).toHaveAttribute(
+      'href',
+      `/transactions?month=${month}`,
+    );
+    await page.getByRole('link', { name: '一覧へ戻る', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('4,321円');
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('4,321円');
+
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('4,321円');
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+
+    await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('4,321円');
+
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await page.getByLabel('金額').fill('9876');
+    await page.getByRole('button', { name: '変更を保存', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('9,876円');
+
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await page.locator('.delete-confirm > summary').click();
+    await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'キャンセル' })).toHaveAttribute(
+      'href',
+      `/transactions/${selectedTransactionId}/edit?month=${month}`,
+    );
+    await page.getByRole('link', { name: 'キャンセル' }).click();
+    await expect(page).toHaveURL(editUrl);
+    await expect(page.getByLabel('金額')).toHaveValue('9876');
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('9,876円');
+  } finally {
+    await databaseClient.sql`
+      delete from transactions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and (memo = ${selectedMarker} or memo = ${otherMonthMarker})
     `;
   }
 });

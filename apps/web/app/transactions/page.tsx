@@ -227,6 +227,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   <TransferRow
                     key={`transfer-${transaction.id}`}
                     transfer={transaction}
+                    selectedMonth={rawMonth}
                     showMemo
                     dateHeading={
                       index === 0
@@ -240,6 +241,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   <TransactionRow
                     key={`transaction-${transaction.id}`}
                     transaction={transaction}
+                    selectedMonth={rawMonth}
                     showMemo
                     showDate={false}
                     dateHeading={

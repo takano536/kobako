@@ -778,7 +778,7 @@ test('focuses a not-found delete error after the transfer was removed elsewhere'
   await seedRunTransfer();
   await page.goto(`/transactions?month=${month}`);
   const transferHref = await runTransferRows(page).getAttribute('href');
-  const transferId = Number(transferHref?.match(/\/transfers\/(\d+)\/edit$/)?.[1]);
+  const transferId = Number(transferHref?.match(/\/transfers\/(\d+)\/edit(?:\?.*)?$/)?.[1]);
   await runTransferRows(page).click();
   await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
   if (!Number.isInteger(transferId)) {
