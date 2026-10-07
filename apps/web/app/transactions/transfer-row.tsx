@@ -20,6 +20,7 @@ export function TransferRow({
       <Link
         className="transaction-link"
         href={`/transactions/transfers/${transfer.id}/edit`}
+        prefetch={false}
         aria-label={label}
       >
         <span className="category-dot transfer-dot" aria-hidden="true" />

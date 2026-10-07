@@ -11,12 +11,27 @@ import {
 } from '@kobako/db';
 import { chooseEmptyMonthPair } from './e2e-safety';
 
+const JAPANESE_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+function expectedDateHeading(occurredOn: string, includeYear: boolean): string {
+  const [yearText, monthText, dayText] = occurredOn.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const weekday = JAPANESE_WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return `${includeYear ? `${year}年` : ''}${month}月${day}日（${weekday}）`;
+}
 const runId = randomUUID();
 const assetName = `E2E asset ${runId}`;
 const reviewPrefix = `E2E asset review ${runId}:`;
 function markerFor(testName: string): string {
   return `${reviewPrefix}${testName}`;
 }
+type ExpectedListEntry = {
+  id: number;
+  occurredOn: string;
+  memo: string;
+  type: 'transaction' | 'transfer';
+};
 
 let databaseClient: DatabaseClient | undefined;
 let listMonth = '';
@@ -161,6 +176,8 @@ test('shows complete large month and all-time account lists and preserves settin
 
   const monthIds = new Set<number>();
   const allIds = new Set<number>();
+  const expectedMonthEntries: ExpectedListEntry[] = [];
+  const expectedAllEntries: ExpectedListEntry[] = [];
   const insertTransaction = async (
     type: 'expense' | 'income',
     amount: number,
@@ -168,6 +185,7 @@ test('shows complete large month and all-time account lists and preserves settin
     categoryId: number,
     memo: string,
     expected: Set<number>,
+    expectedEntries: ExpectedListEntry[],
   ) => {
     const rows = await database().sql<{ id: number }[]>`
       insert into transactions (
@@ -182,10 +200,18 @@ test('shows complete large month and all-time account lists and preserves settin
     const id = Number(rows[0]?.id);
     if (!Number.isSafeInteger(id))
       throw new Error('large-list transaction fixture was not created');
+    const entry = { id, occurredOn, memo, type: 'transaction' } satisfies ExpectedListEntry;
     expected.add(id);
+    expectedEntries.push(entry);
+    if (expectedEntries !== expectedAllEntries) expectedAllEntries.push(entry);
     allIds.add(id);
   };
-  const insertTransfer = async (occurredOn: string, memo: string, expected: Set<number>) => {
+  const insertTransfer = async (
+    occurredOn: string,
+    memo: string,
+    expected: Set<number>,
+    expectedEntries: ExpectedListEntry[],
+  ) => {
     const rows = await database().sql<{ id: number }[]>`
       insert into transfers (
         household_id, from_account_id, to_account_id, amount, occurred_on, memo
@@ -197,9 +223,19 @@ test('shows complete large month and all-time account lists and preserves settin
     `;
     const id = Number(rows[0]?.id);
     if (!Number.isSafeInteger(id)) throw new Error('large-list transfer fixture was not created');
+    const entry = { id, occurredOn, memo, type: 'transfer' } satisfies ExpectedListEntry;
     expected.add(id);
+    expectedEntries.push(entry);
+    if (expectedEntries !== expectedAllEntries) expectedAllEntries.push(entry);
     allIds.add(id);
   };
+  const sortExpected = (entries: readonly ExpectedListEntry[]) =>
+    [...entries].sort(
+      (left, right) =>
+        right.occurredOn.localeCompare(left.occurredOn) ||
+        right.id - left.id ||
+        Number(right.type === 'transfer') - Number(left.type === 'transfer'),
+    );
 
   for (let index = 0; index < 30; index += 1) {
     await insertTransaction(
@@ -209,6 +245,7 @@ test('shows complete large month and all-time account lists and preserves settin
       expenseCategory.id,
       `${markerFor('large-expense')}-${index}`,
       monthIds,
+      expectedMonthEntries,
     );
   }
   for (let index = 0; index < 20; index += 1) {
@@ -219,6 +256,7 @@ test('shows complete large month and all-time account lists and preserves settin
       incomeCategory.id,
       `${markerFor('large-income')}-${index}`,
       monthIds,
+      expectedMonthEntries,
     );
   }
   for (let index = 0; index < 8; index += 1) {
@@ -226,6 +264,7 @@ test('shows complete large month and all-time account lists and preserves settin
       `${listMonth}-${String((index % 28) + 1).padStart(2, '0')}`,
       `${markerFor('large-transfer')}-${index}`,
       monthIds,
+      expectedMonthEntries,
     );
   }
 
@@ -240,6 +279,7 @@ test('shows complete large month and all-time account lists and preserves settin
     expenseCategory.id,
     markerFor('large-older-expense'),
     allIds,
+    expectedAllEntries,
   );
   await insertTransaction(
     'income',
@@ -248,14 +288,30 @@ test('shows complete large month and all-time account lists and preserves settin
     incomeCategory.id,
     markerFor('large-previous-income'),
     allIds,
+    expectedAllEntries,
   );
-  await insertTransfer(`${previousMonth}-02`, markerFor('large-previous-transfer'), allIds);
+  await insertTransfer(
+    `${previousMonth}-02`,
+    markerFor('large-previous-transfer'),
+    allIds,
+    expectedAllEntries,
+  );
 
   await page.goto(`/transactions?month=${listMonth}&account=${accountId}&page=2`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引58件');
   await expect(page.locator('.transaction-link')).toHaveCount(58);
   await expect(page.getByText(markerFor('large-expense'), { exact: false }).first()).toBeVisible();
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
+  const expectedMonth = sortExpected(expectedMonthEntries);
+  expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(
+    expectedMonth.map((entry) => entry.memo),
+  );
+  const expectedMonthHeadings = [...new Set(expectedMonth.map((entry) => entry.occurredOn))].map(
+    (occurredOn) => expectedDateHeading(occurredOn, false),
+  );
+  expect(await page.locator('.transaction-group-heading').allTextContents()).toEqual(
+    expectedMonthHeadings,
+  );
 
   await page.goto(
     `/transactions?month=${listMonth}&account=${accountId}&type=expense&category=${expenseCategory.id}&page=2`,
@@ -263,6 +319,14 @@ test('shows complete large month and all-time account lists and preserves settin
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引30件');
   await expect(page.locator('.transaction-link')).toHaveCount(30);
   await expect(page.getByText(markerFor('large-income'), { exact: false })).toHaveCount(0);
+  const editPrefetchRequests: string[] = [];
+  const editPrefetchListener = (request: { url(): string }) => {
+    const pathname = new URL(request.url()).pathname;
+    if (/^\/transactions\/(?:transfers\/)?\d+\/edit$/.test(pathname)) {
+      editPrefetchRequests.push(pathname);
+    }
+  };
+  page.on('request', editPrefetchListener);
 
   await page.goto(`/transactions?month=all&account=${accountId}&page=2`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引61件');
@@ -271,6 +335,37 @@ test('shows complete large month and all-time account lists and preserves settin
   await expect(page.getByText(markerFor('large-previous-income'), { exact: true })).toBeVisible();
   await expect(page.getByText(markerFor('large-previous-transfer'), { exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
+  const expectedAll = sortExpected(expectedAllEntries);
+  expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(
+    expectedAll.map((entry) => entry.memo),
+  );
+  const expectedAllHeadings = [...new Set(expectedAll.map((entry) => entry.occurredOn))].map(
+    (occurredOn) => expectedDateHeading(occurredOn, true),
+  );
+  expect(await page.locator('.transaction-group-heading').allTextContents()).toEqual(
+    expectedAllHeadings,
+  );
+  await page.evaluate(async () => {
+    const viewportHeight = Math.max(window.innerHeight, 1);
+    const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+    for (let scrollTop = 0; scrollTop < maxScrollTop; scrollTop += viewportHeight) {
+      window.scrollTo(0, scrollTop);
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+    }
+    window.scrollTo(0, maxScrollTop);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+  });
+  await page.waitForLoadState('networkidle');
+  expect(editPrefetchRequests).toEqual([]);
+  page.off('request', editPrefetchListener);
 
   await page.getByRole('link', { name: '資産設定', exact: true }).click();
   await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();

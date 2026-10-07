@@ -70,5 +70,6 @@ describe('transaction list query parsing', () => {
     ).toBe('/transactions?account=24&month=all&type=expense&category=12');
     expect(validatedTransactionReturn('/transactions?month=all&account=25', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/transactions?month=bad&account=24', 24)).toBeUndefined();
+    expect(validatedTransactionReturn('/accounts/24/edit', 24)).toBeUndefined();
   });
 });
