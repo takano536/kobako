@@ -4,7 +4,7 @@ const MIN_SUPPORTED_YEAR = 1900;
 const MAX_SUPPORTED_YEAR = 9998;
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
-function isValidMonth(value: string): boolean {
+export function isValidMonth(value: string): boolean {
   const match = MONTH_PATTERN.exec(value);
   if (!match) return false;
   const year = Number(match[1]);
