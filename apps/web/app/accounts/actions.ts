@@ -29,7 +29,6 @@ function accountState(formData: FormData, message?: string): AccountFormState {
       name: text(formData, 'name'),
       kind: text(formData, 'kind'),
       expectedKind: text(formData, 'expectedKind'),
-      confirmKindChange: formData.get('confirmKindChange') === 'on',
       closingDay: text(formData, 'closingDay'),
       paymentDay: text(formData, 'paymentDay'),
       paymentMonthOffset: text(formData, 'paymentMonthOffset'),
@@ -83,11 +82,6 @@ function accountReturnPath(formData: FormData, accountId: number): string {
   return validatedTransactionReturn(text(formData, 'return'), accountId) ?? '/balances';
 }
 
-function interpretation(kind: string, rawBalance: string): string {
-  const liability = kind === 'credit_card' || (kind === 'other' && BigInt(rawBalance) < 0n);
-  return liability ? '負債' : '資産';
-}
-
 export async function createAccountAction(
   previousState: AccountFormState,
   formData: FormData,
@@ -137,7 +131,6 @@ export async function updateAccountAction(
     name: text(formData, 'name'),
     kind: text(formData, 'kind'),
     expectedKind: text(formData, 'expectedKind') || undefined,
-    confirmKindChange: formData.get('confirmKindChange') === 'on',
   });
   if (!parsed.success) return validationState(formData, parsed.error);
   const parsedCard =
@@ -157,13 +150,6 @@ export async function updateAccountAction(
   if (result.status === 'not_found') notFound();
   if (result.status === 'deleted') {
     return { ...accountState(formData), message: '資産は削除済みのため保存できません。' };
-  }
-  if (result.status === 'kind_confirmation_required') {
-    return {
-      ...accountState(formData),
-      message: `種別を${interpretation(parsed.data.kind, result.rawBalance)}として保存します。確認してからもう一度保存してください。`,
-      requiresKindConfirmation: true,
-    };
   }
   if (result.status === 'stale_kind') {
     return {

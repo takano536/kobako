@@ -6,8 +6,6 @@ import {
   accountCardSettings,
   accounts,
   households,
-  transactions,
-  transfers,
   type Account,
   type AccountCardSetting,
 } from './schema.js';
@@ -15,7 +13,6 @@ import {
   accountCardConditionInputSchema,
   accountCreateInputSchema,
   accountUpdateInputSchema,
-  requiresKindInterpretationConfirmation,
   type AccountCardConditionInput,
   type AccountCreateInput,
   type AccountUpdateInput,
@@ -25,7 +22,6 @@ export type AccountMutationResult =
   | { status: 'ok'; account: Account }
   | { status: 'not_found' }
   | { status: 'deleted' }
-  | { status: 'kind_confirmation_required'; previousKind: Account['kind']; rawBalance: string }
   | { status: 'stale_kind' }
   | { status: 'not_card' }
   | { status: 'invalid_debit_account' }
@@ -148,30 +144,6 @@ async function lockHousehold(
   if (!rows[0]) {
     throw new Error('Household not found');
   }
-}
-
-async function currentRawBalance(
-  transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
-  householdId: string,
-  accountId: number,
-): Promise<string> {
-  const rows = await transaction.execute<{ balance: string }>(sql`
-    select (
-      coalesce((select sum(case when type = 'income' then amount else 0 end)::bigint
-        from ${transactions}
-        where household_id = ${householdId} and account_id = ${accountId}), 0)
-      - coalesce((select sum(case when type = 'expense' then amount else 0 end)::bigint
-        from ${transactions}
-        where household_id = ${householdId} and account_id = ${accountId}), 0)
-      - coalesce((select sum(amount)::bigint
-        from ${transfers}
-        where household_id = ${householdId} and from_account_id = ${accountId}), 0)
-      + coalesce((select sum(amount)::bigint
-        from ${transfers}
-        where household_id = ${householdId} and to_account_id = ${accountId}), 0)
-    )::text as balance
-  `);
-  return rows[0]?.balance ?? '0';
 }
 
 async function maxAccountSortOrder(
@@ -301,17 +273,6 @@ export async function updateAccount(
       }
       if (parsed.data.expectedKind !== undefined && parsed.data.expectedKind !== account.kind) {
         return { status: 'stale_kind' };
-      }
-      const rawBalance = await currentRawBalance(transaction, householdId, accountId);
-      if (
-        requiresKindInterpretationConfirmation(account.kind, parsed.data.kind, rawBalance) &&
-        !parsed.data.confirmKindChange
-      ) {
-        return {
-          status: 'kind_confirmation_required',
-          previousKind: account.kind,
-          rawBalance,
-        };
       }
       let currentCardCondition: AccountCardSetting | null = null;
       if (parsedCard?.success) {

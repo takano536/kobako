@@ -29,7 +29,6 @@ export default async function NewAccountPage() {
             name: '',
             kind: 'other',
             expectedKind: '',
-            confirmKindChange: false,
             closingDay: '',
             paymentDay: '',
             paymentMonthOffset: '',

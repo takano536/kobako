@@ -131,6 +131,66 @@ describe('PostgreSQL migrations and ledger', () => {
     await client?.close();
   });
 
+  it.each([
+    ['bank', 'credit_card'],
+    ['credit_card', 'bank'],
+    ['bank', 'other'],
+    ['other', 'bank'],
+  ] as const)(
+    'saves a kind change from %s to %s without a second confirmation',
+    async (previousKind, nextKind) => {
+      const created = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: '種別変更テスト',
+        kind: previousKind,
+      });
+      if (created.status !== 'ok') throw new Error('Account creation failed');
+      await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+        type: 'expense',
+        amount: 1200,
+        occurredOn: '2026-10-07',
+        accountId: created.account.id,
+        categoryId: (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0]!.id,
+        memo: '',
+      });
+      const result = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, created.account.id, {
+        name: created.account.name,
+        kind: nextKind,
+        expectedKind: previousKind,
+      });
+      expect(result.status).toBe('ok');
+      const saved = await getActiveManagedAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        created.account.id,
+      );
+      expect(saved?.kind).toBe(nextKind);
+      const entries = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from transactions where account_id = ${created.account.id}
+    `;
+      expect(entries[0]?.count).toBe('1');
+    },
+  );
+
+  it('rejects a stale kind without overwriting the account', async () => {
+    const created = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '同時変更テスト',
+      kind: 'credit_card',
+    });
+    if (created.status !== 'ok') throw new Error('Account creation failed');
+    const result = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, created.account.id, {
+      name: '上書きしない名前',
+      kind: 'other',
+      expectedKind: 'bank',
+    });
+    expect(result).toEqual({ status: 'stale_kind' });
+    const saved = await getActiveManagedAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      created.account.id,
+    );
+    expect(saved).toMatchObject({ name: '同時変更テスト', kind: 'credit_card' });
+  });
+
   it('keeps the system healthcheck table available', async () => {
     const key = `integration-${Date.now()}`;
     await client.db.insert(systemHealthchecks).values({ key });
@@ -188,7 +248,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+      { name: card.account.name, kind: 'credit_card' },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -252,7 +312,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: null,
           paymentDay: null,
@@ -272,7 +332,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: '15',
           paymentDay: '10',
@@ -289,7 +349,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+      { name: card.account.name, kind: 'credit_card' },
       {
         closingDay: '20',
         paymentDay: '27',
@@ -321,7 +381,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: '3',
           paymentDay: '4',
@@ -335,7 +395,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: 'last',
           paymentDay: null,
@@ -446,7 +506,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: '3',
           paymentDay: '4',
@@ -472,7 +532,6 @@ describe('PostgreSQL migrations and ledger', () => {
         name: '編集失敗後の名前',
         kind: 'credit_card',
         expectedKind: 'credit_card',
-        confirmKindChange: false,
       },
       {
         closingDay: 'last',
@@ -504,7 +563,6 @@ describe('PostgreSQL migrations and ledger', () => {
         name: '編集成功後の名前',
         kind: 'credit_card',
         expectedKind: 'credit_card',
-        confirmKindChange: false,
       },
       {
         closingDay: 'last',
@@ -550,7 +608,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         initialCondition,
       ),
     ).resolves.toMatchObject({ status: 'ok' });
@@ -604,7 +662,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: 'トリガー編集失敗', kind: 'credit_card', confirmKindChange: false },
+        { name: 'トリガー編集失敗', kind: 'credit_card' },
         {
           closingDay: 'last',
           paymentDay: '10',
@@ -649,7 +707,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: 'トリガー編集成功', kind: 'credit_card', confirmKindChange: false },
+      { name: 'トリガー編集成功', kind: 'credit_card' },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -691,7 +749,6 @@ describe('PostgreSQL migrations and ledger', () => {
     const basicUpdate = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id, {
       name: '削除済み銀行の変更',
       kind: 'bank',
-      confirmKindChange: false,
     });
     expect(basicUpdate).toEqual({ status: 'deleted' });
     expect(
@@ -719,7 +776,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card', confirmKindChange: false },
+        { name: card.account.name, kind: 'credit_card' },
         {
           closingDay: 'last',
           paymentDay: '10',
@@ -743,7 +800,6 @@ describe('PostgreSQL migrations and ledger', () => {
       {
         name: '削除済みカードの変更',
         kind: 'credit_card',
-        confirmKindChange: false,
       },
       {
         closingDay: '3',
@@ -786,7 +842,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       bank.account.id,
-      { name: 'カード化失敗', kind: 'credit_card', expectedKind: 'bank', confirmKindChange: true },
+      { name: 'カード化失敗', kind: 'credit_card', expectedKind: 'bank' },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -799,7 +855,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       bank.account.id,
-      { name: 'カード化成功', kind: 'credit_card', expectedKind: 'bank', confirmKindChange: true },
+      { name: 'カード化成功', kind: 'credit_card', expectedKind: 'bank' },
       {
         closingDay: 'last',
         paymentDay: '10',
