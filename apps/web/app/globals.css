@@ -498,7 +498,7 @@ h3 {
 }
 
 .balance-group {
-  --balance-metric-width: 12rem;
+  --balance-amount-column: minmax(0, 12rem);
   --balance-metrics-width: calc(24rem + var(--space-group));
 }
 
@@ -506,6 +506,7 @@ h3 {
   display: grid;
   gap: 0;
   min-width: 0;
+  border-top: 1px solid var(--rule);
 }
 
 .balance-row,
@@ -516,7 +517,10 @@ h3 {
   min-width: 0;
 }
 
-.balance-row-with-metrics,
+.balance-row-with-metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(var(--balance-metrics-width), max-content);
+}
+
 .balance-group-heading-with-metrics {
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
 }
@@ -524,8 +528,7 @@ h3 {
 .balance-group-heading {
   align-items: center;
   min-height: 25px;
-  padding-block: var(--space-within);
-  border-top: 1px solid var(--rule);
+  padding-top: var(--space-within);
 }
 
 .balance-row {
@@ -548,7 +551,7 @@ h3 {
 
 .balance-group-heading-columns-with-metrics,
 .balance-row-metrics {
-  grid-template-columns: repeat(2, minmax(0, var(--balance-metric-width)));
+  grid-template-columns: repeat(2, var(--balance-amount-column));
   gap: var(--space-group);
 }
 
@@ -568,6 +571,18 @@ h3 {
   align-items: center;
   justify-content: flex-end;
   text-align: right;
+}
+.balance-metric-with-context {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-within);
+}
+
+.balance-metric-context {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+  white-space: nowrap;
 }
 
 .balance-metric .money-amount {
@@ -2773,14 +2788,7 @@ h3 {
 .balance-groups {
   display: grid;
   gap: var(--space-section);
-}
-
-.balance-group-card-continuation {
-  margin-top: calc(-1 * var(--space-section));
-}
-
-.balance-group-card-continuation .balance-group-heading {
-  border-top: 0;
+  margin-top: var(--space-section);
 }
 
 .balance-group h3 {

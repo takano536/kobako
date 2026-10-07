@@ -1105,7 +1105,7 @@ test('opens the account-filtered transactions by clicking its name from balances
   `;
 });
 
-test('splits and aggregates card payment schedules on balances', async ({ page }) => {
+test('keeps and aggregates card payment schedules on balances', async ({ page }) => {
   await seedPaymentScheduleBalances();
   try {
     await page.goto('/balances');
@@ -1123,39 +1123,31 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       '支払予定',
       '残高',
     ]);
-    const cardGroups = page
+    const cardGroup = page
       .locator('.balance-group')
       .filter({ has: page.locator('h3', { hasText: /^クレジットカード$/ }) });
-    await expect(cardGroups).toHaveCount(2);
-    await expect(cardGroups.nth(0).locator('.balance-group-heading-label')).toHaveText([
+    await expect(cardGroup).toHaveCount(1);
+    await expect(cardGroup.locator('.balance-group-heading-label')).toHaveText([
       '支払予定',
-      '未請求',
-    ]);
-    await expect(cardGroups.nth(1).locator('.balance-group-heading-label')).toHaveText([
-      '支払予定',
-      '利用残高',
+      'カード残高',
     ]);
 
     const expectGroupRows = async (group: Locator, names: readonly string[]): Promise<void> => {
       const rows = group.locator('.balance-row');
       await expect(rows).toHaveCount(names.length);
-      for (const name of names) {
-        await expect(rows.filter({ hasText: name })).toHaveCount(1);
-      }
+      await expect(rows.locator('.balance-account-name')).toHaveText([...names]);
     };
     await expectGroupRows(bankGroup, [
       paymentFixtureNames.primaryBank,
       paymentFixtureNames.secondaryBank,
       paymentFixtureNames.orphanBank,
     ]);
-    await expectGroupRows(cardGroups.nth(0), [
+    await expectGroupRows(cardGroup, [
       paymentFixtureNames.primaryCard,
       paymentFixtureNames.secondPrimaryCard,
       paymentFixtureNames.secondaryCard,
       paymentFixtureNames.nextMonthCard,
       paymentFixtureNames.partialCard,
-    ]);
-    await expectGroupRows(cardGroups.nth(1), [
       paymentFixtureNames.overpaymentCard,
       paymentFixtureNames.noSettingsCard,
       paymentFixtureNames.invalidSettingsCard,
@@ -1189,6 +1181,7 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
     await expectMetricLabels(primaryCard, ['支払予定', '未請求']);
     await expect(balanceMetric(primaryCard, '支払予定')).toContainText('1,000円');
     await expect(balanceMetric(primaryCard, '未請求')).toContainText('250円');
+    await expect(primaryCard.locator('.balance-metric-context')).toHaveCount(0);
     const secondPrimaryCard = accountRow(page, paymentFixtureNames.secondPrimaryCard);
     await expect(balanceMetric(secondPrimaryCard, '支払予定')).toContainText('2,000円');
     await expect(balanceMetric(secondPrimaryCard, '未請求')).toContainText('350円');
@@ -1209,10 +1202,12 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
     await expectMetricLabels(noSettingsCard, ['支払予定', '利用残高']);
     await expect(balanceMetric(noSettingsCard, '支払予定')).toContainText('—');
     await expect(balanceMetric(noSettingsCard, '利用残高')).toContainText('900円');
+    await expect(noSettingsCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
     const invalidSettingsCard = accountRow(page, paymentFixtureNames.invalidSettingsCard);
     await expectMetricLabels(invalidSettingsCard, ['支払予定', '利用残高']);
     await expect(balanceMetric(invalidSettingsCard, '支払予定')).toContainText('—');
     await expect(balanceMetric(invalidSettingsCard, '利用残高')).toContainText('1,000円');
+    await expect(invalidSettingsCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
     expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
       '支払日',
     );
@@ -1271,11 +1266,12 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       'color',
       positiveColor,
     );
+    await expect(overpaymentCard.locator('.balance-metric-context')).toHaveText(['利用残高']);
 
-    const cardGroupsWithRows = [0, 1].map((index) => ({
-      group: cardGroups.nth(index),
-      rows: cardGroups.nth(index).locator('.balance-row'),
-    }));
+    const cardGroupWithRows = {
+      group: cardGroup,
+      rows: cardGroup.locator('.balance-row'),
+    };
     for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       await page.reload();
@@ -1290,7 +1286,7 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
         Math.abs(metricsBox.y + metricsBox.height / 2 - (rowBox.y + rowBox.height / 2)),
       ).toBeLessThanOrEqual(1);
 
-      for (const { group, rows } of cardGroupsWithRows) {
+      for (const { group, rows } of [cardGroupWithRows]) {
         const headingColumns = await group
           .locator('.balance-group-heading-label')
           .evaluateAll((elements) =>
@@ -1315,6 +1311,55 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
             if (!heading) throw new Error('balance heading columns are missing');
             expect(Math.abs(column.x - heading.x)).toBeLessThanOrEqual(1);
             expect(Math.abs(column.width - heading.width)).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+      const amountGeometry = await page.locator('.balance-group').evaluateAll((groups) =>
+        groups.map((group) => {
+          const list = group.querySelector<HTMLElement>('.balance-list');
+          if (!list) throw new Error('balance list is missing');
+          const readRect = (element: Element) => {
+            const box = element.getBoundingClientRect();
+            return { right: box.right, top: box.top, bottom: box.bottom };
+          };
+          const headers = Array.from(
+            group.querySelectorAll<HTMLElement>('.balance-group-heading-label'),
+          ).map(readRect);
+          const rows = Array.from(group.querySelectorAll<HTMLElement>('.balance-row')).map((row) =>
+            Array.from(row.querySelectorAll<HTMLElement>('.balance-metric')).map((metric) => {
+              const amount =
+                metric.querySelector<HTMLElement>('.money-amount') ??
+                metric.querySelector<HTMLElement>('.balance-amount');
+              if (!amount) throw new Error('balance amount is missing');
+              return readRect(amount);
+            }),
+          );
+          return { list: readRect(list), headers, rows };
+        }),
+      );
+      for (const group of amountGeometry) {
+        const columns: { right: number; top: number; bottom: number }[][] = [];
+        for (const row of group.rows) {
+          for (const [index, amount] of row.entries()) {
+            const header = group.headers[index];
+            if (!header) throw new Error('balance amount header is missing');
+            expect(amount.right).toBeLessThanOrEqual(group.list.right + 1);
+            expect(amount.right).toBeLessThanOrEqual(header.right + 1);
+            columns[index] ??= [];
+            columns[index].push(amount);
+          }
+        }
+        for (const amounts of columns) {
+          for (let first = 0; first < amounts.length; first += 1) {
+            for (let second = first + 1; second < amounts.length; second += 1) {
+              const firstAmount = amounts[first];
+              const secondAmount = amounts[second];
+              if (!firstAmount || !secondAmount) throw new Error('balance amounts are missing');
+              expect(
+                firstAmount.bottom <= secondAmount.top + 1 ||
+                  secondAmount.bottom <= firstAmount.top + 1,
+              ).toBe(true);
+            }
           }
         }
       }

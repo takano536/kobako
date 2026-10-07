@@ -53,8 +53,14 @@ function BalanceMetric({
   value: string | null;
   tone: MoneyTone;
 }) {
+  const showContext = label === '利用残高';
   return (
-    <div className="balance-metric" role="group" aria-label={label}>
+    <div
+      className={`balance-metric${showContext ? ' balance-metric-with-context' : ''}`}
+      role="group"
+      aria-label={label}
+    >
+      {showContext ? <span className="balance-metric-context">{label}</span> : null}
       {value === null ? (
         <span className="balance-amount balance-metric-unknown" aria-label={`${label}不明`}>
           —

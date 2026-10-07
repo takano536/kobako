@@ -45,37 +45,12 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
   const scheduledByBankId = aggregateBankPaymentSchedules(cardSummaries, currentMonth);
   const summary = calculateBalanceSummary(allBalances);
   type BalanceAccount = (typeof balances)[number];
-  type DisplayGroup = {
-    kind: BalanceAccount['kind'];
-    name: string;
-    showName: boolean;
-    isCardContinuation: boolean;
-    columns: readonly string[];
-    rows: Array<{
-      account: BalanceAccount;
-      paymentSchedule?: {
-        scheduledAmount: string | null;
-        balanceAmount: string | null;
-        balanceLabel?: string;
-      };
-    }>;
+  type PaymentSchedule = {
+    scheduledAmount: string | null;
+    balanceAmount: string | null;
+    balanceLabel?: '未請求' | '利用残高';
   };
-  const groups: {
-    kind: BalanceAccount['kind'];
-    name: string;
-    accounts: typeof balances;
-  }[] = [
-    { kind: 'cash', name: '現金', accounts: [] },
-    { kind: 'bank', name: '銀行', accounts: [] },
-    { kind: 'credit_card', name: 'クレジットカード', accounts: [] },
-    { kind: 'debit_card', name: 'デビットカード', accounts: [] },
-    { kind: 'electronic_money', name: '電子マネー', accounts: [] },
-    { kind: 'other', name: 'その他', accounts: [] },
-  ];
-  for (const account of balances) {
-    groups.find((group) => group.kind === account.kind)?.accounts.push(account);
-  }
-  const paymentScheduleFor = (account: BalanceAccount) => {
+  const paymentScheduleFor = (account: BalanceAccount): PaymentSchedule | undefined => {
     const billing =
       account.kind === 'credit_card' ? billingByAccountId.get(account.accountId) : undefined;
     const cardBalance = account.kind === 'credit_card' ? -BigInt(account.balance) : null;
@@ -111,39 +86,20 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
     }
     return undefined;
   };
-  const displayGroups: DisplayGroup[] = [];
-  for (const group of groups) {
-    if (group.accounts.length === 0) continue;
-    const rows = group.accounts.map((account) => ({
-      account,
-      paymentSchedule: paymentScheduleFor(account),
-    }));
-    if (group.kind === 'credit_card') {
-      let hasDisplayedCardGroup = false;
-      for (const balanceLabel of ['未請求', '利用残高'] as const) {
-        const cardRows = rows.filter((row) => row.paymentSchedule?.balanceLabel === balanceLabel);
-        if (cardRows.length > 0) {
-          displayGroups.push({
-            kind: group.kind,
-            name: group.name,
-            showName: balanceLabel === '未請求',
-            isCardContinuation: hasDisplayedCardGroup,
-            columns: ['支払予定', balanceLabel],
-            rows: cardRows,
-          });
-          hasDisplayedCardGroup = true;
-        }
-      }
-    } else {
-      displayGroups.push({
-        kind: group.kind,
-        name: group.name,
-        showName: true,
-        isCardContinuation: false,
-        columns: group.kind === 'bank' ? ['支払予定', '残高'] : ['残高'],
-        rows,
-      });
-    }
+  const groups: {
+    kind: BalanceAccount['kind'];
+    name: string;
+    accounts: typeof balances;
+  }[] = [
+    { kind: 'cash', name: '現金', accounts: [] },
+    { kind: 'bank', name: '銀行', accounts: [] },
+    { kind: 'credit_card', name: 'クレジットカード', accounts: [] },
+    { kind: 'debit_card', name: 'デビットカード', accounts: [] },
+    { kind: 'electronic_money', name: '電子マネー', accounts: [] },
+    { kind: 'other', name: 'その他', accounts: [] },
+  ];
+  for (const account of balances) {
+    groups.find((group) => group.kind === account.kind)?.accounts.push(account);
   }
   return (
     <PageShell>
@@ -192,49 +148,48 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           />
         ) : (
           <div className="balance-groups">
-            {displayGroups.map((group, index) => {
-              const headingId = `balance-group-heading-${group.kind}-${index}`;
-              const hasMetrics = group.columns.length === 2;
-              return (
-                <section
-                  className={`balance-group${group.isCardContinuation ? ' balance-group-card-continuation' : ''}`}
-                  key={`${group.kind}-${group.columns.join('-')}-${index}`}
-                  aria-labelledby={headingId}
-                >
-                  <div
-                    className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
-                  >
-                    <h3 id={headingId}>
-                      {group.showName ? group.name : <span className="sr-only">{group.name}</span>}
-                    </h3>
+            {groups
+              .filter((group) => group.accounts.length > 0)
+              .map((group, index) => {
+                const headingId = `balance-group-heading-${group.kind}-${index}`;
+                const hasMetrics = group.kind === 'bank' || group.kind === 'credit_card';
+                const columns: readonly string[] =
+                  group.kind === 'bank'
+                    ? ['支払予定', '残高']
+                    : group.kind === 'credit_card'
+                      ? ['支払予定', 'カード残高']
+                      : ['残高'];
+                return (
+                  <section className="balance-group" key={group.kind} aria-labelledby={headingId}>
                     <div
-                      className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
+                      className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
                     >
-                      {group.columns.map((column) => (
-                        <span className="balance-group-heading-label" key={column}>
-                          {column}
-                        </span>
-                      ))}
+                      <h3 id={headingId}>{group.name}</h3>
+                      <div
+                        className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
+                      >
+                        {columns.map((column) => (
+                          <span className="balance-group-heading-label" key={column}>
+                            {column}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <ul
-                    className={`balance-list${hasMetrics ? ' balance-list-with-metrics' : ''}`}
-                    aria-labelledby={headingId}
-                  >
-                    {group.rows.map(({ account, paymentSchedule }) => (
-                      <AccountBalanceRow
-                        key={account.accountId}
-                        accountName={account.accountName}
-                        balance={account.balance}
-                        kind={account.kind}
-                        transactionsHref={`/transactions?account=${account.accountId}&month=all`}
-                        paymentSchedule={paymentSchedule}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              );
-            })}
+                    <ul className="balance-list" aria-labelledby={headingId}>
+                      {group.accounts.map((account) => (
+                        <AccountBalanceRow
+                          key={account.accountId}
+                          accountName={account.accountName}
+                          balance={account.balance}
+                          kind={account.kind}
+                          transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                          paymentSchedule={paymentScheduleFor(account)}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
           </div>
         )}
       </section>
