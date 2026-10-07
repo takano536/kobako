@@ -63,7 +63,6 @@ export default async function EditAccountPage({
               name: account.name,
               kind: account.kind,
               expectedKind: account.kind,
-              confirmKindChange: false,
               closingDay: cardCondition?.closingDay ?? '',
               paymentDay: cardCondition?.paymentDay ?? '',
               paymentMonthOffset: cardCondition?.paymentMonthOffset ?? '',

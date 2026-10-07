@@ -190,7 +190,6 @@ export const accountUpdateInputSchema = z.object({
   kind: accountKindSchema,
   status: accountStatusSchema.optional(),
   expectedKind: accountKindSchema.optional(),
-  confirmKindChange: z.boolean().default(false),
 });
 
 function resolvedBillingDayForMonthLength(day: string, monthLength: number): number {
@@ -260,23 +259,6 @@ export type AccountCardConditionInput = z.infer<typeof accountCardConditionInput
 
 export function isLiabilityKind(kind: AccountKindInput): boolean {
   return kind === 'credit_card';
-}
-
-export function requiresKindInterpretationConfirmation(
-  previousKind: AccountKindInput,
-  nextKind: AccountKindInput,
-  rawBalance: string | number | bigint,
-): boolean {
-  if (previousKind === nextKind) {
-    return false;
-  }
-  if (previousKind === 'credit_card' || nextKind === 'credit_card') {
-    return true;
-  }
-  const raw = BigInt(rawBalance);
-  const previousLiability = previousKind === 'other' && raw < 0n;
-  const nextLiability = nextKind === 'other' && raw < 0n;
-  return previousLiability !== nextLiability;
 }
 
 /** Positive integer amount validation used for one-row account transfers. */

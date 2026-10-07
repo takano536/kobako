@@ -173,7 +173,6 @@ export {
   memoSchema,
   normalizeAmountInput,
   occurredOnSchema,
-  requiresKindInterpretationConfirmation,
   transferAmountSchema,
   transferInputFromFormData,
   transferInputSchema,

@@ -16,7 +16,6 @@ export interface AccountFormValues {
   name: string;
   kind: string;
   expectedKind: string;
-  confirmKindChange: boolean;
   closingDay: string;
   paymentDay: string;
   paymentMonthOffset: string;
@@ -27,7 +26,6 @@ export interface AccountFormState {
   values?: AccountFormValues;
   fieldErrors?: Record<string, string[]>;
   message?: string;
-  requiresKindConfirmation?: boolean;
 }
 
 interface AccountOption {
@@ -280,17 +278,6 @@ export function AccountForm({
         </section>
       ) : null}
 
-      {state.requiresKindConfirmation ? (
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            name="confirmKindChange"
-            checked={current.confirmKindChange}
-            onChange={(event) => updateValue('confirmKindChange', event.currentTarget.checked)}
-          />
-          種別を変更することを確認しました
-        </label>
-      ) : null}
       <input type="hidden" name="expectedKind" value={current.expectedKind} />
       {state.message ? (
         <p className="form-message" role="alert">
