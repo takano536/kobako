@@ -1136,6 +1136,31 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       '利用残高',
     ]);
 
+    const expectGroupRows = async (group: Locator, names: readonly string[]): Promise<void> => {
+      const rows = group.locator('.balance-row');
+      await expect(rows).toHaveCount(names.length);
+      for (const name of names) {
+        await expect(rows.filter({ hasText: name })).toHaveCount(1);
+      }
+    };
+    await expectGroupRows(bankGroup, [
+      paymentFixtureNames.primaryBank,
+      paymentFixtureNames.secondaryBank,
+      paymentFixtureNames.orphanBank,
+    ]);
+    await expectGroupRows(cardGroups.nth(0), [
+      paymentFixtureNames.primaryCard,
+      paymentFixtureNames.secondPrimaryCard,
+      paymentFixtureNames.secondaryCard,
+      paymentFixtureNames.nextMonthCard,
+      paymentFixtureNames.partialCard,
+    ]);
+    await expectGroupRows(cardGroups.nth(1), [
+      paymentFixtureNames.overpaymentCard,
+      paymentFixtureNames.noSettingsCard,
+      paymentFixtureNames.invalidSettingsCard,
+    ]);
+
     const expectMetricLabels = async (row: Locator, labels: string[]): Promise<void> => {
       await expect(row.locator('.balance-metric')).toHaveCount(labels.length);
       await expect
@@ -1247,16 +1272,10 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
       positiveColor,
     );
 
-    const cardRows = [
-      primaryCard,
-      secondPrimaryCard,
-      accountRow(page, paymentFixtureNames.secondaryCard),
-      accountRow(page, paymentFixtureNames.nextMonthCard),
-      accountRow(page, paymentFixtureNames.partialCard),
-      overpaymentCard,
-      noSettingsCard,
-      invalidSettingsCard,
-    ];
+    const cardGroupsWithRows = [0, 1].map((index) => ({
+      group: cardGroups.nth(index),
+      rows: cardGroups.nth(index).locator('.balance-row'),
+    }));
     for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       await page.reload();
@@ -1271,33 +1290,32 @@ test('splits and aggregates card payment schedules on balances', async ({ page }
         Math.abs(metricsBox.y + metricsBox.height / 2 - (rowBox.y + rowBox.height / 2)),
       ).toBeLessThanOrEqual(1);
 
-      const headingColumns = await cardGroups
-        .nth(0)
-        .locator('.balance-group-heading-label')
-        .evaluateAll((elements) =>
-          elements.map((element) => {
-            const box = element.getBoundingClientRect();
-            return { x: box.x, width: box.width };
-          }),
-        );
-      const metricColumns = await Promise.all(
-        cardRows.map((cardRow) =>
-          cardRow.locator('.balance-metric').evaluateAll((elements) =>
+      for (const { group, rows } of cardGroupsWithRows) {
+        const headingColumns = await group
+          .locator('.balance-group-heading-label')
+          .evaluateAll((elements) =>
             elements.map((element) => {
               const box = element.getBoundingClientRect();
               return { x: box.x, width: box.width };
             }),
+          );
+        const metricColumns = await rows.evaluateAll((rowElements) =>
+          rowElements.map((rowElement) =>
+            Array.from(rowElement.querySelectorAll('.balance-metric')).map((element) => {
+              const box = element.getBoundingClientRect();
+              return { x: box.x, width: box.width };
+            }),
           ),
-        ),
-      );
-      expect(headingColumns).toHaveLength(2);
-      for (const columns of metricColumns) {
-        expect(columns).toHaveLength(2);
-        for (const [index, column] of columns.entries()) {
-          const heading = headingColumns[index];
-          if (!heading) throw new Error('balance heading columns are missing');
-          expect(Math.abs(column.x - heading.x)).toBeLessThanOrEqual(1);
-          expect(Math.abs(column.width - heading.width)).toBeLessThanOrEqual(1);
+        );
+        expect(headingColumns).toHaveLength(2);
+        for (const columns of metricColumns) {
+          expect(columns).toHaveLength(2);
+          for (const [index, column] of columns.entries()) {
+            const heading = headingColumns[index];
+            if (!heading) throw new Error('balance heading columns are missing');
+            expect(Math.abs(column.x - heading.x)).toBeLessThanOrEqual(1);
+            expect(Math.abs(column.width - heading.width)).toBeLessThanOrEqual(1);
+          }
         }
       }
     }
