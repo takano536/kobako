@@ -1,4 +1,11 @@
 # Changelog
+## [0.9.0](https://github.com/takano536/kobako/compare/v0.8.1...v0.9.0) (2026-10-07)
+
+
+### Features
+
+* **web:** show all matching entries in the transactions list ([#45](https://github.com/takano536/kobako/issues/45)) ([618f5ad](https://github.com/takano536/kobako/commit/618f5ad05a7ac48ffeb19834f1d9090c8ee50ec0))
+
 ## [0.8.1](https://github.com/takano536/kobako/compare/v0.8.0...v0.8.1) (2026-10-07)
 
 
