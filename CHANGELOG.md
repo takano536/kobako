@@ -1,4 +1,11 @@
 # Changelog
+## [0.8.0](https://github.com/takano536/kobako/compare/v0.7.1...v0.8.0) (2026-10-07)
+
+
+### Features
+
+* add credit card payment schedules and auto payments ([#40](https://github.com/takano536/kobako/issues/40)) ([43b4853](https://github.com/takano536/kobako/commit/43b485392b3669425974670b498addc2ebe49592))
+
 ## [0.7.1](https://github.com/takano536/kobako/compare/v0.7.0...v0.7.1) (2026-10-06)
 
 
