@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import {
   aggregateBankPaymentSchedules,
-  currentTokyoMonth,
+  currentTokyoDate,
   deriveCardBalancePaymentSchedule,
   getCardBillingSummaries,
   getManagedAccountBalances,
@@ -31,6 +31,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
   void searchParams;
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
+  const today = currentTokyoDate();
   const allBalances = await getManagedAccountBalances(db, householdId);
   const balances = allBalances.filter((account) => account.deletedAt === null);
   const cardSummaries = await getCardBillingSummaries(
@@ -39,9 +40,10 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
     balances
       .filter((account) => account.kind === 'credit_card')
       .map((account) => account.accountId),
+    today,
   );
   const billingByAccountId = new Map(cardSummaries.map((billing) => [billing.accountId, billing]));
-  const currentMonth = currentTokyoMonth();
+  const currentMonth = today.slice(0, 7);
   const scheduledByBankId = aggregateBankPaymentSchedules(cardSummaries, currentMonth);
   const summary = calculateBalanceSummary(allBalances);
   type BalanceAccount = (typeof balances)[number];
@@ -57,7 +59,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
       billing?.settings &&
       billing.settingsComplete &&
       billing.calendarError === null
-        ? deriveCardBalancePaymentSchedule(billing.periods)
+        ? deriveCardBalancePaymentSchedule(billing.periods, today)
         : null;
     if (account.kind === 'bank') {
       return {
@@ -67,7 +69,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
     }
     if (account.kind === 'credit_card') {
       return {
-        primaryAmount: billing?.liability ?? null,
+        primaryAmount: cardSchedule?.scheduledAmount ?? null,
         secondaryAmount: cardSchedule?.unbilledAmount ?? null,
       };
     }
@@ -144,7 +146,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
                   group.kind === 'bank'
                     ? ['支払予定', '残高']
                     : group.kind === 'credit_card'
-                      ? ['未決済残高', 'カード残高']
+                      ? ['決済予定', '未決済']
                       : ['残高'];
                 return (
                   <section className="balance-group" key={group.kind} aria-labelledby={headingId}>

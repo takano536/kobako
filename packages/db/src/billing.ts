@@ -93,13 +93,14 @@ function positiveRemaining(period: CardBillingPeriod): bigint {
 
 export function deriveCardBalancePaymentSchedule(
   periods: readonly CardBillingPeriod[],
+  today: string,
 ): CardBalancePaymentSchedule {
   let scheduledAmount = 0n;
   let unbilledAmount = 0n;
   let scheduledDueOn: string | null = null;
   for (const period of periods) {
     const remaining = positiveRemaining(period);
-    if (period.status === 'unbilled') {
+    if (period.status === 'unbilled' && period.periodStart <= today && today <= period.periodEnd) {
       unbilledAmount += remaining;
       continue;
     }

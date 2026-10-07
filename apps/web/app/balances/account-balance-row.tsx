@@ -88,7 +88,7 @@ export function AccountBalanceRow({
       {paymentSchedule && hasPaymentMetrics ? (
         <div className="balance-row-metrics">
           <BalanceMetric
-            label={kind === 'credit_card' ? '未決済残高' : '支払予定'}
+            label={kind === 'credit_card' ? '決済予定' : '支払予定'}
             value={paymentSchedule.primaryAmount}
             tone={toneForAmount(
               paymentSchedule.primaryAmount ?? '0',
@@ -96,7 +96,7 @@ export function AccountBalanceRow({
             )}
           />
           <BalanceMetric
-            label={kind === 'credit_card' ? '未請求' : '残高'}
+            label={kind === 'credit_card' ? '未決済' : '残高'}
             value={paymentSchedule.secondaryAmount}
             tone={
               paymentSchedule.secondaryAmount === null

@@ -46,10 +46,12 @@ function period(
   status: CardBillingPeriod['status'],
   remainingAmount: string,
   dueOn: string,
+  periodStart = '2026-01-01',
+  periodEnd = '2026-01-31',
 ): CardBillingPeriod {
   return {
-    periodStart: '2026-01-01',
-    periodEnd: '2026-01-31',
+    periodStart,
+    periodEnd,
     dueOn,
     charge: remainingAmount,
     paid: '0',
@@ -79,12 +81,15 @@ function summary(
 describe('balance payment schedules', () => {
   it('splits billed and unbilled remaining amounts and chooses the earliest due date', () => {
     expect(
-      deriveCardBalancePaymentSchedule([
-        period('billed-unpaid', '30', '2026-02-20'),
-        period('overdue', '20', '2026-02-10'),
-        period('billed-unpaid', '0', '2026-02-05'),
-        period('unbilled', '45', '2026-02-27'),
-      ]),
+      deriveCardBalancePaymentSchedule(
+        [
+          period('billed-unpaid', '30', '2026-02-20'),
+          period('overdue', '20', '2026-02-10'),
+          period('billed-unpaid', '0', '2026-02-05'),
+          period('unbilled', '45', '2026-02-27'),
+        ],
+        '2026-01-20',
+      ),
     ).toEqual({
       scheduledAmount: '50',
       scheduledDueOn: '2026-02-10',
@@ -93,9 +98,97 @@ describe('balance payment schedules', () => {
   });
 
   it('does not show negative period remaining as a payment schedule after overpayment', () => {
-    expect(deriveCardBalancePaymentSchedule([period('paid', '-50', '2026-02-10')])).toEqual({
+    expect(
+      deriveCardBalancePaymentSchedule([period('paid', '-50', '2026-02-10')], '2026-01-20'),
+    ).toEqual({
       scheduledAmount: '0',
       scheduledDueOn: null,
+      unbilledAmount: '0',
+    });
+  });
+  it('separates a confirmed bill from current usage and excludes future-period usage', () => {
+    expect(
+      deriveCardBalancePaymentSchedule(
+        [
+          period('billed-unpaid', '12000', '2026-02-10', '2025-12-16', '2026-01-15'),
+          period('unbilled', '3000', '2026-03-10', '2026-01-16', '2026-02-15'),
+          period('unbilled', '7000', '2026-04-10', '2026-02-16', '2026-03-15'),
+        ],
+        '2026-02-01',
+      ),
+    ).toEqual({
+      scheduledAmount: '12000',
+      scheduledDueOn: '2026-02-10',
+      unbilledAmount: '3000',
+    });
+  });
+
+  it('keeps scheduled bills unchanged when new usage is added and reduces them on payment', () => {
+    const usage = [expense('2026-01-10', 12000), expense('2026-01-20', 3000)];
+    const before = deriveCardBillingPeriods(CARD_ID, settings, usage, [], '2026-01-25');
+    expect(deriveCardBalancePaymentSchedule(before.periods, '2026-01-25')).toMatchObject({
+      scheduledAmount: '12000',
+      unbilledAmount: '3000',
+    });
+
+    const addedUsage = deriveCardBillingPeriods(
+      CARD_ID,
+      settings,
+      [...usage, expense('2026-01-25', 2000)],
+      [],
+      '2026-01-25',
+    );
+    expect(deriveCardBalancePaymentSchedule(addedUsage.periods, '2026-01-25')).toMatchObject({
+      scheduledAmount: '12000',
+      unbilledAmount: '5000',
+    });
+
+    const paid = deriveCardBillingPeriods(
+      CARD_ID,
+      settings,
+      usage,
+      [transfer(settings.debitAccountId!, CARD_ID, 5000, '2026-01-25')],
+      '2026-01-25',
+    );
+    expect(deriveCardBalancePaymentSchedule(paid.periods, '2026-01-25')).toMatchObject({
+      scheduledAmount: '7000',
+      unbilledAmount: '3000',
+    });
+  });
+
+  it('moves usage at the configured closing boundary without loss or double counting', () => {
+    const usage = [expense('2026-01-15', 3000)];
+    const dayBefore = deriveCardBillingPeriods(CARD_ID, settings, usage, [], '2026-01-14');
+    const closingDay = deriveCardBillingPeriods(CARD_ID, settings, usage, [], '2026-01-15');
+    const dayAfter = deriveCardBillingPeriods(CARD_ID, settings, usage, [], '2026-01-16');
+
+    expect(deriveCardBalancePaymentSchedule(dayBefore.periods, '2026-01-14')).toMatchObject({
+      scheduledAmount: '0',
+      unbilledAmount: '3000',
+    });
+    expect(deriveCardBalancePaymentSchedule(closingDay.periods, '2026-01-15')).toMatchObject({
+      scheduledAmount: '0',
+      unbilledAmount: '3000',
+    });
+    expect(deriveCardBalancePaymentSchedule(dayAfter.periods, '2026-01-16')).toMatchObject({
+      scheduledAmount: '3000',
+      unbilledAmount: '0',
+    });
+  });
+
+  it('keeps past overdue charges in the scheduled amount', () => {
+    const result = deriveCardBillingPeriods(
+      CARD_ID,
+      settings,
+      [expense('2026-01-10', 80)],
+      [],
+      '2026-03-01',
+    );
+
+    expect(result.periods[0]?.status).toBe('overdue');
+    expect(deriveCardBalancePaymentSchedule(result.periods, '2026-03-01')).toEqual({
+      scheduledAmount: '80',
+      scheduledDueOn: '2026-02-10',
       unbilledAmount: '0',
     });
   });
