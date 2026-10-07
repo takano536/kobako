@@ -46,20 +46,16 @@ export const metadata = {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-const PAGE_SIZE = 50;
-
 function listHref(
   month: string,
   type?: TransactionListType,
   categoryId?: number,
   accountId?: number,
-  page?: number,
 ): string {
   const params = new URLSearchParams({ month });
   if (type) params.set('type', type);
   if (categoryId && type !== 'transfer') params.set('category', String(categoryId));
   if (accountId) params.set('account', String(accountId));
-  if (page && page > 1) params.set('page', String(page));
   return `/transactions?${params.toString()}`;
 }
 
@@ -70,7 +66,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const accountId = parseTransactionAccountId(rawAccount);
   if (rawAccount !== undefined && rawAccount !== '' && accountId === undefined) notFound();
   const rawMonth = firstQueryValue(query.month);
-  const { type, categoryId, page = 1 } = parseTransactionListFilters(query);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const account =
@@ -80,20 +75,18 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     accountId !== undefined && rawMonth === 'all'
       ? 'all'
       : parseMonth(rawMonth, currentTokyoMonth());
-  const [fetchedRows, categories, accounts] = await Promise.all([
+  const { type, categoryId } = parseTransactionListFilters(query);
+  const [rows, categories, accounts] = await Promise.all([
     listLedgerEntries(db, householdId, {
       month,
       type,
       categoryId,
       accountId,
-      limit: PAGE_SIZE + 1,
-      offset: (page - 1) * PAGE_SIZE,
     }),
     listCategories(db, householdId),
     listManagedAccounts(db, householdId),
   ]);
-  const hasNextPage = fetchedRows.length > PAGE_SIZE;
-  const rows = hasNextPage ? fetchedRows.slice(0, PAGE_SIZE) : fetchedRows;
+
   const hasFilter = Boolean(type || categoryId || accountId);
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
@@ -111,13 +104,11 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     .filter((value): value is string => Boolean(value))
     .join('・');
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
-  const currentPath = listHref(month, type, categoryId, accountId, page);
+  const currentPath = listHref(month, type, categoryId, accountId);
   const clearAssetFilterHref = listHref(
     month === 'all' ? currentTokyoMonth() : month,
     type,
     categoryId,
-    undefined,
-    page,
   );
 
   return (
@@ -263,27 +254,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           </ul>
         )}
       </section>
-      {page > 1 || hasNextPage ? (
-        <nav aria-label="取引のページ移動" className="pagination">
-          {page > 1 ? (
-            <ActionLink
-              href={listHref(month, type, categoryId, accountId, page - 1)}
-              variant="secondary"
-            >
-              前の50件
-            </ActionLink>
-          ) : null}
-          <span aria-current="page">{page}ページ</span>
-          {hasNextPage ? (
-            <ActionLink
-              href={listHref(month, type, categoryId, accountId, page + 1)}
-              variant="secondary"
-            >
-              次の50件
-            </ActionLink>
-          ) : null}
-        </nav>
-      ) : null}
     </PageShell>
   );
 }

@@ -62,6 +62,7 @@ export function TransactionRow({
       <Link
         className="transaction-link"
         href={`/transactions/${transaction.id}/edit`}
+        prefetch={false}
         aria-label={label}
       >
         <CategoryDot type={transaction.type} name={transaction.categoryName} />

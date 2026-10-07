@@ -2828,14 +2828,6 @@ h3 {
   gap: 8px;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-group);
-  margin-top: var(--space-section);
-}
-
 .month-switcher-all {
   display: flex;
   width: auto;

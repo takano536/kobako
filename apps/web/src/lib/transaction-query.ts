@@ -23,7 +23,6 @@ export interface TransactionListFilters {
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
-  page?: number;
 }
 
 export function firstQueryValue(value: TransactionQueryValue): string | undefined {
@@ -49,13 +48,6 @@ export function parseTransactionAccountId(value: TransactionQueryValue): number 
   return firstValue ? parseInt4Id(firstValue) : undefined;
 }
 
-export function parseTransactionPage(value: TransactionQueryValue): number {
-  const firstValue = firstQueryValue(value);
-  if (!firstValue) return 1;
-  const parsed = parseInt4Id(firstValue);
-  return parsed ?? 1;
-}
-
 export function parseTransactionListFilters(
   query: Record<string, TransactionQueryValue>,
 ): TransactionListFilters {
@@ -66,7 +58,6 @@ export function parseTransactionListFilters(
     type,
     categoryId: type === 'transfer' ? undefined : categoryId,
     accountId,
-    page: parseTransactionPage(query.page),
   };
 }
 
@@ -94,14 +85,9 @@ export function validatedTransactionReturn(
   const rawCategory = url.searchParams.get('category');
   const category = parseTransactionCategoryId(rawCategory ?? undefined);
   if (rawCategory && category === undefined) return undefined;
-  const pageValue = url.searchParams.get('page');
-  if (pageValue && !/^\d+$/.test(pageValue)) return undefined;
-  const page = pageValue ? parseTransactionPage(pageValue) : 1;
-  if (pageValue && page < 1) return undefined;
   const params = new URLSearchParams({ account: String(accountId), month });
   if (type) params.set('type', type);
   if (category !== undefined && type !== 'transfer') params.set('category', String(category));
-  if (page > 1) params.set('page', String(page));
   return `/transactions?${params.toString()}`;
 }
 
