@@ -37,15 +37,15 @@ households (1) ──< accounts ──< transactions
 
 ## データベース
 
-接続には `postgres`（postgres.js）と Drizzle ORM を使います。`system_healthchecks` は migration と読み書きの疎通確認を保つための domain-neutral なテーブルです。家計簿 query は `@kobako/db` の `ledger.ts` に集約し、Web から全行をクライアントへロードしません。月次合計・カテゴリ別合計は SQL で集計し、PostgreSQL の `bigint` 結果を文字列で受け、差額も `BigInt` で計算します。
+接続には `postgres`（postgres.js）と Drizzle ORM を使います。`system_healthchecks` は migration と読み書きの疎通確認を保つための domain-neutral なテーブルです。家計簿 query は `@kobako/db` の `ledger.ts` に集約し、Web ブラウザが DB に直接アクセスすることはありません。サーバー側の台帳 query が一覧条件に一致する全行を返し、Server Component がそれらを描画します。月次合計・カテゴリ別合計は SQL で集計し、PostgreSQL の `bigint` 結果を文字列で受け、差額も `BigInt` で計算します。
 
 DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行います。そのため Next.js build は runtime credentials を必要としません。health endpoint は成功時・失敗時とも `{status: ...}` だけを返し、サーバーログも URL の credential/query を redaction します。
 
 ## 表示と mutation
 
-概要と一覧は Server Component で URL query（`month`、`type`、`category`、`account`、`page`）を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
+- 概要と一覧は Server Component で URL query (`month`、`type`、`category`、`account`) を読み、DB へ条件を渡します。不正な `month` は Asia/Tokyo の現在月へフォールバックし、未来月は空のまま表示します。
 
-`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、ページング・月・種別・カテゴリと組み合わせても重複を出しません。
+`/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、月・種別・カテゴリと組み合わせても重複を出しません。条件に一致する行はすべて表示し、旧 URL の `page` パラメータは無視します。資産設定からの戻り先を検証して再構築する際も `page` を捨てます。
 
 - 登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、Zod schema を Server Action でも再検証します。新規操作の資産候補は削除されていない資産にし、既存取引を編集する場合は参照中の削除済み資産を保持します。新規振替も削除されていない資産を受け付けます。
 - 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧はなく、取引一覧で資産を絞り込んだときだけ削除されていない資産に設定歯車を表示します。資産設定フォームは名前・種別・カード現在条件をまとめて扱い、論理削除は `accounts.deleted_at` に日時を設定して参照行を保持します。

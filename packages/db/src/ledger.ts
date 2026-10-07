@@ -140,8 +140,11 @@ export interface TransactionFilters {
   offset?: number;
 }
 
-export interface LedgerEntryFilters extends Omit<TransactionFilters, 'type'> {
+export interface LedgerEntryFilters {
+  month: string;
   type?: TransactionType | 'transfer';
+  categoryId?: number;
+  accountId?: number;
 }
 
 export interface ListedTransaction {
@@ -330,8 +333,6 @@ export async function listLedgerEntries(
     `);
   }
   if (parts.length === 0) return [];
-  const limit = filters.limit === undefined ? undefined : Math.max(0, filters.limit);
-  const offset = Math.max(0, filters.offset ?? 0);
   const rows = await db.execute<{
     id: number;
     entry_type: string;
@@ -350,8 +351,6 @@ export async function listLedgerEntries(
     select *
     from (${sql.join(parts, sql` union all `)}) as ledger_entries
     order by occurred_on desc, id desc, (entry_type = 'transfer') desc
-    ${limit === undefined ? sql`` : sql`limit ${limit}`}
-    offset ${offset}
   `);
   return rows.map((row) =>
     row.entry_type === 'transfer'

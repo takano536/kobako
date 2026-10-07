@@ -2377,16 +2377,6 @@ describe('PostgreSQL migrations and ledger', () => {
         })
       ).map((entry) => entry.id),
     ).toEqual([expenseTransaction.id]);
-    expect(
-      (
-        await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
-          month: '2026-09',
-          accountId: fromAccount.id,
-          offset: 1,
-          limit: 2,
-        })
-      ).map((entry) => `${entry.occurredOn}:${entry.type}`),
-    ).toEqual(['2026-09-04:transfer', '2026-09-03:expense']);
     if (incomingResult.status === 'ok') {
       await deleteTransfer(client.db, DEFAULT_HOUSEHOLD_ID, incomingResult.transfer.id);
     }
@@ -3106,7 +3096,7 @@ describe('PostgreSQL migrations and ledger', () => {
       { amount: 300, memo: 'first', categoryName: 'Immediate' },
     ]);
   });
-  it('filters an account to its transactions and transfers with stable paging boundaries', async () => {
+  it('filters an account to its transactions and transfers with stable ordering', async () => {
     const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '一覧対象口座',
       kind: 'bank',
@@ -3223,31 +3213,245 @@ describe('PostgreSQL migrations and ledger', () => {
       { type: 'expense', memo: '対象支出' },
       { type: 'expense', memo: '別月対象支出' },
     ]);
+  });
+  it('returns every matching row for large month and all-time account lists', async () => {
+    const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '大量一覧対象口座',
+      kind: 'bank',
+    });
+    const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '大量一覧振替先',
+      kind: 'other',
+    });
+    expect(target.status).toBe('ok');
+    expect(other.status).toBe('ok');
+    if (target.status !== 'ok' || other.status !== 'ok') {
+      throw new Error('large ledger account fixtures were not created');
+    }
+    const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    const income = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!expense || !income) {
+      throw new Error('large ledger categories are missing');
+    }
 
-    const pages = [
-      await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
-        month: 'all',
+    type ExpectedEntry = {
+      id: number;
+      type: 'expense' | 'income' | 'transfer';
+      occurredOn: string;
+      memo: string;
+    };
+    const expectedMonthEntries: ExpectedEntry[] = [];
+    const expectedAllEntries: ExpectedEntry[] = [];
+    const monthIds = new Set<string>();
+    const allIds = new Set<string>();
+    const addTransaction = async (
+      input: TransactionInput,
+      expected: Set<string>,
+      expectedEntries: ExpectedEntry[],
+    ) => {
+      const transaction = await createTransaction(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transactionInputSchema.parse(input),
+      );
+      const entry = {
+        type: input.type,
+        id: transaction.id,
+        occurredOn: input.occurredOn,
+        memo: input.memo,
+      } satisfies ExpectedEntry;
+      expected.add(`${input.type}:${transaction.id}`);
+      expectedEntries.push(entry);
+      if (expectedEntries !== expectedAllEntries) expectedAllEntries.push(entry);
+      allIds.add(`${input.type}:${transaction.id}`);
+    };
+    const addTransfer = async (
+      occurredOn: string,
+      memo: string,
+      expected: Set<string>,
+      expectedEntries: ExpectedEntry[],
+    ) => {
+      const result = await createTransfer(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transferInputSchema.parse({
+          fromAccountId: String(target.account.id),
+          toAccountId: String(other.account.id),
+          amount: '30',
+          occurredOn,
+          memo,
+        }),
+      );
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') {
+        throw new Error('large ledger transfer fixture was not created');
+      }
+      const entry = {
+        type: 'transfer',
+        id: result.transfer.id,
+        occurredOn,
+        memo,
+      } satisfies ExpectedEntry;
+      expected.add(`transfer:${result.transfer.id}`);
+      expectedEntries.push(entry);
+      if (expectedEntries !== expectedAllEntries) expectedAllEntries.push(entry);
+      allIds.add(`transfer:${result.transfer.id}`);
+    };
+    const sortExpected = (entries: readonly ExpectedEntry[]) =>
+      [...entries].sort(
+        (left, right) =>
+          right.occurredOn.localeCompare(left.occurredOn) ||
+          right.id - left.id ||
+          Number(right.type === 'transfer') - Number(left.type === 'transfer'),
+      );
+
+    for (let index = 0; index < 30; index += 1) {
+      await addTransaction(
+        {
+          type: 'expense',
+          amount: 10 + index,
+          occurredOn: `2026-09-${String((index % 28) + 1).padStart(2, '0')}`,
+          categoryId: expense.id,
+          accountId: target.account.id,
+          memo: `大量一覧支出-${index}`,
+        },
+        monthIds,
+        expectedMonthEntries,
+      );
+    }
+    for (let index = 0; index < 20; index += 1) {
+      await addTransaction(
+        {
+          type: 'income',
+          amount: 100 + index,
+          occurredOn: `2026-09-${String((index % 28) + 1).padStart(2, '0')}`,
+          categoryId: income.id,
+          accountId: target.account.id,
+          memo: `大量一覧収入-${index}`,
+        },
+        monthIds,
+        expectedMonthEntries,
+      );
+    }
+    for (let index = 0; index < 8; index += 1) {
+      await addTransfer(
+        `2026-09-${String((index % 28) + 1).padStart(2, '0')}`,
+        `大量一覧振替-${index}`,
+        monthIds,
+        expectedMonthEntries,
+      );
+    }
+    await addTransaction(
+      {
+        type: 'expense',
+        amount: 400,
+        occurredOn: '2024-09-01',
+        categoryId: expense.id,
         accountId: target.account.id,
-        limit: 2,
-        offset: 0,
-      }),
-      await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
-        month: 'all',
+        memo: '大量一覧過去年支出',
+      },
+      allIds,
+      expectedAllEntries,
+    );
+    await addTransaction(
+      {
+        type: 'income',
+        amount: 500,
+        occurredOn: '2025-09-01',
+        categoryId: income.id,
         accountId: target.account.id,
-        limit: 2,
-        offset: 2,
-      }),
-      await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
-        month: 'all',
-        accountId: target.account.id,
-        limit: 2,
-        offset: 4,
-      }),
-    ];
-    const entryKey = (entry: (typeof allTarget)[number]) =>
-      `${entry.type}:${entry.id}:${entry.memo}`;
-    expect(pages.flat().map(entryKey)).toEqual(allTarget.map(entryKey));
-    expect(new Set(pages.flat().map(entryKey)).size).toBe(allTarget.length);
+        memo: '大量一覧過去年収入',
+      },
+      allIds,
+      expectedAllEntries,
+    );
+    await addTransfer('2026-08-01', '大量一覧過去年振替', allIds, expectedAllEntries);
+
+    const monthEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+      accountId: target.account.id,
+    });
+    expect(monthEntries).toHaveLength(58);
+    expect(new Set(monthEntries.map((entry) => `${entry.type}:${entry.id}`))).toEqual(monthIds);
+    expect(monthEntries.map((entry) => `${entry.type}:${entry.id}`)).toEqual(
+      sortExpected(expectedMonthEntries).map((entry) => `${entry.type}:${entry.id}`),
+    );
+    expect(
+      monthEntries.reduce<Record<string, number>>(
+        (counts, entry) => ({ ...counts, [entry.type]: (counts[entry.type] ?? 0) + 1 }),
+        {},
+      ),
+    ).toEqual({ expense: 30, income: 20, transfer: 8 });
+
+    const allEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: 'all',
+      accountId: target.account.id,
+    });
+    expect(allEntries).toHaveLength(61);
+    expect(new Set(allEntries.map((entry) => `${entry.type}:${entry.id}`))).toEqual(allIds);
+    expect(allEntries.map((entry) => `${entry.type}:${entry.id}`)).toEqual(
+      sortExpected(expectedAllEntries).map((entry) => `${entry.type}:${entry.id}`),
+    );
+
+    expect(allEntries.map((entry) => entry.occurredOn)).toContain('2024-09-01');
+    expect(allEntries.map((entry) => entry.occurredOn)).toContain('2025-09-01');
+    expect(allEntries.map((entry) => entry.occurredOn)).toContain('2026-08-01');
+    expect(
+      allEntries.reduce<Record<string, number>>(
+        (counts, entry) => ({ ...counts, [entry.type]: (counts[entry.type] ?? 0) + 1 }),
+        {},
+      ),
+    ).toEqual({ expense: 31, income: 21, transfer: 9 });
+  });
+
+  it('returns all transfers when the transfer branch exceeds 50 rows', async () => {
+    const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替50件超対象口座',
+      kind: 'bank',
+    });
+    const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替50件超相手口座',
+      kind: 'other',
+    });
+    expect(target.status).toBe('ok');
+    expect(other.status).toBe('ok');
+    if (target.status !== 'ok' || other.status !== 'ok') {
+      throw new Error('large transfer account fixtures were not created');
+    }
+
+    const expected: Array<{ id: number; occurredOn: string }> = [];
+    for (let index = 0; index < 60; index += 1) {
+      const occurredOn = `2026-09-${String((index % 28) + 1).padStart(2, '0')}`;
+      const result = await createTransfer(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transferInputSchema.parse({
+          fromAccountId: String(target.account.id),
+          toAccountId: String(other.account.id),
+          amount: '30',
+          occurredOn,
+          memo: `振替50件超-${index}`,
+        }),
+      );
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') {
+        throw new Error('large transfer fixture was not created');
+      }
+      expected.push({ id: result.transfer.id, occurredOn });
+    }
+
+    const entries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+      accountId: target.account.id,
+    });
+    expect(entries).toHaveLength(60);
+    expect(entries.every((entry) => entry.type === 'transfer')).toBe(true);
+    const expectedOrder = [...expected].sort(
+      (left, right) => right.occurredOn.localeCompare(left.occurredOn) || right.id - left.id,
+    );
+    expect(entries.map((entry) => ({ id: entry.id, occurredOn: entry.occurredOn }))).toEqual(
+      expectedOrder,
+    );
   });
 
   it('filters card uses, refunds, and card payments without leaking debit-account activity', async () => {

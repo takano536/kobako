@@ -19,7 +19,6 @@ describe('transaction list query parsing', () => {
       type: undefined,
       categoryId: 12,
       accountId: undefined,
-      page: 1,
     });
   });
 
@@ -28,7 +27,6 @@ describe('transaction list query parsing', () => {
       type: 'transfer',
       categoryId: undefined,
       accountId: undefined,
-      page: 1,
     });
   });
 
@@ -37,30 +35,30 @@ describe('transaction list query parsing', () => {
       type: 'expense',
       categoryId: undefined,
       accountId: undefined,
-      page: 1,
     });
     expect(parseTransactionListFilters({ type: 'expense', category: '2147483648' })).toEqual({
       type: 'expense',
       categoryId: undefined,
       accountId: undefined,
-      page: 1,
     });
   });
 
-  it('parses account and positive page filters', () => {
+  it('parses account filters and ignores legacy page parameters', () => {
     expect(parseTransactionListFilters({ account: '24', page: '3' })).toEqual({
       type: undefined,
       categoryId: undefined,
       accountId: 24,
-      page: 3,
     });
     expect(parseTransactionListFilters({ account: '0', page: '-1' })).toEqual({
       type: undefined,
       categoryId: undefined,
       accountId: undefined,
-      page: 1,
     });
-    expect(parseTransactionListFilters({ page: '2x' }).page).toBe(1);
+    expect(parseTransactionListFilters({ page: '2x' })).toEqual({
+      type: undefined,
+      categoryId: undefined,
+      accountId: undefined,
+    });
   });
 
   it('accepts only a transaction return path for the same account', () => {
@@ -69,9 +67,9 @@ describe('transaction list query parsing', () => {
         '/transactions?month=all&type=expense&category=12&account=24&page=3',
         24,
       ),
-    ).toBe('/transactions?account=24&month=all&type=expense&category=12&page=3');
-    expect(validatedTransactionReturn('/accounts/24/edit', 24)).toBeUndefined();
+    ).toBe('/transactions?account=24&month=all&type=expense&category=12');
     expect(validatedTransactionReturn('/transactions?month=all&account=25', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/transactions?month=bad&account=24', 24)).toBeUndefined();
+    expect(validatedTransactionReturn('/accounts/24/edit', 24)).toBeUndefined();
   });
 });
