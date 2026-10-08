@@ -287,12 +287,43 @@ function successfulCheck(name, id, overrides = {}) {
 function successfulChecks() {
   return REQUIRED_CHECKS.map((name, index) => successfulCheck(name, index + 1));
 }
-async function makeEvaluatorCommandFake({ checks = successfulChecks() } = {}) {
+function workflowRunFixture({
+  event,
+  headSha,
+  headBranch,
+  id = 100,
+  status = 'completed',
+  conclusion = 'success',
+}) {
+  return {
+    id,
+    name: 'CI',
+    event,
+    status,
+    conclusion,
+    head_branch: headBranch,
+    head_sha: headSha,
+    head_repository: { full_name: repository },
+  };
+}
+
+async function makeEvaluatorCommandFake({
+  checks = successfulChecks(),
+  event = 'pull_request',
+  workflowRunOverrides = {},
+  mainShaSequence = [mainSha],
+  nativeWorkflowRuns = [],
+  pushWorkflowRuns = [],
+  jobsByRun = {},
+  compareByMain = {},
+  compareRelations = {},
+} = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'kobako-release-evaluator-'));
   const fixturePath = join(directory, 'fixture.json');
   const fakeGhPath = join(directory, 'gh');
   const logPath = join(directory, 'gh.log');
   const mergedMarker = join(directory, 'merged');
+  const githubOutputPath = join(directory, 'github-output');
   const packagePaths = [
     'package.json',
     'apps/web/package.json',
@@ -316,18 +347,23 @@ async function makeEvaluatorCommandFake({ checks = successfulChecks() } = {}) {
   const changelogBase = '# Changelog\n\n## 0.4.0\n\nHistory\n';
   const changelogHead = '# Changelog\n\n## 0.4.1\n\nRelease\n\n## 0.4.0\n\nHistory\n';
   const contents = {};
+  const mainRefs = [...new Set(mainShaSequence)];
   for (const relativePath of packagePaths) {
-    contents[`${relativePath}:${mainSha}`] = jsonFile(packageBase, sha('1'));
+    for (const ref of mainRefs) {
+      contents[`${relativePath}:${ref}`] = jsonFile(packageBase, sha('1'));
+    }
     contents[`${relativePath}:${headSha}`] = jsonFile(packageHead, sha('2'));
     contents[`${relativePath}:${mergeSha}`] = jsonFile(packageHead, sha('2'));
   }
-  for (const ref of [mainSha, headSha, mergeSha]) {
+  for (const ref of [...new Set([...mainRefs, headSha, mergeSha])]) {
     contents[`.release-please-manifest.json:${ref}`] = jsonFile(
-      { '.': ref === mainSha ? '0.4.0' : '0.4.1' },
+      { '.': mainRefs.includes(ref) ? '0.4.0' : '0.4.1' },
       sha('3'),
     );
   }
-  contents[`CHANGELOG.md:${mainSha}`] = textFile(changelogBase, sha('4'));
+  for (const ref of mainRefs) {
+    contents[`CHANGELOG.md:${ref}`] = textFile(changelogBase, sha('4'));
+  }
   contents[`CHANGELOG.md:${headSha}`] = textFile(changelogHead, sha('5'));
   contents[`CHANGELOG.md:${mergeSha}`] = textFile(changelogHead, sha('5'));
 
@@ -343,15 +379,49 @@ async function makeEvaluatorCommandFake({ checks = successfulChecks() } = {}) {
     merged_at: '2026-10-02T18:10:00Z',
     merge_commit_sha: mergeSha,
   };
+  const workflowRun = {
+    name: 'CI',
+    event,
+    status: 'completed',
+    conclusion: 'success',
+    head_branch: event === 'push' ? 'main' : RELEASE_BRANCH,
+    head_sha: event === 'push' ? mainSha : headSha,
+    head_repository: { full_name: repository },
+    ...workflowRunOverrides,
+  };
+  const nativeWorkflowRun = {
+    name: 'CI',
+    event: 'pull_request',
+    status: 'completed',
+    conclusion: 'success',
+    head_branch: RELEASE_BRANCH,
+    head_sha: headSha,
+    head_repository: { full_name: repository },
+  };
+  const defaultPushRun = workflowRunFixture({
+    event: 'push',
+    headSha: mainSha,
+    headBranch: 'main',
+    id: 98,
+  });
+  const effectivePushRuns = pushWorkflowRuns.length > 0 ? pushWorkflowRuns : [defaultPushRun];
+  const effectiveJobsByRun = { ...jobsByRun };
+  if (pushWorkflowRuns.length === 0 && !effectiveJobsByRun[98]) {
+    effectiveJobsByRun[98] = [
+      { name: 'release-please', status: 'completed', conclusion: 'success', run_attempt: 1 },
+    ];
+  }
+  const workflowRunsByEvent = {
+    push: effectivePushRuns,
+    pull_request: nativeWorkflowRuns.length > 0 ? nativeWorkflowRuns : [nativeWorkflowRun],
+  };
   const fixture = {
-    workflowRun: {
-      name: 'CI',
-      event: 'pull_request',
-      conclusion: 'success',
-      head_branch: RELEASE_BRANCH,
-      head_sha: headSha,
-      head_repository: { full_name: repository },
-    },
+    mainShaSequence,
+    workflowRunsByEvent,
+    jobsByRun: effectiveJobsByRun,
+    compareByMain,
+    compareRelations,
+    workflowRun,
     openPr,
     mergedPr,
     headCommit: clone(realRestHeadCommit),
@@ -371,7 +441,9 @@ async function makeEvaluatorCommandFake({ checks = successfulChecks() } = {}) {
     contents,
     merge: { merged: true, sha: mergeSha },
   };
+  await writeFile(logPath, '', 'utf8');
   await writeFile(fixturePath, JSON.stringify(fixture), 'utf8');
+  await writeFile(githubOutputPath, '', 'utf8');
   await writeFile(
     fakeGhPath,
     `#!/usr/bin/env node
@@ -380,6 +452,7 @@ import fs from 'node:fs';
 const fixture = JSON.parse(fs.readFileSync(process.env.FIXTURE_PATH, 'utf8'));
 const args = process.argv.slice(2);
 const endpoint = args[1] || '';
+const callsBefore = fs.readFileSync(process.env.FAKE_GH_LOG, 'utf8');
 fs.appendFileSync(process.env.FAKE_GH_LOG, \`\${args.join(' ')}\\n\`);
 const fail = (message) => {
   process.stderr.write(message + '\\n');
@@ -390,16 +463,55 @@ if (args[0] !== 'api') fail('unexpected gh invocation');
 
 if (endpoint === 'repos/${repository}/actions/runs/99') {
   output(fixture.workflowRun);
+} else if (endpoint.startsWith('repos/${repository}/actions/runs?')) {
+  const query = endpoint.slice(endpoint.indexOf('?') + 1);
+  const event = new URLSearchParams(query).get('event') || '';
+  output({ workflow_runs: fixture.workflowRunsByEvent[event] || [] });
+} else if (
+  endpoint.startsWith('repos/${repository}/actions/runs/') &&
+  endpoint.endsWith('/jobs?per_page=100')
+) {
+  const runId = endpoint.slice(
+    'repos/${repository}/actions/runs/'.length,
+    endpoint.indexOf('/jobs?'),
+  );
+  output({ jobs: fixture.jobsByRun[runId] || [] });
 } else if (endpoint === 'repos/${repository}/git/ref/heads/main') {
-  output({ object: { sha: '${mainSha}' } });
+  const mainRefReads = callsBefore
+    .split('\\n')
+    .filter((line) => line.endsWith('repos/${repository}/git/ref/heads/main')).length;
+  const mainSha = fixture.mainShaSequence[
+    Math.min(mainRefReads, fixture.mainShaSequence.length - 1)
+  ];
+  output({ object: { sha: mainSha } });
 } else if (endpoint === 'repos/${repository}/commits/${headSha}') {
   output(fixture.headCommit);
 } else if (endpoint === 'repos/${repository}/commits/${headSha}/pulls?per_page=100') {
   output([[fixture.openPr]]);
+} else if (endpoint.startsWith('repos/${repository}/pulls?state=open')) {
+  output([fixture.openPr]);
 } else if (endpoint === 'repos/${repository}/commits/${headSha}/check-runs?per_page=100') {
   output([{ check_runs: fixture.checks }]);
-} else if (endpoint.startsWith('repos/${repository}/compare/${mainSha}...${headSha}?')) {
-  output(fixture.compare);
+} else if (endpoint.startsWith('repos/${repository}/compare/')) {
+  const comparePart = endpoint.slice(
+    endpoint.indexOf('/compare/') + '/compare/'.length,
+  );
+  const [baseSha, head] = comparePart.split('...').map((value) => value.split('?')[0]);
+  if (head === '${headSha}') {
+    output(
+      fixture.compareByMain[baseSha] || {
+        ...fixture.compare,
+        merge_base_commit: { sha: baseSha },
+      },
+    );
+  } else {
+    output(
+      fixture.compareRelations?.[\`\${baseSha}...\${head}\`] || {
+        status: 'ahead',
+        merge_base_commit: { sha: baseSha },
+      },
+    );
+  }
 } else if (endpoint === 'repos/${repository}/pulls/42') {
   output(fs.existsSync(process.env.FAKE_MERGED) ? fixture.mergedPr : fixture.openPr);
 } else if (endpoint === 'repos/${repository}/pulls/42/merge') {
@@ -421,11 +533,14 @@ if (endpoint === 'repos/${repository}/actions/runs/99') {
     'utf8',
   );
   await chmod(fakeGhPath, 0o755);
-  return { directory, fixturePath, logPath, mergedMarker };
+  return { directory, fixturePath, logPath, mergedMarker, githubOutputPath };
 }
 async function makeClassificationCommandFake({
   pullRequest = realRestMergedReleasePr(),
   mergeCommit = realRestMergeCommit,
+  mergePackageValues = {},
+  mergeManifestVersion = '0.4.1',
+  missingContentRefs = [],
 } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'kobako-release-classify-'));
   const fixturePath = join(directory, 'fixture.json');
@@ -454,10 +569,16 @@ async function makeClassificationCommandFake({
   const contents = {};
   for (const relativePath of packagePaths) {
     contents[`${relativePath}:${mainSha}`] = jsonFile(packageBase, sha('1'));
-    contents[`${relativePath}:${mergeSha}`] = jsonFile(packageHead, sha('2'));
+    contents[`${relativePath}:${mergeSha}`] = jsonFile(
+      mergePackageValues[relativePath] || packageHead,
+      sha('2'),
+    );
   }
   contents[`.release-please-manifest.json:${mainSha}`] = jsonFile({ '.': '0.4.0' }, sha('3'));
-  contents[`.release-please-manifest.json:${mergeSha}`] = jsonFile({ '.': '0.4.1' }, sha('4'));
+  contents[`.release-please-manifest.json:${mergeSha}`] = jsonFile(
+    { '.': mergeManifestVersion },
+    sha('4'),
+  );
   contents[`CHANGELOG.md:${mainSha}`] = textFile('# Changelog\n\n## 0.4.0\n\nHistory\n', sha('5'));
   contents[`CHANGELOG.md:${mergeSha}`] = textFile(
     '# Changelog\n\n## 0.4.1\n\nRelease\n\n## 0.4.0\n\nHistory\n',
@@ -479,6 +600,7 @@ async function makeClassificationCommandFake({
       ],
     },
     contents,
+    missingContentRefs,
   };
   await writeFile(fixturePath, JSON.stringify(fixture), 'utf8');
   await writeFile(githubOutputPath, '', 'utf8');
@@ -510,6 +632,9 @@ if (endpoint === 'repos/${repository}/commits/${mergeSha}') {
     .slice('repos/${repository}/contents/'.length)
     .split('?');
   const ref = new URLSearchParams(query).get('ref');
+  if (fixture.missingContentRefs.includes(\`\${relativePath}:\${ref}\`)) {
+    fail('404 Not Found');
+  }
   const value = fixture.contents[\`\${relativePath}:\${ref}\`];
   if (!value) fail(\`missing content fixture for \${relativePath} at \${ref}\`);
   output(value);
@@ -655,13 +780,14 @@ function runStaleReleaseCommand(fake, overrides = {}) {
   );
 }
 
-function evaluatorCommandEnv(fake) {
+function evaluatorCommandEnv(fake, overrides = {}) {
   return {
     ...process.env,
     PATH: `${fake.directory}:${process.env.PATH || ''}`,
     FIXTURE_PATH: fake.fixturePath,
     FAKE_GH_LOG: fake.logPath,
     FAKE_MERGED: fake.mergedMarker,
+    GITHUB_OUTPUT: fake.githubOutputPath,
     GH_TOKEN: 'fixture-read-token',
     MERGE_GH_TOKEN: 'fixture-merge-token',
     GITHUB_REPOSITORY: repository,
@@ -669,7 +795,19 @@ function evaluatorCommandEnv(fake) {
     WORKFLOW_HEAD_SHA: headSha,
     WORKFLOW_HEAD_BRANCH: RELEASE_BRANCH,
     RELEASE_APP_BOT_LOGIN: appBotLogin,
+    ...overrides,
   };
+}
+function runEvaluatorCommand(fake, overrides = {}) {
+  return spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('./release-automation.mjs', import.meta.url)), 'evaluate-release-pr'],
+    {
+      cwd: fileURLToPath(new URL('../', import.meta.url)),
+      encoding: 'utf8',
+      env: evaluatorCommandEnv(fake, overrides),
+    },
+  );
 }
 
 describe('evaluate-release-pr command API boundary', () => {
@@ -702,35 +840,211 @@ describe('evaluate-release-pr command API boundary', () => {
     }
   });
 
-  it.each([
-    ['pending', { status: 'in_progress', conclusion: null }],
-    ['failed', { status: 'completed', conclusion: 'failure' }],
-  ])('does not PUT the merge when the latest lint check is %s', async (_name, override) => {
-    const checks = successfulChecks();
-    checks[0] = successfulCheck('lint', 99, override);
-    const fake = await makeEvaluatorCommandFake({ checks });
-    try {
-      const result = spawnSync(
-        process.execPath,
-        [
-          fileURLToPath(new URL('./release-automation.mjs', import.meta.url)),
-          'evaluate-release-pr',
+  it('uses the owner:branch head filter and merges from the push evaluator path', async () => {
+    const mainRun = workflowRunFixture({
+      event: 'push',
+      headSha: mainSha,
+      headBranch: 'main',
+      id: 100,
+    });
+    const nativeRun = workflowRunFixture({
+      event: 'pull_request',
+      headSha,
+      headBranch: RELEASE_BRANCH,
+      id: 101,
+    });
+    const fake = await makeEvaluatorCommandFake({
+      event: 'push',
+      workflowRunOverrides: mainRun,
+      pushWorkflowRuns: [mainRun],
+      nativeWorkflowRuns: [nativeRun],
+      jobsByRun: {
+        100: [
+          { name: 'release-please', status: 'completed', conclusion: 'success', run_attempt: 1 },
         ],
-        {
-          cwd: fileURLToPath(new URL('../', import.meta.url)),
-          encoding: 'utf8',
-          env: evaluatorCommandEnv(fake),
-        },
-      );
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /required native PR checks are not complete:.*lint/);
+      },
+    });
+    try {
+      const result = runEvaluatorCommand(fake, {
+        WORKFLOW_HEAD_SHA: mainSha,
+        WORKFLOW_HEAD_BRANCH: 'main',
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
       const invocations = await readFile(fake.logPath, 'utf8');
-      assert.doesNotMatch(invocations, /pulls\/42\/merge/);
-      assert.equal(existsSync(fake.mergedMarker), false);
+      assert.match(
+        invocations,
+        new RegExp(`pulls\\?state=open&head=takano536%3A${RELEASE_BRANCH}`),
+      );
+      assert.doesNotMatch(invocations, /head=takano536%2Fkobako%3A/);
+      assert.equal(existsSync(fake.mergedMarker), true);
     } finally {
       await rm(fake.directory, { recursive: true, force: true });
     }
   });
+
+  it('defers without merging while the current Release PR CI run is in progress', async () => {
+    const mainRun = workflowRunFixture({
+      event: 'push',
+      headSha: mainSha,
+      headBranch: 'main',
+      id: 102,
+    });
+    const pendingNativeRun = workflowRunFixture({
+      event: 'pull_request',
+      headSha,
+      headBranch: RELEASE_BRANCH,
+      id: 103,
+      status: 'in_progress',
+      conclusion: null,
+    });
+    const fake = await makeEvaluatorCommandFake({
+      event: 'push',
+      workflowRunOverrides: mainRun,
+      pushWorkflowRuns: [mainRun],
+      nativeWorkflowRuns: [pendingNativeRun],
+      jobsByRun: {
+        102: [
+          { name: 'release-please', status: 'completed', conclusion: 'success', run_attempt: 1 },
+        ],
+      },
+    });
+    try {
+      const result = runEvaluatorCommand(fake, {
+        WORKFLOW_HEAD_SHA: mainSha,
+        WORKFLOW_HEAD_BRANCH: 'main',
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^deferred=true$/m);
+      assert.match(result.stdout, /deferred.*native pull_request CI run/);
+      assert.equal(existsSync(fake.mergedMarker), false);
+      assert.doesNotMatch(await readFile(fake.logPath, 'utf8'), /pulls\/42\/merge/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('defers the PR-triggered evaluator while live main CI is in progress', async () => {
+    const pendingMainRun = workflowRunFixture({
+      event: 'push',
+      headSha: mainSha,
+      headBranch: 'main',
+      id: 107,
+      status: 'in_progress',
+      conclusion: null,
+    });
+    const fake = await makeEvaluatorCommandFake({
+      pushWorkflowRuns: [pendingMainRun],
+    });
+    try {
+      const result = runEvaluatorCommand(fake);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^deferred=true$/m);
+      assert.match(result.stdout, /deferred.*main.*CI push run/);
+      assert.equal(existsSync(fake.mergedMarker), false);
+      assert.doesNotMatch(await readFile(fake.logPath, 'utf8'), /pulls\/42\/merge/);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('revalidates from scratch after main moves and merges only the fresh snapshot', async () => {
+    const newerMainSha = sha('d');
+    const oldMainRun = workflowRunFixture({
+      event: 'push',
+      headSha: mainSha,
+      headBranch: 'main',
+      id: 104,
+    });
+    const newerMainRun = workflowRunFixture({
+      event: 'push',
+      headSha: newerMainSha,
+      headBranch: 'main',
+      id: 105,
+    });
+    const nativeRun = workflowRunFixture({
+      event: 'pull_request',
+      headSha,
+      headBranch: RELEASE_BRANCH,
+      id: 106,
+    });
+    const fake = await makeEvaluatorCommandFake({
+      event: 'push',
+      workflowRunOverrides: oldMainRun,
+      mainShaSequence: [mainSha, mainSha, newerMainSha],
+      pushWorkflowRuns: [oldMainRun, newerMainRun],
+      nativeWorkflowRuns: [nativeRun],
+      jobsByRun: {
+        104: [
+          { name: 'release-please', status: 'completed', conclusion: 'success', run_attempt: 1 },
+        ],
+        105: [
+          { name: 'release-please', status: 'completed', conclusion: 'success', run_attempt: 1 },
+        ],
+      },
+      compareByMain: {
+        [newerMainSha]: {
+          status: 'ahead',
+          merge_base_commit: { sha: mainSha },
+          files: [
+            { filename: 'CHANGELOG.md' },
+            { filename: '.release-please-manifest.json' },
+            { filename: 'package.json' },
+            { filename: 'apps/web/package.json' },
+            { filename: 'apps/worker/package.json' },
+            { filename: 'packages/db/package.json' },
+          ],
+        },
+      },
+      compareRelations: {
+        [`${mainSha}...${newerMainSha}`]: {
+          status: 'ahead',
+          merge_base_commit: { sha: mainSha },
+        },
+      },
+    });
+    try {
+      const result = runEvaluatorCommand(fake, {
+        WORKFLOW_HEAD_SHA: mainSha,
+        WORKFLOW_HEAD_BRANCH: 'main',
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(result.stdout, /snapshot changed during attempt 1/);
+      const invocations = await readFile(fake.logPath, 'utf8');
+      assert.match(invocations, new RegExp(`compare/${newerMainSha}\\.\\.\\.${headSha}`));
+      assert.equal((invocations.match(/pulls\/42\/merge/g) || []).length, 1);
+      assert.equal(existsSync(fake.mergedMarker), true);
+    } finally {
+      await rm(fake.directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['pending', { status: 'in_progress', conclusion: null }, true],
+    ['failed', { status: 'completed', conclusion: 'failure' }, false],
+  ])(
+    'does not PUT the merge when the latest lint check is %s',
+    async (_name, override, deferred) => {
+      const checks = successfulChecks();
+      checks[0] = successfulCheck('lint', 99, override);
+      const fake = await makeEvaluatorCommandFake({ checks });
+      try {
+        const result = runEvaluatorCommand(fake);
+        if (deferred) {
+          assert.equal(result.status, 0, result.stderr || result.stdout);
+          assert.match(await readFile(fake.githubOutputPath, 'utf8'), /^deferred=true$/m);
+          assert.match(result.stdout, /deferred/);
+        } else {
+          assert.notEqual(result.status, 0);
+          assert.match(result.stderr, /required native PR checks are not complete:.*lint/);
+        }
+        const invocations = await readFile(fake.logPath, 'utf8');
+        assert.doesNotMatch(invocations, /pulls\/42\/merge/);
+        assert.equal(existsSync(fake.mergedMarker), false);
+      } finally {
+        await rm(fake.directory, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe('check-stale-release command API boundary', () => {
@@ -1438,8 +1752,8 @@ describe('canonical Release PR and provenance guards', () => {
   });
 
   it('runs post-merge Release PR and commit validation through classify-main-release', async () => {
-    const runClassification = async (pullRequest) => {
-      const fake = await makeClassificationCommandFake({ pullRequest });
+    const runClassification = async (pullRequest, options = {}) => {
+      const fake = await makeClassificationCommandFake({ pullRequest, ...options });
       try {
         const result = spawnSync(
           process.execPath,
@@ -1489,7 +1803,65 @@ describe('canonical Release PR and provenance guards', () => {
       `${wrongPrAuthor.result.stderr}${wrongPrAuthor.result.stdout}`,
       /no canonical merged Release PR.*author is not the configured release App bot/,
     );
-  });
+    const ordinaryPullRequest = realRestMergedReleasePr({
+      number: 53,
+      title: 'fix(deps): bump next to 16.3.8 with pnpm-lock.yaml update',
+      body: '',
+      user: { login: 'dependabot[bot]', type: 'Bot' },
+      head: {
+        ...realRestMergedReleasePr().head,
+        ref: 'fix/next-16.3.8-lockfile',
+      },
+      labels: [],
+    });
+    const packageBase = { name: 'fixture', version: '0.4.0', scripts: { test: 'fixture' } };
+    const unchangedPackages = {
+      'package.json': packageBase,
+      'apps/web/package.json': packageBase,
+      'apps/worker/package.json': packageBase,
+      'packages/db/package.json': packageBase,
+    };
+    const dependencyOnly = await runClassification(ordinaryPullRequest, {
+      mergePackageValues: {
+        ...unchangedPackages,
+        'apps/web/package.json': {
+          ...packageBase,
+          dependencies: { next: '16.3.8' },
+        },
+      },
+      mergeManifestVersion: '0.4.0',
+    });
+    assert.equal(
+      dependencyOnly.result.status,
+      0,
+      dependencyOnly.result.stderr || dependencyOnly.result.stdout,
+    );
+    assert.match(dependencyOnly.output, /^is_release=false$/m);
+
+    const absentParent = await runClassification(ordinaryPullRequest, {
+      mergePackageValues: unchangedPackages,
+      mergeManifestVersion: '0.4.0',
+      missingContentRefs: [`package.json:${mainSha}`],
+    });
+    assert.notEqual(absentParent.result.status, 0);
+    assert.match(
+      `${absentParent.result.stderr}${absentParent.result.stdout}`,
+      /no canonical merged Release PR/,
+    );
+
+    const versionOnly = await runClassification(ordinaryPullRequest, {
+      mergePackageValues: {
+        ...unchangedPackages,
+        'package.json': { ...packageBase, version: '0.4.1' },
+      },
+      mergeManifestVersion: '0.4.0',
+    });
+    assert.notEqual(versionOnly.result.status, 0);
+    assert.match(
+      `${versionOnly.result.stderr}${versionOnly.result.stdout}`,
+      /no canonical merged Release PR/,
+    );
+  }, 30000);
 
   it('accepts only the allowlisted Release Please files', () => {
     const allowlist = [
@@ -1962,7 +2334,13 @@ if (endpointPath.startsWith(contentPrefix)) {
   const relativePath = decodeURIComponent(endpointPath.slice(contentPrefix.length));
   const blob = fixture.blobs[relativePath];
   if (!blob) fail('unexpected contents path: ' + relativePath);
-  console.log(JSON.stringify({ sha: blob }));
+  const json = relativePath === '.release-please-manifest.json' ? { '.': '0.4.0' } : { version: '0.4.0' };
+  console.log(JSON.stringify({
+    sha: blob,
+    type: 'file',
+    encoding: 'base64',
+    content: Buffer.from(JSON.stringify(json)).toString('base64'),
+  }));
 } else if (endpoint === 'repos/takano536/kobako/commits/' + fixture.mergeSha) {
   console.log(JSON.stringify({ sha: fixture.mergeSha, parents: [{ sha: fixture.parentSha }] }));
 } else if (endpoint === 'repos/takano536/kobako/commits/' + fixture.mergeSha + '/pulls?per_page=100') {

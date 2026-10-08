@@ -16,6 +16,7 @@ const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 export const MAX_MERGED_RELEASE_PR_RESULTS = 200;
 export const RELEASE_FINALIZE_JOB = 'release-finalize';
 export const MAX_WORKFLOW_LOOKUP_ATTEMPTS = 3;
+export const MAX_EVALUATOR_ATTEMPTS = 3;
 export const MAX_LABEL_LOOKUP_ATTEMPTS = 3;
 
 function asString(value) {
@@ -122,7 +123,9 @@ function releaseJsonVersionPaths(config) {
       const extraPath = typeof extraFile === 'string' ? extraFile : extraFile?.path;
       const extraType =
         typeof extraFile === 'object' && extraFile !== null ? extraFile.type : undefined;
-      if (extraPath && (extraType === 'json' || extraPath.endsWith('.json'))) {
+      const extraJsonPath =
+        typeof extraFile === 'object' && extraFile !== null ? extraFile.jsonpath : undefined;
+      if (extraPath && extraType === 'json' && extraJsonPath === '$.version') {
         paths.add(normalizeReleasePath(extraPath));
       }
     }
@@ -542,6 +545,20 @@ function getJsonAtCommit(repository, relativePath, sha) {
     });
   }
 }
+function releaseVersionField(relativePath) {
+  return relativePath === '.release-please-manifest.json' ? '.' : 'version';
+}
+
+function releaseVersionChangedAtCommit(repository, relativePath, parentSha, mergeSha) {
+  const parentBlobSha = getBlobShaAtCommit(repository, relativePath, parentSha);
+  const mergeBlobSha = getBlobShaAtCommit(repository, relativePath, mergeSha);
+  if (!parentBlobSha || !mergeBlobSha) return parentBlobSha !== mergeBlobSha;
+  if (parentBlobSha === mergeBlobSha) return false;
+  const field = releaseVersionField(relativePath);
+  const parentValue = getJsonAtCommit(repository, relativePath, parentSha)?.[field];
+  const mergeValue = getJsonAtCommit(repository, relativePath, mergeSha)?.[field];
+  return parentValue !== mergeValue;
+}
 
 function releaseVersionAtCommit(repository, sha) {
   const packageJson = getJsonAtCommit(repository, 'package.json', sha);
@@ -955,6 +972,58 @@ const ACTIVE_WORKFLOW_STATUSES = new Set([
   'requested',
   'pending',
 ]);
+function evaluatorDeferredError(message) {
+  const error = new Error(message);
+  error.deferred = true;
+  return error;
+}
+
+function evaluatorRetryError(message, cause) {
+  const error = new Error(message, cause ? { cause } : undefined);
+  error.retryable = true;
+  return error;
+}
+
+function isActiveWorkflowStatus(status) {
+  return ACTIVE_WORKFLOW_STATUSES.has(asString(status));
+}
+
+function requiredChecksArePending(checks) {
+  return (Array.isArray(checks?.errors) ? checks.errors : []).some((error) =>
+    /\b(?:queued|in_progress|waiting|requested|pending)(?:\/|:|\b)/.test(error),
+  );
+}
+
+function deferEvaluator(reason) {
+  emit('deferred', 'true');
+  console.log(`Release evaluator deferred: ${reason}`);
+}
+
+function evaluateWithRetries(callback) {
+  for (let attempt = 1; attempt <= MAX_EVALUATOR_ATTEMPTS; attempt += 1) {
+    try {
+      return callback(attempt);
+    } catch (error) {
+      if (error?.deferred) {
+        deferEvaluator(error.message);
+        return;
+      }
+      if (!error?.retryable || attempt >= MAX_EVALUATOR_ATTEMPTS) {
+        if (error?.retryable) {
+          deferEvaluator(
+            `${error.message}; bounded revalidation attempts exhausted without a fresh snapshot`,
+          );
+          return;
+        }
+        throw error;
+      }
+      console.log(
+        `Release evaluator snapshot changed during attempt ${attempt}; revalidating from scratch`,
+      );
+      runCommand('sleep', [String(attempt)]);
+    }
+  }
+}
 
 export function decideReleaseFinalizeState({ run, releaseFinalizeJob, currentRun = false } = {}) {
   if (releaseFinalizeJob?.status === 'completed') return 'stale';
@@ -1123,7 +1192,9 @@ export function decideStaleReleaseState(
 }
 
 function openReleasePullRequests(repository) {
-  const head = encodeURIComponent(`${repository}:${RELEASE_BRANCH}`);
+  const owner = asString(repository).split('/')[0];
+  if (!owner) throw new Error(`invalid repository for Release PR head filter: ${repository}`);
+  const head = encodeURIComponent(`${owner}:${RELEASE_BRANCH}`);
   return ghApi(repository, `pulls?state=open&head=${head}&per_page=100`);
 }
 
@@ -1195,12 +1266,11 @@ function releasePullRequestsForCommit(repository, sha) {
 function releaseChangedPathsForCommit(repository, mergeSha, releasePaths) {
   const parents = commitParents(getCommit(repository, mergeSha));
   const paths = Array.isArray(releasePaths) ? releasePaths : [];
-  return paths.filter((relativePath) => {
-    const mergeBlobSha = getBlobShaAtCommit(repository, relativePath, mergeSha);
-    return parents.some(
-      (parentSha) => getBlobShaAtCommit(repository, relativePath, parentSha) !== mergeBlobSha,
-    );
-  });
+  return paths.filter((relativePath) =>
+    parents.some((parentSha) =>
+      releaseVersionChangedAtCommit(repository, relativePath, parentSha, mergeSha),
+    ),
+  );
 }
 
 function retryCanonicalMergedReleaseForCommit(repository, mergeSha, attempts = 3) {
@@ -1639,17 +1709,32 @@ function requireMainPushReleasePleaseSuccess(repository, mainSha) {
     headBranch: 'main',
   });
   if (!latest) {
-    throw new Error(
-      `live main ${mainSha} has no completed CI push run to prove Release Please evaluated it`,
+    throw evaluatorDeferredError(
+      `live main ${mainSha} has no visible CI push run to prove Release Please evaluated it yet`,
     );
   }
+  if (isActiveWorkflowStatus(latest.status)) {
+    throw evaluatorDeferredError(
+      `live main ${mainSha} CI push run ${latest.id} is ${latest.status}; waiting for Release Please evaluation`,
+    );
+  }
+  const jobs = workflowRunJobs(repository, latest.id);
   const evidence = validateMainPushReleasePleaseEvidence({
     run: latest,
-    jobs: workflowRunJobs(repository, latest.id),
+    jobs,
     repository,
     headSha: mainSha,
   });
   if (!evidence.ok) {
+    const releasePleaseJob = jobs
+      .filter((job) => job?.name === 'release-please')
+      .sort(compareWorkflowRuns)
+      .at(-1);
+    if (isActiveWorkflowStatus(releasePleaseJob?.status)) {
+      throw evaluatorDeferredError(
+        `live main ${mainSha} Release Please job is ${releasePleaseJob.status}; waiting for it to finish`,
+      );
+    }
     throw new Error(
       `live main ${mainSha} Release Please evaluation is not successful: ${evidence.error}`,
     );
@@ -1669,7 +1754,14 @@ function latestSuccessfulReleasePrWorkflowRun(repository, headSha) {
     headBranch: RELEASE_BRANCH,
   });
   if (!latest) {
-    throw new Error(`Release PR head ${headSha} has no native pull_request CI run`);
+    throw evaluatorDeferredError(
+      `Release PR head ${headSha} has no visible native pull_request CI run yet`,
+    );
+  }
+  if (isActiveWorkflowStatus(latest.status)) {
+    throw evaluatorDeferredError(
+      `latest native pull_request CI run for ${headSha} is ${latest.status}; waiting for completion`,
+    );
   }
   if (latest.status !== 'completed' || latest.conclusion !== 'success') {
     throw new Error(
@@ -1681,8 +1773,14 @@ function latestSuccessfulReleasePrWorkflowRun(repository, headSha) {
   return latest;
 }
 
-function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }) {
+function evaluateCanonicalOpenReleasePr(
+  repository,
+  { run, pr, expectedHeadSha, mainPushEvidenceSha = '' },
+) {
   const mainSha = getMainSha(repository);
+  if (mainPushEvidenceSha !== mainSha) {
+    requireMainPushReleasePleaseSuccess(repository, mainSha);
+  }
   const headSha = asSha(expectedHeadSha);
   const headCommit = getCommit(repository, headSha);
   const config = readReleasePleaseConfig();
@@ -1694,7 +1792,6 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
   let releaseComparison = comparison;
   let allowStaleBase = false;
   if (diffBaseSha !== mainSha) {
-    requireMainPushReleasePleaseSuccess(repository, mainSha);
     const baseToMain = compareCommitRelation(repository, diffBaseSha, mainSha);
     allowStaleBase = baseToMain.status === 'ahead' || baseToMain.status === 'identical';
     if (!allowStaleBase) {
@@ -1709,6 +1806,13 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
       );
     }
   }
+  const checkRuns = getCheckRuns(repository, headSha);
+  const checks = selectLatestRequiredChecks(checkRuns);
+  if (!checks.ok && requiredChecksArePending(checks)) {
+    throw evaluatorDeferredError(
+      `required native PR checks are still pending for ${headSha}: ${checks.errors.join('; ')}`,
+    );
+  }
   validateReleasePrSnapshot({
     workflowRun: run,
     pr,
@@ -1718,7 +1822,7 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
     allowStaleBase,
     headSha,
     headCommit,
-    checkRuns: getCheckRuns(repository, headSha),
+    checkRuns,
     changedPaths: releaseComparison.files,
     allowedPaths: [...releaseOwnedPaths(config)],
     appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
@@ -1727,7 +1831,7 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
   validateReleasePrMetadata(repository, pr, headSha);
   const mergeMainSha = getMainSha(repository);
   if (mergeMainSha !== mainSha) {
-    throw new Error(
+    throw evaluatorRetryError(
       `live main moved from ${mainSha} to ${mergeMainSha} during evaluator validation`,
     );
   }
@@ -1739,6 +1843,11 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
   });
   const currentChecks = selectLatestRequiredChecks(getCheckRuns(repository, headSha));
   if (!currentChecks.ok) {
+    if (requiredChecksArePending(currentChecks)) {
+      throw evaluatorDeferredError(
+        `required native PR checks changed before merge and are still pending: ${currentChecks.errors.join('; ')}`,
+      );
+    }
     throw new Error(
       `required native PR checks changed before merge: ${currentChecks.errors.join('; ')}`,
     );
@@ -1757,9 +1866,9 @@ function evaluateCanonicalOpenReleasePr(repository, { run, pr, expectedHeadSha }
     });
   } catch (error) {
     if (isSafeMergeConflict(error.message)) {
-      throw new Error(
-        `Release PR merge stopped safely due to conflict or stale base: ${error.message}`,
-        { cause: error },
+      throw evaluatorRetryError(
+        `Release PR merge encountered a safe conflict; revalidating from scratch: ${error.message}`,
+        error,
       );
     }
     throw new Error(`Release PR merge failed: ${error.message}`, { cause: error });
@@ -1806,27 +1915,35 @@ function commandEvaluateReleasePr() {
       headBranch: 'main',
     });
     if (!runValidation.ok) throw new Error(runValidation.errors.join('; '));
-    const mainSha = getMainSha(repository);
-    if (mainSha !== expectedHeadSha) {
-      throw new Error(`live main moved to ${mainSha} after push run ${expectedHeadSha}`);
-    }
-    requireMainPushReleasePleaseSuccess(repository, mainSha);
-    const openPullRequests = detailedPullRequests(repository, openReleasePullRequests(repository));
-    const candidate = selectCanonicalOpenReleasePr(openPullRequests, {
-      repository,
-      appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
-    });
-    if (!candidate) {
-      emit('no_open_release_pr', 'true');
-      return;
-    }
-    const headSha = asSha(candidate.pr?.head?.sha);
-    if (!headSha) throw new Error('canonical open Release PR has no head SHA');
-    const prRun = latestSuccessfulReleasePrWorkflowRun(repository, headSha);
-    return evaluateCanonicalOpenReleasePr(repository, {
-      run: prRun,
-      pr: candidate.pr,
-      expectedHeadSha: headSha,
+    return evaluateWithRetries(() => {
+      const mainSha = getMainSha(repository);
+      if (mainSha !== expectedHeadSha) {
+        console.log(
+          `live main moved from ${expectedHeadSha} to ${mainSha}; validating the newer main snapshot`,
+        );
+      }
+      requireMainPushReleasePleaseSuccess(repository, mainSha);
+      const openPullRequests = detailedPullRequests(
+        repository,
+        openReleasePullRequests(repository),
+      );
+      const candidate = selectCanonicalOpenReleasePr(openPullRequests, {
+        repository,
+        appBotLogin: process.env.RELEASE_APP_BOT_LOGIN || '',
+      });
+      if (!candidate) {
+        emit('no_open_release_pr', 'true');
+        return;
+      }
+      const headSha = asSha(candidate.pr?.head?.sha);
+      if (!headSha) throw new Error('canonical open Release PR has no head SHA');
+      const prRun = latestSuccessfulReleasePrWorkflowRun(repository, headSha);
+      return evaluateCanonicalOpenReleasePr(repository, {
+        run: prRun,
+        pr: candidate.pr,
+        expectedHeadSha: headSha,
+        mainPushEvidenceSha: mainSha,
+      });
     });
   }
 
@@ -1841,32 +1958,34 @@ function commandEvaluateReleasePr() {
     headBranch: RELEASE_BRANCH,
   });
   if (!runValidation.ok) throw new Error(runValidation.errors.join('; '));
-  const pullRequests = pullRequestsForCommit(repository, expectedHeadSha);
-  const open = pullRequests.filter(
-    (pr) =>
-      pr?.state === 'open' &&
-      pr?.head?.ref === RELEASE_BRANCH &&
-      asSha(pr?.head?.sha) === expectedHeadSha,
-  );
-  const merged = alreadyMergedForHead(repository, expectedHeadSha, pullRequests);
-  if (open.length === 0) {
-    if (merged) {
-      validateMergedRelease(repository, merged.pr, merged.identity.mergeSha);
-      emit('already_merged', 'true');
-      emit('pr_number', String(merged.pr.number));
-      emit('merge_sha', merged.identity.mergeSha);
-      return;
+  return evaluateWithRetries(() => {
+    const pullRequests = pullRequestsForCommit(repository, expectedHeadSha);
+    const open = pullRequests.filter(
+      (pr) =>
+        pr?.state === 'open' &&
+        pr?.head?.ref === RELEASE_BRANCH &&
+        asSha(pr?.head?.sha) === expectedHeadSha,
+    );
+    const merged = alreadyMergedForHead(repository, expectedHeadSha, pullRequests);
+    if (open.length === 0) {
+      if (merged) {
+        validateMergedRelease(repository, merged.pr, merged.identity.mergeSha);
+        emit('already_merged', 'true');
+        emit('pr_number', String(merged.pr.number));
+        emit('merge_sha', merged.identity.mergeSha);
+        return;
+      }
+      throw new Error(`no open canonical Release PR has head ${expectedHeadSha}`);
     }
-    throw new Error(`no open canonical Release PR has head ${expectedHeadSha}`);
-  }
-  if (open.length !== 1) {
-    throw new Error(`expected one open Release PR for ${expectedHeadSha}, found ${open.length}`);
-  }
-  const pr = getPullRequest(repository, open[0].number);
-  return evaluateCanonicalOpenReleasePr(repository, {
-    run,
-    pr,
-    expectedHeadSha,
+    if (open.length !== 1) {
+      throw new Error(`expected one open Release PR for ${expectedHeadSha}, found ${open.length}`);
+    }
+    const pr = getPullRequest(repository, open[0].number);
+    return evaluateCanonicalOpenReleasePr(repository, {
+      run,
+      pr,
+      expectedHeadSha,
+    });
   });
 }
 
