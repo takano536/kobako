@@ -949,7 +949,7 @@ h3 {
 
 .transaction-link {
   display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) max-content 13px;
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content 13px;
   align-items: start;
   column-gap: var(--space-item);
   min-width: 0;
@@ -959,22 +959,38 @@ h3 {
 }
 
 .transaction-link > .category-dot {
-  align-self: start;
-  margin-top: calc(0.8em - 3px);
+  align-self: center;
+  margin-top: 0;
 }
 
 .transaction-main {
   display: grid;
   min-width: 0;
   gap: var(--space-within);
-  margin-right: var(--space-item);
 }
 
 .transaction-category {
+  align-self: center;
   min-width: 0;
-  overflow-wrap: break-word;
+  overflow: hidden;
   font-size: var(--text-body);
   line-height: var(--leading-body);
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-asset-group {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-type {
+  color: var(--muted);
 }
 
 .transfer-category {
@@ -983,7 +999,9 @@ h3 {
   flex-wrap: wrap;
   gap: var(--space-within);
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   white-space: normal;
 }
 
@@ -1008,19 +1026,17 @@ h3 {
 }
 
 .transaction-memo {
-  display: -webkit-box;
+  min-width: 0;
   overflow: hidden;
   color: var(--muted);
   font-size: var(--text-small);
   line-height: var(--leading-meta);
-  overflow-wrap: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.recent-copy-text > span,
-.transaction-category,
-.transaction-memo {
+.recent-copy-text > span {
   text-wrap: pretty;
 }
 

@@ -27,8 +27,9 @@ export function TransferRow({
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
       <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
         <span className="category-dot transfer-dot" aria-hidden="true" />
+        <span className="transaction-category transfer-type">振替</span>
         <span className="transaction-main">
-          <span className="transaction-category transfer-category">
+          <span className="transfer-category">
             <span className="transfer-account">{transfer.fromAccountName}</span>
             <span className="transfer-destination">
               <span className="transfer-arrow" aria-hidden="true">

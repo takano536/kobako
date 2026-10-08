@@ -68,8 +68,15 @@ export function TransactionRow({
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
       <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
         <CategoryDot type={transaction.type} name={transaction.categoryName} />
+        <span className="transaction-category" title={transaction.categoryName}>
+          {transaction.categoryName}
+        </span>
         <span className="transaction-main">
-          <span className="transaction-category">{transaction.categoryName}</span>
+          {transaction.accountGroupName ? (
+            <span className="transaction-asset-group" title={transaction.accountGroupName}>
+              {transaction.accountGroupName}
+            </span>
+          ) : null}
           {showMemo && transaction.memo ? (
             <span className="transaction-memo" title={transaction.memo}>
               {transaction.memo}
