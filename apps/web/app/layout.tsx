@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { KobakoMark } from '../src/lib/category';
-import { SiteNav, SiteNavFallback } from './site-nav';
+import { SiteBrand, SiteNav, SiteNavFallback } from './site-nav';
 
 import './globals.css';
 
@@ -22,10 +22,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div className="app-shell">
           <header className="site-header">
             <div className="header-inner">
-              <Link className="brand" href="/" aria-label="kobako 家計ノート ホーム">
-                <KobakoMark />
-                <span>kobako</span>
-              </Link>
+              <Suspense
+                fallback={
+                  <Link className="brand" href="/" aria-label="kobako 家計ノート ホーム">
+                    <KobakoMark />
+                    <span>kobako</span>
+                  </Link>
+                }
+              >
+                <SiteBrand />
+              </Suspense>
               <Suspense fallback={<SiteNavFallback />}>
                 <SiteNav />
               </Suspense>

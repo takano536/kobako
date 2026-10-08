@@ -591,7 +591,7 @@ test('confirms the import and shows the rows in the ledger and overview', async 
     page.getByRole('group', { name: '収入' }).getByText('5,678円', { exact: true }),
   ).toBeVisible();
   await page.getByRole('link', { name: '残高', exact: true }).click();
-  await expect(page).toHaveURL(/\/balances$/);
+  await expect(page).toHaveURL(new RegExp(`/balances\\?month=${month}$`));
   const expenseBalanceRow = page.locator('.balance-row').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
   });

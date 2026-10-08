@@ -9,6 +9,14 @@ import {
   moneyToneClass,
   transactionAmountTone,
 } from '../../src/lib/format';
+import { withSelectedMonth } from '../../src/lib/month-navigation';
+
+function transactionEditHref(
+  transactionId: number,
+  selectedMonth: string | null | undefined,
+): string {
+  return withSelectedMonth(`/transactions/${transactionId}/edit`, selectedMonth);
+}
 
 function typeLabel(type: ListedTransaction['type']): string {
   return type === 'income' ? '収入' : '支出';
@@ -24,23 +32,22 @@ export function TransactionRow({
   showMemo = false,
   showDate = true,
   dateHeading,
+  selectedMonth,
 }: {
   transaction: ListedTransaction;
   showMemo?: boolean;
   showDate?: boolean;
   dateHeading?: string;
+  selectedMonth?: string | null;
 }) {
+  const editHref = transactionEditHref(transaction.id, selectedMonth);
   const label = transactionLabel(transaction);
   const amountTone = transactionAmountTone(transaction.type, transaction.amount);
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
   if (showDate) {
     return (
       <li className="recent-row">
-        <Link
-          className="recent-link"
-          href={`/transactions/${transaction.id}/edit`}
-          aria-label={label}
-        >
+        <Link className="recent-link" href={editHref} aria-label={label}>
           <span className="recent-copy">
             <CategoryDot type={transaction.type} name={transaction.categoryName} />
             <span className="recent-copy-text">
@@ -59,12 +66,7 @@ export function TransactionRow({
   return (
     <li className="transaction-row">
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
-      <Link
-        className="transaction-link"
-        href={`/transactions/${transaction.id}/edit`}
-        prefetch={false}
-        aria-label={label}
-      >
+      <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
         <CategoryDot type={transaction.type} name={transaction.categoryName} />
         <span className="transaction-main">
           <span className="transaction-category">{transaction.categoryName}</span>

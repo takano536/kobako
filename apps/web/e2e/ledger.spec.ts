@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import {
   DEFAULT_HOUSEHOLD_ID,
+  currentTokyoMonth,
   assertSafeTestDatabaseTarget,
   createDatabaseClient,
   initializeDefaultLedger,
@@ -119,6 +120,273 @@ test('shows an empty month and reflects an added expense in the list and overvie
     'マイナス−1,200円',
   );
 });
+
+test('keeps the selected month across global navigation and browser history', async ({ page }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+  const categoryRows = await databaseClient.sql<{ id: string }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+      and name = '食費'
+    limit 1
+  `;
+  const categoryId = categoryRows[0]?.id;
+  if (!categoryId) {
+    throw new Error('navigation category fixture was not found');
+  }
+  const [month, nextMonth] = await chooseEmptyMonthPair(databaseClient, runId);
+  const currentMarker = markerFor('navigation-current');
+  const nextMarker = markerFor('navigation-next');
+  const createMarker = markerFor('navigation-create');
+  const expectOverview = async (expectedMonth: string, expectedAmount: string) => {
+    await expect(page.locator('.month-switcher-label')).toHaveText(labelForMonth(expectedMonth));
+    await expect(
+      page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
+    ).toContainText(expectedAmount);
+  };
+  try {
+    await databaseClient.sql`
+      insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+      values
+        (${DEFAULT_HOUSEHOLD_ID}, 'expense', 321, ${`${month}-21`}, ${categoryId}, ${currentMarker}),
+        (${DEFAULT_HOUSEHOLD_ID}, 'expense', 654, ${`${nextMonth}-21`}, ${categoryId}, ${nextMarker})
+    `;
+
+    await page.goto(`/?month=${month}`);
+    await expectOverview(month, '321円');
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
+    await expect(page.getByText(currentMarker, { exact: true })).toBeVisible();
+    await expect(page.getByText(nextMarker, { exact: true })).toHaveCount(0);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${month}$`));
+    await expectOverview(month, '321円');
+
+    await page.getByRole('link', { name: '翌月', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
+    await expectOverview(nextMonth, '654円');
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await expect(page.getByText(nextMarker, { exact: true })).toBeVisible();
+    await expect(page.getByText(currentMarker, { exact: true })).toHaveCount(0);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expectOverview(nextMonth, '654円');
+    await page.getByRole('link', { name: '残高', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
+    await page.getByRole('link', { name: '資産を登録', exact: true }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/accounts/new\\?month=${nextMonth}$`));
+    await page.getByRole('link', { name: '残高へ戻る', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await expect(page.getByText(nextMarker, { exact: true })).toBeVisible();
+    await page.getByRole('link', { name: '取引を登録', exact: true }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/transactions/new\\?month=${nextMonth}$`));
+    await page.getByLabel('金額').fill('111');
+    await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-22`);
+    await page.locator('.category-field-expense select').selectOption({ label: '食費' });
+    await page.getByLabel('メモ（任意）').fill(createMarker);
+    await page.getByRole('button', { name: '登録する', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    const createdRow = page.locator('.transaction-link').filter({ hasText: createMarker });
+    await expect(createdRow).toHaveCount(1);
+    await createdRow.click();
+    await expect(page).toHaveURL(new RegExp(`/transactions/\\d+/edit\\?month=${nextMonth}$`));
+    await page.getByLabel('金額').fill('222');
+    await page.getByRole('button', { name: '変更を保存', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await expect(page.locator('.transaction-link').filter({ hasText: createMarker })).toContainText(
+      '222円',
+    );
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
+    await expectOverview(nextMonth, '876円');
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+
+    await page.getByRole('link', { name: '取り込む', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions/import\\?month=${nextMonth}$`));
+    await page.getByRole('link', { name: '取引一覧へ戻る', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+
+    await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
+    await page.reload();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
+    await expectOverview(nextMonth, '876円');
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
+    await expectOverview(nextMonth, '876円');
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await expect(page.getByText(nextMarker, { exact: true })).toBeVisible();
+  } finally {
+    await databaseClient.sql`
+      delete from transactions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and (memo = ${currentMarker} or memo = ${nextMarker} or memo = ${createMarker})
+    `;
+  }
+});
+test('keeps the selected month through transaction edit navigation, save, and cancel', async ({
+  page,
+}) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+  const categoryRows = await databaseClient.sql<{ id: string }[]>`
+    select id
+    from categories
+    where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      and type = 'expense'
+      and name = '食費'
+    limit 1
+  `;
+  const categoryId = categoryRows[0]?.id;
+  if (!categoryId) {
+    throw new Error('edit navigation category fixture was not found');
+  }
+  const selectedMarker = markerFor('edit-navigation-selected');
+  const otherMonthMarker = markerFor('edit-navigation-other-month');
+  const selectedRows = await databaseClient.sql<{ id: number }[]>`
+    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', 4321, ${`${month}-28`}, ${categoryId}, ${selectedMarker}),
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', 6543, ${`${nextMonth}-28`}, ${categoryId}, ${otherMonthMarker})
+    returning id
+  `;
+  const selectedTransactionId = Number(selectedRows[0]?.id);
+  if (!Number.isInteger(selectedTransactionId)) {
+    throw new Error('edit navigation transaction fixture was not created');
+  }
+
+  const expectSelectedList = async (amount: string) => {
+    await expect(page.locator('.transaction-link').filter({ hasText: selectedMarker })).toHaveCount(
+      1,
+    );
+    await expect(
+      page.locator('.transaction-link').filter({ hasText: otherMonthMarker }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('.transaction-link').filter({ hasText: selectedMarker }),
+    ).toContainText(amount);
+  };
+  const expectSelectedOverview = async (amount: string) => {
+    await expect(page.getByRole('link', { name: new RegExp(`支出.*${amount}`) })).toBeVisible();
+    await expect(page.getByRole('link', { name: /支出.*6,543円/ })).toHaveCount(0);
+  };
+  const editUrl = new RegExp(`/transactions/${selectedTransactionId}/edit\\?month=${month}$`);
+  const overviewUrl = new RegExp(`/\\?month=${month}$`);
+  const listUrl = new RegExp(`/transactions\\?month=${month}$`);
+
+  try {
+    await page.goto(`/transactions?month=${month}`);
+    await expectSelectedList('4,321円');
+
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
+    await expect(page.getByRole('link', { name: '一覧へ戻る', exact: true })).toHaveAttribute(
+      'href',
+      `/transactions?month=${month}`,
+    );
+    await page.getByRole('link', { name: '一覧へ戻る', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('4,321円');
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('4,321円');
+
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('4,321円');
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+
+    await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('4,321円');
+
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await page.getByLabel('金額').fill('9876');
+    await page.getByRole('button', { name: '変更を保存', exact: true }).click();
+    await expect(page).toHaveURL(listUrl);
+    await expectSelectedList('9,876円');
+
+    await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
+    await expect(page).toHaveURL(editUrl);
+    await page.locator('.delete-confirm > summary').click();
+    await expect(page.getByText('この取引を削除しますか？')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'キャンセル' })).toHaveAttribute(
+      'href',
+      `/transactions/${selectedTransactionId}/edit?month=${month}`,
+    );
+    await page.getByRole('link', { name: 'キャンセル' }).click();
+    await expect(page).toHaveURL(editUrl);
+    await expect(page.getByLabel('金額')).toHaveValue('9876');
+    await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
+
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    await expect(page).toHaveURL(overviewUrl);
+    await expectSelectedOverview('9,876円');
+  } finally {
+    await databaseClient.sql`
+      delete from transactions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and (memo = ${selectedMarker} or memo = ${otherMonthMarker})
+    `;
+  }
+});
+
+test('falls back for invalid or absent month URLs without carrying a bogus month', async ({
+  page,
+}) => {
+  const currentMonth = currentTokyoMonth();
+  const expectMonthlessLinks = async () => {
+    await expect(page.getByRole('link', { name: '概要', exact: true })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    await expect(page.getByRole('link', { name: '取引', exact: true })).toHaveAttribute(
+      'href',
+      '/transactions',
+    );
+    await expect(page.getByRole('link', { name: '残高', exact: true })).toHaveAttribute(
+      'href',
+      '/balances',
+    );
+    await expect(
+      page.getByRole('link', { name: '取引を登録', exact: true }).first(),
+    ).toHaveAttribute('href', '/transactions/new');
+    await expect(page.getByRole('link', { name: 'kobako 家計ノート ホーム' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+  };
+
+  for (const path of ['/?month=2024-13', '/']) {
+    await page.goto(path);
+    await expect(page.locator('.month-switcher-label')).toHaveText(labelForMonth(currentMonth));
+    await expectMonthlessLinks();
+  }
+  await page.goto('/transactions?month=bad');
+  await expect(page.locator('.month-switcher-label')).toHaveText(labelForMonth(currentMonth));
+  await expectMonthlessLinks();
+});
+
 test('keeps shared chrome aligned across viewports and wraps long content', async ({ page }) => {
   if (!databaseClient) {
     throw new Error('database client is not initialized');

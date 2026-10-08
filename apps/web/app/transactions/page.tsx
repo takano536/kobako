@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
+import { withSelectedMonth } from '../../src/lib/month-navigation';
 import {
   formatJapaneseDate,
   formatJapaneseDateWithYear,
@@ -110,6 +111,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     type,
     categoryId,
   );
+  const importHref = withSelectedMonth('/transactions/import', rawMonth);
 
   return (
     <PageShell>
@@ -118,7 +120,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         count={`${rows.length}件`}
         actions={
           <>
-            <ActionLink href="/transactions/import" variant="secondary">
+            <ActionLink href={importHref} variant="secondary">
               取り込む
             </ActionLink>
             <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
@@ -225,6 +227,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   <TransferRow
                     key={`transfer-${transaction.id}`}
                     transfer={transaction}
+                    selectedMonth={rawMonth}
                     showMemo
                     dateHeading={
                       index === 0
@@ -238,6 +241,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   <TransactionRow
                     key={`transaction-${transaction.id}`}
                     transaction={transaction}
+                    selectedMonth={rawMonth}
                     showMemo
                     showDate={false}
                     dateHeading={
