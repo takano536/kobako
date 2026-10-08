@@ -589,8 +589,12 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   const importedIncomeRow = page.locator('.transaction-link').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-income-memo'),
   });
-  await expect(importedExpenseRow.locator('.transaction-asset-category')).toHaveText('その他');
-  await expect(importedIncomeRow.locator('.transaction-asset-category')).toHaveText('その他');
+  await expect(importedExpenseRow.locator('.transaction-asset-name')).toHaveText(
+    markerFor(runMarkerPrefix, 'valid-expense-account'),
+  );
+  await expect(importedIncomeRow.locator('.transaction-asset-name')).toHaveText(
+    markerFor(runMarkerPrefix, 'valid-income-account'),
+  );
   await page.goto(`/?month=${month}`);
   await expect(
     page.locator('.recent-list .transaction-memo').filter({
@@ -598,8 +602,15 @@ test('confirms the import and shows the rows in the ledger and overview', async 
     }),
   ).toBeVisible();
   await expect(
-    page.locator('.recent-list .transaction-asset-category').filter({ hasText: 'その他' }),
-  ).toHaveCount(2);
+    page.locator('.recent-list .transaction-asset-name').filter({
+      hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.recent-list .transaction-asset-name').filter({
+      hasText: markerFor(runMarkerPrefix, 'valid-income-account'),
+    }),
+  ).toHaveCount(1);
   await expect(
     page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
   ).toBeVisible();

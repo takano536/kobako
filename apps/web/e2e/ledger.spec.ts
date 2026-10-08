@@ -418,7 +418,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
     values (
       ${DEFAULT_HOUSEHOLD_ID},
       'expense',
-      9876,
+      999999999,
       ${`${month}-17`},
       ${categoryId},
       ${accountId},
@@ -465,7 +465,8 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
       const overviewRow = page.locator('.recent-row').filter({ hasText: memo });
       await expect(overviewRow).toHaveCount(1);
-      await expect(overviewRow.locator('.transaction-asset-category')).toHaveText('銀行');
+      await expect(overviewRow.locator('.transaction-asset-name')).toHaveText(accountName);
+      await expect(overviewRow.locator('.transaction-asset-name')).not.toHaveText(categoryName);
       await expect(overviewRow.locator('.transaction-memo')).toContainText(memo);
       const overviewColumns = await overviewRow.locator('.transaction-link').evaluate((row) => {
         const bounds = (selector: string) => {
@@ -475,18 +476,18 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
         };
         return {
           category: bounds('.transaction-category'),
-          assetCategory: bounds('.transaction-asset-category'),
+          assetName: bounds('.transaction-asset-name'),
           memo: bounds('.transaction-memo'),
           amount: bounds('.record-amount'),
         };
       });
       const overviewList = await measure('.recent-list');
       expect(overviewColumns.category).toBeDefined();
-      expect(overviewColumns.assetCategory).toBeDefined();
+      expect(overviewColumns.assetName).toBeDefined();
       expect(overviewColumns.memo).toBeDefined();
       expect(overviewColumns.amount).toBeDefined();
-      expect(overviewColumns.assetCategory!.left).toBeCloseTo(overviewColumns.memo!.left, 1);
-      expect(overviewColumns.assetCategory!.left).toBeGreaterThan(overviewColumns.category!.right);
+      expect(overviewColumns.assetName!.left).toBeGreaterThan(overviewColumns.category!.right);
+      expect(overviewColumns.assetName!.left).toBeCloseTo(overviewColumns.memo!.left, 1);
       expect(overviewColumns.amount!.right).toBeCloseTo(overviewList.x + overviewList.width, 1);
       const overviewHeading = await measure('.page-header h1');
       const overviewPrimary = await measure('.page-header .action-link-primary');
@@ -516,7 +517,32 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await assertNoHorizontalOverflow();
       await expect(page.locator('.transaction-memo').filter({ hasText: memo })).toBeVisible();
       const layoutRow = page.locator('.transaction-link').filter({ hasText: memo });
+      await expect(layoutRow.locator('.record-amount')).toHaveText('−999,999,999円');
+      const contentMetrics = await layoutRow
+        .locator(
+          '.transaction-category, .transaction-asset-name, .transaction-memo, .record-amount',
+        )
+        .evaluateAll((elements) =>
+          elements.map((element) => {
+            const style = getComputedStyle(element);
+            return {
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+              clientHeight: element.clientHeight,
+              scrollHeight: element.scrollHeight,
+              whiteSpace: style.whiteSpace,
+              overflow: style.overflow,
+            };
+          }),
+        );
+      for (const metrics of contentMetrics) {
+        expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+        expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
+        expect(metrics.whiteSpace).toBe('normal');
+        expect(metrics.overflow).toBe('visible');
+      }
       const detailGeometry = await layoutRow.evaluate((row) => {
+        const rowBounds = row.getBoundingClientRect();
         const box = (selector: string) => {
           const element = row.querySelector<HTMLElement>(selector);
           const bounds = element?.getBoundingClientRect();
@@ -533,31 +559,32 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
         const main = box('.transaction-main');
         const memoBox = box('.transaction-memo');
         const amount = box('.record-amount');
-        const assetCategory = box('.transaction-asset-category');
+        const assetName = box('.transaction-asset-name');
         return {
+          rowCenter: rowBounds.y + rowBounds.height / 2,
           category,
           main,
           memo: memoBox,
           amount,
-          assetCategory,
+          assetName,
         };
       });
       expect(detailGeometry.category).toBeDefined();
-      expect(detailGeometry.assetCategory).toBeDefined();
+      expect(detailGeometry.assetName).toBeDefined();
       expect(detailGeometry.main).toBeDefined();
       expect(detailGeometry.memo).toBeDefined();
       expect(detailGeometry.amount).toBeDefined();
-      expect(detailGeometry.assetCategory!.center).toBeDefined();
-      expect(detailGeometry.assetCategory!.left).toBeCloseTo(detailGeometry.memo!.left, 1);
-      expect(detailGeometry.assetCategory!.left).toBeGreaterThan(detailGeometry.category!.right);
+      expect(detailGeometry.assetName!.center).toBeDefined();
+      expect(detailGeometry.assetName!.left).toBeCloseTo(detailGeometry.memo!.left, 1);
+      expect(detailGeometry.assetName!.left).toBeGreaterThan(detailGeometry.category!.right);
       expect(
-        Math.abs(overviewColumns.assetCategory!.left - detailGeometry.assetCategory!.left),
+        Math.abs(overviewColumns.assetName!.left - detailGeometry.assetName!.left),
       ).toBeLessThanOrEqual(1);
       expect(Math.abs(overviewColumns.memo!.left - detailGeometry.memo!.left)).toBeLessThanOrEqual(
         1,
       );
       expect(
-        Math.abs(detailGeometry.amount!.center - detailGeometry.main!.center),
+        Math.abs(detailGeometry.amount!.center - detailGeometry.rowCenter),
       ).toBeLessThanOrEqual(1);
 
       await page.goto(`/transactions?month=${month}&type=expense&category=${categoryId}`);

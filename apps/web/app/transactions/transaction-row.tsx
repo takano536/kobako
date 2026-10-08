@@ -10,7 +10,6 @@ import {
   transactionAmountTone,
 } from '../../src/lib/format';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
-import { ACCOUNT_KIND_LABELS } from '../../src/lib/account-kind';
 
 function transactionEditHref(
   transactionId: number,
@@ -23,14 +22,10 @@ function typeLabel(type: ListedTransaction['type']): string {
   return type === 'income' ? '収入' : '支出';
 }
 
-function accountKindLabel(kind: ListedTransaction['accountKind']): string | null {
-  return kind === null ? null : ACCOUNT_KIND_LABELS[kind];
-}
-
 function transactionLabel(transaction: ListedTransaction, showMemo: boolean): string {
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
   const details = [
-    accountKindLabel(transaction.accountKind),
+    transaction.accountName,
     showMemo && transaction.memo ? transaction.memo : null,
   ].filter((value): value is string => value !== null);
   return [
@@ -57,7 +52,7 @@ export function TransactionRow({
 }) {
   const editHref = transactionEditHref(transaction.id, selectedMonth);
   const label = transactionLabel(transaction, showMemo);
-  const assetCategory = accountKindLabel(transaction.accountKind);
+  const assetName = transaction.accountName;
   const amountTone = transactionAmountTone(transaction.type, transaction.amount);
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
   if (showDate) {
@@ -66,15 +61,19 @@ export function TransactionRow({
         <time className="recent-date" dateTime={transaction.occurredOn}>
           {formatJapaneseDate(transaction.occurredOn)}
         </time>
-        <Link className="transaction-link" href={editHref} aria-label={label}>
+        <Link
+          className="transaction-link transaction-link-ordinary"
+          href={editHref}
+          aria-label={label}
+        >
           <CategoryDot type={transaction.type} name={transaction.categoryName} />
           <span className="transaction-category" title={transaction.categoryName}>
             {transaction.categoryName}
           </span>
           <span className="transaction-main">
-            {assetCategory ? (
-              <span className="transaction-asset-category" title={assetCategory}>
-                {assetCategory}
+            {assetName ? (
+              <span className="transaction-asset-name" title={assetName}>
+                {assetName}
               </span>
             ) : null}
             {showMemo && transaction.memo ? (
@@ -92,15 +91,20 @@ export function TransactionRow({
   return (
     <li className="transaction-row">
       {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
-      <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
+      <Link
+        className="transaction-link transaction-link-ordinary"
+        href={editHref}
+        prefetch={false}
+        aria-label={label}
+      >
         <CategoryDot type={transaction.type} name={transaction.categoryName} />
         <span className="transaction-category" title={transaction.categoryName}>
           {transaction.categoryName}
         </span>
         <span className="transaction-main">
-          {assetCategory ? (
-            <span className="transaction-asset-category" title={assetCategory}>
-              {assetCategory}
+          {assetName ? (
+            <span className="transaction-asset-name" title={assetName}>
+              {assetName}
             </span>
           ) : null}
           {showMemo && transaction.memo ? (
