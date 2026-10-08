@@ -26,7 +26,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## カテゴリ整合性
 
-カテゴリの `type`（支出/収入）と household 所有を UI だけに任せず、`transactions(category_id, household_id, type)` から `categories(id, household_id, type)` への複合 FK で DB に強制します。categories 側には複合 FK 用の一意キーを置き、transaction amount、参照、memo 長も not-null/FK/CHECK/varchar で検証します。
+支出カテゴリと収入カテゴリの `type`（支出/収入）と household 所有を UI だけに任せず、`transactions(category_id, household_id, type)` から `categories(id, household_id, type)` への複合 FK で DB に強制します。categories 側には複合 FK 用の一意キーを置き、transaction amount、参照、memo 長も not-null/FK/CHECK/varchar で検証します。
 
 ## Mutation と再検証
 
@@ -100,7 +100,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 ## 資産・振替のデータモデル
 
-`accounts` は household ごとの資産です。`kind` は現金、銀行、クレジットカード、デビットカード、電子マネー、その他を持ち、`status`（`active`/`closed`）とは別に nullable な `deleted_at` で論理削除を表し、参照行を保持します。残高画面と資産作成時の分類は `kind` を使います。`transactions.account_id` は nullable ですが、設定される場合は household を含む複合 FK で別家計を拒否します。`transfers` は from/to の両方に同じ複合 FK、`from <> to` CHECK、正の金額 CHECK を持ちます。`getAccountBalances` は資産ごとに `income - expense - transfersOut + transfersIn` を返します。
+`accounts` は household ごとの資産です。`kind` は現金、銀行、クレジットカード、デビットカード、電子マネー、その他を持ち、`status`（`active`/`closed`）とは別に nullable な `deleted_at` で論理削除を表し、参照行を保持します。残高画面と資産作成時の資産カテゴリは `kind` を使います。`transactions.account_id` は nullable ですが、設定される場合は household を含む複合 FK で別家計を拒否します。`transfers` は from/to の両方に同じ複合 FK、`from <> to` CHECK、正の金額 CHECK を持ちます。`getAccountBalances` は資産ごとに `income - expense - transfersOut + transfersIn` を返します。
 
 ## 取込操作の冪等性と世帯ロック
 
@@ -112,7 +112,7 @@ XLSX パーサーは exceljs、xlsx/SheetJS CE、read-excel-file、fflate も比
 
 `moneyManagerImportAction` はプレビュー時にファイルのハッシュと `operation_key` を計算し、正規化を行います。返すのはファイル名、集計値、先頭の取引行、エラー、新しいカテゴリ・資産などに限られ、ファイル本体は保存しません。
 
-確定時は同じファイルをサーバーで読み直し、ハッシュ・操作キー・上限を再検証してから `commitMoneyManagerImport()` を呼びます。プレビュー後にファイルが変わっていれば確定せず、ファイル本体はリクエスト処理中のメモリだけに置きます。別操作の再アップロードでは同じデータを追加し、同じ操作キーでの二重送信だけを冪等に処理します。既存資産の名前・種別・カード条件は変更しません。
+確定時は同じファイルをサーバーで読み直し、ハッシュ・操作キー・上限を再検証してから `commitMoneyManagerImport()` を呼びます。プレビュー後にファイルが変わっていれば確定せず、ファイル本体はリクエスト処理中のメモリだけに置きます。別操作の再アップロードでは同じデータを追加し、同じ操作キーでの二重送信だけを冪等に処理します。既存資産の名前・資産カテゴリ・カード条件は変更しません。
 
 ## インポートの上限
 
@@ -134,4 +134,4 @@ schema は `packages/db/src/schema.ts` に定義し、`0008` までの migration
 
 worker は起動時と一定間隔で期限到来分を処理する。`(household_id, card_account_id, due_on)` の一意制約と設定行の `FOR UPDATE` ロックで再実行・再起動・並行実行を冪等にする。既存の手動振替やインポート振替を含む現在の FIFO 残額だけを振替額とし、残額が 0 以下なら `settled` run のみ記録する。自動作成済み振替が通常 UI で編集・削除されても completed run は再作成せず、意図しない追加決済を防ぐ。
 
-引落口座が未設定、銀行種別でない、削除済み、またはカード条件が不足している場合は口座を推測せず、transfer を作らない。期限ごとの `blocked` run に理由を保存し、設定修正後の tick で再試行する。銀行残高の不足はブロック理由にせず、通常の振替として残高をマイナスにする。期間境界は締め日を含み翌日から次期間、日付 31 は短い月の末日、月末・年跨ぎも同じ calendar helper で解決する。
+引落口座が未設定、資産カテゴリが銀行でない、削除済み、またはカード条件が不足している場合は口座を推測せず、transfer を作らない。期限ごとの `blocked` run に理由を保存し、設定修正後の tick で再試行する。銀行残高の不足はブロック理由にせず、通常の振替として残高をマイナスにする。期間境界は締め日を含み翌日から次期間、日付 31 は短い月の末日、月末・年跨ぎも同じ calendar helper で解決する。

@@ -154,7 +154,7 @@ export async function updateAccountAction(
   if (result.status === 'stale_kind') {
     return {
       ...accountState(formData),
-      message: '別の画面で種別が変更されました。再読み込みしてください。',
+      message: '別の画面で資産カテゴリが変更されました。再読み込みしてください。',
     };
   }
   if (

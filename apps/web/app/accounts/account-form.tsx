@@ -147,7 +147,7 @@ export function AccountForm({
           </div>
         </div>
         <div className="field">
-          <label htmlFor="account-kind">種別</label>
+          <label htmlFor="account-kind">資産カテゴリ</label>
           <div className="field-value">
             <select
               className="field-select"
