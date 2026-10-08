@@ -1178,6 +1178,18 @@ describe('PostgreSQL migrations and ledger', () => {
     if (!expenseCategory || !incomeCategory) {
       throw new Error('category seeds missing');
     }
+    await client.sql`
+      insert into account_groups (household_id, name, sort_order)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly asset group', 10)
+    `;
+    const [linkedAccount] = await client.sql<{ id: number }[]>`
+      insert into accounts (household_id, name, group_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly linked asset', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'Monthly asset group'))
+      returning id
+    `;
+    if (!linkedAccount) {
+      throw new Error('monthly linked account was not created');
+    }
     await createTransaction(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
@@ -1186,6 +1198,7 @@ describe('PostgreSQL migrations and ledger', () => {
         amount: '1200',
         occurredOn: '2026-09-01',
         categoryId: String(expenseCategory.id),
+        accountId: String(linkedAccount.id),
         memo: '',
       }),
     );
@@ -1252,6 +1265,19 @@ describe('PostgreSQL migrations and ledger', () => {
         toAccountName: 'Monthly destination',
       },
     ]);
+    const linkedTransaction = ledgerEntries.find(
+      (entry) => entry.type !== 'transfer' && entry.amount === 1200,
+    );
+    expect(linkedTransaction).toMatchObject({
+      accountName: 'Monthly linked asset',
+      accountGroupName: 'Monthly asset group',
+    });
+    if (!linkedTransaction || linkedTransaction.type === 'transfer') {
+      throw new Error('linked transaction was not listed');
+    }
+    await expect(
+      getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, linkedTransaction.id),
+    ).resolves.toMatchObject({ accountGroupName: 'Monthly asset group' });
     expect(
       await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
         month: '2026-09',
@@ -1270,9 +1296,13 @@ describe('PostgreSQL migrations and ledger', () => {
       expense: '2000',
       difference: '3000',
     });
-    expect(
-      await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09' }),
-    ).toHaveLength(3);
+    const listedTransactions = await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(listedTransactions).toHaveLength(3);
+    expect(listedTransactions).toContainEqual(
+      expect.objectContaining({ accountGroupName: 'Monthly asset group' }),
+    );
     expect(
       await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09', type: 'income' }),
     ).toHaveLength(1);

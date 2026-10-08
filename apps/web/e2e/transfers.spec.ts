@@ -540,7 +540,7 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   await expect(ordinaryRow).toHaveCount(1);
   await expect(transferRow.locator('.transaction-memo')).toHaveCount(1);
   await expect(ordinaryRow.locator('.transaction-memo')).toHaveCount(1);
-  await expect(transferRow).not.toContainText('振替');
+  await expect(transferRow).toContainText('振替');
   await expect(transferRow).not.toContainText('編集');
   await expect(transferRow.locator('.row-affordance')).toHaveText('›');
   const transferDot = await transferRow.locator('.transfer-dot').boundingBox();
