@@ -28,7 +28,7 @@ export function TransferRow({
       <Link className="transaction-link" href={editHref} prefetch={false} aria-label={label}>
         <span className="category-dot transfer-dot" aria-hidden="true" />
         <span className="transaction-category transfer-type">振替</span>
-        <span className="transaction-main">
+        <span className="transaction-main transaction-main-transfer">
           <span className="transfer-category">
             <span className="transfer-account">{transfer.fromAccountName}</span>
             <span className="transfer-destination">

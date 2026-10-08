@@ -947,7 +947,7 @@ h3 {
   margin-top: var(--space-group);
 }
 
-.transaction-link {
+.transaction-list-full .transaction-link {
   display: grid;
   grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content 13px;
   align-items: start;
@@ -958,23 +958,45 @@ h3 {
   text-decoration: none;
 }
 
-.transaction-link > .category-dot {
+.transaction-list-full .transaction-link > .category-dot {
   align-self: center;
   margin-top: 0;
 }
 
-.transaction-link > .record-amount,
-.transaction-link > .row-affordance {
+.transaction-list-full .transaction-link > .record-amount,
+.transaction-list-full .transaction-link > .row-affordance {
   align-self: center;
 }
 
-.transaction-main {
+.transaction-list-full .transaction-main {
+  --transaction-asset-line-height: calc(var(--text-body) * var(--leading-body));
+  --transaction-memo-line-height: calc(var(--text-small) * var(--leading-meta));
   display: grid;
+  grid-template-rows:
+    minmax(0, var(--transaction-asset-line-height))
+    minmax(0, var(--transaction-memo-line-height));
   min-width: 0;
+  min-height: calc(
+    var(--transaction-asset-line-height) + var(--space-within) + var(--transaction-memo-line-height)
+  );
   gap: var(--space-within);
 }
 
-.transaction-category {
+.transaction-list-full .transaction-main > :only-child {
+  grid-row: 1 / -1;
+  align-self: center;
+}
+
+.transaction-list-full .transaction-main-transfer {
+  grid-template-rows: auto auto;
+  min-height: 0;
+}
+
+.transaction-list-full .transaction-main-transfer > :only-child {
+  grid-row: auto;
+}
+
+.transaction-list-full .transaction-category {
   align-self: center;
   min-width: 0;
   overflow: hidden;
@@ -985,7 +1007,7 @@ h3 {
   white-space: nowrap;
 }
 
-.transaction-asset-group {
+.transaction-list-full .transaction-asset-group {
   min-width: 0;
   overflow: hidden;
   font-size: var(--text-body);
@@ -994,11 +1016,11 @@ h3 {
   white-space: nowrap;
 }
 
-.transfer-type {
+.transaction-list-full .transfer-type {
   color: var(--muted);
 }
 
-.transfer-category {
+.transaction-list-full .transfer-category {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -1010,14 +1032,14 @@ h3 {
   white-space: normal;
 }
 
-.transfer-account {
+.transaction-list-full .transfer-account {
   min-width: 0;
   overflow-wrap: anywhere;
   text-wrap: pretty;
   white-space: normal;
 }
 
-.transfer-destination {
+.transaction-list-full .transfer-destination {
   display: inline-flex;
   flex: 1 1 auto;
   min-width: 0;
@@ -1026,11 +1048,11 @@ h3 {
   gap: var(--space-within);
 }
 
-.transfer-arrow {
+.transaction-list-full .transfer-arrow {
   flex: 0 0 auto;
 }
 
-.transaction-memo {
+.transaction-list-full .transaction-memo {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -1045,7 +1067,7 @@ h3 {
   text-wrap: pretty;
 }
 
-.row-affordance {
+.transaction-list-full .row-affordance {
   color: var(--muted);
   font-size: var(--text-body);
   line-height: 1;
