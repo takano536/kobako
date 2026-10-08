@@ -155,7 +155,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             action={<RegisterTransactionAction month={month} variant="quiet" />}
           />
         ) : (
-          <ul className="recent-list" aria-label="最近の取引">
+          <ul className="recent-list transaction-list-full" aria-label="最近の取引">
             {latestTransactions.map((transaction) => (
               <TransactionRow
                 key={transaction.id}

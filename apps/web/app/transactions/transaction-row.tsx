@@ -63,25 +63,25 @@ export function TransactionRow({
   if (showDate) {
     return (
       <li className="recent-row">
-        <Link className="recent-link" href={editHref} aria-label={label}>
-          <span className="recent-copy">
-            <CategoryDot type={transaction.type} name={transaction.categoryName} />
-            <span className="recent-copy-text">
-              <time dateTime={transaction.occurredOn}>
-                {formatJapaneseDate(transaction.occurredOn)}
-              </time>
-              <span>{transaction.categoryName}</span>
-              {assetCategory ? (
-                <span className="transaction-asset-category" title={assetCategory}>
-                  {assetCategory}
-                </span>
-              ) : null}
-              {showMemo && transaction.memo ? (
-                <span className="transaction-memo" title={transaction.memo}>
-                  {transaction.memo}
-                </span>
-              ) : null}
-            </span>
+        <time className="recent-date" dateTime={transaction.occurredOn}>
+          {formatJapaneseDate(transaction.occurredOn)}
+        </time>
+        <Link className="transaction-link" href={editHref} aria-label={label}>
+          <CategoryDot type={transaction.type} name={transaction.categoryName} />
+          <span className="transaction-category" title={transaction.categoryName}>
+            {transaction.categoryName}
+          </span>
+          <span className="transaction-main">
+            {assetCategory ? (
+              <span className="transaction-asset-category" title={assetCategory}>
+                {assetCategory}
+              </span>
+            ) : null}
+            {showMemo && transaction.memo ? (
+              <span className="transaction-memo" title={transaction.memo}>
+                {transaction.memo}
+              </span>
+            ) : null}
           </span>
           <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
         </Link>

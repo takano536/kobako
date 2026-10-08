@@ -769,46 +769,11 @@ h3 {
   min-width: 0;
 }
 
-.recent-link {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  gap: var(--space-group);
-  min-height: 48px;
-  padding: 5px 0;
-  text-decoration: none;
-}
-
-.recent-copy {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-item);
-  min-width: 0;
-}
-
-.recent-copy > .category-dot {
-  align-self: start;
-  margin-top: calc(1.8em + var(--space-within));
-}
-
-.recent-copy-text {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-within);
-}
-
-.recent-copy time {
+.recent-date {
+  display: block;
   color: var(--muted);
   font-size: var(--text-small);
   line-height: var(--leading-meta);
-}
-
-.recent-copy-text > span {
-  min-width: 0;
-  overflow-wrap: break-word;
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
 }
 
 .money-amount {
@@ -1062,10 +1027,6 @@ h3 {
   overflow-wrap: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.recent-copy-text > span {
-  text-wrap: pretty;
 }
 
 .transaction-list-full .row-affordance {
