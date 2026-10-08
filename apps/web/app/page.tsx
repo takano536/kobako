@@ -92,7 +92,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       <section className="section" aria-labelledby="breakdown-title">
         <SectionHeading
           id="breakdown-title"
-          title="カテゴリ別の支出"
+          title="支出カテゴリ別の支出"
           action={
             <ActionLink href={`/transactions?month=${month}&type=expense`} variant="quiet">
               支出をすべて見る

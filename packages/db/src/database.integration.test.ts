@@ -140,7 +140,7 @@ describe('PostgreSQL migrations and ledger', () => {
     'saves a kind change from %s to %s without a second confirmation',
     async (previousKind, nextKind) => {
       const created = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
-        name: '種別変更テスト',
+        name: '資産カテゴリ変更テスト',
         kind: previousKind,
       });
       if (created.status !== 'ok') throw new Error('Account creation failed');
