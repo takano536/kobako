@@ -1,4 +1,11 @@
 # Changelog
+## [0.9.1](https://github.com/takano536/kobako/compare/v0.9.0...v0.9.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **web:** preserve selected month across navigation ([#47](https://github.com/takano536/kobako/issues/47)) ([766bd4c](https://github.com/takano536/kobako/commit/766bd4c152710f21c0a557a781646cb89b5043ca))
+
 ## [0.9.0](https://github.com/takano536/kobako/compare/v0.8.1...v0.9.0) (2026-10-07)
 
 
