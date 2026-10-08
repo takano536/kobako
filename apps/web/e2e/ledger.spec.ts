@@ -477,13 +477,17 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
           category: bounds('.transaction-category'),
           assetCategory: bounds('.transaction-asset-category'),
           memo: bounds('.transaction-memo'),
+          amount: bounds('.record-amount'),
         };
       });
+      const overviewList = await measure('.recent-list');
       expect(overviewColumns.category).toBeDefined();
       expect(overviewColumns.assetCategory).toBeDefined();
       expect(overviewColumns.memo).toBeDefined();
+      expect(overviewColumns.amount).toBeDefined();
       expect(overviewColumns.assetCategory!.left).toBeCloseTo(overviewColumns.memo!.left, 1);
       expect(overviewColumns.assetCategory!.left).toBeGreaterThan(overviewColumns.category!.right);
+      expect(overviewColumns.amount!.right).toBeCloseTo(overviewList.x + overviewList.width, 1);
       const overviewHeading = await measure('.page-header h1');
       const overviewPrimary = await measure('.page-header .action-link-primary');
       const overviewMonth = await measure('.month-switcher');

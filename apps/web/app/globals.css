@@ -769,6 +769,10 @@ h3 {
   min-width: 0;
 }
 
+.recent-row + .recent-row {
+  margin-top: calc(var(--space-group) + var(--space-within));
+}
+
 .recent-date {
   display: block;
   color: var(--muted);
@@ -921,6 +925,10 @@ h3 {
   min-height: 56px;
   padding: 6px 0;
   text-decoration: none;
+}
+
+.recent-list.transaction-list-full .transaction-link {
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
 }
 
 .transaction-list-full .transaction-link > .category-dot {
