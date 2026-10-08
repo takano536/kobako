@@ -40,7 +40,8 @@ function firstQueryValue(value: string | string[] | undefined): string | undefin
 
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
-  const month = parseMonth(firstQueryValue(query.month), currentTokyoMonth());
+  const selectedMonth = firstQueryValue(query.month);
+  const month = parseMonth(selectedMonth, currentTokyoMonth());
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const [totals, latestTransactions, categoryTotals] = await Promise.all([
@@ -156,7 +157,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         ) : (
           <ul className="recent-list" aria-label="最近の取引">
             {latestTransactions.map((transaction) => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
+              <TransactionRow
+                key={transaction.id}
+                transaction={transaction}
+                selectedMonth={selectedMonth}
+              />
             ))}
           </ul>
         )}

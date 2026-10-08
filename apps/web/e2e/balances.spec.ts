@@ -162,7 +162,7 @@ async function expectAccountBalance(
 
 async function openBalances(page: Page): Promise<void> {
   await page.getByRole('link', { name: '残高', exact: true }).click();
-  await expect(page).toHaveURL(/\/balances$/);
+  await expect(page).toHaveURL(/\/balances(?:\?month=\d{4}-\d{2})?$/);
 }
 
 async function assertNoHorizontalOverflow(page: Page): Promise<void> {

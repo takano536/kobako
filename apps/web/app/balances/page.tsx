@@ -8,7 +8,9 @@ import {
 } from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
+import { withSelectedMonth } from '../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
+import { firstQueryValue } from '../../src/lib/transaction-query';
 import {
   ActionLink,
   EmptyState,
@@ -28,9 +30,10 @@ export const metadata: Metadata = {
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function BalancesPage({ searchParams }: { searchParams: SearchParams }) {
-  void searchParams;
-  const db = getLedgerDatabase();
+  const query = await searchParams;
+  const accountNewHref = withSelectedMonth('/accounts/new', firstQueryValue(query.month));
   const householdId = getCurrentHouseholdId();
+  const db = getLedgerDatabase();
   const today = currentTokyoDate();
   const allBalances = await getManagedAccountBalances(db, householdId);
   const balances = allBalances.filter((account) => account.deletedAt === null);
@@ -95,7 +98,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
       <PageHeader
         title="残高"
         actions={
-          <ActionLink href="/accounts/new" variant="primary">
+          <ActionLink href={accountNewHref} variant="primary">
             資産を登録
           </ActionLink>
         }
@@ -129,7 +132,7 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
             title="表示する資産がありません"
             description="資産を登録すると、ここに残高が表示されます。"
             action={
-              <ActionLink href="/accounts/new" variant="quiet">
+              <ActionLink href={accountNewHref} variant="quiet">
                 資産を登録
               </ActionLink>
             }

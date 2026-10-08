@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import { getTransfer, listAccounts, listCategories } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../../src/lib/ledger-data';
+import { withSelectedMonth } from '../../../../../src/lib/month-navigation';
 import { parseInt4Id } from '../../../../../src/lib/ids';
+import { firstQueryValue } from '../../../../../src/lib/transaction-query';
 import { ActionLink, PageHeader, PageShell } from '../../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../../transaction-form';
 import { updateTransactionAction } from '../../../actions';
@@ -15,8 +17,16 @@ export const metadata = {
   title: '取引を編集',
 };
 
-export default async function EditTransferPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+export default async function EditTransferPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   const { id: idText } = await params;
+  const query = await searchParams;
   const id = parseInt4Id(idText);
   if (id === undefined) {
     notFound();
@@ -34,6 +44,10 @@ export default async function EditTransferPage({ params }: { params: Promise<{ i
   }
 
   const action = updateTransactionAction.bind(null, idText, 'transfer');
+  const cancelHref = withSelectedMonth(
+    `/transactions/transfers/${transfer.id}/edit`,
+    firstQueryValue(query.month),
+  );
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -65,7 +79,11 @@ export default async function EditTransferPage({ params }: { params: Promise<{ i
             }}
             submitLabel="変更を保存"
           />
-          <DeleteTransactionForm transactionId={transfer.id} entryType="transfer" />
+          <DeleteTransactionForm
+            transactionId={transfer.id}
+            entryType="transfer"
+            cancelHref={cancelHref}
+          />
         </div>
       </section>
     </PageShell>
