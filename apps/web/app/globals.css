@@ -963,6 +963,11 @@ h3 {
   margin-top: 0;
 }
 
+.transaction-link > .record-amount,
+.transaction-link > .row-affordance {
+  align-self: center;
+}
+
 .transaction-main {
   display: grid;
   min-width: 0;
