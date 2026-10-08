@@ -146,7 +146,7 @@ export const requiredAccountIdSchema = z.preprocess((value) => {
 }, z.number().int().positive().max(MAX_INT4_ID));
 export const accountKindSchema = z.enum(
   ['cash', 'bank', 'credit_card', 'debit_card', 'electronic_money', 'other'] as const,
-  { error: '資産の種類を選択してください。' },
+  { error: '資産カテゴリを選択してください。' },
 );
 
 export const accountStatusSchema = z.enum(['active', 'closed'] as const, {
