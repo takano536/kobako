@@ -472,6 +472,35 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       }
       await assertNoHorizontalOverflow();
       await expect(page.locator('.transaction-memo').filter({ hasText: memo })).toBeVisible();
+      const layoutRow = page.locator('.transaction-link').filter({ hasText: memo });
+      const detailGeometry = await layoutRow.evaluate((row) => {
+        const box = (selector: string) => {
+          const element = row.querySelector<HTMLElement>(selector);
+          const bounds = element?.getBoundingClientRect();
+          return bounds
+            ? { center: bounds.y + bounds.height / 2, height: bounds.height }
+            : undefined;
+        };
+        const main = box('.transaction-main');
+        const memoBox = box('.transaction-memo');
+        const amount = box('.record-amount');
+        return {
+          main,
+          memo: memoBox,
+          amount,
+          assetGroupPresent: row.querySelector('.transaction-asset-group') !== null,
+        };
+      });
+      expect(detailGeometry.assetGroupPresent).toBe(false);
+      expect(detailGeometry.main).toBeDefined();
+      expect(detailGeometry.memo).toBeDefined();
+      expect(detailGeometry.amount).toBeDefined();
+      expect(
+        Math.abs(detailGeometry.memo!.center - detailGeometry.main!.center),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(detailGeometry.amount!.center - detailGeometry.main!.center),
+      ).toBeLessThanOrEqual(1);
 
       await page.goto(`/transactions?month=${month}&type=expense&category=${categoryId}`);
       await expect(page.locator('.filter-summary')).toContainText(categoryName);
