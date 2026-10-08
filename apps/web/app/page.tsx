@@ -161,6 +161,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                 key={transaction.id}
                 transaction={transaction}
                 selectedMonth={selectedMonth}
+                showMemo
               />
             ))}
           </ul>

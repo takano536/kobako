@@ -10,6 +10,7 @@ import {
   transactionAmountTone,
 } from '../../src/lib/format';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
+import { ACCOUNT_KIND_LABELS } from '../../src/lib/account-kind';
 
 function transactionEditHref(
   transactionId: number,
@@ -22,9 +23,23 @@ function typeLabel(type: ListedTransaction['type']): string {
   return type === 'income' ? '収入' : '支出';
 }
 
-function transactionLabel(transaction: ListedTransaction): string {
+function accountKindLabel(kind: ListedTransaction['accountKind']): string | null {
+  return kind === null ? null : ACCOUNT_KIND_LABELS[kind];
+}
+
+function transactionLabel(transaction: ListedTransaction, showMemo: boolean): string {
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
-  return `${formatJapaneseDate(transaction.occurredOn)} ${typeLabel(transaction.type)} ${transaction.categoryName} ${amount}`;
+  const details = [
+    accountKindLabel(transaction.accountKind),
+    showMemo && transaction.memo ? transaction.memo : null,
+  ].filter((value): value is string => value !== null);
+  return [
+    formatJapaneseDate(transaction.occurredOn),
+    typeLabel(transaction.type),
+    transaction.categoryName,
+    ...details,
+    amount,
+  ].join(' ');
 }
 
 export function TransactionRow({
@@ -41,7 +56,8 @@ export function TransactionRow({
   selectedMonth?: string | null;
 }) {
   const editHref = transactionEditHref(transaction.id, selectedMonth);
-  const label = transactionLabel(transaction);
+  const label = transactionLabel(transaction, showMemo);
+  const assetCategory = accountKindLabel(transaction.accountKind);
   const amountTone = transactionAmountTone(transaction.type, transaction.amount);
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
   if (showDate) {
@@ -55,6 +71,16 @@ export function TransactionRow({
                 {formatJapaneseDate(transaction.occurredOn)}
               </time>
               <span>{transaction.categoryName}</span>
+              {assetCategory ? (
+                <span className="transaction-asset-category" title={assetCategory}>
+                  {assetCategory}
+                </span>
+              ) : null}
+              {showMemo && transaction.memo ? (
+                <span className="transaction-memo" title={transaction.memo}>
+                  {transaction.memo}
+                </span>
+              ) : null}
             </span>
           </span>
           <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
@@ -72,9 +98,9 @@ export function TransactionRow({
           {transaction.categoryName}
         </span>
         <span className="transaction-main">
-          {transaction.accountGroupName ? (
-            <span className="transaction-asset-group" title={transaction.accountGroupName}>
-              {transaction.accountGroupName}
+          {assetCategory ? (
+            <span className="transaction-asset-category" title={assetCategory}>
+              {assetCategory}
             </span>
           ) : null}
           {showMemo && transaction.memo ? (

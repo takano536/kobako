@@ -301,6 +301,13 @@ test('shows complete large month and all-time account lists and preserves settin
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引58件');
   await expect(page.locator('.transaction-link')).toHaveCount(58);
   await expect(page.getByText(markerFor('large-expense'), { exact: false }).first()).toBeVisible();
+  await expect(
+    page
+      .locator('.transaction-link')
+      .filter({ hasText: markerFor('large-expense') })
+      .first()
+      .locator('.transaction-asset-category'),
+  ).toHaveText('銀行');
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
   const expectedMonth = sortExpected(expectedMonthEntries);
   expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(

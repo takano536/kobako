@@ -994,6 +994,7 @@ h3 {
 
 .transaction-list-full .transaction-main-transfer > :only-child {
   grid-row: auto;
+  align-self: center;
 }
 
 .transaction-list-full .transaction-category {
@@ -1007,7 +1008,7 @@ h3 {
   white-space: nowrap;
 }
 
-.transaction-list-full .transaction-asset-group {
+.transaction-asset-category {
   min-width: 0;
   overflow: hidden;
   font-size: var(--text-body);
@@ -1052,7 +1053,7 @@ h3 {
   flex: 0 0 auto;
 }
 
-.transaction-list-full .transaction-memo {
+.transaction-memo {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -2771,6 +2772,9 @@ h3 {
 
   .transaction-link {
     column-gap: var(--space-item);
+  }
+  .transaction-list-full .transaction-main-transfer {
+    align-self: center;
   }
 
   .filter-form {

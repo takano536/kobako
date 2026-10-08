@@ -445,6 +445,12 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await page.setViewportSize({ width, height });
       await page.goto(`/?month=${month}`);
       await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
+      await expect(
+        page
+          .locator('.recent-list .transaction-memo')
+          .filter({ hasText: markerFor('layout-long') }),
+      ).toBeVisible();
+      await expect(page.locator('.recent-list .transaction-asset-category')).toHaveCount(0);
       const overviewHeading = await measure('.page-header h1');
       const overviewPrimary = await measure('.page-header .action-link-primary');
       const overviewMonth = await measure('.month-switcher');
@@ -488,10 +494,10 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
           main,
           memo: memoBox,
           amount,
-          assetGroupPresent: row.querySelector('.transaction-asset-group') !== null,
+          assetCategoryPresent: row.querySelector('.transaction-asset-category') !== null,
         };
       });
-      expect(detailGeometry.assetGroupPresent).toBe(false);
+      expect(detailGeometry.assetCategoryPresent).toBe(false);
       expect(detailGeometry.main).toBeDefined();
       expect(detailGeometry.memo).toBeDefined();
       expect(detailGeometry.amount).toBeDefined();
