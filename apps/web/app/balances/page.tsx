@@ -8,6 +8,7 @@ import {
 } from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
+import { ACCOUNT_KIND_OPTIONS } from '../../src/lib/account-kind';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { firstQueryValue } from '../../src/lib/transaction-query';
@@ -82,14 +83,11 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
     kind: BalanceAccount['kind'];
     name: string;
     accounts: typeof balances;
-  }[] = [
-    { kind: 'cash', name: '現金', accounts: [] },
-    { kind: 'bank', name: '銀行', accounts: [] },
-    { kind: 'credit_card', name: 'クレジットカード', accounts: [] },
-    { kind: 'debit_card', name: 'デビットカード', accounts: [] },
-    { kind: 'electronic_money', name: '電子マネー', accounts: [] },
-    { kind: 'other', name: 'その他', accounts: [] },
-  ];
+  }[] = ACCOUNT_KIND_OPTIONS.map(([kind, name]) => ({
+    kind,
+    name,
+    accounts: [] as typeof balances,
+  }));
   for (const account of balances) {
     groups.find((group) => group.kind === account.kind)?.accounts.push(account);
   }

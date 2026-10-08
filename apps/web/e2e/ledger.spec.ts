@@ -394,6 +394,16 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
 
   const categoryName = `長いカテゴリ名-${runId}-折り返し確認用`;
   const memo = `${markerFor('layout-long')} / ${'長いメモ '.repeat(24)}`;
+  const accountName = `${markerFor('layout-account')} / 銀行`;
+  const accountRows = await databaseClient.sql`
+    insert into accounts (household_id, name, kind)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank')
+    returning id
+  `;
+  const accountId = Number(accountRows[0]?.id);
+  if (!Number.isInteger(accountId)) {
+    throw new Error('long layout account fixture was not created');
+  }
   const categoryRows = await databaseClient.sql`
     insert into categories (household_id, type, name, sort_order)
     values (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryName}, 98)
@@ -404,8 +414,16 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
     throw new Error('long layout category fixture was not created');
   }
   const transactionRows = await databaseClient.sql`
-    insert into transactions (household_id, type, amount, occurred_on, category_id, memo)
-    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 9876, ${`${month}-17`}, ${categoryId}, ${memo})
+    insert into transactions (household_id, type, amount, occurred_on, category_id, account_id, memo)
+    values (
+      ${DEFAULT_HOUSEHOLD_ID},
+      'expense',
+      9876,
+      ${`${month}-17`},
+      ${categoryId},
+      ${accountId},
+      ${memo}
+    )
     returning id
   `;
   const transactionId = Number(transactionRows[0]?.id);
@@ -445,6 +463,31 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await page.setViewportSize({ width, height });
       await page.goto(`/?month=${month}`);
       await expect(page.getByRole('heading', { name: '概要' })).toBeVisible();
+      const overviewRow = page.locator('.recent-row').filter({ hasText: memo });
+      await expect(overviewRow).toHaveCount(1);
+      await expect(overviewRow.locator('.transaction-asset-category')).toHaveText('銀行');
+      await expect(overviewRow.locator('.transaction-memo')).toContainText(memo);
+      const overviewColumns = await overviewRow.locator('.transaction-link').evaluate((row) => {
+        const bounds = (selector: string) => {
+          const element = row.querySelector<HTMLElement>(selector);
+          const rect = element?.getBoundingClientRect();
+          return rect ? { left: rect.left, right: rect.right } : undefined;
+        };
+        return {
+          category: bounds('.transaction-category'),
+          assetCategory: bounds('.transaction-asset-category'),
+          memo: bounds('.transaction-memo'),
+          amount: bounds('.record-amount'),
+        };
+      });
+      const overviewList = await measure('.recent-list');
+      expect(overviewColumns.category).toBeDefined();
+      expect(overviewColumns.assetCategory).toBeDefined();
+      expect(overviewColumns.memo).toBeDefined();
+      expect(overviewColumns.amount).toBeDefined();
+      expect(overviewColumns.assetCategory!.left).toBeCloseTo(overviewColumns.memo!.left, 1);
+      expect(overviewColumns.assetCategory!.left).toBeGreaterThan(overviewColumns.category!.right);
+      expect(overviewColumns.amount!.right).toBeCloseTo(overviewList.x + overviewList.width, 1);
       const overviewHeading = await measure('.page-header h1');
       const overviewPrimary = await measure('.page-header .action-link-primary');
       const overviewMonth = await measure('.month-switcher');
@@ -478,26 +521,41 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
           const element = row.querySelector<HTMLElement>(selector);
           const bounds = element?.getBoundingClientRect();
           return bounds
-            ? { center: bounds.y + bounds.height / 2, height: bounds.height }
+            ? {
+                left: bounds.left,
+                right: bounds.right,
+                center: bounds.y + bounds.height / 2,
+                height: bounds.height,
+              }
             : undefined;
         };
+        const category = box('.transaction-category');
         const main = box('.transaction-main');
         const memoBox = box('.transaction-memo');
         const amount = box('.record-amount');
+        const assetCategory = box('.transaction-asset-category');
         return {
+          category,
           main,
           memo: memoBox,
           amount,
-          assetGroupPresent: row.querySelector('.transaction-asset-group') !== null,
+          assetCategory,
         };
       });
-      expect(detailGeometry.assetGroupPresent).toBe(false);
+      expect(detailGeometry.category).toBeDefined();
+      expect(detailGeometry.assetCategory).toBeDefined();
       expect(detailGeometry.main).toBeDefined();
       expect(detailGeometry.memo).toBeDefined();
       expect(detailGeometry.amount).toBeDefined();
+      expect(detailGeometry.assetCategory!.center).toBeDefined();
+      expect(detailGeometry.assetCategory!.left).toBeCloseTo(detailGeometry.memo!.left, 1);
+      expect(detailGeometry.assetCategory!.left).toBeGreaterThan(detailGeometry.category!.right);
       expect(
-        Math.abs(detailGeometry.memo!.center - detailGeometry.main!.center),
+        Math.abs(overviewColumns.assetCategory!.left - detailGeometry.assetCategory!.left),
       ).toBeLessThanOrEqual(1);
+      expect(Math.abs(overviewColumns.memo!.left - detailGeometry.memo!.left)).toBeLessThanOrEqual(
+        1,
+      );
       expect(
         Math.abs(detailGeometry.amount!.center - detailGeometry.main!.center),
       ).toBeLessThanOrEqual(1);
@@ -589,6 +647,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
   } finally {
     await databaseClient.sql`delete from transactions where id = ${transactionId}`;
     await databaseClient.sql`delete from categories where id = ${categoryId}`;
+    await databaseClient.sql`delete from accounts where id = ${accountId}`;
   }
 });
 

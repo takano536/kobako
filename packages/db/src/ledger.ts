@@ -5,13 +5,13 @@ import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
   accountCardSettings,
-  accountGroups,
   accounts,
   categories,
   households,
   transactions,
   transfers,
   type Account,
+  type AccountKind,
   type Category,
   type NewTransaction,
   type Transaction,
@@ -157,7 +157,7 @@ export interface ListedTransaction {
   categoryName: string;
   accountId: number | null;
   accountName: string | null;
-  accountGroupName: string | null;
+  accountKind: AccountKind | null;
   memo: string;
 }
 
@@ -221,7 +221,7 @@ export async function listTransactions(
       categoryName: categories.name,
       accountId: transactions.accountId,
       accountName: accounts.name,
-      accountGroupName: accountGroups.name,
+      accountKind: accounts.kind,
       memo: transactions.memo,
     })
     .from(transactions)
@@ -236,10 +236,6 @@ export async function listTransactions(
     .leftJoin(
       accounts,
       and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
-    )
-    .leftJoin(
-      accountGroups,
-      and(eq(accountGroups.id, accounts.groupId), eq(accountGroups.householdId, householdId)),
     )
     .where(and(...transactionConditions(householdId, filters)))
     .orderBy(desc(transactions.occurredOn), desc(transactions.id));
@@ -295,7 +291,7 @@ export async function listLedgerEntries(
         ${categories.name} as category_name,
         ${transactions.accountId} as account_id,
         ${accounts.name} as account_name,
-        ${accountGroups.name} as account_group_name,
+        ${accounts.kind}::text as account_kind,
         null::integer as from_account_id,
         null::text as from_account_name,
         null::integer as to_account_id,
@@ -309,9 +305,6 @@ export async function listLedgerEntries(
       left join ${accounts}
         on ${accounts.id} = ${transactions.accountId}
         and ${accounts.householdId} = ${householdId}
-      left join ${accountGroups}
-        on ${accountGroups.id} = ${accounts.groupId}
-        and ${accountGroups.householdId} = ${householdId}
       where ${sql.join(transactionWhere, sql` and `)}
     `);
   }
@@ -328,7 +321,7 @@ export async function listLedgerEntries(
         null::text as category_name,
         null::integer as account_id,
         null::text as account_name,
-        null::text as account_group_name,
+        null::text as account_kind,
         ${transfers.fromAccountId} as from_account_id,
         ${fromAccounts.name} as from_account_name,
         ${transfers.toAccountId} as to_account_id,
@@ -354,7 +347,7 @@ export async function listLedgerEntries(
     category_name: string | null;
     account_id: number | null;
     account_name: string | null;
-    account_group_name: string | null;
+    account_kind: AccountKind | null;
     from_account_id: number | null;
     from_account_name: string | null;
     to_account_id: number | null;
@@ -387,7 +380,7 @@ export async function listLedgerEntries(
           categoryName: row.category_name!,
           accountId: row.account_id,
           accountName: row.account_name,
-          accountGroupName: row.account_group_name,
+          accountKind: row.account_kind,
           memo: row.memo,
         },
   );
@@ -408,7 +401,7 @@ export async function getTransaction(
       categoryName: categories.name,
       accountId: transactions.accountId,
       accountName: accounts.name,
-      accountGroupName: accountGroups.name,
+      accountKind: accounts.kind,
       memo: transactions.memo,
     })
     .from(transactions)
@@ -423,10 +416,6 @@ export async function getTransaction(
     .leftJoin(
       accounts,
       and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
-    )
-    .leftJoin(
-      accountGroups,
-      and(eq(accountGroups.id, accounts.groupId), eq(accountGroups.householdId, householdId)),
     )
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .limit(1);

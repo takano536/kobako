@@ -769,46 +769,15 @@ h3 {
   min-width: 0;
 }
 
-.recent-link {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  gap: var(--space-group);
-  min-height: 48px;
-  padding: 5px 0;
-  text-decoration: none;
+.recent-row + .recent-row {
+  margin-top: calc(var(--space-group) + var(--space-within));
 }
 
-.recent-copy {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-item);
-  min-width: 0;
-}
-
-.recent-copy > .category-dot {
-  align-self: start;
-  margin-top: calc(1.8em + var(--space-within));
-}
-
-.recent-copy-text {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-within);
-}
-
-.recent-copy time {
+.recent-date {
+  display: block;
   color: var(--muted);
   font-size: var(--text-small);
   line-height: var(--leading-meta);
-}
-
-.recent-copy-text > span {
-  min-width: 0;
-  overflow-wrap: break-word;
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
 }
 
 .money-amount {
@@ -958,6 +927,10 @@ h3 {
   text-decoration: none;
 }
 
+.recent-list.transaction-list-full .transaction-link {
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
+}
+
 .transaction-list-full .transaction-link > .category-dot {
   align-self: center;
   margin-top: 0;
@@ -994,6 +967,7 @@ h3 {
 
 .transaction-list-full .transaction-main-transfer > :only-child {
   grid-row: auto;
+  align-self: center;
 }
 
 .transaction-list-full .transaction-category {
@@ -1007,7 +981,7 @@ h3 {
   white-space: nowrap;
 }
 
-.transaction-list-full .transaction-asset-group {
+.transaction-asset-category {
   min-width: 0;
   overflow: hidden;
   font-size: var(--text-body);
@@ -1052,7 +1026,7 @@ h3 {
   flex: 0 0 auto;
 }
 
-.transaction-list-full .transaction-memo {
+.transaction-memo {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -1061,10 +1035,6 @@ h3 {
   overflow-wrap: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.recent-copy-text > span {
-  text-wrap: pretty;
 }
 
 .transaction-list-full .row-affordance {
@@ -2771,6 +2741,9 @@ h3 {
 
   .transaction-link {
     column-gap: var(--space-item);
+  }
+  .transaction-list-full .transaction-main-transfer {
+    align-self: center;
   }
 
   .filter-form {

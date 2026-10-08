@@ -362,6 +362,118 @@ test('filters transfer rows by direct transfer URL regardless of category query'
   await expect(runTransferRows(page)).toHaveCount(1);
   await expect(page.locator('.transaction-link').filter({ hasText: marker })).toHaveCount(1);
 });
+test('centers one-line transfer details on mobile and preserves multiline wrapping', async ({
+  page,
+}) => {
+  if (!databaseClient) {
+    throw new Error('transfer test database is not initialized');
+  }
+  await clearRunTransfers(databaseClient);
+  const suffix = runId.slice(0, 8);
+  const oneLineFromName = `元${suffix.slice(0, 2)}`;
+  const oneLineToName = `先${suffix.slice(0, 2)}`;
+  const multilineFromName = `長い振替元の資産名${'あ'.repeat(32)}${suffix}`;
+  const multilineToName = `長い振替先の資産名${'い'.repeat(32)}${suffix}`;
+  const accounts = await databaseClient.sql<{ id: number; name: string }[]>`
+    insert into accounts (household_id, name, kind)
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineFromName}, 'other'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineToName}, 'other'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${multilineFromName}, 'other'),
+      (${DEFAULT_HOUSEHOLD_ID}, ${multilineToName}, 'other')
+    returning id, name
+  `;
+  const oneLineFrom = accounts.find((account) => account.name === oneLineFromName);
+  const oneLineTo = accounts.find((account) => account.name === oneLineToName);
+  const multilineFrom = accounts.find((account) => account.name === multilineFromName);
+  const multilineTo = accounts.find((account) => account.name === multilineToName);
+  if (!oneLineFrom || !oneLineTo || !multilineFrom || !multilineTo) {
+    throw new Error('transfer geometry accounts were not created');
+  }
+  try {
+    await databaseClient.sql`
+      insert into transfers
+        (household_id, from_account_id, to_account_id, amount, occurred_on, memo)
+      values
+        (
+          ${DEFAULT_HOUSEHOLD_ID},
+          ${oneLineFrom.id},
+          ${oneLineTo.id},
+          1234,
+          ${`${month}-14`},
+          ''
+        ),
+        (
+          ${DEFAULT_HOUSEHOLD_ID},
+          ${multilineFrom.id},
+          ${multilineTo.id},
+          5678,
+          ${`${month}-15`},
+          '複数行の振替メモ'
+        )
+    `;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/transactions?month=${month}&type=transfer`);
+    const oneLineRow = page
+      .locator('.transaction-link[href*="/transactions/transfers/"]')
+      .filter({ hasText: oneLineFromName });
+    const multilineRow = page
+      .locator('.transaction-link[href*="/transactions/transfers/"]')
+      .filter({ hasText: multilineFromName });
+    await expect(oneLineRow).toHaveCount(1);
+    await expect(multilineRow).toHaveCount(1);
+    await expect(multilineRow.locator('.transaction-memo')).toHaveText('複数行の振替メモ');
+
+    const geometry = async (row: Locator) =>
+      row.evaluate((element) => {
+        const bounds = (selector: string) => {
+          const child = element.querySelector<HTMLElement>(selector);
+          if (!child) {
+            throw new Error(`missing ${selector}`);
+          }
+          const rect = child.getBoundingClientRect();
+          return { top: rect.top, left: rect.left, height: rect.height };
+        };
+        const rowBounds = element.getBoundingClientRect();
+        const main = bounds('.transaction-main-transfer');
+        const category = bounds('.transfer-category');
+        return {
+          rowCenter: rowBounds.top + rowBounds.height / 2,
+          mainCenter: main.top + main.height / 2,
+          mainHeight: main.height,
+          categoryHeight: category.height,
+          mainTopOffset: main.top - rowBounds.top,
+          mainLeftOffset: main.left - rowBounds.left,
+          categoryTopOffset: category.top - rowBounds.top,
+          categoryLeftOffset: category.left - rowBounds.left,
+        };
+      });
+    const oneLineGeometry = await geometry(oneLineRow);
+    const multilineGeometry = await geometry(multilineRow);
+    console.log('TRANSFER_GEOMETRY', JSON.stringify({ oneLineGeometry, multilineGeometry }));
+    expect(Math.abs(oneLineGeometry.mainCenter - oneLineGeometry.rowCenter)).toBeLessThanOrEqual(1);
+    expect(multilineGeometry.categoryHeight).toBeGreaterThan(oneLineGeometry.categoryHeight);
+    expect(multilineGeometry.mainHeight).toBeGreaterThan(oneLineGeometry.mainHeight);
+    expect(multilineGeometry.mainTopOffset).toBeCloseTo(6, 1);
+    expect(multilineGeometry.mainLeftOffset).toBeCloseTo(92.1875, 1);
+    expect(multilineGeometry.categoryTopOffset).toBeCloseTo(6, 1);
+    expect(multilineGeometry.categoryLeftOffset).toBeCloseTo(92.1875, 1);
+  } finally {
+    await databaseClient.sql`
+      delete from transfers
+      where from_account_id in (
+        select id from accounts
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+          and name in (${oneLineFromName}, ${oneLineToName}, ${multilineFromName}, ${multilineToName})
+      )
+    `;
+    await databaseClient.sql`
+      delete from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and name in (${oneLineFromName}, ${oneLineToName}, ${multilineFromName}, ${multilineToName})
+    `;
+  }
+});
 
 test('converts a transfer to expense and updates the list and overview totals', async ({
   page,
