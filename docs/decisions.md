@@ -55,6 +55,7 @@ integration test は `TEST_DATABASE_URL` を必須とし、`NODE_ENV=production`
 ## Renovate
 
 Dependabot と Renovate の二重運用は避け、Renovate を採用します。pnpm lockfile、workspace、GitHub Actions、Docker base image を更新対象にし、dependency dashboard と grouping は設定しますが、自動 merge は行いません。
+Dependabot の security update が npm ecosystem の workspace root (`/`) を対象とするよう `.github/dependabot.yml` で設定します。`open-pull-requests-limit: 0` で version update を無効化し、通常の dependency version update は引き続き Renovate が担当します。Dependabot が生成する security PR への実際の効果は未検証で、実際の bot PR はまだ観測していません。デプロイ済み Dependabot の pnpm 12.6.0 対応も未確認です。
 
 ## Shared packages
 

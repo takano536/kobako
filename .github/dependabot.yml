@@ -1,0 +1,8 @@
+# Keep version updates in Renovate; security updates use the workspace root lockfile.
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 0
