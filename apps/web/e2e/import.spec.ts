@@ -583,7 +583,23 @@ test('confirms the import and shows the rows in the ledger and overview', async 
       hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
     }),
   ).toBeVisible();
+  const importedExpenseRow = page.locator('.transaction-link').filter({
+    hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
+  });
+  const importedIncomeRow = page.locator('.transaction-link').filter({
+    hasText: markerFor(runMarkerPrefix, 'valid-income-memo'),
+  });
+  await expect(importedExpenseRow.locator('.transaction-asset-category')).toHaveText('その他');
+  await expect(importedIncomeRow.locator('.transaction-asset-category')).toHaveText('その他');
   await page.goto(`/?month=${month}`);
+  await expect(
+    page.locator('.recent-list .transaction-memo').filter({
+      hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.recent-list .transaction-asset-category').filter({ hasText: 'その他' }),
+  ).toHaveCount(2);
   await expect(
     page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
   ).toBeVisible();

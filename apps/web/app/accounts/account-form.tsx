@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { ACCOUNT_KIND_OPTIONS } from '../../src/lib/account-kind';
 
 import { SectionHeading } from '../_components/ui';
 
@@ -44,15 +45,6 @@ export interface AccountFormProps {
   submitLabel: string;
   returnTo?: string;
 }
-
-const KINDS = [
-  ['cash', '現金'],
-  ['bank', '銀行'],
-  ['credit_card', 'クレジットカード'],
-  ['debit_card', 'デビットカード'],
-  ['electronic_money', '電子マネー'],
-  ['other', 'その他'],
-] as const;
 
 const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
 
@@ -159,7 +151,7 @@ export function AccountForm({
               aria-invalid={kindError?.length ? true : undefined}
               aria-describedby={kindError?.length ? 'account-kind-error' : undefined}
             >
-              {KINDS.map(([value, label]) => (
+              {ACCOUNT_KIND_OPTIONS.map(([value, label]) => (
                 <option value={value} key={value}>
                   {label}
                 </option>

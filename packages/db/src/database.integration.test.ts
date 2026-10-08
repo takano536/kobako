@@ -1270,14 +1270,14 @@ describe('PostgreSQL migrations and ledger', () => {
     );
     expect(linkedTransaction).toMatchObject({
       accountName: 'Monthly linked asset',
-      accountGroupName: 'Monthly asset group',
+      accountKind: 'other',
     });
     if (!linkedTransaction || linkedTransaction.type === 'transfer') {
       throw new Error('linked transaction was not listed');
     }
     await expect(
       getTransaction(client.db, DEFAULT_HOUSEHOLD_ID, linkedTransaction.id),
-    ).resolves.toMatchObject({ accountGroupName: 'Monthly asset group' });
+    ).resolves.toMatchObject({ accountKind: 'other' });
     expect(
       await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
         month: '2026-09',
@@ -1300,9 +1300,7 @@ describe('PostgreSQL migrations and ledger', () => {
       month: '2026-09',
     });
     expect(listedTransactions).toHaveLength(3);
-    expect(listedTransactions).toContainEqual(
-      expect.objectContaining({ accountGroupName: 'Monthly asset group' }),
-    );
+    expect(listedTransactions).toContainEqual(expect.objectContaining({ accountKind: 'other' }));
     expect(
       await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, { month: '2026-09', type: 'income' }),
     ).toHaveLength(1);
@@ -1315,6 +1313,82 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(await getExpenseCategoryTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual([
       { categoryId: expenseCategory.id, categoryName: expenseCategory.name, total: '2000' },
     ]);
+  });
+  it('uses the saved asset kind in transaction listings and keeps import defaults honest', async () => {
+    const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expenseCategory) {
+      throw new Error('expense category seeds missing');
+    }
+    await client.sql`
+      insert into account_groups (household_id, name, sort_order)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'その他', 60)
+    `;
+    const manual = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '手入力銀行',
+      kind: 'bank',
+    });
+    if (manual.status !== 'ok') {
+      throw new Error('manual account was not created');
+    }
+    await client.sql`
+      update accounts
+      set group_id = (
+        select id from account_groups
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'
+      )
+      where id = ${manual.account.id}
+    `;
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 100,
+      occurredOn: '2026-09-10',
+      categoryId: expenseCategory.id,
+      accountId: manual.account.id,
+      memo: '',
+    });
+    const imported = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'f'.repeat(64),
+      originalFilename: 'asset-kind.xlsx',
+      rows: [
+        importedRow({
+          sourceRow: 2,
+          accountName: 'らくな家計簿資産',
+          categoryName: expenseCategory.name,
+          amount: 200,
+          occurredOn: '2026-09-11',
+          memo: '',
+        }),
+      ],
+    });
+    expect(imported.status).toBe('imported');
+
+    const listed = await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    const manualRow = listed.find((row) => row.accountName === '手入力銀行');
+    const importedRowResult = listed.find((row) => row.accountName === 'らくな家計簿資産');
+    expect(manualRow).toBeDefined();
+    expect(importedRowResult).toBeDefined();
+    const accountKindOf = (row: unknown): unknown =>
+      row && typeof row === 'object' && 'accountKind' in row ? row.accountKind : undefined;
+    expect(accountKindOf(manualRow)).toBe('bank');
+    expect(accountKindOf(importedRowResult)).toBe('other');
+    const listedEntries = await listLedgerEntries(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(
+      accountKindOf(
+        listedEntries.find((row) => row.type !== 'transfer' && row.accountName === '手入力銀行'),
+      ),
+    ).toBe('bank');
+    expect(
+      accountKindOf(
+        listedEntries.find(
+          (row) => row.type !== 'transfer' && row.accountName === 'らくな家計簿資産',
+        ),
+      ),
+    ).toBe('other');
   });
   it('keeps large sums exact and orders category totals numerically', async () => {
     const expenseCategories = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense');
