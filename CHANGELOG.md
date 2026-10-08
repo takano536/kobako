@@ -1,4 +1,13 @@
 # Changelog
+## [0.9.2](https://github.com/takano536/kobako/compare/v0.9.1...v0.9.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** classify releases and retry automerge safely ([#54](https://github.com/takano536/kobako/issues/54)) ([8003858](https://github.com/takano536/kobako/commit/8003858bf87cba8ff2936be2070f0376fafa1002))
+* **deps:** bump next to 16.3.8 with pnpm-lock.yaml update ([#53](https://github.com/takano536/kobako/issues/53)) ([25e5099](https://github.com/takano536/kobako/commit/25e50998a15739759fb2a1e4ced5cb9a18da5e81))
+* **web:** split transaction rows into two detail columns ([#50](https://github.com/takano536/kobako/issues/50)) ([31f14f4](https://github.com/takano536/kobako/commit/31f14f4b2a7104347b863b997f575a763da224ca))
+
 ## [0.9.1](https://github.com/takano536/kobako/compare/v0.9.0...v0.9.1) (2026-10-08)
 
 
