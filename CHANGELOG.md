@@ -1,4 +1,11 @@
 # Changelog
+## [0.9.3](https://github.com/takano536/kobako/compare/v0.9.2...v0.9.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **web:** 取引表示の資産カテゴリを正しく表示 ([#55](https://github.com/takano536/kobako/issues/55)) ([a65303d](https://github.com/takano536/kobako/commit/a65303d7130d58f039aa8705a6b047238f1f8ab4))
+
 ## [0.9.2](https://github.com/takano536/kobako/compare/v0.9.1...v0.9.2) (2026-10-08)
 
 
