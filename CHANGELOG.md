@@ -1,4 +1,11 @@
 # Changelog
+## [0.10.0](https://github.com/takano536/kobako/compare/v0.9.4...v0.10.0) (2026-10-09)
+
+
+### Features
+
+* **web:** add settings with category management and data reset ([#59](https://github.com/takano536/kobako/issues/59)) ([2a16f12](https://github.com/takano536/kobako/commit/2a16f12eaf6d7c585293111338f8c27a12898319))
+
 ## [0.9.4](https://github.com/takano536/kobako/compare/v0.9.3...v0.9.4) (2026-10-09)
 
 
