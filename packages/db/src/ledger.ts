@@ -4,6 +4,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from './client.js';
 import { monthRange } from './month.js';
 import {
+  accountGroups,
   accountCardSettings,
   accounts,
   categories,
@@ -41,6 +42,14 @@ export const DEFAULT_CATEGORY_SEEDS = [
   name: string;
   sortOrder: number;
 }>;
+export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
+  { name: '現金', defaultKind: 'cash', sortOrder: 10 },
+  { name: '銀行', defaultKind: 'bank', sortOrder: 20 },
+  { name: 'クレジットカード', defaultKind: 'credit_card', sortOrder: 30 },
+  { name: 'デビットカード', defaultKind: null, sortOrder: 40 },
+  { name: '電子マネー', defaultKind: null, sortOrder: 50 },
+  { name: 'その他', defaultKind: null, sortOrder: 60 },
+] as const;
 
 function accountKindOrderSql() {
   return sql<number>`case ${accounts.kind}
@@ -63,6 +72,17 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
         name: '自宅',
       })
       .onConflictDoNothing({ target: households.id });
+    await transaction
+      .insert(accountGroups)
+      .values(
+        DEFAULT_ACCOUNT_GROUP_SEEDS.map((group) => ({
+          householdId: DEFAULT_HOUSEHOLD_ID,
+          ...group,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [accountGroups.householdId, accountGroups.name],
+      });
 
     await transaction
       .insert(categories)
@@ -627,6 +647,8 @@ export async function createTransaction(
   input: TransactionInput,
 ): Promise<Transaction> {
   return db.transaction(async (transaction) => {
+    await lockHousehold(transaction, householdId);
+
     await lockCardSettingsForAccounts(
       transaction,
       householdId,
@@ -657,6 +679,8 @@ export async function updateTransaction(
   input: TransactionInput,
 ): Promise<Transaction | null> {
   return db.transaction(async (transaction) => {
+    await lockHousehold(transaction, householdId);
+
     const existingRows = await transaction
       .select({ id: transactions.id, accountId: transactions.accountId })
       .from(transactions)
@@ -694,6 +718,8 @@ export async function deleteTransaction(
   id: number,
 ): Promise<Pick<Transaction, 'occurredOn'> | null> {
   return db.transaction(async (transaction) => {
+    await lockHousehold(transaction, householdId);
+
     const existingRows = await transaction
       .select({ id: transactions.id, accountId: transactions.accountId })
       .from(transactions)
@@ -717,6 +743,17 @@ export async function deleteTransaction(
 
 export type LedgerTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 export type LedgerExecutor = Database | LedgerTransaction;
+export async function lockHousehold(db: LedgerExecutor, householdId: string): Promise<void> {
+  const rows = await db
+    .select({ id: households.id })
+    .from(households)
+    .where(eq(households.id, householdId))
+    .for('update')
+    .limit(1);
+  if (!rows[0]) {
+    throw new Error('Household not found');
+  }
+}
 
 /**
  * Serialize ledger, account, and import mutations touching a credit-card account
@@ -818,6 +855,8 @@ export async function createTransfer(
 ): Promise<TransferMutationResult> {
   try {
     return await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+
       await lockCardSettingsForAccounts(transaction, householdId, [
         input.fromAccountId,
         input.toAccountId,
@@ -861,6 +900,8 @@ export async function updateTransfer(
 ): Promise<TransferMutationResult> {
   try {
     return await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+
       const targetRows = await transaction
         .select({
           id: transfers.id,
@@ -927,6 +968,8 @@ export async function convertTransactionToTransfer(
 ): Promise<TransferMutationResult> {
   try {
     return await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+
       const sourceRows = await transaction
         .select({ id: transactions.id, accountId: transactions.accountId })
         .from(transactions)
@@ -992,6 +1035,8 @@ export async function convertTransferToTransaction(
 ): Promise<TransactionConversionResult> {
   try {
     return await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+
       const sourceRows = await transaction
         .select({
           id: transfers.id,
@@ -1063,6 +1108,8 @@ export async function deleteTransfer(
 ): Promise<TransferDeleteResult> {
   try {
     const rows = await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+
       const targetRows = await transaction
         .select({
           id: transfers.id,

@@ -6,6 +6,7 @@ export {
 } from './client.js';
 export { databaseEnvSchema, getDatabaseUrl, redactDatabaseUrl, type DatabaseEnv } from './env.js';
 export {
+  DEFAULT_ACCOUNT_GROUP_SEEDS,
   DEFAULT_CATEGORY_SEEDS,
   DEFAULT_HOUSEHOLD_ID,
   DEFAULT_HOUSEHOLD_SLUG,
@@ -29,6 +30,7 @@ export {
   listLedgerEntries,
   listTransactions,
   lockCardSettingsForAccounts,
+  lockHousehold,
   updateTransaction,
   updateTransfer,
   convertTransactionToTransfer,
@@ -47,6 +49,19 @@ export {
   type TransferValidationCode,
   type TransferMutationResult,
 } from './ledger.js';
+export {
+  CATEGORY_SORT_STEP,
+  createCategory,
+  deleteCategory,
+  ensureDefaultAccountGroups,
+  reorderCategories,
+  resetHouseholdData,
+  updateCategory,
+  type CategoryCreateResult,
+  type CategoryDeleteResult,
+  type CategoryReorderResult,
+  type CategoryUpdateResult,
+} from './categories.js';
 export {
   aggregateBankPaymentSchedules,
   deriveCardBalancePaymentSchedule,
@@ -126,8 +141,16 @@ export {
   cardPaymentMonthOffset,
   systemHealthchecks,
   transactionImports,
+  accountGroups,
+  accountCardConditions,
+  accountCardSettings,
+  accountImportMappings,
+  categories,
+  households,
   transfers,
   type Account,
+  type Category,
+  type TransactionType,
   type AccountCardSetting,
   type CardAutoPaymentRun,
   type CardAutoPaymentStatus,
@@ -150,6 +173,7 @@ export {
 } from './database-safety.js';
 export {
   ACCOUNT_NAME_MAX_LENGTH,
+  CATEGORY_NAME_MAX_LENGTH,
   AMOUNT_FORMAT_MESSAGE,
   AMOUNT_LIMIT,
   AMOUNT_TEXT_PATTERN_SOURCE,
@@ -160,8 +184,11 @@ export {
   accountNameSchema,
   accountStatusSchema,
   accountUpdateInputSchema,
+  categoryCreateInputSchema,
   amountSchema,
   categoryIdSchema,
+  categoryNameSchema,
+  categoryUpdateInputSchema,
   cardPaymentMonthOffsetSchema,
   flattenTransactionError,
   flattenTransferError,
@@ -180,6 +207,8 @@ export {
   transactionInputSchema,
   transactionTypeSchema,
   type AccountCardConditionInput,
+  type CategoryCreateInput,
+  type CategoryUpdateInput,
   type AccountCreateInput,
   type AccountKindInput,
   type AccountStatusInput,

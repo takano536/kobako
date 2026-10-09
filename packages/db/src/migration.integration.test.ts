@@ -8,7 +8,11 @@ import {
   assertSafeTestDatabaseTarget,
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
-import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
+import {
+  DEFAULT_ACCOUNT_GROUP_SEEDS,
+  DEFAULT_HOUSEHOLD_ID,
+  initializeDefaultLedger,
+} from './ledger.js';
 import { currentTokyoDate } from './month.js';
 
 const HOUSEHOLD_ID = '11111111-1111-1111-1111-111111111111';
@@ -549,7 +553,7 @@ describe('legacy account migration', () => {
         { count: 1 },
       ]);
       expect(await emptyClient.sql`select count(*)::int as count from account_groups`).toEqual([
-        { count: 0 },
+        { count: DEFAULT_ACCOUNT_GROUP_SEEDS.length },
       ]);
       const nullableAccount = await emptyClient.sql`
         insert into accounts (household_id, name, kind, sort_order)

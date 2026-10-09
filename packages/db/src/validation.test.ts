@@ -4,6 +4,8 @@ import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
 import {
   AMOUNT_LIMIT,
   accountCardConditionInputSchema,
+  categoryCreateInputSchema,
+  categoryUpdateInputSchema,
   isValidCardBillingSchedule,
   transactionInputFromFormData,
   transactionInputSchema,
@@ -300,5 +302,35 @@ describe('card billing setting validation', () => {
     expect(isValidCardBillingSchedule('last', 'last', 'same_month')).toBe(false);
     expect(isValidCardBillingSchedule('25', 'last', 'same_month')).toBe(true);
     expect(isValidCardBillingSchedule('25', '10', 'next_month')).toBe(true);
+  });
+});
+
+describe('category input validation', () => {
+  it('trims names and rejects blank, control-character, and overlong names', () => {
+    const valid = categoryCreateInputSchema.safeParse({ type: 'expense', name: '  食費  ' });
+    expect(valid.success).toBe(true);
+    if (valid.success) expect(valid.data.name).toBe('食費');
+    expect(categoryCreateInputSchema.safeParse({ type: 'expense', name: ' \t ' }).success).toBe(
+      false,
+    );
+    expect(
+      categoryCreateInputSchema.safeParse({ type: 'income', name: `給与${String.fromCharCode(7)}` })
+        .success,
+    ).toBe(false);
+    expect(
+      categoryCreateInputSchema.safeParse({ type: 'expense', name: 'あ'.repeat(81) }).success,
+    ).toBe(false);
+  });
+
+  it('validates category id and type on rename', () => {
+    expect(
+      categoryUpdateInputSchema.safeParse({ id: '12', type: 'income', name: '給与' }).success,
+    ).toBe(true);
+    expect(
+      categoryUpdateInputSchema.safeParse({ id: '0', type: 'expense', name: '食費' }).success,
+    ).toBe(false);
+    expect(
+      categoryUpdateInputSchema.safeParse({ id: '12', type: 'transfer', name: '振替' }).success,
+    ).toBe(false);
   });
 });

@@ -33,6 +33,16 @@ households (1) ──< accounts ──< transactions
 
 初期データは `packages/db/src/ledger.ts` の `initializeDefaultLedger` が `ON CONFLICT DO NOTHING` で登録します。`runMigrations` が Drizzle migration の後に呼び出すため、空 DB と再実行の両方で同じ結果になります。
 
+## 設定と家計の初期化
+
+設定のカテゴリ管理は `/settings/categories/asset`（固定の資産カテゴリ）、`/settings/categories/expense`（支出カテゴリ）、`/settings/categories/income`（収入カテゴリ）に分かれています。支出・収入カテゴリは追加、名前変更、並び順変更、削除を行えます。カテゴリ名はサーバー側で空白・長さ・制御文字・種別内重複を検証し、取引から参照されているカテゴリは削除を拒否します。資産カテゴリ（`account_kind`）は固定分類として表示のみです。`account_groups` は資産カテゴリとは別の概念です。
+
+`/settings/delete` の初期化は、家計行を `SELECT FOR UPDATE` で先にロックしてから一つの transaction で次のように処理します。`account_card_conditions`（カード条件履歴）、`account_card_settings`（現在のカード設定）、`account_import_mappings`（資産の取り込み対応表）、`transaction_imports`（取り込み履歴）、`card_auto_payment_runs`（自動決済処理記録）、`transactions`（取引）、`transfers`（振替）、`accounts`（資産。論理削除済みを含む）、`categories`（支出・収入カテゴリ）、`account_groups`（利用者作成分を含む全行）を家計単位で全削除し、`DEFAULT_CATEGORY_SEEDS` のカテゴリと `DEFAULT_ACCOUNT_GROUP_SEEDS` の初期グループを再作成します。外部キーの依存順を守るため、カード記録・取り込み関連・取引・振替を先に削除してから資産・カテゴリ・グループを削除します。
+
+`households` は家計の境界として保持し、`system_healthchecks` はシステム管理の疎通確認データとして保持します。PostgreSQL の enum、DB schema、Drizzle migration 履歴も変更しません。つまり、初期化で削除される家計テーブルは `account_card_conditions`、`account_card_settings`、`account_import_mappings`、`transaction_imports`、`card_auto_payment_runs`、`transactions`、`transfers`、`accounts`、`categories`、`account_groups` の全行で、再作成されるのは初期カテゴリと初期グループです。
+
+取引・振替・資産・カード設定・取り込み確定・自動決済 worker の書き込みも同じ家計行ロックを transaction の先頭で取得するため、初期化と競合して削除後にデータが復活したり、参照が dangling になったりしません。失敗時は transaction 全体を rollback します。
+
 `migrate.ts` は Drizzle migrator に `drizzle` フォルダを渡し、migration を順番に適用します。
 
 ## データベース
