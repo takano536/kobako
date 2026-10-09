@@ -72,6 +72,19 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
         name: '自宅',
       })
       .onConflictDoNothing({ target: households.id });
+
+    const householdRows = await transaction
+      .select({ ledgerInitialized: households.ledgerInitialized })
+      .from(households)
+      .where(eq(households.id, DEFAULT_HOUSEHOLD_ID))
+      .for('update')
+      .limit(1);
+    const household = householdRows[0];
+    if (!household) {
+      throw new Error('Default household not found');
+    }
+    if (household.ledgerInitialized) return;
+
     await transaction
       .insert(accountGroups)
       .values(
@@ -93,6 +106,11 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
         })),
       )
       .onConflictDoNothing();
+
+    await transaction
+      .update(households)
+      .set({ ledgerInitialized: true })
+      .where(eq(households.id, DEFAULT_HOUSEHOLD_ID));
   });
 }
 

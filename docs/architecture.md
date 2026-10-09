@@ -31,7 +31,7 @@ households (1) ──< accounts ──< transactions
 - 全ての Web query は呼び出し元が渡す household を条件に含めます（現状は常に `getCurrentHouseholdId()` の値）。月次範囲は `YYYY-MM-01` 以上、翌月 1 日未満の half-open range です。
 - 月・日付が扱う年は 1900〜9998 年（`packages/db/src/month.ts` の `MIN_SUPPORTED_YEAR`/`MAX_SUPPORTED_YEAR`）に制限します。PostgreSQL `date`/`YYYY-MM` 自体はこれより広い範囲を扱えますが、`0000-01` のような極端な値が migration 未対応のクライアント入力や URL 改ざんから届いても 500 にならないよう、`isValidMonth`/`isCalendarDate`/`parseMonth`/`shiftMonth` すべてでこの範囲を検証・フォールバックします。
 
-初期データは `packages/db/src/ledger.ts` の `initializeDefaultLedger` が `ON CONFLICT DO NOTHING` で登録します。`runMigrations` が Drizzle migration の後に呼び出すため、空 DB と再実行の両方で同じ結果になります。
+初期データは `packages/db/src/ledger.ts` の `initializeDefaultLedger` が `households.ledger_initialized` をロック付き transaction で確認し、未初期化の家計にだけ `ON CONFLICT DO NOTHING` で登録します。初回の登録と初期化済みマークは同一 transaction で確定し、`0009_big_otto_octavius.sql` は既存の household を初期化済みとして backfill するため、migration 後の再実行でも利用者のカテゴリ・並び順を変更しません。
 
 ## 設定と家計の初期化
 

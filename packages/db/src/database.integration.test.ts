@@ -221,6 +221,28 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(rows[0]?.id).toBe(1);
   });
 
+  it('creates all defaults on first initialization of an empty database', async () => {
+    await client.sql`
+      truncate table "transaction_imports", "transactions", "categories", "households", "system_healthchecks"
+      restart identity cascade
+    `;
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toHaveLength(
+      DEFAULT_CATEGORY_SEEDS.length,
+    );
+    expect(
+      await client.sql<{ ledgerInitialized: boolean }[]>`
+        select ledger_initialized as "ledgerInitialized"
+        from households
+        where id = ${DEFAULT_HOUSEHOLD_ID}
+      `,
+    ).toEqual([{ ledgerInitialized: true }]);
+    expect(await client.sql`select count(*)::int as count from account_groups`).toEqual([
+      { count: DEFAULT_ACCOUNT_GROUP_SEEDS.length },
+    ]);
+  });
   it('seeds one default household and categories idempotently', async () => {
     await initializeDefaultLedger(client.db);
     await initializeDefaultLedger(client.db);
@@ -233,6 +255,87 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(seededCategories).toHaveLength(12);
     expect(seededCategories.filter((category) => category.type === 'expense')).toHaveLength(9);
     expect(seededCategories.filter((category) => category.type === 'income')).toHaveLength(3);
+  });
+  it('preserves category settings and transactions when initialization reruns', async () => {
+    const initialCategories = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    const renameTarget = initialCategories.find((category) => category.type === 'expense');
+    const deleteTarget = initialCategories.find(
+      (category) => category.type === 'expense' && category.id !== renameTarget?.id,
+    );
+    if (!renameTarget || !deleteTarget) throw new Error('category fixtures are missing');
+
+    expect(
+      (
+        await updateCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+          id: renameTarget.id,
+          type: renameTarget.type,
+          name: '利用者が変更したカテゴリ',
+        })
+      ).status,
+    ).toBe('ok');
+    expect(
+      await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, deleteTarget.id, deleteTarget.type),
+    ).toEqual({ status: 'ok' });
+    const created = await createCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      name: '利用者が追加したカテゴリ',
+    });
+    expect(created.status).toBe('ok');
+
+    const expenseCategories = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense');
+    expect(
+      await reorderCategories(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        'expense',
+        expenseCategories.map((category) => category.id).reverse(),
+      ),
+    ).toEqual({ status: 'ok' });
+    const categoriesBeforeInitialization = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    const transactionCategory = categoriesBeforeInitialization.find(
+      (category) => category.type === 'expense',
+    );
+    if (!transactionCategory) throw new Error('transaction category is missing');
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 123,
+      occurredOn: '2026-10-08',
+      categoryId: transactionCategory.id,
+      accountId: null,
+      memo: '初期化再実行テスト',
+    });
+    const transactionsBeforeInitialization = await client.sql`
+      select type, amount, occurred_on, category_id, account_id, memo
+      from transactions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      order by id
+    `;
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(
+      categoriesBeforeInitialization,
+    );
+    expect(
+      await client.sql`
+        select type, amount, occurred_on, category_id, account_id, memo
+        from transactions
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        order by id
+      `,
+    ).toEqual(transactionsBeforeInitialization);
+  });
+  it('does not recreate categories after the user deletes all of them', async () => {
+    const categoriesBeforeDelete = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    for (const category of categoriesBeforeDelete) {
+      expect(
+        await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, category.id, category.type),
+      ).toEqual({ status: 'ok' });
+    }
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual([]);
   });
   it('creates accounts by kind, saves current card conditions, and deletes assets logically', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
@@ -3889,6 +3992,9 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(otherCategoryRows[0]?.count).toBe('1');
     const resetExpense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
     if (!resetExpense) throw new Error('reset categories are missing');
+    const categoriesAfterReset = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    await initializeDefaultLedger(client.db);
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(categoriesAfterReset);
     await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
       type: 'expense',
       amount: 55,

@@ -9,6 +9,7 @@ import {
   accounts,
   cardAutoPaymentRuns,
   categories,
+  households,
   transactionImports,
   transfers,
   transactions,
@@ -297,6 +298,10 @@ export async function resetHouseholdData(
       await transaction
         .insert(categories)
         .values(DEFAULT_CATEGORY_SEEDS.map((category) => ({ householdId, ...category })));
+      await transaction
+        .update(households)
+        .set({ ledgerInitialized: true })
+        .where(eq(households.id, householdId));
     });
     return { status: 'ok' };
   } catch (error) {
