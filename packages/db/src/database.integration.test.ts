@@ -5,7 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDatabaseClient, type DatabaseClient } from './client.js';
 import { currentTokyoDate } from './month.js';
 import {
+  DEFAULT_ACCOUNT_GROUP_SEEDS,
   DEFAULT_HOUSEHOLD_ID,
+  DEFAULT_CATEGORY_SEEDS,
   convertTransactionToTransfer,
   convertTransferToTransaction,
   createTransaction,
@@ -21,9 +23,18 @@ import {
   listCategories,
   listLedgerEntries,
   listTransactions,
+  lockHousehold,
   updateTransaction,
   updateTransfer,
 } from './ledger.js';
+import {
+  createCategory,
+  deleteCategory,
+  reorderCategories,
+  resetHouseholdData,
+  updateCategory,
+} from './categories.js';
+import { processDueCardPayments } from './billing.js';
 import {
   createAccount,
   deleteAccount,
@@ -41,9 +52,14 @@ import {
   type DatabaseTarget,
 } from './database-safety.js';
 import {
+  accountCardConditions,
   accountCardSettings,
+  accountGroups,
+  accountImportMappings,
   accounts,
+  cardAutoPaymentRuns,
   categories,
+  households,
   transactionImports,
   systemHealthchecks,
   transactions,
@@ -205,6 +221,28 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(rows[0]?.id).toBe(1);
   });
 
+  it('creates all defaults on first initialization of an empty database', async () => {
+    await client.sql`
+      truncate table "transaction_imports", "transactions", "categories", "households", "system_healthchecks"
+      restart identity cascade
+    `;
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toHaveLength(
+      DEFAULT_CATEGORY_SEEDS.length,
+    );
+    expect(
+      await client.sql<{ ledgerInitialized: boolean }[]>`
+        select ledger_initialized as "ledgerInitialized"
+        from households
+        where id = ${DEFAULT_HOUSEHOLD_ID}
+      `,
+    ).toEqual([{ ledgerInitialized: true }]);
+    expect(await client.sql`select count(*)::int as count from account_groups`).toEqual([
+      { count: DEFAULT_ACCOUNT_GROUP_SEEDS.length },
+    ]);
+  });
   it('seeds one default household and categories idempotently', async () => {
     await initializeDefaultLedger(client.db);
     await initializeDefaultLedger(client.db);
@@ -217,6 +255,87 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(seededCategories).toHaveLength(12);
     expect(seededCategories.filter((category) => category.type === 'expense')).toHaveLength(9);
     expect(seededCategories.filter((category) => category.type === 'income')).toHaveLength(3);
+  });
+  it('preserves category settings and transactions when initialization reruns', async () => {
+    const initialCategories = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    const renameTarget = initialCategories.find((category) => category.type === 'expense');
+    const deleteTarget = initialCategories.find(
+      (category) => category.type === 'expense' && category.id !== renameTarget?.id,
+    );
+    if (!renameTarget || !deleteTarget) throw new Error('category fixtures are missing');
+
+    expect(
+      (
+        await updateCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+          id: renameTarget.id,
+          type: renameTarget.type,
+          name: '利用者が変更したカテゴリ',
+        })
+      ).status,
+    ).toBe('ok');
+    expect(
+      await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, deleteTarget.id, deleteTarget.type),
+    ).toEqual({ status: 'ok' });
+    const created = await createCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      name: '利用者が追加したカテゴリ',
+    });
+    expect(created.status).toBe('ok');
+
+    const expenseCategories = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense');
+    expect(
+      await reorderCategories(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        'expense',
+        expenseCategories.map((category) => category.id).reverse(),
+      ),
+    ).toEqual({ status: 'ok' });
+    const categoriesBeforeInitialization = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    const transactionCategory = categoriesBeforeInitialization.find(
+      (category) => category.type === 'expense',
+    );
+    if (!transactionCategory) throw new Error('transaction category is missing');
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 123,
+      occurredOn: '2026-10-08',
+      categoryId: transactionCategory.id,
+      accountId: null,
+      memo: '初期化再実行テスト',
+    });
+    const transactionsBeforeInitialization = await client.sql`
+      select type, amount, occurred_on, category_id, account_id, memo
+      from transactions
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      order by id
+    `;
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(
+      categoriesBeforeInitialization,
+    );
+    expect(
+      await client.sql`
+        select type, amount, occurred_on, category_id, account_id, memo
+        from transactions
+        where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        order by id
+      `,
+    ).toEqual(transactionsBeforeInitialization);
+  });
+  it('does not recreate categories after the user deletes all of them', async () => {
+    const categoriesBeforeDelete = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    for (const category of categoriesBeforeDelete) {
+      expect(
+        await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, category.id, category.type),
+      ).toEqual({ status: 'ok' });
+    }
+
+    await initializeDefaultLedger(client.db);
+
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual([]);
   });
   it('creates accounts by kind, saves current card conditions, and deletes assets logically', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
@@ -1319,10 +1438,6 @@ describe('PostgreSQL migrations and ledger', () => {
     if (!expenseCategory) {
       throw new Error('expense category seeds missing');
     }
-    await client.sql`
-      insert into account_groups (household_id, name, sort_order)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'その他', 60)
-    `;
     const manual = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '手入力銀行',
       kind: 'bank',
@@ -3668,5 +3783,301 @@ describe('PostgreSQL migrations and ledger', () => {
         accountId: card.account.id,
       }),
     ).toMatchObject([{ amount: -200, memo: 'カード返金' }]);
+  });
+  it('manages categories without changing transaction references or aggregates', async () => {
+    const original = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!original) throw new Error('default expense category is missing');
+    const created = await createCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      name: '設定テストカテゴリ',
+    });
+    expect(created.status).toBe('ok');
+    if (created.status !== 'ok') throw new Error('category creation failed');
+    expect(
+      await createCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        type: 'expense',
+        name: '設定テストカテゴリ',
+      }),
+    ).toEqual({ status: 'duplicate' });
+    const income = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income'))[0];
+    if (!income) throw new Error('default income category is missing');
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 1200,
+      occurredOn: '2026-09-10',
+      categoryId: created.category.id,
+      accountId: null,
+      memo: 'カテゴリ参照を保持',
+    });
+    const before = await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09');
+    expect(
+      await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, created.category.id, 'expense'),
+    ).toEqual({ status: 'in_use' });
+    const renamed = await updateCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      id: created.category.id,
+      type: 'expense',
+      name: '設定テストカテゴリ改名',
+    });
+    expect(renamed.status).toBe('ok');
+    const current = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense');
+    expect(
+      await reorderCategories(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        'expense',
+        current.map((category) => category.id).reverse(),
+      ),
+    ).toEqual({ status: 'ok' });
+    const transaction = await listTransactions(client.db, DEFAULT_HOUSEHOLD_ID, {
+      month: '2026-09',
+    });
+    expect(transaction).toMatchObject([
+      { categoryId: created.category.id, categoryName: '設定テストカテゴリ改名' },
+    ]);
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toEqual(before);
+    expect(await deleteCategory(client.db, DEFAULT_HOUSEHOLD_ID, income.id, 'income')).toEqual({
+      status: 'ok',
+    });
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'income')).toHaveLength(2);
+    expect(original.id).not.toBe(created.category.id);
+  });
+
+  it('resets every household-owned table, preserves the boundary, and can be reused', async () => {
+    const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '初期化銀行',
+      kind: 'bank',
+    });
+    expect(bank.status).toBe('ok');
+    if (bank.status !== 'ok') throw new Error('bank creation failed');
+    const card = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: '初期化カード', kind: 'credit_card' },
+      {
+        closingDay: '4',
+        paymentDay: '5',
+        paymentMonthOffset: 'same_month',
+        debitAccountId: bank.account.id,
+      },
+    );
+    expect(card.status).toBe('ok');
+    if (card.status !== 'ok') throw new Error('card creation failed');
+    const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expense) throw new Error('default expense category is missing');
+    const createdTransaction = await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 100,
+      occurredOn: '2026-09-01',
+      categoryId: expense.id,
+      accountId: bank.account.id,
+      memo: '初期化対象',
+    });
+    const transfer = await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+      fromAccountId: bank.account.id,
+      toAccountId: card.account.id,
+      amount: 100,
+      occurredOn: '2026-09-02',
+      memo: '初期化対象振替',
+    });
+    expect(transfer.status).toBe('ok');
+    if (transfer.status !== 'ok') throw new Error('transfer creation failed');
+    const deletedAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '論理削除対象',
+      kind: 'other',
+    });
+    expect(deletedAccount.status).toBe('ok');
+    if (deletedAccount.status !== 'ok') throw new Error('deleted account creation failed');
+    expect(await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, deletedAccount.account.id)).toEqual(
+      { status: 'deleted' },
+    );
+    await client.db.insert(accountCardConditions).values({
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      accountId: card.account.id,
+      effectiveFrom: '2026-01-01',
+      closingDay: '4',
+      paymentDay: '5',
+      paymentMonthOffset: 'same_month',
+      debitAccountId: bank.account.id,
+    });
+    await client.db.insert(accountImportMappings).values({
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      source: 'reset-test',
+      sourceAccountId: null,
+      sourceAccountName: '初期化銀行',
+      accountId: bank.account.id,
+    });
+    await client.db.insert(transactionImports).values({
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      source: 'reset-test',
+      sha256: 'a'.repeat(64),
+      operationKey: 'reset-operation',
+      originalFilename: 'reset.xlsx',
+      transactionCount: 1,
+      expenseCount: 1,
+    });
+    await client.sql`
+      update account_groups
+      set sort_order = 999
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '現金'
+    `;
+    await client.db.insert(accountGroups).values({
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      name: '利用者グループ',
+      defaultKind: null,
+      sortOrder: 777,
+    });
+    await client.db.insert(cardAutoPaymentRuns).values({
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      cardAccountId: card.account.id,
+      dueOn: '2026-09-05',
+      status: 'settled',
+      transferId: transfer.transfer.id,
+    });
+    await client.db.insert(systemHealthchecks).values({ key: 'reset-preserve' });
+    await client.db.insert(households).values({
+      id: '00000000-0000-0000-0000-000000000002',
+      slug: 'reset-other',
+      name: '別家計',
+    });
+    await client.db.insert(categories).values({
+      householdId: '00000000-0000-0000-0000-000000000002',
+      type: 'expense',
+      name: '別家計カテゴリ',
+      sortOrder: 10,
+    });
+    expect(createdTransaction.id).toBeGreaterThan(0);
+    expect(await resetHouseholdData(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual({ status: 'ok' });
+    const counts = await client.sql<{ tableName: string; count: string }[]>`
+      select 'transactions' as "tableName", count(*)::text as count from transactions where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'transfers', count(*)::text from transfers where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'accounts', count(*)::text from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'card_settings', count(*)::text from account_card_settings where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'card_conditions', count(*)::text from account_card_conditions where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'runs', count(*)::text from card_auto_payment_runs where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'imports', count(*)::text from transaction_imports where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'mappings', count(*)::text from account_import_mappings where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      union all select 'custom_groups', count(*)::text from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '利用者グループ'
+      union all select 'categories', count(*)::text from categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    expect(Object.fromEntries(counts.map((row) => [row.tableName, row.count]))).toEqual({
+      transactions: '0',
+      transfers: '0',
+      accounts: '0',
+      card_settings: '0',
+      card_conditions: '0',
+      runs: '0',
+      imports: '0',
+      mappings: '0',
+      custom_groups: '0',
+      categories: String(DEFAULT_CATEGORY_SEEDS.length),
+    });
+    const groupRows = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    expect(groupRows[0]?.count).toBe(String(DEFAULT_ACCOUNT_GROUP_SEEDS.length));
+    const resetCashGroup = await client.sql<{ sortOrder: number }[]>`
+      select sort_order as "sortOrder"
+      from account_groups
+      where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = '現金'
+    `;
+    expect(resetCashGroup).toEqual([{ sortOrder: 10 }]);
+    const healthRows = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from system_healthchecks where key = 'reset-preserve'
+    `;
+    expect(healthRows[0]?.count).toBe('1');
+    const otherCategoryRows = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from categories
+      where household_id = '00000000-0000-0000-0000-000000000002'
+    `;
+    expect(otherCategoryRows[0]?.count).toBe('1');
+    const resetExpense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!resetExpense) throw new Error('reset categories are missing');
+    const categoriesAfterReset = await listCategories(client.db, DEFAULT_HOUSEHOLD_ID);
+    await initializeDefaultLedger(client.db);
+    expect(await listCategories(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual(categoriesAfterReset);
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 55,
+      occurredOn: '2026-09-03',
+      categoryId: resetExpense.id,
+      accountId: null,
+      memo: '初期化後に再利用',
+    });
+    expect(await getMonthlyTotals(client.db, DEFAULT_HOUSEHOLD_ID, '2026-09')).toMatchObject({
+      expense: '55',
+    });
+  });
+
+  it('serializes reset with worker processing and keeps rollback atomic', async () => {
+    const categoryBefore = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    await expect(
+      client.db.transaction(async (transaction) => {
+        await lockHousehold(transaction, DEFAULT_HOUSEHOLD_ID);
+        await transaction.delete(categories);
+        throw new Error('forced rollback');
+      }),
+    ).rejects.toThrow('forced rollback');
+    const categoryAfter = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    expect(categoryAfter[0]?.count).toBe(categoryBefore[0]?.count);
+    await client.sql`
+      create function kobako_test_reset_failure() returns trigger
+      language plpgsql as $fn$
+      begin
+        raise exception 'forced reset failure';
+      end;
+      $fn$
+    `;
+    await client.sql`
+      create trigger kobako_test_reset_failure_trigger
+      before insert on categories
+      for each row execute function kobako_test_reset_failure()
+    `;
+    try {
+      expect(await resetHouseholdData(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual({
+        status: 'error',
+      });
+      const categoryAfterFailedReset = await client.sql<{ count: string }[]>`
+        select count(*)::text as count from categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+      `;
+      expect(categoryAfterFailedReset[0]?.count).toBe(categoryBefore[0]?.count);
+    } finally {
+      await client.sql`drop trigger kobako_test_reset_failure_trigger on categories`;
+      await client.sql`drop function kobako_test_reset_failure()`;
+    }
+
+    const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: 'worker 競合銀行',
+      kind: 'bank',
+    });
+    if (bank.status !== 'ok') throw new Error('worker bank creation failed');
+    const card = await createAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      { name: 'worker 競合カード', kind: 'credit_card' },
+      {
+        closingDay: '4',
+        paymentDay: '5',
+        paymentMonthOffset: 'same_month',
+        debitAccountId: bank.account.id,
+      },
+    );
+    if (card.status !== 'ok') throw new Error('worker card creation failed');
+    const [resetResult] = await Promise.all([
+      resetHouseholdData(client.db, DEFAULT_HOUSEHOLD_ID),
+      processDueCardPayments(client.db, currentTokyoDate()),
+    ]);
+    expect(resetResult).toEqual({ status: 'ok' });
+    const resetAccounts = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    expect(resetAccounts[0]?.count).toBe('0');
+    const resetRuns = await client.sql<{ count: string }[]>`
+      select count(*)::text as count from card_auto_payment_runs where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    `;
+    expect(resetRuns[0]?.count).toBe('0');
   });
 });

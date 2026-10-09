@@ -27,10 +27,12 @@ export function SiteNav() {
   const overviewHref = withSelectedMonth('/', month);
   const transactionsHref = withSelectedMonth('/transactions', month);
   const balancesHref = withSelectedMonth('/balances', month);
+  const settingsHref = '/settings';
   const addHref = withSelectedMonth('/transactions/new', month);
   const overviewCurrent = pathname === '/';
   const transactionsCurrent = pathname.startsWith('/transactions');
   const balancesCurrent = pathname.startsWith('/balances');
+  const settingsCurrent = pathname.startsWith('/settings');
   return (
     <nav className="site-nav" aria-label="メインナビゲーション">
       <Link href={overviewHref} aria-current={overviewCurrent ? 'page' : undefined}>
@@ -41,6 +43,9 @@ export function SiteNav() {
       </Link>
       <Link href={balancesHref} aria-current={balancesCurrent ? 'page' : undefined}>
         残高
+      </Link>
+      <Link href={settingsHref} aria-current={settingsCurrent ? 'page' : undefined}>
+        設定
       </Link>
       <Link className="nav-add" href={addHref} aria-label="取引を登録" title="取引を登録">
         <span aria-hidden="true">＋</span>
@@ -55,6 +60,7 @@ export function SiteNavFallback() {
       <Link href="/">概要</Link>
       <Link href="/transactions">取引</Link>
       <Link href="/balances">残高</Link>
+      <Link href="/settings">設定</Link>
       <Link className="nav-add" href="/transactions/new" aria-label="取引を登録" title="取引を登録">
         <span aria-hidden="true">＋</span>
       </Link>

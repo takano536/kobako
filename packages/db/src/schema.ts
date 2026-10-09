@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -68,6 +69,7 @@ export const households = pgTable('households', {
   id: uuid('id').primaryKey(),
   slug: varchar('slug', { length: 80 }).notNull().unique(),
   name: varchar('name', { length: 120 }).notNull(),
+  ledgerInitialized: boolean('ledger_initialized').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -8,7 +8,11 @@ import {
   assertSafeTestDatabaseTarget,
   verifySafeTestDatabaseConnection,
 } from './database-safety.js';
-import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger } from './ledger.js';
+import {
+  DEFAULT_ACCOUNT_GROUP_SEEDS,
+  DEFAULT_HOUSEHOLD_ID,
+  initializeDefaultLedger,
+} from './ledger.js';
 import { currentTokyoDate } from './month.js';
 
 const HOUSEHOLD_ID = '11111111-1111-1111-1111-111111111111';
@@ -22,6 +26,7 @@ const MIGRATION_FILES = [
   '0006_fuzzy_argent.sql',
   '0007_amusing_king_bedlam.sql',
   '0008_busy_gwen_stacy.sql',
+  '0009_big_otto_octavius.sql',
 ] as const;
 
 async function executeMigrationFile(sql: Sql, fileName: string): Promise<void> {
@@ -254,6 +259,14 @@ describe('legacy account migration', () => {
       from transaction_imports
       where household_id = ${HOUSEHOLD_ID}
     `;
+    const beforeCategories = await legacyClient.sql<
+      { id: number; type: string; name: string; sortOrder: number }[]
+    >`
+      select id, type, name, sort_order as "sortOrder"
+      from categories
+      where household_id = ${HOUSEHOLD_ID}
+      order by id
+    `;
 
     for (const fileName of MIGRATION_FILES.slice(4)) {
       await executeMigrationFile(legacyClient.sql, fileName);
@@ -438,6 +451,43 @@ describe('legacy account migration', () => {
       from account_card_settings
       where household_id = ${HOUSEHOLD_ID} and account_id = ${futureCardId}
     `;
+    await initializeDefaultLedger(legacyClient.db);
+    expect(
+      await legacyClient.sql<{ ledgerInitialized: boolean }[]>`
+        select ledger_initialized as "ledgerInitialized"
+        from households
+        where id = ${HOUSEHOLD_ID}
+      `,
+    ).toEqual([{ ledgerInitialized: true }]);
+    expect(
+      await legacyClient.sql<{ id: number; type: string; name: string; sortOrder: number }[]>`
+        select id, type, name, sort_order as "sortOrder"
+        from categories
+        where household_id = ${HOUSEHOLD_ID}
+        order by id
+      `,
+    ).toEqual(beforeCategories);
+    expect(
+      await legacyClient.sql<
+        {
+          type: string;
+          amount: number;
+          occurredOn: string;
+          accountId: number | null;
+          memo: string;
+        }[]
+      >`
+        select
+          type,
+          amount,
+          occurred_on as "occurredOn",
+          account_id as "accountId",
+          memo
+        from transactions
+        where household_id = ${HOUSEHOLD_ID}
+        order by id
+      `,
+    ).toEqual(afterTransactionRows);
     expect(preservedDebitGroup).toEqual([
       { id: customDebitGroup.id, defaultKind: null, sortOrder: 777 },
     ]);
@@ -549,7 +599,7 @@ describe('legacy account migration', () => {
         { count: 1 },
       ]);
       expect(await emptyClient.sql`select count(*)::int as count from account_groups`).toEqual([
-        { count: 0 },
+        { count: DEFAULT_ACCOUNT_GROUP_SEEDS.length },
       ]);
       const nullableAccount = await emptyClient.sql`
         insert into accounts (household_id, name, kind, sort_order)

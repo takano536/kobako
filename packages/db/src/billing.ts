@@ -18,7 +18,7 @@ import {
   type CardPaymentMonthOffset,
   type TransactionType,
 } from './schema.js';
-import { lockCardSettingsForAccounts, type LedgerExecutor } from './ledger.js';
+import { lockCardSettingsForAccounts, lockHousehold, type LedgerExecutor } from './ledger.js';
 import { isValidCardBillingSchedule } from './validation.js';
 export type CardBillingPeriodStatus = 'unbilled' | 'billed-unpaid' | 'overdue' | 'paid';
 export type CardBillingCalendarError = 'unsupported_range' | 'invalid_schedule';
@@ -522,6 +522,8 @@ async function processCardDuePayments(
   today: string,
 ): Promise<Pick<ProcessDueCardPaymentsResult, 'completed' | 'settled' | 'blocked'>> {
   return db.transaction(async (transaction) => {
+    await lockHousehold(transaction, householdId);
+
     // The settings row is the same lock used by account mutations, imports, and
     // manual transfers. This serializes a due payment with edits/deletes.
     await lockCardSettingsForAccounts(transaction, householdId, [cardAccountId]);
