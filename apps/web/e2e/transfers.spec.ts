@@ -422,6 +422,13 @@ test('centers one-line transfer details on mobile and preserves multiline wrappi
       .filter({ hasText: multilineFromName });
     await expect(oneLineRow).toHaveCount(1);
     await expect(multilineRow).toHaveCount(1);
+    await expect(oneLineRow.locator('.transaction-category')).toHaveText('振替');
+    expect(await oneLineRow.locator('.transfer-account').allTextContents()).toEqual([
+      oneLineFromName,
+      oneLineToName,
+    ]);
+    await expect(oneLineRow.locator('.transaction-asset-name')).toHaveCount(0);
+    await expect(oneLineRow.locator('.record-amount')).toHaveText('1,234円');
     await expect(multilineRow.locator('.transaction-memo')).toHaveText('複数行の振替メモ');
 
     const geometry = async (row: Locator) =>
