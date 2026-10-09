@@ -368,11 +368,11 @@ async function expectMobileSummaryLayout(
       expect(item.dividerBorderBlockStart).toBe('0px');
     }
   }
-  expect(firstItem.valueFontSize).toBe(15);
+  expect(firstItem.valueFontSize).toBe(14);
   expect(firstItem.valueFontWeight).toBe(400);
-  expect(layout.itemGeometry[1]?.valueFontSize).toBe(15);
+  expect(layout.itemGeometry[1]?.valueFontSize).toBe(14);
   expect(layout.itemGeometry[1]?.valueFontWeight).toBe(400);
-  expect(netItem.valueFontSize).toBe(16);
+  expect(netItem.valueFontSize).toBe(15);
   expect(netItem.valueFontWeight).toBe(600);
   expect(netItem.labelColor).not.toBe(firstItem.labelColor);
   expect(layout.summaryHeight).toBeGreaterThan(0);

@@ -306,8 +306,8 @@ test('shows complete large month and all-time account lists and preserves settin
       .locator('.transaction-link')
       .filter({ hasText: markerFor('large-expense') })
       .first()
-      .locator('.transaction-asset-category'),
-  ).toHaveText('銀行');
+      .locator('.transaction-asset-name'),
+  ).toHaveText(targetName);
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
   const expectedMonth = sortExpected(expectedMonthEntries);
   expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(

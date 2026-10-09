@@ -10,11 +10,11 @@
   --money-negative: #a33a36;
   --rule: #dfe1da;
   --bar: #dfe5dd;
-  --text-title: 1.375rem;
-  --text-heading: 1rem;
-  --text-body: 0.9375rem;
-  --text-small: 0.8125rem;
-  --text-brand: 1.4375rem;
+  --text-title: 1.3125rem;
+  --text-heading: 0.9375rem;
+  --text-body: 0.875rem;
+  --text-small: 0.75rem;
+  --text-brand: 1.375rem;
   --space-within: 4px;
   --space-item: 8px;
   --space-group: 16px;
@@ -931,6 +931,19 @@ h3 {
   grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
 }
 
+.transaction-list-full .transaction-link-ordinary {
+  grid-template-columns:
+    6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
+    13px;
+}
+
+.recent-list.transaction-list-full .transaction-link-ordinary {
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(
+      0,
+      max-content
+    );
+}
+
 .transaction-list-full .transaction-link > .category-dot {
   align-self: center;
   margin-top: 0;
@@ -942,16 +955,10 @@ h3 {
 }
 
 .transaction-list-full .transaction-main {
-  --transaction-asset-line-height: calc(var(--text-body) * var(--leading-body));
-  --transaction-memo-line-height: calc(var(--text-small) * var(--leading-meta));
   display: grid;
-  grid-template-rows:
-    minmax(0, var(--transaction-asset-line-height))
-    minmax(0, var(--transaction-memo-line-height));
+  grid-template-rows: auto auto;
   min-width: 0;
-  min-height: calc(
-    var(--transaction-asset-line-height) + var(--space-within) + var(--transaction-memo-line-height)
-  );
+  min-height: 0;
   gap: var(--space-within);
 }
 
@@ -981,13 +988,21 @@ h3 {
   white-space: nowrap;
 }
 
-.transaction-asset-category {
+.transaction-list-full .transaction-category:not(.transfer-type) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.transaction-asset-name {
   min-width: 0;
-  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
   font-size: var(--text-body);
   line-height: var(--leading-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .transaction-list-full .transfer-type {
@@ -1037,11 +1052,26 @@ h3 {
   white-space: nowrap;
 }
 
+.transaction-main:not(.transaction-main-transfer) .transaction-memo {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .transaction-list-full .row-affordance {
   color: var(--muted);
   font-size: var(--text-body);
   line-height: 1;
   text-align: right;
+}
+
+.transaction-list-full .transaction-link-ordinary > .record-amount {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .empty-inline {
