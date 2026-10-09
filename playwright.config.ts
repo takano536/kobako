@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const e2ePort = process.env.E2E_PORT ?? '3000';
 export default defineConfig({
   testDir: './apps/web/e2e',
   fullyParallel: true,
@@ -8,7 +9,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: `http://127.0.0.1:${e2ePort}`,
     locale: 'ja-JP',
     timezoneId: 'Asia/Tokyo',
     launchOptions: {
@@ -17,9 +18,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command:
-      'export HOSTNAME=127.0.0.1 && export DATABASE_URL="$TEST_DATABASE_URL" && mkdir -p apps/web/.next/standalone/apps/web/.next && cp -R apps/web/.next/static apps/web/.next/standalone/apps/web/.next/ && exec node apps/web/.next/standalone/apps/web/server.js',
-    url: 'http://127.0.0.1:3000/api/health',
+    command: `export HOSTNAME=127.0.0.1 && export PORT=${e2ePort} && export DATABASE_URL="$TEST_DATABASE_URL" && mkdir -p apps/web/.next/standalone/apps/web/.next && cp -R apps/web/.next/static apps/web/.next/standalone/apps/web/.next/ && exec node apps/web/.next/standalone/apps/web/server.js`,
+    url: `http://127.0.0.1:${e2ePort}/api/health`,
     timeout: 120_000,
   },
   projects: [

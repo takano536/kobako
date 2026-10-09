@@ -179,6 +179,32 @@ function accountTextSchema(label: string, maxLength: number) {
 }
 
 export const accountNameSchema = accountTextSchema('資産名', ACCOUNT_NAME_MAX_LENGTH);
+export const CATEGORY_NAME_MAX_LENGTH = 80;
+
+export const categoryNameSchema = z
+  .string({ error: 'カテゴリ名を入力してください。' })
+  .trim()
+  .min(1, { error: 'カテゴリ名を入力してください。' })
+  .max(CATEGORY_NAME_MAX_LENGTH, {
+    error: `カテゴリ名は${CATEGORY_NAME_MAX_LENGTH}文字以内で入力してください。`,
+  })
+  .refine((value) => !containsAccountControlCharacter(value), {
+    error: 'カテゴリ名に制御文字は使えません。',
+  });
+
+export const categoryCreateInputSchema = z.object({
+  type: transactionTypeSchema,
+  name: categoryNameSchema,
+});
+
+export const categoryUpdateInputSchema = z.object({
+  id: categoryIdSchema,
+  type: transactionTypeSchema,
+  name: categoryNameSchema,
+});
+
+export type CategoryCreateInput = z.infer<typeof categoryCreateInputSchema>;
+export type CategoryUpdateInput = z.infer<typeof categoryUpdateInputSchema>;
 
 export const accountCreateInputSchema = z.object({
   name: accountNameSchema,
