@@ -1,4 +1,11 @@
 # Changelog
+## [0.9.4](https://github.com/takano536/kobako/compare/v0.9.3...v0.9.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **web:** show transaction asset names and compact typography ([#57](https://github.com/takano536/kobako/issues/57)) ([e958cb6](https://github.com/takano536/kobako/commit/e958cb67cbc0ccd94aaa947324f628943c7ff7bb))
+
 ## [0.9.3](https://github.com/takano536/kobako/compare/v0.9.2...v0.9.3) (2026-10-08)
 
 
