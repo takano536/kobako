@@ -1,4 +1,11 @@
 # Changelog
+## [0.10.1](https://github.com/takano536/kobako/compare/v0.10.0...v0.10.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **web:** link settings child headings back to settings ([#61](https://github.com/takano536/kobako/issues/61)) ([d5965b9](https://github.com/takano536/kobako/commit/d5965b9ed08cf0ef783dc19ab58c7d89bc97a97f))
+
 ## [0.10.0](https://github.com/takano536/kobako/compare/v0.9.4...v0.10.0) (2026-10-09)
 
 
