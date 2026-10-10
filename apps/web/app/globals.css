@@ -269,6 +269,48 @@ h3 {
   gap: var(--space-item);
   letter-spacing: -0.07em;
 }
+.page-header:has(.page-header-title-link) h1 {
+  align-items: flex-start;
+}
+
+.page-header-title-link {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  flex: 0 1 auto;
+  align-items: flex-start;
+  gap: var(--space-item);
+  margin: calc(var(--space-item) * -1);
+  padding: var(--space-item);
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-header-title-link .heading-title {
+  min-width: 0;
+}
+
+.page-header-back-chevron {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin-top: 6px;
+  color: var(--muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.page-header-title-link:hover {
+  color: var(--accent);
+}
+
+.page-header-title-link:hover .page-header-back-chevron,
+.page-header-title-link:focus-visible .page-header-back-chevron {
+  color: var(--muted);
+}
 
 .heading-count {
   color: var(--muted);
@@ -2970,18 +3012,15 @@ h3 {
     white-space: nowrap;
   }
 
-  .import-heading,
-  .settings-heading-stacked {
+  .import-heading {
     align-items: flex-start;
   }
 
-  .import-heading h1,
-  .settings-heading-stacked h1 {
+  .import-heading h1 {
     flex: 1 1 100%;
   }
 
-  .import-heading .page-header-actions,
-  .settings-heading-stacked .page-header-actions {
+  .import-heading .page-header-actions {
     flex: 1 1 100%;
     justify-content: flex-start;
   }
