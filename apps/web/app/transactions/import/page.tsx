@@ -4,7 +4,7 @@ import { MONEY_MANAGER_MAX_ROWS, MONEY_MANAGER_XLSX_LIMITS } from '@kobako/db/mo
 
 import { withSelectedMonth } from '../../../src/lib/month-navigation';
 import { firstQueryValue } from '../../../src/lib/transaction-query';
-import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
+import { PageHeader, PageShell } from '../../_components/ui';
 import { MoneyManagerImportForm } from './import-form';
 
 export const metadata: Metadata = {
@@ -30,12 +30,8 @@ export default async function MoneyManagerImportPage({
           </>
         }
         titleAriaLabel="らくな家計簿から引っ越す"
+        backLink={{ href: backHref, label: '取引一覧へ戻る' }}
         className="import-heading"
-        actions={
-          <ActionLink href={backHref} variant="back">
-            取引一覧へ戻る
-          </ActionLink>
-        }
       />
       <p className="import-lead">
         <span className="phrase-wrap">エクスポートした Excel ファイルから、</span>

@@ -3,7 +3,7 @@ import { listActiveManagedAccounts } from '@kobako/db';
 import { withSelectedMonth } from '../../../src/lib/month-navigation';
 import { firstQueryValue } from '../../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
-import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
+import { PageHeader, PageShell } from '../../_components/ui';
 import { createAccountAction } from '../actions';
 import { AccountForm } from '../account-form';
 
@@ -21,11 +21,8 @@ export default async function NewAccountPage({ searchParams }: { searchParams: S
     <PageShell width="narrow">
       <PageHeader
         title="資産を登録"
-        actions={
-          <ActionLink href={backHref} variant="back">
-            残高へ戻る
-          </ActionLink>
-        }
+        titleAriaLabel="資産を登録"
+        backLink={{ href: backHref, label: '残高へ戻る' }}
       />
       <section className="form-surface" aria-label="資産の入力">
         <AccountForm
