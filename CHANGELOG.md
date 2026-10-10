@@ -1,4 +1,11 @@
 # Changelog
+## [0.10.2](https://github.com/takano536/kobako/compare/v0.10.1...v0.10.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **web:** link child screen headings back to their parents ([#63](https://github.com/takano536/kobako/issues/63)) ([0a722a5](https://github.com/takano536/kobako/commit/0a722a5926a0caf45a83dcc2e6f3864bea6d665d))
+
 ## [0.10.1](https://github.com/takano536/kobako/compare/v0.10.0...v0.10.1) (2026-10-10)
 
 
