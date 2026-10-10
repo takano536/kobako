@@ -7,7 +7,7 @@ import {
 } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
-import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
+import { PageHeader, PageShell } from '../../_components/ui';
 import { TransactionForm } from '../transaction-form';
 import { createTransactionAction } from '../actions';
 
@@ -52,11 +52,8 @@ export default async function NewTransactionPage({ searchParams }: { searchParam
     <PageShell width="narrow">
       <PageHeader
         title="新規登録"
-        actions={
-          <ActionLink href={backHref} variant="back">
-            取引一覧へ戻る
-          </ActionLink>
-        }
+        titleAriaLabel="新規登録"
+        backLink={{ href: backHref, label: '取引一覧へ戻る' }}
       />
       <section className="form-surface" aria-label="取引の入力">
         <TransactionForm
