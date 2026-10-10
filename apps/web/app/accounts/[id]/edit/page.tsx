@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { validatedTransactionReturn } from '../../../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { parseInt4Id } from '../../../../src/lib/ids';
-import { ActionLink, PageHeader, PageShell } from '../../../_components/ui';
+import { PageHeader, PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm } from '../../../transactions/transaction-form';
 import { AccountForm } from '../../account-form';
 import { deleteAccountAction, updateAccountAction } from '../../actions';
@@ -47,11 +47,8 @@ export default async function EditAccountPage({
     <PageShell width="narrow">
       <PageHeader
         title="資産設定"
-        actions={
-          <ActionLink href={returnTo} variant="back">
-            取引一覧へ戻る
-          </ActionLink>
-        }
+        titleAriaLabel="資産設定"
+        backLink={{ href: returnTo, label: '取引一覧へ戻る' }}
       />
       <section className="form-surface" aria-label="資産設定">
         <div className="edit-form-layout">
