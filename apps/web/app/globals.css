@@ -353,21 +353,18 @@ h3 {
   text-underline-offset: 3px;
 }
 
-.heading-title-chunk {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.action-link-secondary,
-.action-link-back {
+.action-link-secondary {
   color: var(--muted);
 }
 
 .action-link-quiet:hover,
 .action-link-primary:hover,
-.action-link-secondary:hover,
-.action-link-back:hover {
+.action-link-secondary:hover {
   color: var(--ink);
+}
+.heading-title-chunk {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .action-link-icon {

@@ -4,9 +4,9 @@ import { getTransaction, listAccounts, listCategories } from '@kobako/db';
 
 import { withSelectedMonth } from '../../../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
-import { firstQueryValue } from '../../../../src/lib/transaction-query';
+import { firstQueryValue, isValidMonth } from '../../../../src/lib/transaction-query';
 import { parseInt4Id } from '../../../../src/lib/ids';
-import { ActionLink, PageHeader, PageShell } from '../../../_components/ui';
+import { PageHeader, PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../transaction-form';
 import { updateTransactionAction } from '../../actions';
 
@@ -45,22 +45,18 @@ export default async function EditTransactionPage({
   }
 
   const action = updateTransactionAction.bind(null, idText, 'transaction');
-  const cancelHref = withSelectedMonth(
-    `/transactions/${transaction.id}/edit`,
-    firstQueryValue(query.month),
-  );
+  const selectedMonth = firstQueryValue(query.month);
+  const backHref =
+    selectedMonth && isValidMonth(selectedMonth)
+      ? withSelectedMonth('/transactions', selectedMonth)
+      : withSelectedMonth('/transactions', transaction.occurredOn.slice(0, 7));
+  const cancelHref = withSelectedMonth(`/transactions/${transaction.id}/edit`, selectedMonth);
   return (
     <PageShell width="narrow">
       <PageHeader
         title="取引を編集"
-        actions={
-          <ActionLink
-            href={`/transactions?month=${transaction.occurredOn.slice(0, 7)}`}
-            variant="back"
-          >
-            一覧へ戻る
-          </ActionLink>
-        }
+        titleAriaLabel="取引を編集"
+        backLink={{ href: backHref, label: '一覧へ戻る' }}
       />
       <section className="form-surface" aria-label="取引の入力">
         <div className="edit-form-layout">

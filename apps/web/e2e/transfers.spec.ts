@@ -295,7 +295,7 @@ test('shows type choice focus only for keyboard navigation', async ({ page }) =>
 
   const transferChoice = choiceFor('transfer');
   const transferInput = inputFor('transfer');
-  const backLink = page.getByRole('link', { name: '取引一覧へ戻る', exact: true });
+  const backLink = page.getByRole('link', { name: '新規登録 — 取引一覧へ戻る', exact: true });
   await backLink.focus();
   await page.keyboard.press('Tab');
   await expect(transferInput).toBeFocused();

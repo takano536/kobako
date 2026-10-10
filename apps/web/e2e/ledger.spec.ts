@@ -180,7 +180,7 @@ test('keeps the selected month across global navigation and browser history', as
     await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
     await page.getByRole('link', { name: '資産を登録', exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`/accounts/new\\?month=${nextMonth}$`));
-    await page.getByRole('link', { name: '残高へ戻る', exact: true }).click();
+    await page.getByRole('link', { name: '資産を登録 — 残高へ戻る', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
     await page.getByRole('link', { name: '取引', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
@@ -211,7 +211,9 @@ test('keeps the selected month across global navigation and browser history', as
 
     await page.getByRole('link', { name: '取り込む', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions/import\\?month=${nextMonth}$`));
-    await page.getByRole('link', { name: '取引一覧へ戻る', exact: true }).click();
+    await page
+      .getByRole('link', { name: 'らくな家計簿から引っ越す — 取引一覧へ戻る', exact: true })
+      .click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
 
     await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
@@ -293,11 +295,10 @@ test('keeps the selected month through transaction edit navigation, save, and ca
     await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
     await expect(page).toHaveURL(editUrl);
     await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
-    await expect(page.getByRole('link', { name: '一覧へ戻る', exact: true })).toHaveAttribute(
-      'href',
-      `/transactions?month=${month}`,
-    );
-    await page.getByRole('link', { name: '一覧へ戻る', exact: true }).click();
+    await expect(
+      page.getByRole('link', { name: '取引を編集 — 一覧へ戻る', exact: true }),
+    ).toHaveAttribute('href', `/transactions?month=${month}`);
+    await page.getByRole('link', { name: '取引を編集 — 一覧へ戻る', exact: true }).click();
     await expect(page).toHaveURL(listUrl);
     await expectSelectedList('4,321円');
     await page.locator('.transaction-link').filter({ hasText: selectedMarker }).click();
@@ -654,17 +655,29 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
     });
     await assertNoHorizontalOverflow();
     const importHeadingBox = await page.locator('.import-heading h1').boundingBox();
-    const importActionBox = await page
-      .locator('.import-heading .page-header-actions')
+    const importHeadingLinkBox = await page
+      .locator('.import-heading .page-header-title-link')
+      .boundingBox();
+    const importChevronBox = await page
+      .locator('.import-heading .page-header-back-chevron')
       .boundingBox();
     const dropzoneBox = await page.locator('.import-dropzone').boundingBox();
     const dropzoneButtonBox = await page.locator('.import-dropzone-copy strong').boundingBox();
-    if (!importHeadingBox || !importActionBox || !dropzoneBox || !dropzoneButtonBox) {
+    if (
+      !importHeadingBox ||
+      !importHeadingLinkBox ||
+      !importChevronBox ||
+      !dropzoneBox ||
+      !dropzoneButtonBox
+    ) {
       throw new Error('zoomed import geometry is unavailable');
     }
-    expect(importActionBox.y).toBeGreaterThanOrEqual(
+    expect(importHeadingLinkBox.y).toBeLessThanOrEqual(importHeadingBox.y + 1);
+    expect(importHeadingLinkBox.y + importHeadingLinkBox.height).toBeGreaterThanOrEqual(
       importHeadingBox.y + importHeadingBox.height - 1,
     );
+    expect(importChevronBox.x).toBeLessThanOrEqual(importHeadingLinkBox.x + 20);
+    expect(importChevronBox.y).toBeLessThanOrEqual(importHeadingLinkBox.y + 16);
     expect(dropzoneButtonBox.x + dropzoneButtonBox.width).toBeLessThanOrEqual(
       dropzoneBox.x + dropzoneBox.width + 1,
     );
