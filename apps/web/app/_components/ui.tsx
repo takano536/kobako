@@ -21,6 +21,11 @@ interface ActionLinkProps {
   icon?: ReactNode;
 }
 
+interface PageHeaderBackLink {
+  href: string;
+  label: string;
+}
+
 export function ActionLink({ href, children, variant = 'quiet', icon }: ActionLinkProps) {
   const classes = `action-link action-link-${variant}`;
   return (
@@ -96,12 +101,14 @@ export function PageHeader({
   title,
   titleAriaLabel,
   count,
+  backLink,
   actions,
   className,
 }: {
   title: ReactNode;
   titleAriaLabel?: string;
   count?: string;
+  backLink?: PageHeaderBackLink;
   actions?: ReactNode;
   className?: string;
 }) {
@@ -109,7 +116,26 @@ export function PageHeader({
   return (
     <header className={classes}>
       <h1 aria-label={titleAriaLabel}>
-        <span className="heading-title">{title}</span>
+        {backLink ? (
+          <Link
+            className="page-header-title-link"
+            href={backLink.href}
+            aria-label={titleAriaLabel ? `${titleAriaLabel} — ${backLink.label}` : undefined}
+          >
+            <svg
+              className="page-header-back-chevron"
+              viewBox="0 0 12 12"
+              focusable="false"
+              aria-hidden="true"
+            >
+              <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
+            </svg>
+            <span className="heading-title">{title}</span>
+            <span className="sr-only"> — {backLink.label}</span>
+          </Link>
+        ) : (
+          <span className="heading-title">{title}</span>
+        )}
         {count ? <span className="heading-count">{count}</span> : null}
       </h1>
       {actions ? <div className="page-header-actions">{actions}</div> : null}

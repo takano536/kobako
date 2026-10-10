@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { ActionLink, PageHeader, PageShell } from '../../_components/ui';
+import { PageHeader, PageShell } from '../../_components/ui';
 import { DeleteAllForm } from '../delete-all-form';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,8 @@ export default function DeleteSettingsPage() {
     <PageShell width="narrow">
       <PageHeader
         title="すべてのデータを削除"
-        className="settings-heading-stacked"
-        actions={<ActionLink href="/settings">設定へ戻る</ActionLink>}
+        titleAriaLabel="すべてのデータを削除"
+        backLink={{ href: '/settings', label: '設定へ戻る' }}
       />
       <section className="delete-all-scope" aria-labelledby="delete-all-remove-title">
         <h2 id="delete-all-remove-title">削除されるデータ</h2>
