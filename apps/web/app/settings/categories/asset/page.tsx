@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { ACCOUNT_KIND_OPTIONS } from '../../../../src/lib/account-kind';
-import { ActionLink, PageHeader, PageShell } from '../../../_components/ui';
+import { PageHeader, PageShell } from '../../../_components/ui';
 
 export const metadata: Metadata = {
   title: '資産カテゴリ | 設定',
@@ -12,7 +12,8 @@ export default function AssetCategorySettingsPage() {
     <PageShell width="narrow">
       <PageHeader
         title="資産カテゴリ"
-        actions={<ActionLink href="/settings">設定へ戻る</ActionLink>}
+        titleAriaLabel="資産カテゴリ"
+        backLink={{ href: '/settings', label: '設定へ戻る' }}
       />
       <div className="settings-fixed-assets">
         <p className="settings-help">固定の分類です。追加・削除・名前変更はできません。</p>

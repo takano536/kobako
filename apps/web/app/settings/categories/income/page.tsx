@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { listCategories } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
-import { ActionLink, PageHeader, PageShell } from '../../../_components/ui';
+import { PageHeader, PageShell } from '../../../_components/ui';
 import { SingleCategoryManager } from '../../category-manager';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,7 @@ export default async function IncomeCategorySettingsPage() {
         title="収入カテゴリ"
         titleAriaLabel="収入カテゴリ"
         count={`${categories.length}件`}
-        className="settings-heading-stacked"
-        actions={<ActionLink href="/settings">設定へ戻る</ActionLink>}
+        backLink={{ href: '/settings', label: '設定へ戻る' }}
       />
       <SingleCategoryManager type="income" title="収入カテゴリ" categories={categories} />
     </PageShell>

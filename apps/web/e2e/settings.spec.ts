@@ -53,18 +53,44 @@ test.describe('設定画面', () => {
     expect(Math.abs((textLeft ?? 0) - (headingLeft ?? 99))).toBeLessThanOrEqual(1);
   });
 
-  test('カテゴリごとに独立したページを開ける', async ({ page }) => {
-    for (const [path, title] of [
-      ['/settings/categories/asset', '資産カテゴリ'],
-      ['/settings/categories/expense', '支出カテゴリ'],
-      ['/settings/categories/income', '収入カテゴリ'],
+  test('子画面の見出しリンクは設定一覧へ戻り、カウントをリンク外に置く', async ({ page }) => {
+    for (const [path, title, hasCount] of [
+      ['/settings/categories/asset', '資産カテゴリ', false],
+      ['/settings/categories/expense', '支出カテゴリ', true],
+      ['/settings/categories/income', '収入カテゴリ', true],
+      ['/settings/delete', 'すべてのデータを削除', false],
     ] as const) {
       await page.goto(path);
-      await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible();
-      await expect(page.getByRole('link', { name: '設定へ戻る' })).toHaveAttribute(
-        'href',
-        '/settings',
+      const heading = page.getByRole('heading', { name: title, level: 1 });
+      const titleLink = page.getByRole('link', { name: `${title} — 設定へ戻る` });
+      await expect(heading).toBeVisible();
+      await expect(titleLink).toHaveAttribute('href', '/settings');
+      await expect(page.getByRole('link', { name: '設定へ戻る', exact: true })).toHaveCount(0);
+      await expect(titleLink.locator('.page-header-back-chevron')).toHaveAttribute(
+        'aria-hidden',
+        'true',
       );
+      await expect(titleLink.locator('.heading-count')).toHaveCount(0);
+      if (hasCount) {
+        await expect(heading.locator('.heading-count')).toHaveText(/^\d+件$/);
+      }
+
+      await titleLink.getByText(title, { exact: true }).click();
+      await expect(page).toHaveURL(/\/settings$/);
+
+      await page.goto(path);
+      const chevronLink = page.getByRole('link', { name: `${title} — 設定へ戻る` });
+      await chevronLink.locator('.page-header-back-chevron').click();
+      await expect(page).toHaveURL(/\/settings$/);
+
+      await page.goto(path);
+      const keyboardLink = page.getByRole('link', { name: `${title} — 設定へ戻る` });
+      await keyboardLink.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(keyboardLink).toBeFocused();
+      await expect(keyboardLink).toHaveCSS('outline-style', 'solid');
+      await expect(keyboardLink).toHaveCSS('outline-width', '3px');
     }
   });
 
