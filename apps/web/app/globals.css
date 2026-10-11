@@ -265,10 +265,11 @@ h3 {
   min-width: 0;
   flex: 1 1 0;
   align-items: center;
-  line-height: var(--leading-heading);
+  line-height: calc(var(--text-title) * var(--leading-heading));
   gap: var(--space-item);
   letter-spacing: -0.07em;
 }
+
 .page-header:has(.page-header-title-link) h1 {
   align-items: flex-start;
 }
@@ -292,9 +293,8 @@ h3 {
 
 .page-header-back-chevron {
   width: 14px;
-  height: 14px;
+  height: 1lh;
   flex: 0 0 14px;
-  margin-top: 6px;
   color: var(--muted);
   fill: none;
   stroke: currentColor;
@@ -316,7 +316,7 @@ h3 {
   color: var(--muted);
   font-size: var(--text-body);
   font-weight: 400;
-  line-height: var(--leading-heading);
+  line-height: inherit;
   letter-spacing: 0;
   white-space: nowrap;
 }
@@ -1705,7 +1705,7 @@ h3 {
 .settings-category-manager {
   display: grid;
   gap: var(--space-section);
-  margin-top: var(--space-section);
+  margin-top: 0;
 }
 
 .settings-category-section,
