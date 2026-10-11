@@ -94,7 +94,7 @@ test.describe('設定画面', () => {
     }
   });
 
-  test('カテゴリ見出しを中央揃えにし、一覧との余白と操作を維持する', async ({ page }) => {
+  test('カテゴリ見出しの行ボックスを揃え、一覧との余白と操作を維持する', async ({ page }) => {
     for (const [path, title] of [
       ['/settings/categories/expense', '支出カテゴリ'],
       ['/settings/categories/income', '収入カテゴリ'],

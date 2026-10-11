@@ -319,6 +319,7 @@ h3 {
   line-height: inherit;
   letter-spacing: 0;
   white-space: nowrap;
+  transform: translateY(0.07em);
 }
 
 .page-header-actions {
