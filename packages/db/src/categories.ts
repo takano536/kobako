@@ -31,6 +31,9 @@ import {
   type LedgerExecutor,
 } from './ledger.js';
 
+import { assetCategories } from './schema.js';
+import { ensureDefaultAssetCategories } from './asset-categories.js';
+
 export const CATEGORY_SORT_STEP = 10;
 
 export type CategoryCreateResult =
@@ -294,7 +297,9 @@ export async function resetHouseholdData(
       await transaction.delete(accounts).where(eq(accounts.householdId, householdId));
       await transaction.delete(categories).where(eq(categories.householdId, householdId));
       await transaction.delete(accountGroups).where(eq(accountGroups.householdId, householdId));
+      await transaction.delete(assetCategories).where(eq(assetCategories.householdId, householdId));
       await ensureDefaultAccountGroups(transaction, householdId);
+      await ensureDefaultAssetCategories(transaction, householdId);
       await transaction
         .insert(categories)
         .values(DEFAULT_CATEGORY_SEEDS.map((category) => ({ householdId, ...category })));

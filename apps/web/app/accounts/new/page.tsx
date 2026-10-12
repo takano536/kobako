@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { listActiveManagedAccounts } from '@kobako/db';
+import { listActiveManagedAccounts, listAssetCategories } from '@kobako/db';
 import { withSelectedMonth } from '../../../src/lib/month-navigation';
 import { firstQueryValue } from '../../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
@@ -16,7 +16,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function NewAccountPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const backHref = withSelectedMonth('/balances', firstQueryValue(query.month));
-  const accounts = await listActiveManagedAccounts(getLedgerDatabase(), getCurrentHouseholdId());
+  const [accounts, assetCategories] = await Promise.all([
+    listActiveManagedAccounts(getLedgerDatabase(), getCurrentHouseholdId()),
+    listAssetCategories(getLedgerDatabase(), getCurrentHouseholdId()),
+  ]);
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -28,10 +31,13 @@ export default async function NewAccountPage({ searchParams }: { searchParams: S
         <AccountForm
           action={createAccountAction}
           accounts={accounts}
+          assetCategories={assetCategories}
           initialValues={{
             name: '',
-            kind: 'other',
-            expectedKind: '',
+            assetCategoryId: String(
+              assetCategories.find((category) => category.systemKey === 'other')?.id ?? '',
+            ),
+            expectedAssetCategoryId: '',
             closingDay: '',
             paymentDay: '',
             paymentMonthOffset: '',

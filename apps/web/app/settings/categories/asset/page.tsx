@@ -1,28 +1,27 @@
 import type { Metadata } from 'next';
+import { listAssetCategories } from '@kobako/db';
 
-import { ACCOUNT_KIND_OPTIONS } from '../../../../src/lib/account-kind';
+import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { PageHeader, PageShell } from '../../../_components/ui';
+import { AssetCategoryManager } from '../../asset-category-manager';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const metadata: Metadata = {
   title: '資産カテゴリ | 設定',
 };
 
-export default function AssetCategorySettingsPage() {
+export default async function AssetCategorySettingsPage() {
+  const categories = await listAssetCategories(getLedgerDatabase(), getCurrentHouseholdId());
   return (
     <PageShell width="narrow">
       <PageHeader
         title="資産カテゴリ"
         titleAriaLabel="資産カテゴリ"
+        count={`${categories.length}件`}
         backLink={{ href: '/settings', label: '設定へ戻る' }}
       />
-      <div className="settings-fixed-assets">
-        <p className="settings-help">固定の分類です。追加・削除・名前変更はできません。</p>
-        <ul className="settings-fixed-asset-list" aria-label="資産カテゴリの一覧">
-          {ACCOUNT_KIND_OPTIONS.map(([value, label]) => (
-            <li key={value}>{label}</li>
-          ))}
-        </ul>
-      </div>
+      <AssetCategoryManager categories={categories} />
     </PageShell>
   );
 }

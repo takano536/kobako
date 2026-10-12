@@ -117,6 +117,18 @@ export const categoryIdSchema = z.preprocess(
     .int()
     .positive({ error: 'カテゴリを選択してください。' }),
 );
+export const assetCategoryIdSchema = z.preprocess(
+  (value) => {
+    if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+      return Number(value.trim());
+    }
+    return value;
+  },
+  z
+    .number({ error: '資産カテゴリを選択してください。' })
+    .int()
+    .positive({ error: '資産カテゴリを選択してください。' }),
+);
 
 export const memoSchema = z.preprocess(
   (value) => (typeof value === 'string' ? value.trim() : value),
@@ -191,6 +203,7 @@ export const categoryNameSchema = z
   .refine((value) => !containsAccountControlCharacter(value), {
     error: 'カテゴリ名に制御文字は使えません。',
   });
+export const assetCategoryNameSchema = categoryNameSchema;
 
 export const categoryCreateInputSchema = z.object({
   type: transactionTypeSchema,
@@ -208,14 +221,14 @@ export type CategoryUpdateInput = z.infer<typeof categoryUpdateInputSchema>;
 
 export const accountCreateInputSchema = z.object({
   name: accountNameSchema,
-  kind: accountKindSchema,
+  assetCategoryId: assetCategoryIdSchema,
 });
 
 export const accountUpdateInputSchema = z.object({
   name: accountNameSchema,
-  kind: accountKindSchema,
+  assetCategoryId: assetCategoryIdSchema,
   status: accountStatusSchema.optional(),
-  expectedKind: accountKindSchema.optional(),
+  expectedAssetCategoryId: assetCategoryIdSchema.optional(),
 });
 
 function resolvedBillingDayForMonthLength(day: string, monthLength: number): number {
@@ -279,6 +292,8 @@ export const accountCardConditionInputSchema = z
 export type AccountKindInput = z.infer<typeof accountKindSchema>;
 export type AccountStatusInput = z.infer<typeof accountStatusSchema>;
 export type CardPaymentMonthOffsetInput = z.infer<typeof cardPaymentMonthOffsetSchema>;
+export type AssetCategoryCreateInput = { name: string };
+export type AssetCategoryUpdateInput = { id: number; name: string };
 export type AccountCreateInput = z.infer<typeof accountCreateInputSchema>;
 export type AccountUpdateInput = z.infer<typeof accountUpdateInputSchema>;
 export type AccountCardConditionInput = z.infer<typeof accountCardConditionInputSchema>;

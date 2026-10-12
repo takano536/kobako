@@ -31,14 +31,14 @@
 - カードの同月締め・支払日が不正または設定不足の場合、請求期間・期限は表示せず設定画面へ誘導します
 - 自動決済は `auto_payment_starts_on` 以降の期限日（境界日を含む）を対象とし、引落口座が不正・不足なら blocked として次回再試行します。自動作成済み振替を削除しても再作成しません
 - 初期残高（開始残高）の設定には未対応
-- 資産カテゴリを追加・改名・並び替えする UI は提供していません。資産カテゴリは固定順で表示します
+- 標準の資産カテゴリは固定順で変更・削除できません。カスタム資産カテゴリは追加・改名・削除できます（取引があるカテゴリは削除できず、取引がない場合は資産を「その他」へ移動します）
 - 資産の削除は `deleted_at` を使う論理削除です。資産の状態、過去の取引・振替・カード設定は保持します
 
 ### 家計データの初期化
 
-設定の「すべてのデータを削除」では、`account_card_conditions`（カード条件履歴）、`account_card_settings`（現在のカード設定）、`account_import_mappings`（資産の取り込み対応表）、`transaction_imports`（取り込み履歴）、`card_auto_payment_runs`（自動決済処理記録）、`transactions`（取引）、`transfers`（振替）、`accounts`（論理削除済みを含む資産）、`categories`（支出・収入カテゴリ）、`account_groups`（利用者作成分を含む全グループ）の家計行をすべて削除します。その後、既存の初期化処理に従って初期カテゴリと初期資産グループを同じ DB transaction 内で再作成します。
+設定の「すべてのデータを削除」では、`account_card_conditions`（カード条件履歴）、`account_card_settings`（現在のカード設定）、`account_import_mappings`（資産の取り込み対応表）、`transaction_imports`（取り込み履歴）、`card_auto_payment_runs`（自動決済処理記録）、`transactions`（取引）、`transfers`（振替）、`accounts`（論理削除済みを含む資産）、`categories`（支出・収入カテゴリ）、`asset_categories`（カスタム資産カテゴリを含む全カテゴリ）、`account_groups`（利用者作成分を含む全グループ）の家計行をすべて削除します。その後、既存の初期化処理に従って初期カテゴリ、標準資産カテゴリ、初期資産グループを同じ DB transaction 内で再作成します。
 
-`households` の家計行・境界、`system_healthchecks` のシステム管理データ、DB schema、PostgreSQL enum、migration 履歴、固定の資産カテゴリは残ります。実行には「削除」の入力が必要です。家計行ロックを取引・振替・資産・カード設定・取り込み確定・自動決済 worker と共有し、失敗時は transaction 全体を rollback します。
+`households` の家計行・境界、`system_healthchecks` のシステム管理データ、DB schema、PostgreSQL enum、migration 履歴は残ります。実行には「削除」の入力が必要です。家計行ロックを取引・振替・資産・カード設定・取り込み確定・自動決済 worker と共有し、失敗時は transaction 全体を rollback します。
 
 認証がないため、インターネットへ直接公開せず、ローカルネットワークや VPN 内で使ってください。
 

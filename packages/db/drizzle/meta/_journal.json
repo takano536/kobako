@@ -70,6 +70,13 @@
       "when": 1791587204497,
       "tag": "0009_big_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791797567957,
+      "tag": "0010_glamorous_proteus",
+      "breakpoints": true
     }
   ]
 }

@@ -2,8 +2,6 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { ACCOUNT_KIND_OPTIONS } from '../../src/lib/account-kind';
-
 import { SectionHeading } from '../_components/ui';
 
 export interface CardConditionValues {
@@ -15,8 +13,8 @@ export interface CardConditionValues {
 
 export interface AccountFormValues {
   name: string;
-  kind: string;
-  expectedKind: string;
+  assetCategoryId: string;
+  expectedAssetCategoryId: string;
   closingDay: string;
   paymentDay: string;
   paymentMonthOffset: string;
@@ -33,14 +31,21 @@ interface AccountOption {
   id: number;
   name: string;
   kind: string;
+  assetCategoryName: string;
   status: 'active' | 'closed';
   deletedAt: Date | null;
+}
+interface AssetCategoryOption {
+  id: number;
+  name: string;
+  systemKey: string | null;
 }
 
 export interface AccountFormProps {
   action: (previousState: AccountFormState, formData: FormData) => Promise<AccountFormState>;
   initialValues: AccountFormValues;
   accounts?: readonly AccountOption[];
+  assetCategories: readonly AssetCategoryOption[];
   accountId?: number;
   submitLabel: string;
   returnTo?: string;
@@ -83,6 +88,7 @@ export function AccountForm({
   action,
   initialValues,
   accounts = [],
+  assetCategories,
   submitLabel,
   returnTo,
   accountId,
@@ -92,7 +98,7 @@ export function AccountForm({
   const [isDirty, setIsDirty] = useState(false);
   const current = state.values && !isDirty ? state.values : values;
   const nameError = state.fieldErrors?.name;
-  const kindError = state.fieldErrors?.kind;
+  const assetCategoryError = state.fieldErrors?.assetCategoryId;
   const closingDayError = state.fieldErrors?.closingDay;
   const paymentDayError = state.fieldErrors?.paymentDay;
   const paymentMonthOffsetError = state.fieldErrors?.paymentMonthOffset;
@@ -117,6 +123,10 @@ export function AccountForm({
     setIsDirty(true);
     setValues((previous) => ({ ...previous, [key]: value }));
   }
+  const selectedCategory = assetCategories.find(
+    (category) => category.id === Number(current.assetCategoryId),
+  );
+  const selectedKind = selectedCategory?.systemKey ?? 'other';
 
   return (
     <form className="ledger-form account-form" action={formAction} noValidate>
@@ -139,30 +149,30 @@ export function AccountForm({
           </div>
         </div>
         <div className="field">
-          <label htmlFor="account-kind">資産カテゴリ</label>
+          <label htmlFor="asset-category">資産カテゴリ</label>
           <div className="field-value">
             <select
               className="field-select"
-              id="account-kind"
-              name="kind"
+              id="asset-category"
+              name="assetCategoryId"
               required
-              value={current.kind}
-              onChange={(event) => updateValue('kind', event.currentTarget.value)}
-              aria-invalid={kindError?.length ? true : undefined}
-              aria-describedby={kindError?.length ? 'account-kind-error' : undefined}
+              value={current.assetCategoryId}
+              onChange={(event) => updateValue('assetCategoryId', event.currentTarget.value)}
+              aria-invalid={assetCategoryError?.length ? true : undefined}
+              aria-describedby={assetCategoryError?.length ? 'asset-category-error' : undefined}
             >
-              {ACCOUNT_KIND_OPTIONS.map(([value, label]) => (
-                <option value={value} key={value}>
-                  {label}
+              {assetCategories.map((category) => (
+                <option value={category.id} key={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
-            <FieldError id="account-kind-error" messages={kindError} />
+            <FieldError id="asset-category-error" messages={assetCategoryError} />
           </div>
         </div>
       </div>
 
-      {current.kind === 'credit_card' ? (
+      {selectedKind === 'credit_card' ? (
         <section className="account-card-fields" aria-labelledby="account-card-fields-title">
           <SectionHeading id="account-card-fields-title" title="カード条件" />
           <div className="entry-detail-grid">
@@ -259,7 +269,7 @@ export function AccountForm({
                     )
                     .map((account) => (
                       <option value={account.id} key={account.id}>
-                        {account.name}
+                        {account.name}（{account.assetCategoryName}）
                       </option>
                     ))}
                 </select>
@@ -270,7 +280,7 @@ export function AccountForm({
         </section>
       ) : null}
 
-      <input type="hidden" name="expectedKind" value={current.expectedKind} />
+      <input type="hidden" name="expectedAssetCategoryId" value={current.expectedAssetCategoryId} />
       {state.message ? (
         <p className="form-message" role="alert">
           {state.message}

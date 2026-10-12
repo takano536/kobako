@@ -3,6 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   accounts,
+  assetCategories,
   categories,
   households,
   transactionImports,
@@ -219,6 +220,18 @@ async function insertMissingAccounts(
   rows: readonly MoneyManagerNormalizedRow[],
 ): Promise<AccountImportResult> {
   const source = sourceAccounts(rows);
+  const otherCategoryRows = await transaction
+    .select({ id: assetCategories.id })
+    .from(assetCategories)
+    .where(
+      and(eq(assetCategories.householdId, householdId), eq(assetCategories.systemKey, 'other')),
+    )
+    .for('update')
+    .limit(1);
+  const otherCategory = otherCategoryRows[0];
+  if (!otherCategory) {
+    throw new Error('Default other asset category was not created');
+  }
   const maxRows = await transaction
     .select({ maxSortOrder: sql<number | null>`max(${accounts.sortOrder})` })
     .from(accounts)
@@ -233,6 +246,7 @@ async function insertMissingAccounts(
         householdId,
         name: item.name,
         kind: 'other' as const,
+        assetCategoryId: otherCategory.id,
         status: 'active' as const,
         sortOrder: nextSortOrder,
       })

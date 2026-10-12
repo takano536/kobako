@@ -9,6 +9,11 @@ import {
   resetHouseholdData,
   transactionTypeSchema,
   updateCategory,
+  assetCategoryIdSchema,
+  assetCategoryNameSchema,
+  createAssetCategory,
+  deleteAssetCategory,
+  updateAssetCategory,
 } from '@kobako/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -20,6 +25,13 @@ export interface CategoryActionState {
   values?: {
     categoryId?: string;
     type?: string;
+    name?: string;
+  };
+}
+export interface AssetCategoryActionState {
+  error?: string;
+  values?: {
+    assetCategoryId?: string;
     name?: string;
   };
 }
@@ -173,6 +185,92 @@ export async function reorderCategoryAction(
     );
   revalidateLedger();
   redirect(categoryPath(parsedType.data));
+}
+
+function assetCategoryValues(formData: FormData): AssetCategoryActionState['values'] {
+  return {
+    assetCategoryId: text(formData, 'assetCategoryId'),
+    name: text(formData, 'name'),
+  };
+}
+
+function assetCategoryError(formData: FormData, error: string): AssetCategoryActionState {
+  return { error, values: assetCategoryValues(formData) };
+}
+
+function revalidateAssetCategories(): void {
+  revalidatePath('/settings/categories/asset');
+  revalidatePath('/accounts/new');
+  revalidatePath('/balances');
+  revalidatePath('/transactions');
+}
+
+export async function createAssetCategoryAction(
+  _previousState: AssetCategoryActionState,
+  formData: FormData,
+): Promise<AssetCategoryActionState> {
+  const parsed = assetCategoryNameSchema.safeParse(text(formData, 'name'));
+  if (!parsed.success)
+    return assetCategoryError(
+      formData,
+      parsed.error.issues[0]?.message ?? '資産カテゴリ名を確認してください。',
+    );
+  const result = await createAssetCategory(getLedgerDatabase(), getCurrentHouseholdId(), {
+    name: parsed.data,
+  });
+  if (result.status === 'duplicate')
+    return assetCategoryError(formData, '同じ名前のカテゴリがあります。');
+  if (result.status !== 'ok')
+    return assetCategoryError(formData, '資産カテゴリを追加できませんでした。');
+  revalidateAssetCategories();
+  redirect('/settings/categories/asset');
+}
+
+export async function updateAssetCategoryAction(
+  _previousState: AssetCategoryActionState,
+  formData: FormData,
+): Promise<AssetCategoryActionState> {
+  const parsedId = assetCategoryIdSchema.safeParse(text(formData, 'assetCategoryId'));
+  const parsedName = assetCategoryNameSchema.safeParse(text(formData, 'name'));
+  if (!parsedId.success || !parsedName.success)
+    return assetCategoryError(formData, '資産カテゴリ名を確認してください。');
+  const result = await updateAssetCategory(getLedgerDatabase(), getCurrentHouseholdId(), {
+    id: parsedId.data,
+    name: parsedName.data,
+  });
+  if (result.status === 'not_found')
+    return assetCategoryError(formData, '資産カテゴリが見つかりません。');
+  if (result.status === 'immutable')
+    return assetCategoryError(formData, '標準カテゴリは変更できません。');
+  if (result.status === 'duplicate')
+    return assetCategoryError(formData, '同じ名前のカテゴリがあります。');
+  if (result.status !== 'ok')
+    return assetCategoryError(formData, '資産カテゴリ名を変更できませんでした。');
+  revalidateAssetCategories();
+  redirect('/settings/categories/asset');
+}
+
+export async function deleteAssetCategoryAction(
+  _previousState: AssetCategoryActionState,
+  formData: FormData,
+): Promise<AssetCategoryActionState> {
+  const parsedId = assetCategoryIdSchema.safeParse(text(formData, 'assetCategoryId'));
+  if (!parsedId.success) return assetCategoryError(formData, '資産カテゴリが見つかりません。');
+  const result = await deleteAssetCategory(
+    getLedgerDatabase(),
+    getCurrentHouseholdId(),
+    parsedId.data,
+  );
+  if (result.status === 'in_use')
+    return assetCategoryError(formData, '取引があるため、このカテゴリは削除できません。');
+  if (result.status === 'immutable')
+    return assetCategoryError(formData, '標準カテゴリは削除できません。');
+  if (result.status === 'not_found')
+    return assetCategoryError(formData, '資産カテゴリが見つかりません。');
+  if (result.status !== 'ok')
+    return assetCategoryError(formData, '資産カテゴリを削除できませんでした。');
+  revalidateAssetCategories();
+  redirect('/settings/categories/asset');
 }
 
 export async function deleteAllDataAction(
