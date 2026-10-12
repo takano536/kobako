@@ -94,6 +94,57 @@ test.describe('設定画面', () => {
     }
   });
 
+  test('カテゴリ見出しの行ボックスを揃え、一覧との余白と操作を維持する', async ({ page }) => {
+    for (const [path, title] of [
+      ['/settings/categories/expense', '支出カテゴリ'],
+      ['/settings/categories/income', '収入カテゴリ'],
+    ] as const) {
+      await page.goto(path);
+      const heading = page.getByRole('heading', { name: title, level: 1 });
+      const titleText = heading.locator('.heading-title');
+      const count = heading.locator('.heading-count');
+      const chevron = heading.locator('.page-header-back-chevron');
+      const titleBox = await titleText.boundingBox();
+      const countBox = await count.boundingBox();
+      const chevronBox = await chevron.boundingBox();
+      expect(
+        Math.abs(
+          (titleBox?.y ?? 0) +
+            (titleBox?.height ?? 0) / 2 -
+            ((countBox?.y ?? 0) + (countBox?.height ?? 0) / 2),
+        ),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(
+          (titleBox?.y ?? 0) +
+            (titleBox?.height ?? 0) / 2 -
+            ((chevronBox?.y ?? 0) + (chevronBox?.height ?? 0) / 2),
+        ),
+      ).toBeLessThanOrEqual(1);
+
+      const headerBox = await page.locator('.page-header').boundingBox();
+      const listBox = await page.locator('.settings-category-list').boundingBox();
+      const headerToListGap = (listBox?.y ?? 0) - ((headerBox?.y ?? 0) + (headerBox?.height ?? 0));
+      expect(headerToListGap).toBeGreaterThanOrEqual(15);
+      expect(headerToListGap).toBeLessThanOrEqual(17);
+    }
+
+    const name = `E2E見出し-${runSuffix}`;
+    const renamed = `${name}-変更`;
+    await page.goto('/settings/categories/expense');
+    await addCategory(page, name);
+    try {
+      const row = categoryRow(page, name);
+      await row.getByRole('button', { name: '名前を変更' }).click();
+      await row.getByRole('textbox').fill(renamed);
+      await row.getByRole('button', { name: '保存' }).click();
+      await expect(categoryRow(page, renamed)).toHaveCount(1);
+    } finally {
+      await removeCategory(page, renamed);
+      await removeCategory(page, name);
+    }
+  });
+
   test('削除ページは確認文字列が一致しないと実行しない', async ({ page }) => {
     await page.goto('/settings/delete');
     await expect(page.getByRole('heading', { name: 'すべてのデータを削除' })).toBeVisible();
