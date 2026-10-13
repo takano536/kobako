@@ -1,4 +1,11 @@
 # Changelog
+## [0.11.0](https://github.com/takano536/kobako/compare/v0.10.3...v0.11.0) (2026-10-13)
+
+
+### Features
+
+* **web:** manage custom asset categories ([#67](https://github.com/takano536/kobako/issues/67)) ([4356bb0](https://github.com/takano536/kobako/commit/4356bb04e7d7f415144c1ea9da99d13693543ccf))
+
 ## [0.10.3](https://github.com/takano536/kobako/compare/v0.10.2...v0.10.3) (2026-10-12)
 
 
