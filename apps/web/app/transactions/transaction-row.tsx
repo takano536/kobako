@@ -72,9 +72,16 @@ export function TransactionRow({
           </span>
           <span className="transaction-main">
             {assetName ? (
-              <span className="transaction-asset-name" title={assetName}>
-                {assetName}
-              </span>
+              <>
+                <span className="transaction-asset-name" title={assetName}>
+                  {assetName}
+                </span>
+                {transaction.accountCategoryName ? (
+                  <span className="transaction-asset-category">
+                    {transaction.accountCategoryName}
+                  </span>
+                ) : null}
+              </>
             ) : null}
             {showMemo && transaction.memo ? (
               <span className="transaction-memo" title={transaction.memo}>
@@ -103,9 +110,16 @@ export function TransactionRow({
         </span>
         <span className="transaction-main">
           {assetName ? (
-            <span className="transaction-asset-name" title={assetName}>
-              {assetName}
-            </span>
+            <>
+              <span className="transaction-asset-name" title={assetName}>
+                {assetName}
+              </span>
+              {transaction.accountCategoryName ? (
+                <span className="transaction-asset-category">
+                  {transaction.accountCategoryName}
+                </span>
+              ) : null}
+            </>
           ) : null}
           {showMemo && transaction.memo ? (
             <span className="transaction-memo" title={transaction.memo}>

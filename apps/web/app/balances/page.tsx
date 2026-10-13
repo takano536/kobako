@@ -8,7 +8,6 @@ import {
 } from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
 import { calculateBalanceSummary } from '../../src/lib/balances';
-import { ACCOUNT_KIND_OPTIONS } from '../../src/lib/account-kind';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { firstQueryValue } from '../../src/lib/transaction-query';
@@ -79,17 +78,27 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
     }
     return undefined;
   };
-  const groups: {
-    kind: BalanceAccount['kind'];
-    name: string;
-    accounts: typeof balances;
-  }[] = ACCOUNT_KIND_OPTIONS.map(([kind, name]) => ({
-    kind,
-    name,
-    accounts: [] as typeof balances,
-  }));
+  const groups = new Map<
+    number,
+    {
+      id: number;
+      systemKey: string | null;
+      name: string;
+      accounts: typeof balances;
+    }
+  >();
   for (const account of balances) {
-    groups.find((group) => group.kind === account.kind)?.accounts.push(account);
+    const existing = groups.get(account.assetCategoryId);
+    if (existing) {
+      existing.accounts.push(account);
+    } else {
+      groups.set(account.assetCategoryId, {
+        id: account.assetCategoryId,
+        systemKey: account.assetCategorySystemKey,
+        name: account.assetCategoryName,
+        accounts: [account],
+      });
+    }
   }
   return (
     <PageShell>
@@ -138,48 +147,46 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           />
         ) : (
           <div className="balance-groups">
-            {groups
-              .filter((group) => group.accounts.length > 0)
-              .map((group, index) => {
-                const headingId = `balance-group-heading-${group.kind}-${index}`;
-                const hasMetrics = group.kind === 'bank' || group.kind === 'credit_card';
-                const columns: readonly string[] =
-                  group.kind === 'bank'
-                    ? ['支払予定', '残高']
-                    : group.kind === 'credit_card'
-                      ? ['決済予定', '未決済']
-                      : ['残高'];
-                return (
-                  <section className="balance-group" key={group.kind} aria-labelledby={headingId}>
+            {Array.from(groups.values()).map((group) => {
+              const headingId = `balance-group-heading-${group.id}`;
+              const hasMetrics = group.systemKey === 'bank' || group.systemKey === 'credit_card';
+              const columns: readonly string[] =
+                group.systemKey === 'bank'
+                  ? ['支払予定', '残高']
+                  : group.systemKey === 'credit_card'
+                    ? ['決済予定', '未決済']
+                    : ['残高'];
+              return (
+                <section className="balance-group" key={group.id} aria-labelledby={headingId}>
+                  <div
+                    className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
+                  >
+                    <h3 id={headingId}>{group.name}</h3>
                     <div
-                      className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
+                      className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
                     >
-                      <h3 id={headingId}>{group.name}</h3>
-                      <div
-                        className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
-                      >
-                        {columns.map((column) => (
-                          <span className="balance-group-heading-label" key={column}>
-                            {column}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <ul className="balance-list" aria-labelledby={headingId}>
-                      {group.accounts.map((account) => (
-                        <AccountBalanceRow
-                          key={account.accountId}
-                          accountName={account.accountName}
-                          balance={account.balance}
-                          kind={account.kind}
-                          transactionsHref={`/transactions?account=${account.accountId}&month=all`}
-                          paymentSchedule={paymentScheduleFor(account)}
-                        />
+                      {columns.map((column) => (
+                        <span className="balance-group-heading-label" key={column}>
+                          {column}
+                        </span>
                       ))}
-                    </ul>
-                  </section>
-                );
-              })}
+                    </div>
+                  </div>
+                  <ul className="balance-list" aria-labelledby={headingId}>
+                    {group.accounts.map((account) => (
+                      <AccountBalanceRow
+                        key={account.accountId}
+                        accountName={account.accountName}
+                        balance={account.balance}
+                        kind={account.kind}
+                        transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                        paymentSchedule={paymentScheduleFor(account)}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
           </div>
         )}
       </section>

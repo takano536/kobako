@@ -118,7 +118,7 @@ test('registers an asset, filters transactions, and opens unified settings', asy
   await page.getByRole('link', { name: '資産を登録' }).first().click();
   await expect(page.getByRole('heading', { name: '資産を登録' })).toBeVisible();
   await page.getByLabel('名前', { exact: true }).fill(assetName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('bank');
+  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   await expect(page.getByRole('heading', { name: assetName, exact: true })).toBeVisible();
@@ -145,15 +145,15 @@ test('shows complete large month and all-time account lists and preserves settin
   const otherName = `${reviewPrefix}large-list-other`;
   await page.goto('/accounts/new');
   await page.getByLabel('名前', { exact: true }).fill(targetName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('bank');
+  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
   if (!Number.isSafeInteger(accountId)) throw new Error('large-list account id is invalid');
 
   const [otherAccount] = await database().sql<{ id: number }[]>`
-    insert into accounts (household_id, name, kind, status, sort_order)
-    values (${DEFAULT_HOUSEHOLD_ID}, ${otherName}, 'other', 'active', 10)
+    insert into accounts (household_id, name, kind, asset_category_id, status, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${otherName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'), 'active', 10)
     returning id
   `;
   const [expenseCategory] = await database().sql<{ id: number }[]>`
@@ -396,8 +396,8 @@ test('keeps transaction references when an asset is logically deleted', async ({
   `;
   if (!category) throw new Error('logical-delete fixtures are missing');
   const [asset] = await database().sql<{ id: number }[]>`
-    insert into accounts (household_id, name, kind, status, sort_order)
-    values (${DEFAULT_HOUSEHOLD_ID}, ${deletedName}, 'bank', 'active', 10)
+    insert into accounts (household_id, name, kind, asset_category_id, status, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${deletedName}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'), 'active', 10)
     returning id
   `;
   if (!asset) throw new Error('logical-delete asset was not created');
@@ -424,7 +424,9 @@ test('shows card current conditions in the same asset settings form', async ({ p
   await page.goto('/accounts/new');
   const cardName = `${reviewPrefix}card`;
   await page.getByLabel('名前', { exact: true }).fill(cardName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('credit_card');
+  await page
+    .getByLabel('資産カテゴリ', { exact: true })
+    .selectOption({ label: 'クレジットカード' });
   await expect(page.getByRole('heading', { name: 'カード条件' })).toBeVisible();
   await page.getByLabel('締め日').selectOption('last');
   await page.getByLabel('支払日').selectOption('10');
@@ -464,8 +466,8 @@ test('shows card current conditions in the same asset settings form', async ({ p
 test('rejects a stale edit after a credit card is soft-deleted', async ({ page }) => {
   const accountName = `${reviewPrefix}stale-deleted-card`;
   const [account] = await database().sql<{ id: number }[]>`
-    insert into accounts (household_id, name, kind, status, sort_order)
-    values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'credit_card', 'active', 10)
+    insert into accounts (household_id, name, kind, asset_category_id, status, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card'), 'active', 10)
     returning id
   `;
   if (!account) throw new Error('stale deleted card fixture was not created');
@@ -557,8 +559,8 @@ test('create: submit empty name, fill name and kind with card field, save succee
   await nameInput.fill(createdAccountName);
   await expect(nameInput).toHaveValue(createdAccountName);
   const kindInput = page.getByLabel('資産カテゴリ', { exact: true });
-  await kindInput.selectOption('credit_card');
-  await expect(kindInput).toHaveValue('credit_card');
+  await kindInput.selectOption({ label: 'クレジットカード' });
+  await expect(kindInput).toHaveValue(/\d+/);
   const closingDay = page.getByLabel('締め日');
   await closingDay.selectOption('15');
   await expect(closingDay).toHaveValue('15');
@@ -579,7 +581,7 @@ test('edit: submit with empty name, fix and save succeeds', async ({ page }) => 
   const editTestAccountName = `${reviewPrefix}edit-test-account`;
   await page.goto('/accounts/new');
   await page.getByLabel('名前', { exact: true }).fill(editTestAccountName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('bank');
+  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
@@ -608,12 +610,14 @@ test('kind change: saves credit_card and card fields with one click', async ({
   const kindChangeAccountName = `${reviewPrefix}kind-change`;
   await page.goto('/accounts/new');
   await page.getByLabel('名前', { exact: true }).fill(kindChangeAccountName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('bank');
+  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
   await page.getByRole('link', { name: '資産設定', exact: true }).click();
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('credit_card');
+  await page
+    .getByLabel('資産カテゴリ', { exact: true })
+    .selectOption({ label: 'クレジットカード' });
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   const closingDay = page.getByLabel('締め日');
   await closingDay.selectOption('last');
@@ -642,14 +646,16 @@ test('kind change with field error: fix name and save without another confirmati
   const errorThenKindChangeAccountName = `${reviewPrefix}error-kind-change`;
   await page.goto('/accounts/new');
   await page.getByLabel('名前', { exact: true }).fill(errorThenKindChangeAccountName);
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('bank');
+  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
   await page.getByRole('link', { name: '資産設定', exact: true }).click();
   const nameInput = page.getByLabel('名前', { exact: true });
   await nameInput.fill('');
-  await page.getByLabel('資産カテゴリ', { exact: true }).selectOption('credit_card');
+  await page
+    .getByLabel('資産カテゴリ', { exact: true })
+    .selectOption({ label: 'クレジットカード' });
   await page.getByRole('button', { name: '保存する' }).click();
   const nameErrorId = 'account-name-error';
   await expect(page.locator(`#${nameErrorId}`)).toBeVisible();

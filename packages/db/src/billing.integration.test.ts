@@ -24,7 +24,13 @@ import {
 } from './database-safety.js';
 import { runMigrations } from './migrate.js';
 import { listCategories } from './ledger.js';
-import { accountCardSettings, accounts, cardAutoPaymentRuns, transfers } from './schema.js';
+import {
+  accountCardSettings,
+  assetCategories,
+  accounts,
+  cardAutoPaymentRuns,
+  transfers,
+} from './schema.js';
 import type { AccountCardConditionInput } from './validation.js';
 
 interface CardFixture {
@@ -45,13 +51,23 @@ async function createConfiguredCard(
     debitAccountId: undefined,
   },
 ): Promise<CardFixture> {
+  const categoryIdFor = async (systemKey: 'bank' | 'credit_card'): Promise<number> => {
+    const rows = await client.db
+      .select({ id: assetCategories.id })
+      .from(assetCategories)
+      .where(eq(assetCategories.systemKey, systemKey))
+      .limit(1);
+    const category = rows[0];
+    if (!category) throw new Error(`asset category seed missing: ${systemKey}`);
+    return category.id;
+  };
   const cardResult = await createAccount(client.db, HOUSEHOLD_ID, {
     name: 'テストカード',
-    kind: 'credit_card',
+    assetCategoryId: await categoryIdFor('credit_card'),
   });
   const debitResult = await createAccount(client.db, HOUSEHOLD_ID, {
     name: '引落銀行',
-    kind: 'bank',
+    assetCategoryId: await categoryIdFor('bank'),
   });
   if (cardResult.status !== 'ok' || debitResult.status !== 'ok') {
     throw new Error('failed to create billing fixtures');
@@ -67,8 +83,8 @@ async function createConfiguredCard(
     cardResult.account.id,
     {
       name: cardResult.account.name,
-      kind: 'credit_card',
-      expectedKind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
+      expectedAssetCategoryId: await categoryIdFor('credit_card'),
     },
     cardCondition,
   );

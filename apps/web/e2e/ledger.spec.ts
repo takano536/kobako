@@ -397,8 +397,8 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
   const memo = `${markerFor('layout-long')} / ${'長いメモ '.repeat(24)}`;
   const accountName = `${markerFor('layout-account')} / 銀行`;
   const accountRows = await databaseClient.sql`
-    insert into accounts (household_id, name, kind)
-    values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank')
+    insert into accounts (household_id, name, kind, asset_category_id)
+    values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'))
     returning id
   `;
   const accountId = Number(accountRows[0]?.id);

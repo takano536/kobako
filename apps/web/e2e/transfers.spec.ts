@@ -192,11 +192,11 @@ test.beforeAll(async () => {
     toName = `${marker}:先`;
     alternateName = `${marker}:変更先`;
     await databaseClient.sql`
-      insert into accounts (household_id, name, kind)
+      insert into accounts (household_id, name, kind, asset_category_id)
       values
-        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}, 'other'),
-        (${DEFAULT_HOUSEHOLD_ID}, ${toName}, 'other'),
-        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName}, 'other')
+        (${DEFAULT_HOUSEHOLD_ID}, ${fromName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+        (${DEFAULT_HOUSEHOLD_ID}, ${toName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+        (${DEFAULT_HOUSEHOLD_ID}, ${alternateName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
     `;
   } catch (error) {
     await databaseClient.close();
@@ -375,12 +375,12 @@ test('centers one-line transfer details on mobile and preserves multiline wrappi
   const multilineFromName = `長い振替元の資産名${'あ'.repeat(32)}${suffix}`;
   const multilineToName = `長い振替先の資産名${'い'.repeat(32)}${suffix}`;
   const accounts = await databaseClient.sql<{ id: number; name: string }[]>`
-    insert into accounts (household_id, name, kind)
+    insert into accounts (household_id, name, kind, asset_category_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineFromName}, 'other'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineToName}, 'other'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${multilineFromName}, 'other'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${multilineToName}, 'other')
+      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineFromName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${oneLineToName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${multilineFromName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${multilineToName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
     returning id, name
   `;
   const oneLineFrom = accounts.find((account) => account.name === oneLineFromName);
@@ -423,10 +423,12 @@ test('centers one-line transfer details on mobile and preserves multiline wrappi
     await expect(oneLineRow).toHaveCount(1);
     await expect(multilineRow).toHaveCount(1);
     await expect(oneLineRow.locator('.transaction-category')).toHaveText('振替');
-    expect(await oneLineRow.locator('.transfer-account').allTextContents()).toEqual([
-      oneLineFromName,
-      oneLineToName,
-    ]);
+    expect(
+      await oneLineRow.locator('.transfer-account > span:first-child').allTextContents(),
+    ).toEqual([oneLineFromName, oneLineToName]);
+    expect(
+      await oneLineRow.locator('.transfer-account .transaction-asset-category').allTextContents(),
+    ).toEqual(['その他', 'その他']);
     await expect(oneLineRow.locator('.transaction-asset-name')).toHaveCount(0);
     await expect(oneLineRow.locator('.record-amount')).toHaveText('1,234円');
     await expect(multilineRow.locator('.transaction-memo')).toHaveText('複数行の振替メモ');

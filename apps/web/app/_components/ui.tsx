@@ -215,7 +215,12 @@ export function EmptyState({
   );
 }
 
-type FilterAccount = { id: number; name: string; status: 'active' | 'closed' };
+type FilterAccount = {
+  id: number;
+  name: string;
+  assetCategoryName: string;
+  status: 'active' | 'closed';
+};
 
 export function FilterBar({
   month,
@@ -315,7 +320,7 @@ export function FilterBar({
                 <option value="">すべて</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name}
+                    {account.name}（{account.assetCategoryName}）
                   </option>
                 ))}
               </select>

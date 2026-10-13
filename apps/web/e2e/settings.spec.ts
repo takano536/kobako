@@ -15,6 +15,7 @@ async function addCategory(page: Page, name: string) {
 async function removeCategory(page: Page, name: string) {
   const row = categoryRow(page, name);
   if ((await row.count()) === 0) return;
+  page.once('dialog', (dialog) => dialog.accept());
   await row.getByRole('button', { name: '削除' }).click();
   await expect(row).toHaveCount(0);
 }
@@ -55,7 +56,7 @@ test.describe('設定画面', () => {
 
   test('子画面の見出しリンクは設定一覧へ戻り、カウントをリンク外に置く', async ({ page }) => {
     for (const [path, title, hasCount] of [
-      ['/settings/categories/asset', '資産カテゴリ', false],
+      ['/settings/categories/asset', '資産カテゴリ', true],
       ['/settings/categories/expense', '支出カテゴリ', true],
       ['/settings/categories/income', '収入カテゴリ', true],
       ['/settings/delete', 'すべてのデータを削除', false],
@@ -96,6 +97,7 @@ test.describe('設定画面', () => {
 
   test('カテゴリ見出しの行ボックスを揃え、一覧との余白と操作を維持する', async ({ page }) => {
     for (const [path, title] of [
+      ['/settings/categories/asset', '資産カテゴリ'],
       ['/settings/categories/expense', '支出カテゴリ'],
       ['/settings/categories/income', '収入カテゴリ'],
     ] as const) {
@@ -185,15 +187,92 @@ test.describe('設定画面', () => {
     await expect(page.getByRole('button', { name: 'すべてのデータを削除する' })).toHaveCount(0);
   });
 
-  test('資産カテゴリは重複する見出しなしで固定分類を説明する', async ({ page }) => {
+  test('資産カテゴリは標準カテゴリを固定表示し、カスタムカテゴリを管理できる', async ({ page }) => {
+    const customName = `E2E資産カテゴリ-${runSuffix}`;
+    const renamed = `${customName}-変更`;
     await page.goto('/settings/categories/asset');
-    await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
-    await expect(
-      page.getByText('固定の分類です。追加・削除・名前変更はできません。'),
-    ).toBeVisible();
     await expect(
       page.getByRole('list', { name: '資産カテゴリの一覧' }).getByRole('listitem'),
     ).toHaveCount(6);
+    const defaultRow = categoryRow(page, '銀行');
+    await expect(defaultRow.locator('.settings-category-name')).toHaveCount(1);
+    await expect(defaultRow.locator('.settings-category-name')).not.toHaveAttribute('href');
+    await expect(defaultRow).toContainText('変更・削除不可');
+    await expect(defaultRow.getByRole('button')).toHaveCount(0);
+
+    await page.getByLabel('新しいカテゴリ').fill(customName);
+    await page.getByRole('button', { name: '追加' }).click();
+    const row = categoryRow(page, customName);
+    await expect(row).toHaveCount(1);
+    await row.getByRole('button', { name: '名前を変更' }).click();
+    await row.getByRole('textbox').fill(renamed);
+    await row.getByRole('button', { name: '保存' }).click();
+    await expect(categoryRow(page, renamed)).toHaveCount(1);
+    page.once('dialog', (dialog) => dialog.accept());
+    await categoryRow(page, renamed).getByRole('button', { name: '削除' }).click();
+    await expect(categoryRow(page, renamed)).toHaveCount(0);
+  });
+
+  test('資産カテゴリを資産の追加と編集で選択できる', async ({ page }) => {
+    const customName = `E2E資産選択-${runSuffix}`;
+    const assetName = `E2Eカスタム資産-${runSuffix}`;
+    await page.goto('/settings/categories/asset');
+    await page.getByLabel('新しいカテゴリ').fill(customName);
+    await page.getByRole('button', { name: '追加' }).click();
+    await expect(categoryRow(page, customName)).toHaveCount(1);
+    try {
+      await page.goto('/accounts/new');
+      await page.getByLabel('名前', { exact: true }).fill(assetName);
+      await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
+      await page.getByRole('button', { name: '登録する' }).click();
+      await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
+      await page.getByRole('link', { name: '資産設定', exact: true }).click();
+      await expect(page.getByLabel('資産カテゴリ', { exact: true })).toHaveValue(/\d+/);
+      await page.getByRole('button', { name: '保存する' }).click();
+      await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all&saved=1$/);
+    } finally {
+      if (await page.getByRole('link', { name: '資産設定', exact: true }).count()) {
+        await page.getByRole('link', { name: '資産設定', exact: true }).click();
+        await page.locator('.delete-confirm > summary').click();
+        await page.getByRole('button', { name: '削除を確定' }).click();
+      }
+      await page.goto('/settings/categories/asset');
+      await removeCategory(page, customName);
+    }
+  });
+
+  test('取引があるカスタム資産カテゴリは削除できない', async ({ page }) => {
+    const customName = `E2E使用中資産カテゴリ-${runSuffix}`;
+    const assetName = `E2E使用中資産-${runSuffix}`;
+    await page.goto('/settings/categories/asset');
+    await page.getByLabel('新しいカテゴリ').fill(customName);
+    await page.getByRole('button', { name: '追加' }).click();
+    await expect(categoryRow(page, customName)).toHaveCount(1);
+    await page.goto('/accounts/new');
+    await page.getByLabel('名前', { exact: true }).fill(assetName);
+    await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
+    await page.getByRole('button', { name: '登録する' }).click();
+    await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
+    const accountId = new URL(page.url()).searchParams.get('account');
+    if (!accountId) throw new Error('custom account id is missing');
+    await page.goto(`/transactions/new?type=expense&month=2099-12&account=${accountId}`);
+    await page.getByLabel('資産', { exact: true }).selectOption(accountId);
+    await page.getByLabel('金額').fill('1');
+    await page.locator('input[name="occurredOn"]').fill('2099-12-01');
+    await page.locator('.category-field-expense select').selectOption({ label: '食費' });
+    await page.getByLabel('メモ（任意）').fill(customName);
+    await page.getByRole('button', { name: '登録する' }).click();
+    await expect(page).toHaveURL(/\/transactions\?month=2099-12$/);
+    await page.goto('/settings/categories/asset');
+    const row = categoryRow(page, customName);
+    page.once('dialog', (dialog) => dialog.accept());
+    await row.getByRole('button', { name: '削除' }).click();
+    await expect(row.getByRole('alert')).toContainText('取引があるため');
+    await expect(row).toBeVisible();
+    await page.goto('/settings/delete');
+    await page.getByLabel('確認のため「削除」と入力してください').fill('削除');
+    await page.getByRole('button', { name: 'すべてのデータを削除する' }).click();
+    await expect(page).toHaveURL('/settings?reset=done');
   });
 
   test('支出カテゴリは見出しを重複させず、名前を文字として表示する', async ({ page }) => {

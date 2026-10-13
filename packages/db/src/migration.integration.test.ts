@@ -27,8 +27,8 @@ const MIGRATION_FILES = [
   '0007_amusing_king_bedlam.sql',
   '0008_busy_gwen_stacy.sql',
   '0009_big_otto_octavius.sql',
+  '0010_glamorous_proteus.sql',
 ] as const;
-
 async function executeMigrationFile(sql: Sql, fileName: string): Promise<void> {
   const filePath = fileURLToPath(new URL(`../drizzle/${fileName}`, import.meta.url));
   const source = await readFile(filePath, 'utf8');
@@ -601,9 +601,42 @@ describe('legacy account migration', () => {
       expect(await emptyClient.sql`select count(*)::int as count from account_groups`).toEqual([
         { count: DEFAULT_ACCOUNT_GROUP_SEEDS.length },
       ]);
+      expect(await emptyClient.sql`select count(*)::int as count from asset_categories`).toEqual([
+        { count: 6 },
+      ]);
+      const [custom] = await emptyClient.sql<{ id: number }[]>`
+        insert into asset_categories (household_id, name, sort_order)
+        values (${DEFAULT_HOUSEHOLD_ID}, '一時カテゴリ', 999)
+        returning id
+      `;
+      if (!custom) throw new Error('custom category was not inserted');
+      await emptyClient.sql`delete from asset_categories where id = ${custom.id}`;
+      await emptyClient.sql`
+        update asset_categories
+        set name = '銀行変更'
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'
+      `;
+      await initializeDefaultLedger(emptyClient.db);
+      expect(
+        await emptyClient.sql`
+        select name from asset_categories
+        where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'
+      `,
+      ).toEqual([{ name: '銀行変更' }]);
+      expect(
+        await emptyClient.sql`
+        select count(*)::int as count from asset_categories where name = '一時カテゴリ'
+      `,
+      ).toEqual([{ count: 0 }]);
       const nullableAccount = await emptyClient.sql`
-        insert into accounts (household_id, name, kind, sort_order)
-        values (${DEFAULT_HOUSEHOLD_ID}, 'グループなし', 'bank', 10)
+        insert into accounts (household_id, name, kind, asset_category_id, sort_order)
+        values (
+          ${DEFAULT_HOUSEHOLD_ID},
+          'グループなし',
+          'bank',
+          (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'),
+          10
+        )
         returning group_id
       `;
       expect(nullableAccount).toEqual([{ group_id: null }]);

@@ -5,7 +5,7 @@ import {
   accountCreateInputSchema,
   accountUpdateInputSchema,
 } from '@kobako/db/validation';
-import { createAccount, deleteAccount, updateAccount } from '@kobako/db';
+import { createAccount, deleteAccount, getAssetCategory, updateAccount } from '@kobako/db';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 
@@ -27,8 +27,8 @@ function accountState(formData: FormData, message?: string): AccountFormState {
   return {
     values: {
       name: text(formData, 'name'),
-      kind: text(formData, 'kind'),
-      expectedKind: text(formData, 'expectedKind'),
+      assetCategoryId: text(formData, 'assetCategoryId'),
+      expectedAssetCategoryId: text(formData, 'expectedAssetCategoryId'),
       closingDay: text(formData, 'closingDay'),
       paymentDay: text(formData, 'paymentDay'),
       paymentMonthOffset: text(formData, 'paymentMonthOffset'),
@@ -89,13 +89,12 @@ export async function createAccountAction(
   void previousState;
   const parsed = accountCreateInputSchema.safeParse({
     name: text(formData, 'name'),
-    kind: text(formData, 'kind'),
+    assetCategoryId: text(formData, 'assetCategoryId'),
   });
   if (!parsed.success) return validationState(formData, parsed.error);
-  const parsedCard =
-    parsed.data.kind === 'credit_card' && hasCardInput(cardInput(formData))
-      ? accountCardConditionInputSchema.safeParse(cardInput(formData))
-      : undefined;
+  const parsedCard = hasCardInput(cardInput(formData))
+    ? accountCardConditionInputSchema.safeParse(cardInput(formData))
+    : undefined;
   if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
@@ -129,17 +128,18 @@ export async function updateAccountAction(
   if (id === undefined) notFound();
   const parsed = accountUpdateInputSchema.safeParse({
     name: text(formData, 'name'),
-    kind: text(formData, 'kind'),
-    expectedKind: text(formData, 'expectedKind') || undefined,
+    assetCategoryId: text(formData, 'assetCategoryId'),
+    expectedAssetCategoryId: text(formData, 'expectedAssetCategoryId') || undefined,
   });
   if (!parsed.success) return validationState(formData, parsed.error);
+  const db = getLedgerDatabase();
+  const householdId = getCurrentHouseholdId();
+  const selectedCategory = await getAssetCategory(db, householdId, parsed.data.assetCategoryId);
   const parsedCard =
-    parsed.data.kind === 'credit_card'
+    selectedCategory?.systemKey === 'credit_card'
       ? accountCardConditionInputSchema.safeParse(cardInput(formData))
       : undefined;
   if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
-  const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
   const result = await updateAccount(
     db,
     householdId,
@@ -151,7 +151,7 @@ export async function updateAccountAction(
   if (result.status === 'deleted') {
     return { ...accountState(formData), message: '資産は削除済みのため保存できません。' };
   }
-  if (result.status === 'stale_kind') {
+  if (result.status === 'stale_asset_category') {
     return {
       ...accountState(formData),
       message: '別の画面で資産カテゴリが変更されました。再読み込みしてください。',

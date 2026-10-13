@@ -99,6 +99,39 @@ export const accountGroups = pgTable(
     check('account_groups_sort_order_check', sql`${table.sortOrder} >= 0`),
   ],
 );
+export const assetCategories = pgTable(
+  'asset_categories',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    /**
+     * Non-null only for immutable system categories. Custom categories never
+     * receive a system key, so renaming them cannot turn them into defaults.
+     */
+    systemKey: varchar('system_key', { length: 80 }),
+    name: varchar('name', { length: 120 }).notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('asset_categories_household_name_unique').on(table.householdId, table.name),
+    uniqueIndex('asset_categories_household_system_key_unique')
+      .on(table.householdId, table.systemKey)
+      .where(sql`${table.systemKey} is not null`),
+    unique('asset_categories_id_household_unique').on(table.id, table.householdId),
+    index('asset_categories_household_sort_order_idx').on(
+      table.householdId,
+      table.sortOrder,
+      table.id,
+    ),
+    check('asset_categories_sort_order_check', sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export type AssetCategory = typeof assetCategories.$inferSelect;
+export type NewAssetCategory = typeof assetCategories.$inferInsert;
 
 export const accounts = pgTable(
   'accounts',
@@ -109,6 +142,7 @@ export const accounts = pgTable(
       .references(() => households.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
     kind: accountKind('kind').notNull().default('other'),
+    assetCategoryId: integer('asset_category_id').notNull(),
     groupId: integer('group_id'),
     status: accountStatus('status').notNull().default('active'),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -118,11 +152,22 @@ export const accounts = pgTable(
   (table) => [
     unique('accounts_id_household_unique').on(table.id, table.householdId),
     foreignKey({
+      name: 'accounts_asset_category_household_fk',
+      columns: [table.assetCategoryId, table.householdId],
+      foreignColumns: [assetCategories.id, assetCategories.householdId],
+    }).onDelete('restrict'),
+    foreignKey({
       name: 'accounts_group_household_fk',
       columns: [table.groupId, table.householdId],
       foreignColumns: [accountGroups.id, accountGroups.householdId],
     }).onDelete('restrict'),
     index('accounts_household_name_idx').on(table.householdId, table.name),
+    index('accounts_household_asset_category_sort_order_idx').on(
+      table.householdId,
+      table.assetCategoryId,
+      table.sortOrder,
+      table.id,
+    ),
     index('accounts_household_kind_sort_order_idx').on(
       table.householdId,
       table.kind,

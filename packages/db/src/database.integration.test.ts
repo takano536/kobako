@@ -1,4 +1,4 @@
-import { asc } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { MoneyManagerLedgerRow, MoneyManagerNormalizedRow } from './money-manager-format.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -34,6 +34,13 @@ import {
   resetHouseholdData,
   updateCategory,
 } from './categories.js';
+import {
+  createAssetCategory,
+  deleteAssetCategory,
+  ensureDefaultAssetCategories,
+  listAssetCategories,
+  updateAssetCategory,
+} from './asset-categories.js';
 import { processDueCardPayments } from './billing.js';
 import {
   createAccount,
@@ -55,8 +62,9 @@ import {
   accountCardConditions,
   accountCardSettings,
   accountGroups,
-  accountImportMappings,
   accounts,
+  accountImportMappings,
+  assetCategories,
   cardAutoPaymentRuns,
   categories,
   households,
@@ -105,6 +113,23 @@ describe('PostgreSQL migrations and ledger', () => {
   let developmentUrl: string | undefined;
   let testDatabaseTarget: DatabaseTarget;
   let testDatabaseUrl: string;
+  async function categoryIdFor(
+    systemKey: 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other',
+  ): Promise<number> {
+    const rows = await client.db
+      .select({ id: assetCategories.id })
+      .from(assetCategories)
+      .where(
+        and(
+          eq(assetCategories.householdId, DEFAULT_HOUSEHOLD_ID),
+          eq(assetCategories.systemKey, systemKey),
+        ),
+      )
+      .limit(1);
+    const category = rows[0];
+    if (!category) throw new Error(`asset category seed missing: ${systemKey}`);
+    return category.id;
+  }
 
   beforeAll(async () => {
     const safeTestDatabase = assertSafeTestDatabaseTarget();
@@ -157,7 +182,7 @@ describe('PostgreSQL migrations and ledger', () => {
     async (previousKind, nextKind) => {
       const created = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
         name: '資産カテゴリ変更テスト',
-        kind: previousKind,
+        assetCategoryId: await categoryIdFor(previousKind),
       });
       if (created.status !== 'ok') throw new Error('Account creation failed');
       await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
@@ -170,8 +195,8 @@ describe('PostgreSQL migrations and ledger', () => {
       });
       const result = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, created.account.id, {
         name: created.account.name,
-        kind: nextKind,
-        expectedKind: previousKind,
+        assetCategoryId: await categoryIdFor(nextKind),
+        expectedAssetCategoryId: await categoryIdFor(previousKind),
       });
       expect(result.status).toBe('ok');
       const saved = await getActiveManagedAccount(
@@ -187,24 +212,402 @@ describe('PostgreSQL migrations and ledger', () => {
     },
   );
 
-  it('rejects a stale kind without overwriting the account', async () => {
+  it('rejects a stale asset category without overwriting the account', async () => {
     const created = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '同時変更テスト',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     if (created.status !== 'ok') throw new Error('Account creation failed');
     const result = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, created.account.id, {
       name: '上書きしない名前',
-      kind: 'other',
-      expectedKind: 'bank',
+      assetCategoryId: await categoryIdFor('other'),
+      expectedAssetCategoryId: await categoryIdFor('bank'),
     });
-    expect(result).toEqual({ status: 'stale_kind' });
+    expect(result).toEqual({ status: 'stale_asset_category' });
     const saved = await getActiveManagedAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       created.account.id,
     );
     expect(saved).toMatchObject({ name: '同時変更テスト', kind: 'credit_card' });
+  });
+
+  it('manages custom asset categories and reassigns transaction-free assets', async () => {
+    const invalidNames = ['', '   ', 'x'.repeat(81)];
+    for (const name of invalidNames) {
+      expect(await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, { name })).toEqual({
+        status: 'error',
+      });
+    }
+    const created = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '旅行用',
+    });
+    expect(created.status).toBe('ok');
+    if (created.status !== 'ok') throw new Error('custom category was not created');
+    expect(await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, { name: '旅行用' })).toEqual({
+      status: 'duplicate',
+    });
+    expect(
+      await updateAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        id: await categoryIdFor('other'),
+        name: 'その他変更',
+      }),
+    ).toEqual({ status: 'immutable' });
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, await categoryIdFor('other')),
+    ).toEqual({ status: 'immutable' });
+    expect(
+      await updateAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        id: created.category.id,
+        name: '旅行・変更後',
+      }),
+    ).toMatchObject({ status: 'ok' });
+
+    const first = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '旅行用資産',
+      assetCategoryId: created.category.id,
+    });
+    const second = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '旅行用削除済み資産',
+      assetCategoryId: created.category.id,
+    });
+    expect(first.status).toBe('ok');
+    expect(second.status).toBe('ok');
+    if (first.status !== 'ok' || second.status !== 'ok') throw new Error('asset fixtures missing');
+    await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, second.account.id);
+    expect(await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, created.category.id)).toEqual(
+      {
+        status: 'ok',
+      },
+    );
+    const reassigned = await client.sql<
+      { assetCategoryId: number; kind: string; deletedAt: string | null }[]
+    >`
+      select asset_category_id as "assetCategoryId", kind, deleted_at as "deletedAt"
+      from accounts
+      where id in (${first.account.id}, ${second.account.id})
+      order by id
+    `;
+    expect(reassigned).toEqual([
+      { assetCategoryId: await categoryIdFor('other'), kind: 'other', deletedAt: null },
+      {
+        assetCategoryId: await categoryIdFor('other'),
+        kind: 'other',
+        deletedAt: expect.any(String),
+      },
+    ]);
+    expect(
+      (await listAssetCategories(client.db, DEFAULT_HOUSEHOLD_ID)).some(
+        (category) => category.id === created.category.id,
+      ),
+    ).toBe(false);
+  });
+
+  it('blocks custom category deletion for transaction and transfer references', async () => {
+    const created = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '取引あり',
+    });
+    expect(created.status).toBe('ok');
+    if (created.status !== 'ok') throw new Error('custom category was not created');
+    const account = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '取引あり資産',
+      assetCategoryId: created.category.id,
+    });
+    expect(account.status).toBe('ok');
+    if (account.status !== 'ok') throw new Error('asset fixture missing');
+    const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expense) throw new Error('expense category seed missing');
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 1,
+      occurredOn: '2099-12-31',
+      categoryId: expense.id,
+      accountId: account.account.id,
+      memo: 'imported and auto-settlement reference',
+    });
+    expect(await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, created.category.id)).toEqual(
+      {
+        status: 'in_use',
+      },
+    );
+  });
+  it('rejects category deletion for every transaction-like reference', async () => {
+    for (const type of ['income', 'expense'] as const) {
+      const category = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: `直接${type}`,
+      });
+      if (category.status !== 'ok') throw new Error(`failed to create direct ${type} category`);
+      const account = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: `直接${type}資産`,
+        assetCategoryId: category.category.id,
+      });
+      if (account.status !== 'ok') throw new Error(`failed to create direct ${type} account`);
+      const transactionCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, type))[0];
+      if (!transactionCategory) throw new Error(`${type} category seed missing`);
+      await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+        type,
+        amount: 1,
+        occurredOn: '1900-01-01',
+        categoryId: transactionCategory.id,
+        accountId: account.account.id,
+        memo: '',
+      });
+      expect(
+        await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, category.category.id),
+      ).toEqual({ status: 'in_use' });
+    }
+
+    const transferFromCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替元参照',
+    });
+    const transferToCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替先参照',
+    });
+    if (transferFromCategory.status !== 'ok' || transferToCategory.status !== 'ok') {
+      throw new Error('failed to create transfer categories');
+    }
+    const transferFrom = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替元資産',
+      assetCategoryId: transferFromCategory.category.id,
+    });
+    const transferTo = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替先資産',
+      assetCategoryId: transferToCategory.category.id,
+    });
+    const neutral = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '振替中立資産',
+      assetCategoryId: await categoryIdFor('other'),
+    });
+    if (transferFrom.status !== 'ok' || transferTo.status !== 'ok' || neutral.status !== 'ok') {
+      throw new Error('failed to create transfer accounts');
+    }
+    expect(
+      await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+        fromAccountId: transferFrom.account.id,
+        toAccountId: neutral.account.id,
+        amount: 1,
+        occurredOn: '1900-01-01',
+        memo: '',
+      }),
+    ).toMatchObject({ status: 'ok' });
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, transferFromCategory.category.id),
+    ).toEqual({ status: 'in_use' });
+    expect(
+      await createTransfer(client.db, DEFAULT_HOUSEHOLD_ID, {
+        fromAccountId: neutral.account.id,
+        toAccountId: transferTo.account.id,
+        amount: 1,
+        occurredOn: '1900-01-01',
+        memo: '',
+      }),
+    ).toMatchObject({ status: 'ok' });
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, transferToCategory.category.id),
+    ).toEqual({ status: 'in_use' });
+
+    const softDeletedCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '削除済み資産参照',
+    });
+    if (softDeletedCategory.status !== 'ok')
+      throw new Error('failed to create soft-delete category');
+    const softDeletedAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '削除済み資産',
+      assetCategoryId: softDeletedCategory.category.id,
+    });
+    if (softDeletedAccount.status !== 'ok') throw new Error('failed to create soft-delete account');
+    const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+    if (!expense) throw new Error('expense category seed missing');
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 1,
+      occurredOn: '1900-01-01',
+      categoryId: expense.id,
+      accountId: softDeletedAccount.account.id,
+      memo: '',
+    });
+    expect(
+      await deleteAccount(client.db, DEFAULT_HOUSEHOLD_ID, softDeletedAccount.account.id),
+    ).toEqual({ status: 'deleted' });
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, softDeletedCategory.category.id),
+    ).toEqual({ status: 'in_use' });
+
+    const importedCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '取込参照',
+    });
+    if (importedCategory.status !== 'ok') throw new Error('failed to create import category');
+    const imported = await commitMoneyManagerImport(client.db, {
+      householdId: DEFAULT_HOUSEHOLD_ID,
+      sha256: 'd'.repeat(64),
+      originalFilename: 'category-reference.xlsx',
+      rows: [importedRow({ accountName: '取込参照資産', sourceAccountId: 'category-reference' })],
+    });
+    if (imported.status !== 'imported' || imported.accounts[0] === undefined) {
+      throw new Error('failed to create imported account');
+    }
+    const importedAccount = await getActiveManagedAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      imported.accounts[0].id,
+    );
+    if (!importedAccount) throw new Error('imported account was not found');
+    const importedRecategorized = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      importedAccount.id,
+      {
+        name: importedAccount.name,
+        assetCategoryId: importedCategory.category.id,
+        expectedAssetCategoryId: await categoryIdFor('other'),
+      },
+    );
+    if (importedRecategorized.status !== 'ok') throw new Error('failed to recategorize import');
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, importedCategory.category.id),
+    ).toEqual({ status: 'in_use' });
+
+    const cardCategory = await categoryIdFor('credit_card');
+    const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '自動決済カード',
+      assetCategoryId: cardCategory,
+    });
+    const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '自動決済銀行',
+      assetCategoryId: await categoryIdFor('bank'),
+    });
+    if (card.status !== 'ok' || debit.status !== 'ok')
+      throw new Error('failed to create card fixture');
+    const cardSetting = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      {
+        name: card.account.name,
+        assetCategoryId: cardCategory,
+        expectedAssetCategoryId: cardCategory,
+      },
+      {
+        closingDay: '15',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: debit.account.id,
+      },
+    );
+    if (cardSetting.status !== 'ok') throw new Error('failed to create card setting');
+    await client.db
+      .update(accountCardSettings)
+      .set({ autoPaymentStartsOn: '2026-01-01' })
+      .where(
+        and(
+          eq(accountCardSettings.householdId, DEFAULT_HOUSEHOLD_ID),
+          eq(accountCardSettings.accountId, card.account.id),
+        ),
+      );
+    await createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+      type: 'expense',
+      amount: 100,
+      occurredOn: '2026-01-01',
+      categoryId: expense.id,
+      accountId: card.account.id,
+      memo: '',
+    });
+    expect((await processDueCardPayments(client.db, '2026-03-01')).completed).toBeGreaterThan(0);
+    const autoPaymentCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+      name: '自動決済参照',
+    });
+    if (autoPaymentCategory.status !== 'ok') throw new Error('failed to create auto category');
+    const recategorizedCard = await updateAccount(
+      client.db,
+      DEFAULT_HOUSEHOLD_ID,
+      card.account.id,
+      {
+        name: card.account.name,
+        assetCategoryId: autoPaymentCategory.category.id,
+        expectedAssetCategoryId: cardCategory,
+      },
+    );
+    if (recategorizedCard.status !== 'ok') throw new Error('failed to recategorize auto card');
+    expect(
+      await deleteAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, autoPaymentCategory.category.id),
+    ).toEqual({ status: 'in_use' });
+  });
+
+  it('serializes category deletion with transaction creation and account recategorization across connections', async () => {
+    const secondClient = createDatabaseClient(testDatabaseUrl);
+    try {
+      const transactionCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: '同時取引',
+      });
+      expect(transactionCategory.status).toBe('ok');
+      if (transactionCategory.status !== 'ok') throw new Error('custom category was not created');
+      const transactionAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: '同時取引資産',
+        assetCategoryId: transactionCategory.category.id,
+      });
+      expect(transactionAccount.status).toBe('ok');
+      if (transactionAccount.status !== 'ok') throw new Error('asset fixture missing');
+      const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
+      if (!expense) throw new Error('expense category seed missing');
+      const [deletionResult] = await Promise.all([
+        deleteAssetCategory(secondClient.db, DEFAULT_HOUSEHOLD_ID, transactionCategory.category.id),
+        createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+          type: 'expense',
+          amount: 1,
+          occurredOn: '1900-01-01',
+          categoryId: expense.id,
+          accountId: transactionAccount.account.id,
+          memo: '同時作成',
+        }),
+      ]);
+      expect(['ok', 'in_use']).toContain(deletionResult.status);
+      const transactionAccountAfter = await client.sql`
+        select asset_category_id as "assetCategoryId", kind
+        from accounts
+        where id = ${transactionAccount.account.id}
+      `;
+      expect(transactionAccountAfter[0]?.kind).toBe('other');
+      if (deletionResult.status === 'in_use') {
+        expect(transactionAccountAfter[0]?.assetCategoryId).toBe(transactionCategory.category.id);
+      } else {
+        expect(transactionAccountAfter[0]?.assetCategoryId).toBe(await categoryIdFor('other'));
+      }
+
+      const recategorized = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: '同時変更',
+      });
+      expect(recategorized.status).toBe('ok');
+      if (recategorized.status !== 'ok')
+        throw new Error('recategorization category was not created');
+      const recategorizedAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
+        name: '同時変更資産',
+        assetCategoryId: recategorized.category.id,
+      });
+      expect(recategorizedAccount.status).toBe('ok');
+      if (recategorizedAccount.status !== 'ok') throw new Error('asset fixture missing');
+      const fallbackId = await categoryIdFor('other');
+      const [recategorizationResult, deletionAfterRecategorization] = await Promise.all([
+        updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, recategorizedAccount.account.id, {
+          name: recategorizedAccount.account.name,
+          assetCategoryId: fallbackId,
+          expectedAssetCategoryId: recategorized.category.id,
+        }),
+        deleteAssetCategory(secondClient.db, DEFAULT_HOUSEHOLD_ID, recategorized.category.id),
+      ]);
+      expect(['ok', 'invalid_asset_category', 'not_found', 'error']).toContain(
+        recategorizationResult.status,
+      );
+      expect(deletionAfterRecategorization.status).toBe('ok');
+      expect(
+        await client.sql`
+          select asset_category_id as "assetCategoryId", kind
+          from accounts
+          where id = ${recategorizedAccount.account.id}
+        `,
+      ).toEqual([{ assetCategoryId: fallbackId, kind: 'other' }]);
+    } finally {
+      await secondClient.close();
+    }
   });
 
   it('keeps the system healthcheck table available', async () => {
@@ -340,11 +743,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('creates accounts by kind, saves current card conditions, and deletes assets logically', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '設定カード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '引落資産',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -367,7 +770,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: card.account.name, kind: 'credit_card' },
+      { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -414,11 +817,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('starts auto-payment when an incomplete card schedule becomes complete', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '境界日カード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '境界日引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -431,7 +834,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: null,
           paymentDay: null,
@@ -451,7 +854,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: '15',
           paymentDay: '10',
@@ -468,7 +871,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: card.account.name, kind: 'credit_card' },
+      { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: '20',
         paymentDay: '27',
@@ -484,11 +887,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('stores one current card setting and ignores legacy history rows', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '条件固定カード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '条件固定引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -500,7 +903,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: '3',
           paymentDay: '4',
@@ -514,7 +917,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: 'last',
           paymentDay: null,
@@ -559,7 +962,7 @@ describe('PostgreSQL migrations and ledger', () => {
     const invalidCardResult = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: 'カード入力失敗', kind: 'credit_card' },
+      { name: 'カード入力失敗', assetCategoryId: await categoryIdFor('credit_card') },
       invalidCard,
     );
     expect(invalidCardResult).toEqual({ status: 'error' });
@@ -569,14 +972,14 @@ describe('PostgreSQL migrations and ledger', () => {
 
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '作成再試行の引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(debit.status).toBe('ok');
     if (debit.status !== 'ok') throw new Error('debit fixture was not created');
     const failed = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: '作成再試行カード', kind: 'credit_card' },
+      { name: '作成再試行カード', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: null,
         paymentDay: null,
@@ -592,7 +995,7 @@ describe('PostgreSQL migrations and ledger', () => {
     const retried = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: '作成再試行カード', kind: 'credit_card' },
+      { name: '作成再試行カード', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -609,11 +1012,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('rolls back account edits when card settings fail and retries without duplicate settings', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '編集再試行カード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '編集再試行引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -625,7 +1028,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: '3',
           paymentDay: '4',
@@ -649,8 +1052,8 @@ describe('PostgreSQL migrations and ledger', () => {
       card.account.id,
       {
         name: '編集失敗後の名前',
-        kind: 'credit_card',
-        expectedKind: 'credit_card',
+        assetCategoryId: await categoryIdFor('credit_card'),
+        expectedAssetCategoryId: await categoryIdFor('credit_card'),
       },
       {
         closingDay: 'last',
@@ -680,8 +1083,8 @@ describe('PostgreSQL migrations and ledger', () => {
       card.account.id,
       {
         name: '編集成功後の名前',
-        kind: 'credit_card',
-        expectedKind: 'credit_card',
+        assetCategoryId: await categoryIdFor('credit_card'),
+        expectedAssetCategoryId: await categoryIdFor('credit_card'),
       },
       {
         closingDay: 'last',
@@ -705,11 +1108,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('rolls back account writes when card settings fail at the database layer', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'トリガー失敗カード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'トリガー失敗引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -727,7 +1130,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         initialCondition,
       ),
     ).resolves.toMatchObject({ status: 'ok' });
@@ -761,7 +1164,7 @@ describe('PostgreSQL migrations and ledger', () => {
       const failedCreate = await createAccount(
         client.db,
         DEFAULT_HOUSEHOLD_ID,
-        { name: 'トリガー作成失敗', kind: 'credit_card' },
+        { name: 'トリガー作成失敗', assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: 'last',
           paymentDay: '10',
@@ -781,7 +1184,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: 'トリガー編集失敗', kind: 'credit_card' },
+        { name: 'トリガー編集失敗', assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: 'last',
           paymentDay: '10',
@@ -813,7 +1216,7 @@ describe('PostgreSQL migrations and ledger', () => {
     const retriedCreate = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: 'トリガー作成失敗', kind: 'credit_card' },
+      { name: 'トリガー作成失敗', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -826,7 +1229,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      { name: 'トリガー編集成功', kind: 'credit_card' },
+      { name: 'トリガー編集成功', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -858,7 +1261,7 @@ describe('PostgreSQL migrations and ledger', () => {
   it('rejects basic and card edits after the target account is soft-deleted', async () => {
     const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '削除済み銀行',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(bank.status).toBe('ok');
     if (bank.status !== 'ok') throw new Error('deleted bank fixture was not created');
@@ -867,7 +1270,7 @@ describe('PostgreSQL migrations and ledger', () => {
     });
     const basicUpdate = await updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, bank.account.id, {
       name: '削除済み銀行の変更',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(basicUpdate).toEqual({ status: 'deleted' });
     expect(
@@ -879,11 +1282,11 @@ describe('PostgreSQL migrations and ledger', () => {
 
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '削除済みカード',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '削除済みカード引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -895,7 +1298,7 @@ describe('PostgreSQL migrations and ledger', () => {
         client.db,
         DEFAULT_HOUSEHOLD_ID,
         card.account.id,
-        { name: card.account.name, kind: 'credit_card' },
+        { name: card.account.name, assetCategoryId: await categoryIdFor('credit_card') },
         {
           closingDay: 'last',
           paymentDay: '10',
@@ -916,10 +1319,7 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       card.account.id,
-      {
-        name: '削除済みカードの変更',
-        kind: 'credit_card',
-      },
+      { name: '削除済みカードの変更', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: '3',
         paymentDay: '4',
@@ -946,11 +1346,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('preserves expected kind when a bank-to-card retry follows a failed card save', async () => {
     const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '銀行からカードへ',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '銀行からカードへの引落口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(bank.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -961,7 +1361,11 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       bank.account.id,
-      { name: 'カード化失敗', kind: 'credit_card', expectedKind: 'bank' },
+      {
+        name: 'カード化失敗',
+        assetCategoryId: await categoryIdFor('credit_card'),
+        expectedAssetCategoryId: await categoryIdFor('bank'),
+      },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -974,7 +1378,11 @@ describe('PostgreSQL migrations and ledger', () => {
       client.db,
       DEFAULT_HOUSEHOLD_ID,
       bank.account.id,
-      { name: 'カード化成功', kind: 'credit_card', expectedKind: 'bank' },
+      {
+        name: 'カード化成功',
+        assetCategoryId: await categoryIdFor('credit_card'),
+        expectedAssetCategoryId: await categoryIdFor('bank'),
+      },
       {
         closingDay: 'last',
         paymentDay: '10',
@@ -992,23 +1400,23 @@ describe('PostgreSQL migrations and ledger', () => {
     expect(await getAccountBalances(client.db, DEFAULT_HOUSEHOLD_ID)).toEqual([]);
 
     const [largeAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'A very long account name that should wrap safely', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'A very long account name that should wrap safely', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [idleAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'M idle account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'M idle account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [sinkAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'N transfer sink', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'N transfer sink', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [negativeAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Z negative account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Z negative account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -1100,13 +1508,14 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'balance-other', '別家計')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     await client.sql`
       insert into account_groups (household_id, name, sort_order)
       values (${otherHouseholdId}, 'その他', 10)
     `;
     const [otherAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, 'A very long account name that should wrap safely', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, 'A very long account name that should wrap safely', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     const [otherCategory] = await client.sql<{ id: number }[]>`
@@ -1238,11 +1647,20 @@ describe('PostgreSQL migrations and ledger', () => {
     if (!expenseCategory) {
       throw new Error('expense category seed missing');
     }
+    const [otherCategory] = await client.db
+      .select({ id: assetCategories.id })
+      .from(assetCategories)
+      .where(eq(assetCategories.systemKey, 'other'))
+      .limit(1);
+    if (!otherCategory) {
+      throw new Error('other asset category seed missing');
+    }
     const [account] = await client.db
       .insert(accounts)
       .values({
         householdId: DEFAULT_HOUSEHOLD_ID,
         name: '編集保持テスト口座',
+        assetCategoryId: otherCategory.id,
       })
       .returning({ id: accounts.id });
     if (!account) {
@@ -1302,8 +1720,8 @@ describe('PostgreSQL migrations and ledger', () => {
       values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly asset group', 10)
     `;
     const [linkedAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly linked asset', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'Monthly asset group'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly linked asset', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'Monthly asset group'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     if (!linkedAccount) {
@@ -1355,13 +1773,13 @@ describe('PostgreSQL migrations and ledger', () => {
       }),
     );
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly source', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly source', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly destination', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Monthly destination', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     if (!fromAccount || !toAccount) {
@@ -1440,7 +1858,7 @@ describe('PostgreSQL migrations and ledger', () => {
     }
     const manual = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '手入力銀行',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     if (manual.status !== 'ok') {
       throw new Error('manual account was not created');
@@ -1643,6 +2061,7 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'other', 'Other household')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     const [category] = await client.sql<{ id: number }[]>`
       insert into categories (household_id, type, name, sort_order)
       values (${otherHouseholdId}, 'expense', 'Other expense', 1)
@@ -1673,18 +2092,19 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'other-transfer', 'Other transfer household')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     await client.sql`
       insert into account_groups (household_id, name, sort_order)
       values (${otherHouseholdId}, 'その他', 10)
     `;
     const [defaultAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Default account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Default account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [otherAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, 'Other account', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, 'Other account', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     if (!defaultAccount || !otherAccount) {
@@ -1712,13 +2132,14 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'other-account', 'Other account household')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     await client.sql`
       insert into account_groups (household_id, name, sort_order)
       values (${otherHouseholdId}, 'その他', 10)
     `;
     const [otherAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, 'Other account', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, 'Other account', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -1752,8 +2173,8 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('rejects a transfer whose source and destination are the same account', async () => {
     const [account] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, 'Same account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, 'Same account', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     if (!account) {
@@ -1777,18 +2198,18 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('creates, edits, and deletes transfers with household and balance boundaries', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '操作元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '操作元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '操作先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '操作先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [alternateAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '変更先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変更先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     if (!fromAccount || !toAccount || !alternateAccount) {
@@ -1998,18 +2419,19 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'transfer-api-other', '別家計')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     await client.sql`
       insert into account_groups (household_id, name, sort_order)
       values (${otherHouseholdId}, 'その他', 10)
     `;
     const [otherFrom] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, '別家計元', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, '別家計元', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     const [otherTo] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, '別家計先', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, '別家計先', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     if (!otherFrom || !otherTo) {
@@ -2053,13 +2475,13 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('converts transactions and transfers in one household transaction', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '変換元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変換元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '変換先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '変換先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -2168,13 +2590,13 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('converts ordinary and transfer entries in every direction with stable totals', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '集計元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '集計元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '集計先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '集計先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -2331,13 +2753,13 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('rolls back conversion insert failures and rejects other-household resources', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '失敗元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '失敗元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '失敗先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '失敗先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -2402,18 +2824,19 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'conversion-other', '変換別家計')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     await client.sql`
       insert into account_groups (household_id, name, sort_order)
       values (${otherHouseholdId}, 'その他', 10)
     `;
     const [otherFrom] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, '別元', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, '別元', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     const [otherTo] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${otherHouseholdId}, '別先', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${otherHouseholdId}, '別先', (select id from account_groups where household_id = ${otherHouseholdId} and name = 'その他'), (select id from asset_categories where household_id = ${otherHouseholdId} and system_key = 'other'))
       returning id
     `;
     const [otherCategory] = await client.sql<{ id: number }[]>`
@@ -2479,18 +2902,18 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('keeps unrelated ledger rows and orders mixed entries by date', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '並び元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '並び先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [alternateAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '並び別', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '並び別', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     if (!fromAccount || !toAccount || !alternateAccount) {
@@ -2628,13 +3051,13 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('orders same-date transfers and transactions deterministically', async () => {
     const [fromAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '同日元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '同日元', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const [toAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
-      values (${DEFAULT_HOUSEHOLD_ID}, '同日先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'))
+      insert into accounts (household_id, name, group_id, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, '同日先', (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'), (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const expenseCategory = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
@@ -2854,6 +3277,7 @@ describe('PostgreSQL migrations and ledger', () => {
       insert into households (id, slug, name)
       values (${otherHouseholdId}, 'other', 'Other household')
     `;
+    await ensureDefaultAssetCategories(client.db, otherHouseholdId);
     const row = importedRow({ categoryName: 'Same category' });
     await commitMoneyManagerImport(client.db, {
       householdId: DEFAULT_HOUSEHOLD_ID,
@@ -2887,11 +3311,12 @@ describe('PostgreSQL migrations and ledger', () => {
 
   it('creates fresh assets for every import without using legacy mappings', async () => {
     const [existingAccount] = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, group_id)
+      insert into accounts (household_id, name, group_id, asset_category_id)
       values (
         ${DEFAULT_HOUSEHOLD_ID},
         '既存資産',
-        (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他')
+        (select id from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID} and name = 'その他'),
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')
       )
       returning id
     `;
@@ -2976,7 +3401,10 @@ describe('PostgreSQL migrations and ledger', () => {
       throw new Error('grouped account was not created');
     }
     await client.sql`
-      update accounts set name = '利用者名', kind = 'credit_card'
+      update accounts
+      set name = '利用者名',
+          kind = 'credit_card',
+          asset_category_id = (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')
       where id = ${created.id}
     `;
     await client.db.insert(accountCardSettings).values({
@@ -3318,11 +3746,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('filters an account to its transactions and transfers with stable ordering', async () => {
     const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '一覧対象口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '一覧対象外口座',
-      kind: 'other',
+      assetCategoryId: await categoryIdFor('other'),
     });
     expect(target.status).toBe('ok');
     expect(other.status).toBe('ok');
@@ -3436,11 +3864,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('returns every matching row for large month and all-time account lists', async () => {
     const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '大量一覧対象口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '大量一覧振替先',
-      kind: 'other',
+      assetCategoryId: await categoryIdFor('other'),
     });
     expect(target.status).toBe('ok');
     expect(other.status).toBe('ok');
@@ -3626,11 +4054,11 @@ describe('PostgreSQL migrations and ledger', () => {
   it('returns all transfers when the transfer branch exceeds 50 rows', async () => {
     const target = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '振替50件超対象口座',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '振替50件超相手口座',
-      kind: 'other',
+      assetCategoryId: await categoryIdFor('other'),
     });
     expect(target.status).toBe('ok');
     expect(other.status).toBe('ok');
@@ -3676,15 +4104,15 @@ describe('PostgreSQL migrations and ledger', () => {
   it('filters card uses, refunds, and card payments without leaking debit-account activity', async () => {
     const card = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'カード一覧対象',
-      kind: 'credit_card',
+      assetCategoryId: await categoryIdFor('credit_card'),
     });
     const debit = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'カード引落銀行',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     const other = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'カード別口座',
-      kind: 'other',
+      assetCategoryId: await categoryIdFor('other'),
     });
     expect(card.status).toBe('ok');
     expect(debit.status).toBe('ok');
@@ -3845,14 +4273,14 @@ describe('PostgreSQL migrations and ledger', () => {
   it('resets every household-owned table, preserves the boundary, and can be reused', async () => {
     const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '初期化銀行',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     expect(bank.status).toBe('ok');
     if (bank.status !== 'ok') throw new Error('bank creation failed');
     const card = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: '初期化カード', kind: 'credit_card' },
+      { name: '初期化カード', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: '4',
         paymentDay: '5',
@@ -3883,7 +4311,7 @@ describe('PostgreSQL migrations and ledger', () => {
     if (transfer.status !== 'ok') throw new Error('transfer creation failed');
     const deletedAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: '論理削除対象',
-      kind: 'other',
+      assetCategoryId: await categoryIdFor('other'),
     });
     expect(deletedAccount.status).toBe('ok');
     if (deletedAccount.status !== 'ok') throw new Error('deleted account creation failed');
@@ -4051,13 +4479,13 @@ describe('PostgreSQL migrations and ledger', () => {
 
     const bank = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
       name: 'worker 競合銀行',
-      kind: 'bank',
+      assetCategoryId: await categoryIdFor('bank'),
     });
     if (bank.status !== 'ok') throw new Error('worker bank creation failed');
     const card = await createAccount(
       client.db,
       DEFAULT_HOUSEHOLD_ID,
-      { name: 'worker 競合カード', kind: 'credit_card' },
+      { name: 'worker 競合カード', assetCategoryId: await categoryIdFor('credit_card') },
       {
         closingDay: '4',
         paymentDay: '5',

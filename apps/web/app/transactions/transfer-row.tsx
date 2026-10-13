@@ -30,12 +30,18 @@ export function TransferRow({
         <span className="transaction-category transfer-type">振替</span>
         <span className="transaction-main transaction-main-transfer">
           <span className="transfer-category">
-            <span className="transfer-account">{transfer.fromAccountName}</span>
+            <span className="transfer-account">
+              <span>{transfer.fromAccountName}</span>
+              <span className="transaction-asset-category">{transfer.fromAccountCategoryName}</span>
+            </span>
             <span className="transfer-destination">
               <span className="transfer-arrow" aria-hidden="true">
                 →
               </span>
-              <span className="transfer-account">{transfer.toAccountName}</span>
+              <span className="transfer-account">
+                <span>{transfer.toAccountName}</span>
+                <span className="transaction-asset-category">{transfer.toAccountCategoryName}</span>
+              </span>
             </span>
           </span>
           {showMemo && transfer.memo ? (
