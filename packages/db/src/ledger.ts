@@ -1,4 +1,17 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type { Database } from './client.js';
@@ -6,6 +19,7 @@ import { monthRange } from './month.js';
 import {
   accountGroups,
   accountCardSettings,
+  assetCategories,
   accounts,
   categories,
   households,
@@ -20,6 +34,8 @@ import {
   type Transfer,
 } from './schema.js';
 import { MAX_INT4_ID, type TransactionInput, type TransferInput } from './validation.js';
+
+import { ensureDefaultAssetCategories } from './asset-categories.js';
 
 export const DEFAULT_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_HOUSEHOLD_SLUG = 'local';
@@ -51,17 +67,6 @@ export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
   { name: 'その他', defaultKind: null, sortOrder: 60 },
 ] as const;
 
-function accountKindOrderSql() {
-  return sql<number>`case ${accounts.kind}
-    when 'cash' then 0
-    when 'bank' then 1
-    when 'credit_card' then 2
-    when 'debit_card' then 3
-    when 'electronic_money' then 4
-    else 5
-  end`;
-}
-
 export async function initializeDefaultLedger(db: Database): Promise<void> {
   await db.transaction(async (transaction) => {
     await transaction
@@ -83,6 +88,7 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
     if (!household) {
       throw new Error('Default household not found');
     }
+    await ensureDefaultAssetCategories(transaction, DEFAULT_HOUSEHOLD_ID);
     if (household.ledgerInitialized) return;
 
     await transaction
@@ -120,18 +126,42 @@ export async function getHousehold(db: Database, householdId: string) {
 }
 export async function listAccounts(db: Database, householdId: string): Promise<Account[]> {
   return db
-    .select()
+    .select(getTableColumns(accounts))
     .from(accounts)
+    .innerJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, accounts.householdId),
+      ),
+    )
     .where(eq(accounts.householdId, householdId))
-    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
+    .orderBy(
+      asc(assetCategories.sortOrder),
+      asc(assetCategories.id),
+      asc(accounts.sortOrder),
+      asc(accounts.id),
+    );
 }
 
 export async function listActiveAccounts(db: Database, householdId: string): Promise<Account[]> {
   return db
-    .select()
+    .select(getTableColumns(accounts))
     .from(accounts)
+    .innerJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, accounts.householdId),
+      ),
+    )
     .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
-    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
+    .orderBy(
+      asc(assetCategories.sortOrder),
+      asc(assetCategories.id),
+      asc(accounts.sortOrder),
+      asc(accounts.id),
+    );
 }
 
 export async function listCategories(
@@ -195,6 +225,7 @@ export interface ListedTransaction {
   categoryName: string;
   accountId: number | null;
   accountName: string | null;
+  accountCategoryName: string | null;
   accountKind: AccountKind | null;
   memo: string;
 }
@@ -206,8 +237,10 @@ export interface ListedTransfer {
   occurredOn: string;
   fromAccountId: number;
   fromAccountName: string;
+  fromAccountCategoryName: string;
   toAccountId: number;
   toAccountName: string;
+  toAccountCategoryName: string;
   memo: string;
 }
 
@@ -259,6 +292,7 @@ export async function listTransactions(
       categoryName: categories.name,
       accountId: transactions.accountId,
       accountName: accounts.name,
+      accountCategoryName: assetCategories.name,
       accountKind: accounts.kind,
       memo: transactions.memo,
     })
@@ -274,6 +308,13 @@ export async function listTransactions(
     .leftJoin(
       accounts,
       and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
+    )
+    .leftJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, householdId),
+      ),
     )
     .where(and(...transactionConditions(householdId, filters)))
     .orderBy(desc(transactions.occurredOn), desc(transactions.id));
@@ -329,11 +370,14 @@ export async function listLedgerEntries(
         ${categories.name} as category_name,
         ${transactions.accountId} as account_id,
         ${accounts.name} as account_name,
+        ${assetCategories.name} as account_category_name,
         ${accounts.kind}::text as account_kind,
         null::integer as from_account_id,
         null::text as from_account_name,
+        null::text as from_account_category_name,
         null::integer as to_account_id,
         null::text as to_account_name,
+        null::text as to_account_category_name,
         ${transactions.memo} as memo
       from ${transactions}
       inner join ${categories}
@@ -343,12 +387,17 @@ export async function listLedgerEntries(
       left join ${accounts}
         on ${accounts.id} = ${transactions.accountId}
         and ${accounts.householdId} = ${householdId}
+      left join ${assetCategories}
+        on ${assetCategories.id} = ${accounts.assetCategoryId}
+        and ${assetCategories.householdId} = ${householdId}
       where ${sql.join(transactionWhere, sql` and `)}
     `);
   }
   if (includeTransfers) {
     const fromAccounts = alias(accounts, 'transfer_from_accounts');
     const toAccounts = alias(accounts, 'transfer_to_accounts');
+    const fromAssetCategories = alias(assetCategories, 'transfer_from_asset_categories');
+    const toAssetCategories = alias(assetCategories, 'transfer_to_asset_categories');
     parts.push(sql`
       select
         ${transfers.id} as id,
@@ -359,19 +408,28 @@ export async function listLedgerEntries(
         null::text as category_name,
         null::integer as account_id,
         null::text as account_name,
+        null::text as account_category_name,
         null::text as account_kind,
         ${transfers.fromAccountId} as from_account_id,
         ${fromAccounts.name} as from_account_name,
+        ${fromAssetCategories.name} as from_account_category_name,
         ${transfers.toAccountId} as to_account_id,
         ${toAccounts.name} as to_account_name,
+        ${toAssetCategories.name} as to_account_category_name,
         ${transfers.memo} as memo
       from ${transfers}
       inner join ${accounts} as transfer_from_accounts
         on ${fromAccounts.id} = ${transfers.fromAccountId}
         and ${fromAccounts.householdId} = ${householdId}
+      inner join ${assetCategories} as transfer_from_asset_categories
+        on ${fromAssetCategories.id} = ${fromAccounts.assetCategoryId}
+        and ${fromAssetCategories.householdId} = ${householdId}
       inner join ${accounts} as transfer_to_accounts
         on ${toAccounts.id} = ${transfers.toAccountId}
         and ${toAccounts.householdId} = ${householdId}
+      inner join ${assetCategories} as transfer_to_asset_categories
+        on ${toAssetCategories.id} = ${toAccounts.assetCategoryId}
+        and ${toAssetCategories.householdId} = ${householdId}
       where ${sql.join(transferWhere, sql` and `)}
     `);
   }
@@ -385,11 +443,14 @@ export async function listLedgerEntries(
     category_name: string | null;
     account_id: number | null;
     account_name: string | null;
+    account_category_name: string | null;
     account_kind: AccountKind | null;
     from_account_id: number | null;
     from_account_name: string | null;
+    from_account_category_name: string | null;
     to_account_id: number | null;
     to_account_name: string | null;
+    to_account_category_name: string | null;
     memo: string;
   }>(sql`
     select *
@@ -405,8 +466,10 @@ export async function listLedgerEntries(
           occurredOn: row.occurred_on,
           fromAccountId: row.from_account_id!,
           fromAccountName: row.from_account_name!,
+          fromAccountCategoryName: row.from_account_category_name!,
           toAccountId: row.to_account_id!,
           toAccountName: row.to_account_name!,
+          toAccountCategoryName: row.to_account_category_name!,
           memo: row.memo,
         }
       : {
@@ -418,6 +481,7 @@ export async function listLedgerEntries(
           categoryName: row.category_name!,
           accountId: row.account_id,
           accountName: row.account_name,
+          accountCategoryName: row.account_category_name,
           accountKind: row.account_kind,
           memo: row.memo,
         },
@@ -439,6 +503,7 @@ export async function getTransaction(
       categoryName: categories.name,
       accountId: transactions.accountId,
       accountName: accounts.name,
+      accountCategoryName: assetCategories.name,
       accountKind: accounts.kind,
       memo: transactions.memo,
     })
@@ -455,6 +520,13 @@ export async function getTransaction(
       accounts,
       and(eq(accounts.id, transactions.accountId), eq(accounts.householdId, householdId)),
     )
+    .leftJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, householdId),
+      ),
+    )
     .where(and(eq(transactions.id, id), eq(transactions.householdId, householdId)))
     .limit(1);
   return rows[0] ?? null;
@@ -467,6 +539,8 @@ export async function getTransfer(
 ): Promise<ListedTransfer | null> {
   const fromAccounts = alias(accounts, 'transfer_from_accounts');
   const toAccounts = alias(accounts, 'transfer_to_accounts');
+  const fromAssetCategories = alias(assetCategories, 'transfer_detail_from_asset_categories');
+  const toAssetCategories = alias(assetCategories, 'transfer_detail_to_asset_categories');
   const rows = await db
     .select({
       id: transfers.id,
@@ -474,8 +548,10 @@ export async function getTransfer(
       occurredOn: transfers.occurredOn,
       fromAccountId: transfers.fromAccountId,
       fromAccountName: fromAccounts.name,
+      fromAccountCategoryName: fromAssetCategories.name,
       toAccountId: transfers.toAccountId,
       toAccountName: toAccounts.name,
+      toAccountCategoryName: toAssetCategories.name,
       memo: transfers.memo,
     })
     .from(transfers)
@@ -486,6 +562,20 @@ export async function getTransfer(
     .innerJoin(
       toAccounts,
       and(eq(toAccounts.id, transfers.toAccountId), eq(toAccounts.householdId, householdId)),
+    )
+    .innerJoin(
+      fromAssetCategories,
+      and(
+        eq(fromAssetCategories.id, fromAccounts.assetCategoryId),
+        eq(fromAssetCategories.householdId, householdId),
+      ),
+    )
+    .innerJoin(
+      toAssetCategories,
+      and(
+        eq(toAssetCategories.id, toAccounts.assetCategoryId),
+        eq(toAssetCategories.householdId, householdId),
+      ),
     )
     .where(and(eq(transfers.id, id), eq(transfers.householdId, householdId)))
     .limit(1);
@@ -534,6 +624,8 @@ export async function getAccountBalances(
         + coalesce(tin.transfers_in, 0)
       )::text as balance
     from ${accounts} a
+    inner join ${assetCategories} ac
+      on ac.id = a.asset_category_id and ac.household_id = a.household_id
     left join (
       select
         household_id,
@@ -557,14 +649,7 @@ export async function getAccountBalances(
       group by household_id, from_account_id
     ) tout on tout.household_id = a.household_id and tout.account_id = a.id
     where a.household_id = ${householdId}
-    order by case a.kind
-      when 'cash' then 0
-      when 'bank' then 1
-      when 'credit_card' then 2
-      when 'debit_card' then 3
-      when 'electronic_money' then 4
-      else 5
-    end, a.sort_order, a.id
+    order by ac.sort_order, ac.id, a.sort_order, a.id
   `);
   return rows;
 }

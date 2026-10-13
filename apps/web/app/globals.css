@@ -1050,6 +1050,11 @@ h3 {
   line-height: var(--leading-body);
   white-space: normal;
 }
+.transaction-asset-category {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+}
 
 .transaction-list-full .transfer-type {
   color: var(--muted);
@@ -3294,6 +3299,11 @@ h3 {
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--text-heading);
+}
+.asset-transaction-category {
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
 }
 
 .asset-settings-link {

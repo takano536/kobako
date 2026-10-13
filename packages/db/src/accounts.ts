@@ -1,9 +1,12 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm';
 import { currentTokyoDate } from './month.js';
+import { accountKindForAssetCategory } from './asset-categories.js';
+
 import type { Database } from './client.js';
 import { getAccountBalances, lockCardSettingsForAccounts, type AccountBalance } from './ledger.js';
 import {
   accountCardSettings,
+  assetCategories,
   accounts,
   households,
   type Account,
@@ -18,11 +21,17 @@ import {
   type AccountUpdateInput,
 } from './validation.js';
 
+export type ManagedAccount = Account & {
+  assetCategoryName: string;
+  assetCategorySystemKey: string | null;
+};
+
 export type AccountMutationResult =
   | { status: 'ok'; account: Account }
   | { status: 'not_found' }
   | { status: 'deleted' }
-  | { status: 'stale_kind' }
+  | { status: 'stale_asset_category' }
+  | { status: 'invalid_asset_category' }
   | { status: 'not_card' }
   | { status: 'invalid_debit_account' }
   | { status: 'error' };
@@ -31,7 +40,13 @@ export type AccountDeleteResult =
   { status: 'deleted' } | { status: 'not_found' } | { status: 'error' };
 
 type AccountMutationFailureStatus =
-  'not_found' | 'deleted' | 'not_card' | 'invalid_debit_account' | 'error';
+  | 'not_found'
+  | 'deleted'
+  | 'stale_asset_category'
+  | 'invalid_asset_category'
+  | 'not_card'
+  | 'invalid_debit_account'
+  | 'error';
 
 class AccountMutationRollback extends Error {
   constructor(readonly status: AccountMutationFailureStatus) {
@@ -39,54 +54,88 @@ class AccountMutationRollback extends Error {
   }
 }
 
-function accountKindOrderSql() {
-  return sql<number>`case ${accounts.kind}
-    when 'cash' then 0
-    when 'bank' then 1
-    when 'credit_card' then 2
-    when 'debit_card' then 3
-    when 'electronic_money' then 4
-    else 5
-  end`;
-}
-
 async function getAccountInExecutor(
   db: Database,
   householdId: string,
   accountId: number,
-): Promise<Account | null> {
+): Promise<ManagedAccount | null> {
   const rows = await db
-    .select()
+    .select({
+      ...getTableColumns(accounts),
+      assetCategoryName: assetCategories.name,
+      assetCategorySystemKey: assetCategories.systemKey,
+    })
     .from(accounts)
+    .innerJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, accounts.householdId),
+      ),
+    )
     .where(and(eq(accounts.id, accountId), eq(accounts.householdId, householdId)))
     .limit(1);
   return rows[0] ?? null;
 }
-
-export async function listManagedAccounts(db: Database, householdId: string): Promise<Account[]> {
+export async function listManagedAccounts(
+  db: Database,
+  householdId: string,
+): Promise<ManagedAccount[]> {
   return db
-    .select()
+    .select({
+      ...getTableColumns(accounts),
+      assetCategoryName: assetCategories.name,
+      assetCategorySystemKey: assetCategories.systemKey,
+    })
     .from(accounts)
+    .innerJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, accounts.householdId),
+      ),
+    )
     .where(eq(accounts.householdId, householdId))
-    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
+    .orderBy(
+      asc(assetCategories.sortOrder),
+      asc(assetCategories.id),
+      asc(accounts.sortOrder),
+      asc(accounts.id),
+    );
 }
 
 export async function listActiveManagedAccounts(
   db: Database,
   householdId: string,
-): Promise<Account[]> {
+): Promise<ManagedAccount[]> {
   return db
-    .select()
+    .select({
+      ...getTableColumns(accounts),
+      assetCategoryName: assetCategories.name,
+      assetCategorySystemKey: assetCategories.systemKey,
+    })
     .from(accounts)
+    .innerJoin(
+      assetCategories,
+      and(
+        eq(assetCategories.id, accounts.assetCategoryId),
+        eq(assetCategories.householdId, accounts.householdId),
+      ),
+    )
     .where(and(eq(accounts.householdId, householdId), isNull(accounts.deletedAt)))
-    .orderBy(accountKindOrderSql(), asc(accounts.sortOrder), asc(accounts.id));
+    .orderBy(
+      asc(assetCategories.sortOrder),
+      asc(assetCategories.id),
+      asc(accounts.sortOrder),
+      asc(accounts.id),
+    );
 }
 
 export async function getActiveManagedAccount(
   db: Database,
   householdId: string,
   accountId: number,
-): Promise<Account | null> {
+): Promise<ManagedAccount | null> {
   const account = await getAccountInExecutor(db, householdId, accountId);
   return account?.deletedAt === null ? account : null;
 }
@@ -96,6 +145,9 @@ export interface ManagedAccountBalance extends AccountBalance {
   status: Account['status'];
   deletedAt: Account['deletedAt'];
   sortOrder: number;
+  assetCategoryId: number;
+  assetCategoryName: string;
+  assetCategorySystemKey: string | null;
 }
 
 export async function getManagedAccountBalances(
@@ -106,10 +158,29 @@ export async function getManagedAccountBalances(
     getAccountBalances(db, householdId),
     listManagedAccounts(db, householdId),
   ]);
+  const categoryIds = [...new Set(managed.map((account) => account.assetCategoryId))];
+  const categoryRows =
+    categoryIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: assetCategories.id,
+            name: assetCategories.name,
+            systemKey: assetCategories.systemKey,
+          })
+          .from(assetCategories)
+          .where(
+            and(
+              eq(assetCategories.householdId, householdId),
+              inArray(assetCategories.id, categoryIds),
+            ),
+          );
+  const categoriesById = new Map(categoryRows.map((category) => [category.id, category]));
   const byId = new Map(balances.map((balance) => [balance.accountId, balance]));
   return managed.flatMap((account) => {
     const balance = byId.get(account.id);
-    return balance
+    const category = categoriesById.get(account.assetCategoryId);
+    return balance && category
       ? [
           {
             ...balance,
@@ -117,6 +188,9 @@ export async function getManagedAccountBalances(
             status: account.status,
             deletedAt: account.deletedAt,
             sortOrder: account.sortOrder,
+            assetCategoryId: category.id,
+            assetCategoryName: category.name,
+            assetCategorySystemKey: category.systemKey,
           },
         ]
       : [];
@@ -127,7 +201,7 @@ export async function getManagedAccount(
   db: Database,
   householdId: string,
   accountId: number,
-): Promise<Account | null> {
+): Promise<ManagedAccount | null> {
   return getAccountInExecutor(db, householdId, accountId);
 }
 
@@ -167,6 +241,8 @@ export async function createAccount(
   if (!parsed.success) {
     return { status: 'error' };
   }
+  const requestedAssetCategoryId = parsed.data.assetCategoryId;
+  const accountName = parsed.data.name;
   const parsedCard =
     cardCondition === undefined
       ? undefined
@@ -177,8 +253,22 @@ export async function createAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      const categoryRows = await transaction
+        .select()
+        .from(assetCategories)
+        .where(
+          and(
+            eq(assetCategories.id, requestedAssetCategoryId),
+            eq(assetCategories.householdId, householdId),
+          ),
+        )
+        .for('update')
+        .limit(1);
+      const category = categoryRows[0];
+      if (!category) return { status: 'invalid_asset_category' };
+      const kind = accountKindForAssetCategory(category);
       if (parsedCard?.success) {
-        if (parsed.data.kind !== 'credit_card') {
+        if (kind !== 'credit_card') {
           return { status: 'not_card' };
         }
         if (
@@ -197,8 +287,9 @@ export async function createAccount(
         .insert(accounts)
         .values({
           householdId,
-          name: parsed.data.name,
-          kind: parsed.data.kind,
+          name: accountName,
+          kind,
+          assetCategoryId: category.id,
           status: 'active',
           sortOrder,
         })
@@ -247,6 +338,9 @@ export async function updateAccount(
   if (!parsed.success) {
     return { status: 'error' };
   }
+  const requestedAssetCategoryId = parsed.data.assetCategoryId;
+  const accountName = parsed.data.name;
+  const expectedAssetCategoryId = parsed.data.expectedAssetCategoryId;
   const parsedCard =
     cardCondition === undefined
       ? undefined
@@ -257,6 +351,20 @@ export async function updateAccount(
   try {
     return await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
+      const categoryRows = await transaction
+        .select()
+        .from(assetCategories)
+        .where(
+          and(
+            eq(assetCategories.id, requestedAssetCategoryId),
+            eq(assetCategories.householdId, householdId),
+          ),
+        )
+        .for('update')
+        .limit(1);
+      const category = categoryRows[0];
+      if (!category) return { status: 'invalid_asset_category' };
+      const kind = accountKindForAssetCategory(category);
       await lockCardSettingsForAccounts(transaction, householdId, [accountId]);
       const current = await transaction
         .select()
@@ -271,12 +379,15 @@ export async function updateAccount(
       if (account.deletedAt !== null) {
         return { status: 'deleted' };
       }
-      if (parsed.data.expectedKind !== undefined && parsed.data.expectedKind !== account.kind) {
-        return { status: 'stale_kind' };
+      if (
+        expectedAssetCategoryId !== undefined &&
+        expectedAssetCategoryId !== account.assetCategoryId
+      ) {
+        return { status: 'stale_asset_category' };
       }
       let currentCardCondition: AccountCardSetting | null = null;
       if (parsedCard?.success) {
-        if (parsed.data.kind !== 'credit_card') {
+        if (kind !== 'credit_card') {
           return { status: 'not_card' };
         }
         currentCardCondition = await currentCardSettingInTransaction(
@@ -299,8 +410,9 @@ export async function updateAccount(
       const updated = await transaction
         .update(accounts)
         .set({
-          name: parsed.data.name,
-          kind: parsed.data.kind,
+          name: accountName,
+          kind,
+          assetCategoryId: category.id,
           status: account.status,
         })
         .where(

@@ -428,10 +428,10 @@ async function expectAccountValuesFit(page: Page): Promise<void> {
 async function seedAccounts(): Promise<{ longAccountId: number; destinationAccountId: number }> {
   const client = database();
   const rows = await client.sql<{ id: number; name: string }[]>`
-    insert into accounts (household_id, name, kind)
+    insert into accounts (household_id, name, kind, asset_category_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${longAccountName}, 'other'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${destinationAccountName}, 'other')
+      (${DEFAULT_HOUSEHOLD_ID}, ${longAccountName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${destinationAccountName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
     returning id, name
   `;
   const longAccount = rows.find((account) => account.name === longAccountName);
@@ -493,8 +493,8 @@ async function seedTrillionScaleBalances(): Promise<void> {
   const accountIds = new Map<string, number>();
   for (const accountName of accountNames) {
     const rows = await client.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, kind)
-      values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'other')
+      insert into accounts (household_id, name, kind, asset_category_id)
+      values (${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
       returning id
     `;
     const account = rows[0];
@@ -589,10 +589,10 @@ async function seedTrillionScaleBalances(): Promise<void> {
 async function seedCompactSummaryBalances(): Promise<void> {
   const client = database();
   const accounts = await client.sql<{ id: number; name: string }[]>`
-    insert into accounts (household_id, name, kind)
+    insert into accounts (household_id, name, kind, asset_category_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${compactSummaryAssetAccountName}, 'other'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${compactSummaryLiabilityAccountName}, 'other')
+      (${DEFAULT_HOUSEHOLD_ID}, ${compactSummaryAssetAccountName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${compactSummaryLiabilityAccountName}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'))
     returning id, name
   `;
   const assetAccount = accounts.find((account) => account.name === compactSummaryAssetAccountName);
@@ -671,11 +671,11 @@ type VisualSummaryFixture = {
 async function seedVisualSummaryBalances(): Promise<VisualSummaryFixture> {
   const client = database();
   const accounts = await client.sql<{ id: number; name: string }[]>`
-    insert into accounts (household_id, name, kind)
+    insert into accounts (household_id, name, kind, asset_category_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[0]}, 'cash'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[1]}, 'bank'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[2]}, 'credit_card')
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[0]}, 'cash', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'cash')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[1]}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${visualSummaryAccountNames[2]}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card'))
     returning id, name
   `;
   const categories = await client.sql<{ id: number; type: 'income' | 'expense' }[]>`
@@ -711,19 +711,19 @@ async function seedPaymentScheduleBalances(): Promise<void> {
   const client = database();
   const names = paymentFixtureNames;
   await client.sql`
-    insert into accounts (household_id, name, kind)
+    insert into accounts (household_id, name, kind, asset_category_id)
     values
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryBank}, 'bank'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryBank}, 'bank'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.orphanBank}, 'bank'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondPrimaryCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.nextMonthCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.partialCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.overpaymentCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.noSettingsCard}, 'credit_card'),
-      (${DEFAULT_HOUSEHOLD_ID}, ${names.invalidSettingsCard}, 'credit_card')
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryBank}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryBank}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.orphanBank}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.primaryCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondPrimaryCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.secondaryCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.nextMonthCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.partialCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.overpaymentCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.noSettingsCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card')),
+      (${DEFAULT_HOUSEHOLD_ID}, ${names.invalidSettingsCard}, 'credit_card', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'credit_card'))
   `;
   const accounts = await client.sql<{ id: number; name: string }[]>`
     select id, name
@@ -1066,10 +1066,12 @@ test('opens the account-filtered transactions by clicking its name from balances
   if (!category) throw new Error('balances account-link category fixture was not created');
   const [account] = await database().sql<{ id: number }[]>`
     insert into accounts (
-      household_id, name, kind, status, sort_order
+      household_id, name, kind, asset_category_id, status, sort_order
     )
     values (
-      ${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank', 'active', 500
+      ${DEFAULT_HOUSEHOLD_ID}, ${accountName}, 'bank',
+      (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'),
+      'active', 500
     )
     returning id
   `;

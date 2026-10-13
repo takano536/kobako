@@ -146,6 +146,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
               </Link>
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
+            <span className="asset-transaction-category">{account.assetCategoryName}</span>
           </div>
           <ActionLink href={clearAssetFilterHref} variant="quiet">
             資産の絞り込みを解除

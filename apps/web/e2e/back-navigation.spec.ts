@@ -112,10 +112,10 @@ test.beforeAll(async () => {
       throw new Error('heading navigation category is missing');
 
     const accountRows = await databaseClient.sql<{ id: number }[]>`
-      insert into accounts (household_id, name, kind, status, sort_order)
+      insert into accounts (household_id, name, kind, asset_category_id, status, sort_order)
       values
-        (${DEFAULT_HOUSEHOLD_ID}, ${`${accountPrefix}-one`}, 'bank', 'active', 10),
-        (${DEFAULT_HOUSEHOLD_ID}, ${`${accountPrefix}-two`}, 'other', 'active', 11)
+        (${DEFAULT_HOUSEHOLD_ID}, ${`${accountPrefix}-one`}, 'bank', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'), 'active', 10),
+        (${DEFAULT_HOUSEHOLD_ID}, ${`${accountPrefix}-two`}, 'other', (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'other'), 'active', 11)
       returning id
     `;
     accountId = Number(accountRows[0]?.id);

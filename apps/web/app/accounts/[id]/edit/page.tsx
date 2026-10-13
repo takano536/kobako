@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
-import { getActiveManagedAccount, getCurrentCardCondition, listManagedAccounts } from '@kobako/db';
+import {
+  getActiveManagedAccount,
+  getCurrentCardCondition,
+  listAssetCategories,
+  listManagedAccounts,
+} from '@kobako/db';
 import { notFound } from 'next/navigation';
 
 import { validatedTransactionReturn } from '../../../../src/lib/transaction-query';
@@ -37,9 +42,10 @@ export default async function EditAccountPage({
     `/transactions?account=${id}&month=all`;
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
-  const [account, accounts] = await Promise.all([
+  const [account, accounts, assetCategories] = await Promise.all([
     getActiveManagedAccount(db, householdId, id),
     listManagedAccounts(db, householdId),
+    listAssetCategories(db, householdId),
   ]);
   if (!account) notFound();
   const cardCondition = await getCurrentCardCondition(db, householdId, id);
@@ -55,11 +61,12 @@ export default async function EditAccountPage({
           <AccountForm
             action={updateAccountAction.bind(null, idValue)}
             accounts={accounts}
+            assetCategories={assetCategories}
             accountId={account.id}
             initialValues={{
               name: account.name,
-              kind: account.kind,
-              expectedKind: account.kind,
+              assetCategoryId: String(account.assetCategoryId),
+              expectedAssetCategoryId: String(account.assetCategoryId),
               closingDay: cardCondition?.closingDay ?? '',
               paymentDay: cardCondition?.paymentDay ?? '',
               paymentMonthOffset: cardCondition?.paymentMonthOffset ?? '',
