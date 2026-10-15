@@ -5,6 +5,41 @@ import { usePathname, useSearchParams } from 'next/navigation';
 
 import { KobakoMark } from '../src/lib/category';
 import { withSelectedMonth } from '../src/lib/month-navigation';
+import { siteNavigationSection, type SiteNavigationSection } from '../src/lib/site-navigation';
+import { SettingsIcon } from './_components/ui';
+
+function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
+  if (section === 'overview') {
+    return (
+      <svg className="site-nav-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+        <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
+      </svg>
+    );
+  }
+  if (section === 'transactions') {
+    return (
+      <svg className="site-nav-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+        <path d="M5 5h14M5 12h14M5 19h14" />
+        <path d="M3 5h.01M3 12h.01M3 19h.01" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="site-nav-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4" />
+    </svg>
+  );
+}
+
+const navigationLinks = [
+  { section: 'overview', label: '概要', href: '/' },
+  { section: 'transactions', label: '取引', href: '/transactions' },
+  { section: 'balances', label: '残高', href: '/balances' },
+] as const satisfies ReadonlyArray<{
+  section: Exclude<SiteNavigationSection, 'settings'>;
+  label: string;
+  href: string;
+}>;
 
 export function SiteBrand() {
   const searchParams = useSearchParams();
@@ -24,32 +59,19 @@ export function SiteNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const month = searchParams.get('month');
-  const overviewHref = withSelectedMonth('/', month);
-  const transactionsHref = withSelectedMonth('/transactions', month);
-  const balancesHref = withSelectedMonth('/balances', month);
-  const settingsHref = '/settings';
-  const addHref = withSelectedMonth('/transactions/new', month);
-  const overviewCurrent = pathname === '/';
-  const transactionsCurrent = pathname.startsWith('/transactions');
-  const balancesCurrent = pathname.startsWith('/balances');
-  const settingsCurrent = pathname.startsWith('/settings');
+  const currentSection = siteNavigationSection(pathname, searchParams.get('return'));
   return (
     <nav className="site-nav" aria-label="メインナビゲーション">
-      <Link href={overviewHref} aria-current={overviewCurrent ? 'page' : undefined}>
-        概要
-      </Link>
-      <Link href={transactionsHref} aria-current={transactionsCurrent ? 'page' : undefined}>
-        取引
-      </Link>
-      <Link href={balancesHref} aria-current={balancesCurrent ? 'page' : undefined}>
-        残高
-      </Link>
-      <Link href={settingsHref} aria-current={settingsCurrent ? 'page' : undefined}>
-        設定
-      </Link>
-      <Link className="nav-add" href={addHref} aria-label="取引を登録" title="取引を登録">
-        <span aria-hidden="true">＋</span>
-      </Link>
+      {navigationLinks.map(({ section, label, href }) => (
+        <Link
+          key={section}
+          href={withSelectedMonth(href, month)}
+          aria-current={currentSection === section ? 'page' : undefined}
+        >
+          <SiteNavIcon section={section} />
+          <span>{label}</span>
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -57,13 +79,36 @@ export function SiteNav() {
 export function SiteNavFallback() {
   return (
     <nav className="site-nav" aria-label="メインナビゲーション">
-      <Link href="/">概要</Link>
-      <Link href="/transactions">取引</Link>
-      <Link href="/balances">残高</Link>
-      <Link href="/settings">設定</Link>
-      <Link className="nav-add" href="/transactions/new" aria-label="取引を登録" title="取引を登録">
-        <span aria-hidden="true">＋</span>
-      </Link>
+      {navigationLinks.map(({ section, label, href }) => (
+        <Link key={section} href={href}>
+          <SiteNavIcon section={section} />
+          <span>{label}</span>
+        </Link>
+      ))}
     </nav>
+  );
+}
+
+export function SiteSettings() {
+  const pathname = usePathname();
+  const settingsCurrent = siteNavigationSection(pathname) === 'settings';
+  return (
+    <Link
+      className="site-settings"
+      href="/settings"
+      aria-label="設定"
+      title="設定"
+      aria-current={settingsCurrent ? 'page' : undefined}
+    >
+      <SettingsIcon />
+    </Link>
+  );
+}
+
+export function SiteSettingsFallback() {
+  return (
+    <Link className="site-settings" href="/settings" aria-label="設定" title="設定">
+      <SettingsIcon />
+    </Link>
   );
 }

@@ -226,6 +226,53 @@ test('uses one accessible title back link for every child screen', async ({ page
   }
 });
 
+test('marks each child screen with its parent navigation section', async ({ page }) => {
+  const validAccountReturn = `/transactions?account=${accountId}&month=${month}&type=expense&category=${categoryId}`;
+  const cases = [
+    { path: `/transactions/new?month=${month}`, section: '取引' },
+    { path: `/transactions/${transactionId}/edit?month=${month}`, section: '取引' },
+    { path: `/accounts/new?month=${month}`, section: '残高' },
+    {
+      path: `/accounts/${accountId}/edit?return=${encodeURIComponent(validAccountReturn)}`,
+      section: '取引',
+    },
+    {
+      path: `/accounts/${accountId}/edit?return=${encodeURIComponent('/settings')}`,
+      section: '取引',
+    },
+  ] as const;
+
+  for (const target of cases) {
+    await page.goto(target.path);
+    await expect(page.getByRole('link', { name: target.section, exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    for (const section of ['概要', '取引', '残高']) {
+      if (section === target.section) continue;
+      await expect(page.getByRole('link', { name: section, exact: true })).not.toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    }
+  }
+
+  await page.goto('/settings/categories/expense');
+  await expect(page.getByRole('link', { name: '設定', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  for (const section of ['概要', '取引', '残高']) {
+    await expect(page.getByRole('link', { name: section, exact: true })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  }
+  await page.goto('/settings');
+  await expect(page.locator('.site-settings[aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('.site-nav a[aria-current="page"]')).toHaveCount(0);
+});
+
 test('uses the occurred month when an edit screen has no valid query month', async ({ page }) => {
   for (const path of [
     `/transactions/${transactionId}/edit`,
