@@ -245,6 +245,75 @@ async function expectSummaryValuesFit(page: Page): Promise<void> {
     expect(value.whiteSpace).toBe('nowrap');
   }
 }
+type ListAmountMeasurement = {
+  fontSize: number;
+  baseFontSize: number;
+  requiredFontSize: number;
+  naturalWidth: number;
+  availableWidth: number;
+  renderedWidth: number;
+  scrollWidth: number;
+  clientWidth: number;
+};
+
+async function readListAmountMeasurements(page: Page): Promise<ListAmountMeasurement[]> {
+  return page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>('.balances-list-section .balance-amount'),
+    ).map((amount) => {
+      const content = amount.querySelector<HTMLElement>('.balance-amount-content');
+      if (!content) throw new Error('balance amount content is missing');
+      const originalFontSize = content.style.fontSize;
+      const originalWidth = content.style.width;
+      content.style.fontSize = '';
+      content.style.width = 'max-content';
+      const availableWidth = amount.clientWidth;
+      const naturalWidth = content.getBoundingClientRect().width;
+      const baseFontSize = Number.parseFloat(getComputedStyle(content).fontSize);
+      content.style.fontSize = originalFontSize;
+      content.style.width = originalWidth;
+      const fontSize = Number.parseFloat(getComputedStyle(content).fontSize);
+      const requiredFontSize =
+        availableWidth > 0 && naturalWidth > availableWidth
+          ? (baseFontSize * Math.max(0.01, availableWidth - 0.01)) / naturalWidth
+          : baseFontSize;
+      return {
+        fontSize,
+        baseFontSize,
+        requiredFontSize,
+        naturalWidth,
+        availableWidth,
+        renderedWidth: (naturalWidth * fontSize) / baseFontSize,
+        scrollWidth: content.scrollWidth,
+        clientWidth: amount.clientWidth,
+      };
+    }),
+  );
+}
+
+async function expectUnifiedListAmountFont(page: Page): Promise<void> {
+  const values = await readListAmountMeasurements(page);
+  expect(values.length).toBeGreaterThan(0);
+  const first = values[0];
+  if (!first) throw new Error('balance amount measurements are missing');
+  for (const value of values) {
+    expect(Math.abs(value.fontSize - first.fontSize)).toBeLessThan(0.02);
+    expect(Math.abs(value.baseFontSize - first.baseFontSize)).toBeLessThan(0.02);
+    expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
+  }
+  const minimumRequiredFontSize = Math.min(...values.map((value) => value.requiredFontSize));
+  expect(Math.abs(first.fontSize - minimumRequiredFontSize)).toBeLessThan(0.02);
+  if (minimumRequiredFontSize < first.baseFontSize - 0.02) {
+    const tightest = values.filter(
+      (value) => Math.abs(value.requiredFontSize - minimumRequiredFontSize) < 0.02,
+    );
+    expect(tightest.length).toBeGreaterThan(0);
+    for (const value of tightest) {
+      expect(value.renderedWidth).toBeGreaterThanOrEqual(value.availableWidth - 1);
+      expect(value.renderedWidth).toBeLessThanOrEqual(value.availableWidth + 1);
+    }
+  }
+}
 async function expectMobileSummaryLayout(
   page: Page,
   options: { requireSingleRow?: boolean } = {},
@@ -1290,6 +1359,47 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await expectMetricLabels(overpaymentCard, ['決済予定', '未決済']);
     await expect(balanceMetric(overpaymentCard, '決済予定')).toContainText('0円');
     await expect(balanceMetric(overpaymentCard, '未決済')).toContainText('0円');
+
+    await database().sql`
+      insert into transactions (
+        household_id, type, amount, occurred_on, category_id, account_id, memo
+      )
+      values (
+        ${DEFAULT_HOUSEHOLD_ID}, 'expense', 999_999_999, ${currentTokyoDate()},
+        ${expenseCategory.id}, ${primaryCardAccount.id}, ${`${paymentFixtureMarker}font-probe`}
+      )
+    `;
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.reload();
+    await assertNoHorizontalOverflow(page);
+    const mobileAmountMeasurements = await readListAmountMeasurements(page);
+    await expectUnifiedListAmountFont(page);
+    const mobileAmount = mobileAmountMeasurements[0];
+    if (!mobileAmount) throw new Error('mobile balance amount measurements are missing');
+    expect(mobileAmount.fontSize).toBeLessThan(mobileAmount.baseFontSize - 0.1);
+
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-font-unified-mobile-320.png`,
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect
+      .poll(async () => {
+        const measurements = await readListAmountMeasurements(page);
+        const firstMeasurement = measurements[0];
+        return (
+          firstMeasurement !== undefined &&
+          firstMeasurement.fontSize > firstMeasurement.baseFontSize - 0.1
+        );
+      })
+      .toBe(true);
+    await assertNoHorizontalOverflow(page);
+    await expectUnifiedListAmountFont(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-font-unified-desktop.png`,
+      fullPage: true,
+    });
 
     const cardGroupWithRows = {
       group: cardGroup,
