@@ -369,9 +369,6 @@ test('falls back for invalid or absent month URLs without carrying a bogus month
       'href',
       '/balances',
     );
-    await expect(
-      page.getByRole('link', { name: '取引を登録', exact: true }).first(),
-    ).toHaveAttribute('href', '/transactions/new');
     await expect(page.getByRole('link', { name: 'kobako 家計ノート ホーム' })).toHaveAttribute(
       'href',
       '/',

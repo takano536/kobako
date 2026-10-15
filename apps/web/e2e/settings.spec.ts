@@ -39,7 +39,10 @@ test.describe('設定画面', () => {
     );
     await expect(page.getByRole('heading', { name: 'データ管理' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'すべてのデータを削除' })).toBeVisible();
-    await expect(page.getByRole('link', { name: '設定' })).toHaveAttribute('aria-current', 'page');
+    const settingsLink = page.getByRole('link', { name: '設定' });
+    await expect(settingsLink).toHaveAttribute('aria-current', 'page');
+    await expect(settingsLink).toHaveAttribute('title', '設定');
+    await expect(settingsLink.locator('svg')).toBeVisible();
     const row = page.getByRole('link', { name: '支出カテゴリ' });
     expect((await row.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     expect(

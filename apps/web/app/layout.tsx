@@ -1,9 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { KobakoMark } from '../src/lib/category';
-import { SiteBrand, SiteNav, SiteNavFallback } from './site-nav';
+import {
+  SiteBrand,
+  SiteNav,
+  SiteNavFallback,
+  SiteSettings,
+  SiteSettingsFallback,
+} from './site-nav';
 
 import './globals.css';
 
@@ -13,6 +19,12 @@ export const metadata: Metadata = {
     template: '%s | kobako 家計ノート',
   },
   description: '家計の収入と支出を記録できます。',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -34,6 +46,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Suspense>
               <Suspense fallback={<SiteNavFallback />}>
                 <SiteNav />
+              </Suspense>
+              <Suspense fallback={<SiteSettingsFallback />}>
+                <SiteSettings />
               </Suspense>
             </div>
           </header>
