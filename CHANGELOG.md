@@ -1,4 +1,11 @@
 # Changelog
+## [0.13.0](https://github.com/takano536/kobako/compare/v0.12.0...v0.13.0) (2026-10-15)
+
+
+### Features
+
+* **web:** move import screen into settings ([#73](https://github.com/takano536/kobako/issues/73)) ([72c3719](https://github.com/takano536/kobako/commit/72c371982ac6f78dcae6bee9f1c899dc440b2d85))
+
 ## [0.12.0](https://github.com/takano536/kobako/compare/v0.11.0...v0.12.0) (2026-10-15)
 
 
