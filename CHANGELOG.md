@@ -1,4 +1,16 @@
 # Changelog
+## [0.12.0](https://github.com/takano536/kobako/compare/v0.11.0...v0.12.0) (2026-10-15)
+
+
+### Features
+
+* **web:** move main navigation to bottom bar on mobile and header on desktop ([#71](https://github.com/takano536/kobako/issues/71)) ([1ced75f](https://github.com/takano536/kobako/commit/1ced75fcd73ff0ddbd6c54aed314e5a171fbca29))
+
+
+### Bug Fixes
+
+* **web:** unify balance amount font sizes ([#69](https://github.com/takano536/kobako/issues/69)) ([91e61c0](https://github.com/takano536/kobako/commit/91e61c0f9c0abffe35694e578755a44499ed7a3e))
+
 ## [0.11.0](https://github.com/takano536/kobako/compare/v0.10.3...v0.11.0) (2026-10-13)
 
 
