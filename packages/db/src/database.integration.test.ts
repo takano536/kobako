@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import type { MoneyManagerLedgerRow, MoneyManagerNormalizedRow } from './money-manager-format.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { Sql } from 'postgres';
 
 import { createDatabaseClient, type DatabaseClient } from './client.js';
 import { currentTokyoDate } from './month.js';
@@ -106,6 +107,98 @@ function importedRow(
     memo: 'テスト',
     ...overrides,
   };
+}
+type TransactionSql = Parameters<Parameters<Sql['begin']>[1]>[0];
+
+interface HeldRowLock {
+  ready: Promise<void>;
+  release: () => void;
+  done: Promise<unknown>;
+}
+
+function holdRowLock(
+  gateClient: DatabaseClient,
+  lockRow: (transaction: TransactionSql) => Promise<unknown>,
+): HeldRowLock {
+  let resolveReady: () => void = () => {};
+  let rejectReady: (reason?: unknown) => void = () => {};
+  let resolveRelease: () => void = () => {};
+  const ready = new Promise<void>((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+  const released = new Promise<void>((resolve) => {
+    resolveRelease = resolve;
+  });
+  const done = gateClient.sql.begin(async (transaction) => {
+    try {
+      await lockRow(transaction);
+      resolveReady();
+      await released;
+    } catch (error) {
+      rejectReady(error);
+      throw error;
+    }
+  });
+  void done.catch(rejectReady);
+  return { ready, release: resolveRelease, done };
+}
+
+/** Poll the household row with NOWAIT; a successful probe releases its brief lock. */
+async function waitForHouseholdLock(sql: DatabaseClient['sql']): Promise<void> {
+  for (;;) {
+    try {
+      await sql`select id from households where id = ${DEFAULT_HOUSEHOLD_ID} for update nowait`;
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '55P03'
+      ) {
+        return;
+      }
+      throw error;
+    }
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+}
+
+async function accountCategoryState(
+  sql: DatabaseClient['sql'],
+  accountId: number,
+  deletedCategoryId: number,
+): Promise<
+  {
+    assetCategoryId: number;
+    kind: string;
+    categoryExists: boolean;
+    accountReferences: number;
+    transactionReferences: number;
+  }[]
+> {
+  return sql`
+    select
+      a.asset_category_id as "assetCategoryId",
+      a.kind,
+      exists(
+        select 1
+        from asset_categories c
+        where c.id = ${deletedCategoryId}
+      ) as "categoryExists",
+      (
+        select count(*)::int
+        from accounts referenced
+        where referenced.asset_category_id = ${deletedCategoryId}
+      ) as "accountReferences",
+      (
+        select count(*)::int
+        from transactions t
+        where t.account_id = ${accountId}
+      ) as "transactionReferences"
+    from accounts a
+    where a.id = ${accountId}
+  `;
 }
 
 describe('PostgreSQL migrations and ledger', () => {
@@ -534,79 +627,167 @@ describe('PostgreSQL migrations and ledger', () => {
   });
 
   it('serializes category deletion with transaction creation and account recategorization across connections', async () => {
-    const secondClient = createDatabaseClient(testDatabaseUrl);
+    const deletionClient = createDatabaseClient(testDatabaseUrl);
+    const observerClient = createDatabaseClient(testDatabaseUrl);
+    const gateClient = createDatabaseClient(testDatabaseUrl);
+    let gate: HeldRowLock | undefined;
     try {
+      const fallbackId = await categoryIdFor('other');
+      const bankId = await categoryIdFor('bank');
       const transactionCategory = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
         name: '同時取引',
       });
-      expect(transactionCategory.status).toBe('ok');
       if (transactionCategory.status !== 'ok') throw new Error('custom category was not created');
       const transactionAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
         name: '同時取引資産',
         assetCategoryId: transactionCategory.category.id,
       });
-      expect(transactionAccount.status).toBe('ok');
       if (transactionAccount.status !== 'ok') throw new Error('asset fixture missing');
       const expense = (await listCategories(client.db, DEFAULT_HOUSEHOLD_ID, 'expense'))[0];
       if (!expense) throw new Error('expense category seed missing');
-      const [deletionResult] = await Promise.all([
-        deleteAssetCategory(secondClient.db, DEFAULT_HOUSEHOLD_ID, transactionCategory.category.id),
-        createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
-          type: 'expense',
-          amount: 1,
-          occurredOn: '1900-01-01',
-          categoryId: expense.id,
-          accountId: transactionAccount.account.id,
-          memo: '同時作成',
-        }),
+
+      // Deletion holds the household lock while the gate keeps its category row locked.
+      // The observer proves that it reached that wait before the competing operations start.
+      gate = holdRowLock(gateClient, async (transaction) => {
+        await transaction`
+          select id
+          from asset_categories
+          where id = ${transactionCategory.category.id}
+          for update
+        `;
+      });
+      await gate.ready;
+      const deletion = deleteAssetCategory(
+        deletionClient.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transactionCategory.category.id,
+      );
+      await waitForHouseholdLock(observerClient.sql);
+      const recategorization = updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        transactionAccount.account.id,
+        {
+          name: transactionAccount.account.name,
+          assetCategoryId: fallbackId,
+          expectedAssetCategoryId: transactionCategory.category.id,
+        },
+      );
+      const transaction = createTransaction(client.db, DEFAULT_HOUSEHOLD_ID, {
+        type: 'expense',
+        amount: 1,
+        occurredOn: '1900-01-01',
+        categoryId: expense.id,
+        accountId: transactionAccount.account.id,
+        memo: '同時作成',
+      });
+      gate.release();
+      const [deletionResult, recategorizationResult, transactionResult] = await Promise.all([
+        deletion,
+        recategorization,
+        transaction,
       ]);
-      expect(['ok', 'in_use']).toContain(deletionResult.status);
-      const transactionAccountAfter = await client.sql`
-        select asset_category_id as "assetCategoryId", kind
-        from accounts
-        where id = ${transactionAccount.account.id}
-      `;
-      expect(transactionAccountAfter[0]?.kind).toBe('other');
-      if (deletionResult.status === 'in_use') {
-        expect(transactionAccountAfter[0]?.assetCategoryId).toBe(transactionCategory.category.id);
-      } else {
-        expect(transactionAccountAfter[0]?.assetCategoryId).toBe(await categoryIdFor('other'));
-      }
+      await gate.done;
+      expect(deletionResult).toEqual({ status: 'ok' });
+      expect(recategorizationResult).toEqual({ status: 'stale_asset_category' });
+      expect(transactionResult).toMatchObject({
+        householdId: DEFAULT_HOUSEHOLD_ID,
+        type: 'expense',
+        amount: 1,
+        occurredOn: '1900-01-01',
+        categoryId: expense.id,
+        accountId: transactionAccount.account.id,
+        memo: '同時作成',
+      });
+      expect(transactionResult.id).toBeTypeOf('number');
+      expect(
+        await accountCategoryState(
+          client.sql,
+          transactionAccount.account.id,
+          transactionCategory.category.id,
+        ),
+      ).toEqual([
+        {
+          assetCategoryId: fallbackId,
+          kind: 'other',
+          categoryExists: false,
+          accountReferences: 0,
+          transactionReferences: 1,
+        },
+      ]);
 
       const recategorized = await createAssetCategory(client.db, DEFAULT_HOUSEHOLD_ID, {
         name: '同時変更',
       });
-      expect(recategorized.status).toBe('ok');
       if (recategorized.status !== 'ok')
         throw new Error('recategorization category was not created');
       const recategorizedAccount = await createAccount(client.db, DEFAULT_HOUSEHOLD_ID, {
         name: '同時変更資産',
         assetCategoryId: recategorized.category.id,
       });
-      expect(recategorizedAccount.status).toBe('ok');
       if (recategorizedAccount.status !== 'ok') throw new Error('asset fixture missing');
-      const fallbackId = await categoryIdFor('other');
-      const [recategorizationResult, deletionAfterRecategorization] = await Promise.all([
-        updateAccount(client.db, DEFAULT_HOUSEHOLD_ID, recategorizedAccount.account.id, {
-          name: recategorizedAccount.account.name,
-          assetCategoryId: fallbackId,
-          expectedAssetCategoryId: recategorized.category.id,
-        }),
-        deleteAssetCategory(secondClient.db, DEFAULT_HOUSEHOLD_ID, recategorized.category.id),
-      ]);
-      expect(['ok', 'invalid_asset_category', 'not_found', 'error']).toContain(
-        recategorizationResult.status,
-      );
-      expect(deletionAfterRecategorization.status).toBe('ok');
-      expect(
-        await client.sql`
-          select asset_category_id as "assetCategoryId", kind
+      // Updating holds the household lock while the gate keeps the account row locked.
+      // The observer proves that deletion starts only after the update is waiting.
+      gate = holdRowLock(gateClient, async (transaction) => {
+        await transaction`
+          select id
           from accounts
           where id = ${recategorizedAccount.account.id}
-        `,
-      ).toEqual([{ assetCategoryId: fallbackId, kind: 'other' }]);
+          for update
+        `;
+      });
+      await gate.ready;
+      const recategorizationFirst = updateAccount(
+        client.db,
+        DEFAULT_HOUSEHOLD_ID,
+        recategorizedAccount.account.id,
+        {
+          name: recategorizedAccount.account.name,
+          assetCategoryId: bankId,
+          expectedAssetCategoryId: recategorized.category.id,
+        },
+      );
+      await waitForHouseholdLock(observerClient.sql);
+      const deletionAfterRecategorization = deleteAssetCategory(
+        deletionClient.db,
+        DEFAULT_HOUSEHOLD_ID,
+        recategorized.category.id,
+      );
+      gate.release();
+      const [recategorizationFirstResult, deletionAfterRecategorizationResult] = await Promise.all([
+        recategorizationFirst,
+        deletionAfterRecategorization,
+      ]);
+      await gate.done;
+      expect(recategorizationFirstResult).toMatchObject({
+        status: 'ok',
+        account: {
+          id: recategorizedAccount.account.id,
+          name: recategorizedAccount.account.name,
+          assetCategoryId: bankId,
+          kind: 'bank',
+        },
+      });
+      expect(deletionAfterRecategorizationResult).toEqual({ status: 'ok' });
+      expect(
+        await accountCategoryState(
+          client.sql,
+          recategorizedAccount.account.id,
+          recategorized.category.id,
+        ),
+      ).toEqual([
+        {
+          assetCategoryId: bankId,
+          kind: 'bank',
+          categoryExists: false,
+          accountReferences: 0,
+          transactionReferences: 0,
+        },
+      ]);
     } finally {
-      await secondClient.close();
+      gate?.release();
+      if (gate) await gate.done;
+      await Promise.all([deletionClient.close(), observerClient.close(), gateClient.close()]);
     }
   });
 
