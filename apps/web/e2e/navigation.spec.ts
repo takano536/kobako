@@ -1,7 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const month = '2024-06';
-const sectionLabels = ['概要', '取引', '残高'] as const;
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -129,48 +128,6 @@ test.describe('responsive main navigation', () => {
           return style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0;
         }),
       ).toBe(true);
-    }
-  });
-
-  test('maps child and account routes to their parent section', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const cases = [
-      { path: `/transactions/new?month=${month}`, section: '取引' },
-      { path: `/transactions/2147483648/edit?month=${month}`, section: '取引' },
-      { path: `/accounts/new?month=${month}`, section: '残高' },
-      { path: '/accounts/2147483648/edit', section: '取引' },
-      {
-        path: `/accounts/2147483648/edit?return=${encodeURIComponent('/transactions?month=2024-06')}`,
-        section: '取引',
-      },
-    ] as const;
-
-    for (const target of cases) {
-      await page.goto(target.path);
-      await expect(page.locator('.site-nav a[aria-current="page"]')).toHaveCount(1);
-      await expect(page.getByRole('link', { name: target.section, exact: true })).toHaveAttribute(
-        'aria-current',
-        'page',
-      );
-      for (const label of sectionLabels) {
-        if (label === target.section) continue;
-        await expect(page.getByRole('link', { name: label, exact: true })).not.toHaveAttribute(
-          'aria-current',
-          'page',
-        );
-      }
-    }
-
-    for (const path of ['/settings', '/settings/categories/expense']) {
-      await page.goto(path);
-      await expect(page.locator('.site-settings[aria-current="page"]')).toHaveCount(1);
-      await expect(page.locator('.site-nav a[aria-current="page"]')).toHaveCount(0);
-      for (const label of sectionLabels) {
-        await expect(page.getByRole('link', { name: label, exact: true })).not.toHaveAttribute(
-          'aria-current',
-          'page',
-        );
-      }
     }
   });
 

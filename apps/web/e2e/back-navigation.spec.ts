@@ -268,6 +268,9 @@ test('marks each child screen with its parent navigation section', async ({ page
       'page',
     );
   }
+  await page.goto('/settings');
+  await expect(page.locator('.site-settings[aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('.site-nav a[aria-current="page"]')).toHaveCount(0);
 });
 
 test('uses the occurred month when an edit screen has no valid query month', async ({ page }) => {

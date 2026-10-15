@@ -3052,6 +3052,7 @@ h3 {
   }
 
   .site-nav a {
+    border-bottom: 0;
     min-width: 0;
     min-height: var(--site-nav-mobile-height);
     flex: 1 1 0;
@@ -3061,10 +3062,6 @@ h3 {
     font-size: var(--text-small);
     line-height: var(--leading-meta);
     white-space: nowrap;
-  }
-
-  .site-nav a[aria-current='page'] {
-    border-bottom: 0;
   }
 
   .site-nav a:hover,
