@@ -38,7 +38,21 @@ test.describe('設定画面', () => {
       '/settings/categories/income',
     );
     await expect(page.getByRole('heading', { name: 'データ管理' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'すべてのデータを削除' })).toBeVisible();
+    const importLink = page.getByRole('link', { name: '取り込む' });
+    const deleteLink = page.getByRole('link', { name: 'すべてのデータを削除' });
+    await expect(importLink).toHaveAttribute('href', '/settings/import');
+    await expect(deleteLink).toBeVisible();
+    await expect(importLink).not.toHaveClass(/action-link-danger/);
+    await expect(deleteLink).toHaveClass(/action-link-danger/);
+    const [importColor, deleteColor] = await Promise.all(
+      [importLink, deleteLink].map((link) =>
+        link.evaluate((element) => getComputedStyle(element).color),
+      ),
+    );
+    expect(importColor).not.toBe(deleteColor);
+    const importBox = await importLink.boundingBox();
+    const deleteBox = await deleteLink.boundingBox();
+    expect((importBox?.y ?? 0) + (importBox?.height ?? 0)).toBeLessThanOrEqual(deleteBox?.y ?? 0);
     const settingsLink = page.getByRole('link', { name: '設定' });
     await expect(settingsLink).toHaveAttribute('aria-current', 'page');
     await expect(settingsLink).toHaveAttribute('title', '設定');
@@ -55,6 +69,30 @@ test.describe('設定画面', () => {
       ?.x;
     const textLeft = (await row.locator('span').first().boundingBox())?.x;
     expect(Math.abs((textLeft ?? 0) - (headingLeft ?? 99))).toBeLessThanOrEqual(1);
+  });
+
+  test('opens import from settings and returns with settings navigation selected', async ({
+    page,
+  }) => {
+    await page.goto('/settings');
+    await page.getByRole('link', { name: '取り込む' }).click();
+    await expect(page).toHaveURL(/\/settings\/import$/);
+    await expect(page.getByRole('heading', { name: 'らくな家計簿から引っ越す' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '設定', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(page.getByRole('link', { name: '取引', exact: true })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    const backLink = page.getByRole('link', {
+      name: 'らくな家計簿から引っ越す — 設定へ戻る',
+      exact: true,
+    });
+    await expect(backLink).toHaveAttribute('href', '/settings');
+    await backLink.click();
+    await expect(page).toHaveURL(/\/settings$/);
   });
 
   test('子画面の見出しリンクは設定一覧へ戻り、カウントをリンク外に置く', async ({ page }) => {

@@ -208,10 +208,10 @@ test('uses one accessible title back link for every child screen', async ({ page
       href: `/transactions?month=${month}`,
     },
     {
-      path: `/transactions/import?month=${month}`,
+      path: `/settings/import?month=${month}`,
       title: 'らくな家計簿から引っ越す',
-      label: '取引一覧へ戻る',
-      href: `/transactions?month=${month}`,
+      label: '設定へ戻る',
+      href: '/settings',
     },
     {
       path: '/transactions/2147483648/edit',
@@ -240,6 +240,7 @@ test('marks each child screen with its parent navigation section', async ({ page
       path: `/accounts/${accountId}/edit?return=${encodeURIComponent('/settings')}`,
       section: '取引',
     },
+    { path: `/settings/import?month=${month}`, section: '設定' },
   ] as const;
 
   for (const target of cases) {
@@ -317,9 +318,9 @@ test('wraps the long import title without horizontal overflow at narrow width', 
   page,
 }) => {
   await page.setViewportSize({ width: 220, height: 844 });
-  await page.goto(`/transactions/import?month=${month}`);
+  await page.goto(`/settings/import?month=${month}`);
   const titleLink = page.getByRole('link', {
-    name: 'らくな家計簿から引っ越す — 取引一覧へ戻る',
+    name: 'らくな家計簿から引っ越す — 設定へ戻る',
     exact: true,
   });
   const metrics = await titleLink.evaluate((element) => {

@@ -12,7 +12,7 @@ import {
 import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
 import { MonthPickerField } from '../transactions/date-picker-field';
 
-type ActionLinkVariant = 'primary' | 'secondary' | 'quiet';
+type ActionLinkVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 
 interface ActionLinkProps {
   href: string;
