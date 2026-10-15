@@ -71,7 +71,7 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 
 ## インポート・ファイル読み込み
 
-「らくな家計簿」（Realbyte Money Manager）Android 版の Excel エクスポートからインポートできます。Web の `/transactions/import` では、ファイルを選択してプレビューを確認し、同じファイルをもう一度送信して確定します。JavaScript が無効でも同じフォームを二回送信できます。
+「らくな家計簿」（Realbyte Money Manager）Android 版の Excel エクスポートからインポートできます。Web の `/settings/import` では、ファイルを選択してプレビューを確認し、同じファイルをもう一度送信して確定します。JavaScript が無効でも同じフォームを二回送信できます。旧 URL `/transactions/import` は移設後の正規 URLへ恒久的にリダイレクトします。
 
 `@kobako/db` では、入力の正規化、XLSX の解析、データベース操作を分離しています。
 

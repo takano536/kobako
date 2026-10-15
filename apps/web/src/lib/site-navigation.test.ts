@@ -10,6 +10,7 @@ describe('site navigation section mapping', () => {
     expect(siteNavigationSection('/balances')).toBe('balances');
     expect(siteNavigationSection('/balances/details')).toBe('balances');
     expect(siteNavigationSection('/settings/categories/expense')).toBe('settings');
+    expect(siteNavigationSection('/settings/import')).toBe('settings');
   });
 
   it('maps account creation to balances', () => {

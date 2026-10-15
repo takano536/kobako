@@ -386,7 +386,8 @@ h3 {
 
 .action-link-quiet:hover,
 .action-link-primary:hover,
-.action-link-secondary:hover {
+.action-link-secondary:hover,
+.action-link-danger:hover {
   color: var(--ink);
 }
 .heading-title-chunk {
@@ -1721,12 +1722,12 @@ h3 {
   outline-offset: 0;
 }
 
-.settings-list-section-danger .action-link {
+.settings-list-rows .action-link-danger {
   color: var(--status-negative);
 }
 
-.settings-list-section-danger .action-link:hover,
-.settings-list-section-danger .action-link:focus-visible {
+.settings-list-rows .action-link-danger:hover,
+.settings-list-rows .action-link-danger:focus-visible {
   background: #f9efed;
 }
 

@@ -32,13 +32,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
             <ActionLink href="/settings/categories/income">収入カテゴリ</ActionLink>
           </div>
         </section>
-        <section
-          className="settings-list-section settings-list-section-danger"
-          aria-labelledby="data-management-title"
-        >
+        <section className="settings-list-section" aria-labelledby="data-management-title">
           <h2 id="data-management-title">データ管理</h2>
           <div className="settings-list-rows">
-            <ActionLink href="/settings/delete" variant="quiet">
+            <ActionLink href="/settings/import">取り込む</ActionLink>
+            <ActionLink href="/settings/delete" variant="danger">
               すべてのデータを削除
             </ActionLink>
           </div>

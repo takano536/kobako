@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 
 import { MONEY_MANAGER_MAX_ROWS, MONEY_MANAGER_XLSX_LIMITS } from '@kobako/db/money-manager';
 
-import { withSelectedMonth } from '../../../src/lib/month-navigation';
-import { firstQueryValue } from '../../../src/lib/transaction-query';
 import { PageHeader, PageShell } from '../../_components/ui';
 import { MoneyManagerImportForm } from './import-form';
 
@@ -11,15 +9,8 @@ export const metadata: Metadata = {
   title: 'らくな家計簿から引っ越す',
 };
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-export default async function MoneyManagerImportPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const query = await searchParams;
-  const backHref = withSelectedMonth('/transactions', firstQueryValue(query.month));
+export default async function MoneyManagerImportPage() {
+  const backHref = '/settings';
   return (
     <PageShell width="import" className="import-page">
       <PageHeader
@@ -30,7 +21,7 @@ export default async function MoneyManagerImportPage({
           </>
         }
         titleAriaLabel="らくな家計簿から引っ越す"
-        backLink={{ href: backHref, label: '取引一覧へ戻る' }}
+        backLink={{ href: backHref, label: '設定へ戻る' }}
         className="import-heading"
       />
       <p className="import-lead">
