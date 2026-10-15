@@ -7,5 +7,14 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: '6mb' },
   },
   serverExternalPackages: ['yauzl', 'saxes'],
+  async redirects() {
+    return [
+      {
+        source: '/transactions/import',
+        destination: '/settings/import',
+        permanent: true,
+      },
+    ];
+  },
 };
 export default nextConfig;

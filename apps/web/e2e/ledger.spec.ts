@@ -209,12 +209,19 @@ test('keeps the selected month across global navigation and browser history', as
     await page.getByRole('link', { name: '取引', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
 
-    await page.getByRole('link', { name: '取り込む', exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions/import\\?month=${nextMonth}$`));
+    await page.getByRole('link', { name: '設定', exact: true }).click();
+    await expect(page).toHaveURL('/settings');
+    await page.getByRole('link', { name: '取り込む' }).click();
+    await expect(page).toHaveURL(/\/settings\/import$/);
+    await expect(page.getByRole('link', { name: '設定', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await page
-      .getByRole('link', { name: 'らくな家計簿から引っ越す — 取引一覧へ戻る', exact: true })
+      .getByRole('link', { name: 'らくな家計簿から引っ越す — 設定へ戻る', exact: true })
       .click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
+    await expect(page).toHaveURL('/settings');
+    await page.goto(`/transactions?month=${nextMonth}`);
 
     await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
     await expect(page).toHaveURL(new RegExp(`/\\?month=${nextMonth}$`));
@@ -646,7 +653,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       sectionHeadingMetrics.lineHeight * 2 + 1,
     );
 
-    await page.goto('/transactions/import');
+    await page.goto('/settings/import');
     await page.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });

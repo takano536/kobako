@@ -476,23 +476,43 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 });
 
-test('navigates from transactions to the import screen', async ({ page }) => {
+test('navigates from settings to the import screen', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/transactions');
+  await page.goto('/settings');
   await page.getByRole('link', { name: '取り込む' }).click();
-  await expect(page).toHaveURL(/\/transactions\/import$/);
+  await expect(page).toHaveURL(/\/settings\/import$/);
   await expect(page.getByRole('heading', { name: 'らくな家計簿から引っ越す' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '設定', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.getByRole('link', { name: '取引', exact: true })).not.toHaveAttribute(
+    'aria-current',
+    'page',
+  );
   await screenshotState(page, 'e2e-empty');
   await expect(page.locator('.import-dropzone-help')).toHaveText(
     'ここにドロップして選ぶこともできます',
   );
+});
+
+test('redirects the old import URL permanently', async ({ request }) => {
+  const response = await request.get('/transactions/import', { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  const location = response.headers().location;
+  expect(location).toBeTruthy();
+  expect(new URL(location ?? '', 'http://127.0.0.1:3000').pathname).toBe('/settings/import');
+});
+test('removes the import action from transactions', async ({ page }) => {
+  await page.goto('/transactions');
+  await expect(page.getByRole('link', { name: '取り込む' })).toHaveCount(0);
 });
 test('rejects unsupported, empty, and oversized files before preview', async ({ page }) => {
   const paths = fixturePaths;
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   const input = page.locator('input[type="file"]');
 
   await input.setInputFiles(paths.wrongExtension);
@@ -518,7 +538,7 @@ test('previews a valid workbook without database writes', async ({ page }) => {
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await expect(page.getByRole('heading', { name: 'らくな家計簿から引っ越す' })).toBeVisible();
   expect(await runCounts()).toEqual({
     transactions: 0,
@@ -547,7 +567,7 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.valid);
   const confirmButton = page.getByRole('button', { name: '3件を取り込む' });
   await expect(confirmButton).toBeEnabled();
@@ -634,7 +654,7 @@ test('creates unseen source assets without preview account selection', async ({ 
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.keyboard);
   await expect(page.getByText('新しい資産', { exact: true })).toBeVisible();
   await expect(page.locator('.account-choice-row')).toHaveCount(0);
@@ -648,7 +668,7 @@ test('warns that a separate re-import creates duplicate rows', async ({ page }) 
     throw new Error('E2E fixtures are not initialized');
   }
   const before = await runCounts();
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.valid);
   await expect(page.getByText('同じデータを取り込むと重複して登録されます')).toBeVisible();
   await page.getByRole('button', { name: '3件を取り込む' }).click();
@@ -672,7 +692,7 @@ test('shows row-numbered errors while keeping transfers as importable rows', asy
     throw new Error('E2E fixtures are not initialized');
   }
   const before = await runCounts();
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.invalid);
   await expect(page.getByText('3行目', { exact: true })).toBeVisible();
   await expect(page.getByText('金額「12.5」を読み取れません。', { exact: true })).toBeVisible();
@@ -692,7 +712,7 @@ test('supports keyboard-only preview, confirm, and file-selection reset', async 
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   const input = page.locator('input[type="file"]');
   await input.setInputFiles(paths.keyboardOnly);
   await expect(page.getByRole('heading', { name: '取り込み内容を確認' })).toBeFocused();
@@ -721,11 +741,11 @@ test('keeps preview and error states within a 390px viewport', async ({ page }) 
     throw new Error('E2E fixtures are not initialized');
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.mobile);
   await assertNoHorizontalOverflow(page);
 
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.invalid);
   await assertNoHorizontalOverflow(page);
   await expect(page.getByText('3行目', { exact: true })).toBeVisible();
@@ -735,7 +755,7 @@ test('opens the latest imported month after a multi-month import', async ({ page
   if (!paths) {
     throw new Error('E2E fixtures are not initialized');
   }
-  await page.goto('/transactions/import');
+  await page.goto('/settings/import');
   await uploadAndPreview(page, paths.multiMonth);
   await page.getByRole('button', { name: '2件を取り込む' }).click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
@@ -757,7 +777,7 @@ test('previews and confirms through the fallback form when JavaScript is disable
   });
   const page = await context.newPage();
   try {
-    await page.goto('/transactions/import');
+    await page.goto('/settings/import');
     const input = page.locator('input[type="file"]');
     await input.setInputFiles(paths.fallback);
     await page.getByRole('button', { name: 'ファイルを読み込む' }).click();
