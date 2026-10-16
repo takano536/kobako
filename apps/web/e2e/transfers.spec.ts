@@ -426,9 +426,7 @@ test('centers one-line transfer details on mobile and preserves multiline wrappi
     expect(
       await oneLineRow.locator('.transfer-account > span:first-child').allTextContents(),
     ).toEqual([oneLineFromName, oneLineToName]);
-    expect(
-      await oneLineRow.locator('.transfer-account .transaction-asset-category').allTextContents(),
-    ).toEqual(['その他', 'その他']);
+    await expect(oneLineRow.locator('.transaction-asset-category')).toHaveCount(0);
     await expect(oneLineRow.locator('.transaction-asset-name')).toHaveCount(0);
     await expect(oneLineRow.locator('.record-amount')).toHaveText('1,234円');
     await expect(multilineRow.locator('.transaction-memo')).toHaveText('複数行の振替メモ');
