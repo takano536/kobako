@@ -1,4 +1,11 @@
 # Changelog
+## [0.13.2](https://github.com/takano536/kobako/compare/v0.13.1...v0.13.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **web:** share balance font size with asset names ([#76](https://github.com/takano536/kobako/issues/76)) ([f699f86](https://github.com/takano536/kobako/commit/f699f86ff4bb664b2171f3f516874123d0e01aae))
+
 ## [0.13.1](https://github.com/takano536/kobako/compare/v0.13.0...v0.13.1) (2026-10-16)
 
 
