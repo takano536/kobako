@@ -1,4 +1,11 @@
 # Changelog
+## [0.13.1](https://github.com/takano536/kobako/compare/v0.13.0...v0.13.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **web:** remove asset category labels from transactions ([#75](https://github.com/takano536/kobako/issues/75)) ([5cdb2d0](https://github.com/takano536/kobako/commit/5cdb2d07a59a2334da77a72b85c47d11ff7e5b05))
+
 ## [0.13.0](https://github.com/takano536/kobako/compare/v0.12.0...v0.13.0) (2026-10-15)
 
 
