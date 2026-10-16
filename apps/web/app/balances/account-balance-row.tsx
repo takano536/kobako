@@ -84,43 +84,43 @@ export function AccountBalanceRow({
     <li className={`balance-row${hasPaymentMetrics ? ' balance-row-with-metrics' : ''}`}>
       <Link className="balance-account-link" href={transactionsHref}>
         <BalanceAmountText className="balance-account-name">{accountName}</BalanceAmountText>
+        {paymentSchedule && hasPaymentMetrics ? (
+          <div className="balance-row-metrics">
+            <BalanceMetric
+              label={kind === 'credit_card' ? '決済予定' : '支払予定'}
+              value={paymentSchedule.primaryAmount}
+              tone={toneForAmount(
+                paymentSchedule.primaryAmount ?? '0',
+                kind === 'bank' || kind === 'credit_card',
+              )}
+            />
+            <BalanceMetric
+              label={kind === 'credit_card' ? '未決済' : '残高'}
+              value={paymentSchedule.secondaryAmount}
+              tone={
+                paymentSchedule.secondaryAmount === null
+                  ? 'neutral'
+                  : toneForAmount(paymentSchedule.secondaryAmount, kind === 'credit_card')
+              }
+            />
+          </div>
+        ) : (
+          <FitAmount className="balance-amount" ariaLabel="残高">
+            <SemanticYen
+              value={displayBalance.toString()}
+              tone={
+                displayBalance === 0n
+                  ? 'neutral'
+                  : kind === 'credit_card' && displayBalance < 0n
+                    ? 'positive'
+                    : liability
+                      ? 'negative'
+                      : 'positive'
+              }
+            />
+          </FitAmount>
+        )}
       </Link>
-      {paymentSchedule && hasPaymentMetrics ? (
-        <div className="balance-row-metrics">
-          <BalanceMetric
-            label={kind === 'credit_card' ? '決済予定' : '支払予定'}
-            value={paymentSchedule.primaryAmount}
-            tone={toneForAmount(
-              paymentSchedule.primaryAmount ?? '0',
-              kind === 'bank' || kind === 'credit_card',
-            )}
-          />
-          <BalanceMetric
-            label={kind === 'credit_card' ? '未決済' : '残高'}
-            value={paymentSchedule.secondaryAmount}
-            tone={
-              paymentSchedule.secondaryAmount === null
-                ? 'neutral'
-                : toneForAmount(paymentSchedule.secondaryAmount, kind === 'credit_card')
-            }
-          />
-        </div>
-      ) : (
-        <FitAmount className="balance-amount" ariaLabel="残高">
-          <SemanticYen
-            value={displayBalance.toString()}
-            tone={
-              displayBalance === 0n
-                ? 'neutral'
-                : kind === 'credit_card' && displayBalance < 0n
-                  ? 'positive'
-                  : liability
-                    ? 'negative'
-                    : 'positive'
-            }
-          />
-        </FitAmount>
-      )}
     </li>
   );
 }
