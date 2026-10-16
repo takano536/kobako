@@ -663,13 +663,18 @@ h3 {
 .balance-account-name {
   min-width: 0;
   overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: 400;
   line-height: var(--leading-body);
 }
 
 .balance-amount {
   min-width: 0;
   color: var(--ink);
+  font-family: inherit;
   font-size: var(--text-body);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   line-height: var(--leading-body);
   text-align: right;

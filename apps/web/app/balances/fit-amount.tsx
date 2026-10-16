@@ -135,7 +135,7 @@ export function FitAmount({ children, className, ariaLabel }: FitAmountProps) {
       observer.disconnect();
       unregisterMeasurement(measurementKey.current);
     };
-  }, [setMeasurement, unregisterMeasurement]);
+  }, [children, setMeasurement, unregisterMeasurement]);
 
   return (
     <span ref={containerRef} className={className} aria-label={ariaLabel}>

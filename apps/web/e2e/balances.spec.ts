@@ -321,15 +321,47 @@ async function expectUnifiedListBodyFont(page: Page): Promise<void> {
       document.querySelectorAll<HTMLElement>(
         '.balances-list-section .balance-account-name, .balances-list-section .balance-amount-content',
       ),
-    ).map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
+    ).map((element) => {
+      const style = getComputedStyle(element);
+      return {
+        fontSize: Number.parseFloat(style.fontSize),
+        fontFamily: style.fontFamily,
+        fontWeight: style.fontWeight,
+      };
+    }),
   );
   expect(values.length).toBeGreaterThan(0);
   const first = values[0];
-  if (first === undefined) throw new Error('balance body font measurements are missing');
+  if (!first) throw new Error('balance body font measurements are missing');
   for (const value of values) {
-    expect(Math.abs(value - first)).toBeLessThan(0.02);
+    expect(Math.abs(value.fontSize - first.fontSize)).toBeLessThan(0.02);
+    expect(value.fontFamily).toBe(first.fontFamily);
+    expect(value.fontWeight).toBe(first.fontWeight);
   }
 }
+
+async function logRenderedPlatformFonts(page: Page): Promise<void> {
+  const client = await page.context().newCDPSession(page);
+  await client.send('DOM.enable');
+  await client.send('CSS.enable');
+  try {
+    const document = await client.send('DOM.getDocument', { depth: -1 });
+    const readFonts = async (selector: string) => {
+      const node = await client.send('DOM.querySelector', {
+        nodeId: document.root.nodeId,
+        selector,
+      });
+      if (node.nodeId === 0) throw new Error(`balance font node is missing: ${selector}`);
+      return client.send('CSS.getPlatformFontsForNode', { nodeId: node.nodeId });
+    };
+    const nameFonts = await readFonts('.balance-account-name');
+    const amountFonts = await readFonts('.balance-amount-content');
+    console.log(`BALANCE_PLATFORM_FONTS ${JSON.stringify({ nameFonts, amountFonts })}`);
+  } finally {
+    await client.detach();
+  }
+}
+
 async function expectMobileSummaryLayout(
   page: Page,
   options: { requireSingleRow?: boolean } = {},
@@ -1376,6 +1408,22 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await expect(balanceMetric(overpaymentCard, '決済予定')).toContainText('0円');
     await expect(balanceMetric(overpaymentCard, '未決済')).toContainText('0円');
 
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-font-before-desktop.png`,
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.reload();
+    await assertNoHorizontalOverflow(page);
+    await expectUnifiedListAmountFont(page);
+    await expectUnifiedListBodyFont(page);
+    await logRenderedPlatformFonts(page);
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-font-before-mobile-320.png`,
+      fullPage: true,
+    });
+
     await database().sql`
       insert into transactions (
         household_id, type, amount, occurred_on, category_id, account_id, memo
@@ -1391,6 +1439,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     const mobileAmountMeasurements = await readListAmountMeasurements(page);
     await expectUnifiedListAmountFont(page);
     await expectUnifiedListBodyFont(page);
+    await logRenderedPlatformFonts(page);
     const mobileAmount = mobileAmountMeasurements[0];
     if (!mobileAmount) throw new Error('mobile balance amount measurements are missing');
     expect(mobileAmount.fontSize).toBeLessThan(mobileAmount.baseFontSize - 0.1);
