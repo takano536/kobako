@@ -391,6 +391,219 @@ test('falls back for invalid or absent month URLs without carrying a bogus month
   await expect(page.locator('.month-switcher-label')).toHaveText(labelForMonth(currentMonth));
   await expectMonthlessLinks();
 });
+test('centers transaction detail blocks in the list and overview', async ({ page }) => {
+  if (!databaseClient) {
+    throw new Error('database client is not initialized');
+  }
+
+  const categoryName = markerFor('vertical-category');
+  const accountNames = {
+    short: markerFor('vertical-short'),
+    long: `${markerFor('vertical-long')} とても長い資産名を折り返して確認する口座`,
+    fromShort: markerFor('vertical-from-short'),
+    toShort: markerFor('vertical-to-short'),
+    fromLong: `${markerFor('vertical-from-long')} とても長い振替元資産名を折り返して確認`,
+    toLong: `${markerFor('vertical-to-long')} とても長い振替先資産名を折り返して確認`,
+  };
+  const accountRows = await databaseClient.sql`
+    insert into accounts (household_id, name, kind, asset_category_id)
+    values
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.short},
+        'cash',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'cash')
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.long},
+        'bank',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.fromShort},
+        'bank',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.toShort},
+        'bank',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.fromLong},
+        'bank',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountNames.toLong},
+        'bank',
+        (select id from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+      )
+    returning id, name
+  `;
+  const accountIds = new Map(accountRows.map((row) => [row.name, Number(row.id)]));
+  const categoryRows = await databaseClient.sql`
+    insert into categories (household_id, type, name, sort_order)
+    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryName}, 98)
+    returning id
+  `;
+  const categoryId = Number(categoryRows[0]?.id);
+  if (!Number.isInteger(categoryId) || accountIds.size !== Object.keys(accountNames).length) {
+    throw new Error('vertical-centering fixtures were not created');
+  }
+  const accountIdFor = (name: string): number => {
+    const id = accountIds.get(name);
+    if (id === undefined || !Number.isInteger(id)) {
+      throw new Error(`vertical-centering account fixture is missing: ${name}`);
+    }
+    return id;
+  };
+
+  const transactionRows = await databaseClient.sql`
+    insert into transactions (
+      household_id, type, amount, occurred_on, category_id, account_id, memo
+    )
+    values
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        'expense',
+        1000,
+        ${`${month}-10`},
+        ${categoryId},
+        ${accountIdFor(accountNames.short)},
+        ''
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        'expense',
+        2000,
+        ${`${month}-11`},
+        ${categoryId},
+        ${accountIdFor(accountNames.long)},
+        ''
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        'expense',
+        3000,
+        ${`${month}-12`},
+        ${categoryId},
+        ${accountIdFor(accountNames.short)},
+        ${`${markerFor('vertical-memo')} ${'折り返し確認用の長いメモ '.repeat(5)}`}
+      )
+    returning id
+  `;
+  const transferRows = await databaseClient.sql`
+    insert into transfers (
+      household_id, from_account_id, to_account_id, amount, occurred_on, memo
+    )
+    values
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountIdFor(accountNames.fromShort)},
+        ${accountIdFor(accountNames.toShort)},
+        4000,
+        ${`${month}-13`},
+        ''
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountIdFor(accountNames.fromShort)},
+        ${accountIdFor(accountNames.toShort)},
+        5000,
+        ${`${month}-14`},
+        ${`${markerFor('vertical-transfer-memo')} ${'折り返し確認用の長い振替メモ '.repeat(5)}`}
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountIdFor(accountNames.fromLong)},
+        ${accountIdFor(accountNames.toLong)},
+        6000,
+        ${`${month}-15`},
+        ''
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        ${accountIdFor(accountNames.fromLong)},
+        ${accountIdFor(accountNames.toLong)},
+        7000,
+        ${`${month}-16`},
+        ${`${markerFor('vertical-transfer-long-memo')} ${'折り返し確認用の長い振替メモ '.repeat(5)}`}
+      )
+    returning id
+  `;
+  const transactionIds = transactionRows.map((row) => Number(row.id));
+  const transferIds = transferRows.map((row) => Number(row.id));
+
+  const assertCenteredRows = async (path: string, expectedRowCount: number) => {
+    await page.goto(path);
+    const rows = page.locator('.transaction-link').filter({ hasText: markerFor('vertical-') });
+    await expect(rows).toHaveCount(expectedRowCount);
+    const geometries = await rows.evaluateAll((elements) =>
+      elements.map((row) => {
+        const box = (selector: string) => {
+          const element = row.querySelector<HTMLElement>(selector);
+          const bounds = element?.getBoundingClientRect();
+          return bounds
+            ? {
+                center: bounds.y + bounds.height / 2,
+                height: bounds.height,
+              }
+            : undefined;
+        };
+        const rowBounds = row.getBoundingClientRect();
+        return {
+          row: {
+            center: rowBounds.y + rowBounds.height / 2,
+            height: rowBounds.height,
+          },
+          main: box('.transaction-main'),
+          category: box('.transaction-category'),
+          dot: box('.category-dot'),
+          amount: box('.record-amount'),
+          affordance: box('.row-affordance'),
+        };
+      }),
+    );
+    for (const geometry of geometries) {
+      expect(geometry.row).toBeDefined();
+      expect(geometry.main).toBeDefined();
+      expect(geometry.category).toBeDefined();
+      expect(geometry.dot).toBeDefined();
+      expect(geometry.amount).toBeDefined();
+      // One CSS pixel accommodates fractional layout rounding without hiding a real offset.
+      expect(Math.abs(geometry.main!.center - geometry.category!.center)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry.main!.center - geometry.dot!.center)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry.main!.center - geometry.amount!.center)).toBeLessThanOrEqual(1);
+      if (geometry.affordance) {
+        expect(Math.abs(geometry.main!.center - geometry.affordance.center)).toBeLessThanOrEqual(1);
+      }
+    }
+    const dimensions = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    }));
+    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+  };
+
+  try {
+    for (const width of [360, 390, 1280]) {
+      await page.setViewportSize({ width, height: width === 1280 ? 900 : 844 });
+      await assertCenteredRows(`/transactions?month=${month}`, 7);
+      await assertCenteredRows(`/?month=${month}`, 3);
+    }
+  } finally {
+    await databaseClient.sql`delete from transfers where id = any(${transferIds})`;
+    await databaseClient.sql`delete from transactions where id = any(${transactionIds})`;
+    await databaseClient.sql`delete from categories where id = ${categoryId}`;
+    await databaseClient.sql`delete from accounts where id = any(${[...accountIds.values()]})`;
+  }
+});
 
 test('keeps shared chrome aligned across viewports and wraps long content', async ({ page }) => {
   if (!databaseClient) {
