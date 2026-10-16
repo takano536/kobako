@@ -122,7 +122,7 @@ test('registers an asset, filters transactions, and opens unified settings', asy
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   await expect(page.getByRole('heading', { name: assetName, exact: true })).toBeVisible();
-  const settings = page.getByRole('link', { name: '資産設定', exact: true });
+  const settings = page.getByRole('link', { name: '資産を編集', exact: true });
   await expect(settings).toBeVisible();
   await settings.click();
   await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();
@@ -374,7 +374,7 @@ test('shows complete large month and all-time account lists and preserves settin
   expect(editPrefetchRequests).toEqual([]);
   page.off('request', editPrefetchListener);
 
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();
   const renamedTarget = `${targetName}-renamed`;
   await page.getByLabel('名前', { exact: true }).fill(renamedTarget);
@@ -434,7 +434,7 @@ test('shows card current conditions in the same asset settings form', async ({ p
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   await expect(page.getByLabel('締め日')).toHaveValue('last');
   await expect(page.getByLabel('支払日')).toHaveValue('10');
   await expect(page.getByLabel('支払月')).toHaveValue('next_month');
@@ -443,7 +443,7 @@ test('shows card current conditions in the same asset settings form', async ({ p
   await expect(page).toHaveURL(
     new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
   );
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   await expect(page.getByLabel('締め日')).toHaveValue('last');
   await expect(page.getByLabel('支払日')).toHaveValue('');
   await expect(page.getByLabel('支払月')).toHaveValue('next_month');
@@ -585,7 +585,7 @@ test('edit: submit with empty name, fix and save succeeds', async ({ page }) => 
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   await page.getByLabel('名前', { exact: true }).fill('');
   await page.getByRole('button', { name: '保存する' }).click();
   const nameErrorId = 'account-name-error';
@@ -614,7 +614,7 @@ test('kind change: saves credit_card and card fields with one click', async ({
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   await page
     .getByLabel('資産カテゴリ', { exact: true })
     .selectOption({ label: 'クレジットカード' });
@@ -650,7 +650,7 @@ test('kind change with field error: fix name and save without another confirmati
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産設定', exact: true }).click();
+  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
   const nameInput = page.getByLabel('名前', { exact: true });
   await nameInput.fill('');
   await page
