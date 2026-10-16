@@ -171,6 +171,21 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
   );
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function tabToBalanceLink(page: Page, link: Locator): Promise<void> {
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  for (let index = 0; index < 100; index += 1) {
+    await page.keyboard.press('Tab');
+    if (await link.evaluate((element) => element === document.activeElement)) return;
+  }
+  throw new Error('balance row link was not reached by keyboard navigation');
+}
+
 async function expectStickyBalanceSummary(page: Page): Promise<void> {
   const summary = page.locator('.balance-summary');
   await expect(summary).toHaveCSS('position', 'sticky');
@@ -1223,6 +1238,170 @@ test('opens the account-filtered transactions by clicking its name from balances
   `;
 });
 
+test('makes every balance row surface navigate to its transactions', async ({ page }) => {
+  const { destinationAccountId } = await seedAccounts();
+  await seedPaymentScheduleBalances();
+  try {
+    const paymentAccounts = await database().sql<{ id: number; name: string }[]>`
+      select id, name
+      from accounts
+      where household_id = ${DEFAULT_HOUSEHOLD_ID}
+        and name like ${`${paymentFixtureMarker}%`}
+    `;
+    const accountIdFor = (name: string): number => {
+      const account = paymentAccounts.find((candidate) => candidate.name === name);
+      if (!account) throw new Error(`balance row account fixture is missing: ${name}`);
+      return account.id;
+    };
+    const targets = [
+      { name: destinationAccountName, id: destinationAccountId, metricCount: 0 },
+      {
+        name: paymentFixtureNames.primaryBank,
+        id: accountIdFor(paymentFixtureNames.primaryBank),
+        metricCount: 2,
+      },
+      {
+        name: paymentFixtureNames.primaryCard,
+        id: accountIdFor(paymentFixtureNames.primaryCard),
+        metricCount: 2,
+      },
+    ] as const;
+
+    for (const target of targets) {
+      await page.goto('/balances');
+      const row = accountRow(page, target.name);
+      const link = row.locator('a.balance-account-link');
+      await expect(link).toHaveCount(1);
+      await expect(row.locator('a')).toHaveCount(1);
+      await expect(link).toHaveAttribute('href', `/transactions?account=${target.id}&month=all`);
+      await expect(link).toHaveAccessibleName(new RegExp(`^${escapeRegExp(target.name)}`));
+      await row.locator('.balance-account-name').click();
+      await expect(page).toHaveURL(`/transactions?account=${target.id}&month=all`);
+    }
+
+    for (const target of targets) {
+      const amountIndexes = target.metricCount === 0 ? [0] : [0, 1];
+      for (const amountIndex of amountIndexes) {
+        await page.goto('/balances');
+        const row = accountRow(page, target.name);
+        const amount =
+          target.metricCount === 0
+            ? row.locator('.balance-amount')
+            : row.locator('.balance-metric').nth(amountIndex);
+        await amount.click();
+        await expect(page).toHaveURL(`/transactions?account=${target.id}&month=all`);
+      }
+    }
+
+    for (const target of targets) {
+      await page.goto('/balances');
+      const row = accountRow(page, target.name);
+      const link = row.locator('a.balance-account-link');
+      await link.scrollIntoViewIfNeeded();
+      const linkBox = await link.boundingBox();
+      const nameBox = await row.locator('.balance-account-name').boundingBox();
+      if (!linkBox || !nameBox) throw new Error('balance row link geometry is missing');
+      let x = linkBox.x + Math.min(4, linkBox.width / 2);
+      let y = linkBox.y + linkBox.height - 2;
+      if (target.metricCount > 0) {
+        const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
+        if (!metricsBox) throw new Error('balance row metrics geometry is missing');
+        const gap = metricsBox.x - (nameBox.x + nameBox.width);
+        expect(gap).toBeGreaterThan(0);
+        x = nameBox.x + nameBox.width + gap / 2;
+        y = linkBox.y + linkBox.height / 2;
+      } else {
+        const amountBox = await row.locator('.balance-amount').boundingBox();
+        if (!amountBox) throw new Error('balance row amount geometry is missing');
+        const gap = amountBox.x - (nameBox.x + nameBox.width);
+        expect(gap).toBeGreaterThan(0);
+        x = nameBox.x + nameBox.width + gap / 2;
+        y = linkBox.y + linkBox.height / 2;
+      }
+      await page.mouse.click(x, y);
+      await expect(page).toHaveURL(`/transactions?account=${target.id}&month=all`);
+    }
+
+    await page.goto('/balances');
+    const cardRow = accountRow(page, paymentFixtureNames.primaryCard);
+    const cardLink = cardRow.locator('a.balance-account-link');
+    const fittedAmounts = await cardRow.locator('.balance-amount').evaluateAll((elements) =>
+      elements.map((element) => {
+        const content = element.querySelector('.balance-amount-content');
+        const containerBox = element.getBoundingClientRect();
+        const contentBox = content?.getBoundingClientRect();
+        return {
+          containerWidth: containerBox.width,
+          contentWidth: contentBox?.width ?? 0,
+        };
+      }),
+    );
+    expect(fittedAmounts.length).toBeGreaterThan(0);
+    for (const amount of fittedAmounts) {
+      expect(amount.contentWidth).toBeLessThanOrEqual(amount.containerWidth + 1);
+    }
+
+    await tabToBalanceLink(page, cardLink);
+    await expect(cardLink).toBeFocused();
+    await expect(cardLink).toHaveCSS('outline-style', 'solid');
+    await expect(cardLink).toHaveCSS('outline-width', '3px');
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-row-link-desktop-focus.png`,
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/balances');
+    const mobileCardLink = accountRow(page, paymentFixtureNames.primaryCard).locator(
+      'a.balance-account-link',
+    );
+    await tabToBalanceLink(page, mobileCardLink);
+    await expect(mobileCardLink).toBeFocused();
+    await expect(mobileCardLink).toHaveCSS('outline-style', 'solid');
+    await page.screenshot({
+      path: `${screenshotDirectory}/balances-row-link-mobile-focus.png`,
+      fullPage: true,
+    });
+
+    const transactionPath = `/transactions?month=all&account=${accountIdFor(paymentFixtureNames.primaryCard)}`;
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(
+      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
+    );
+    const pencilLink = page.getByRole('link', { name: '資産を編集', exact: true });
+    await expect(pencilLink).toHaveAttribute('title', '資産を編集');
+    await expect(pencilLink).toHaveAttribute(
+      'href',
+      `/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=${encodeURIComponent(transactionPath)}`,
+    );
+    await page.screenshot({
+      path: `${screenshotDirectory}/transactions-asset-edit-desktop.png`,
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(
+      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
+    );
+    await expect(page.getByRole('link', { name: '資産を編集', exact: true })).toBeVisible();
+    await page.screenshot({
+      path: `${screenshotDirectory}/transactions-asset-edit-mobile.png`,
+      fullPage: true,
+    });
+
+    await page.goto('/balances');
+    const keyboardLink = accountRow(page, destinationAccountName).locator('a.balance-account-link');
+    await tabToBalanceLink(page, keyboardLink);
+    await expect(keyboardLink).toBeFocused();
+    await expect(keyboardLink).toHaveCSS('outline-style', 'solid');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(`/transactions?account=${destinationAccountId}&month=all`);
+  } finally {
+    await cleanupBalances();
+    await initializeDefaultLedger(database().db);
+  }
+});
+
 test('keeps and aggregates card payment schedules on balances', async ({ page }) => {
   await seedPaymentScheduleBalances();
   try {
@@ -1478,9 +1657,14 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       await assertNoHorizontalOverflow(page);
       const row = accountRow(page, paymentFixtureNames.primaryCard);
       const rowBox = await row.boundingBox();
-      const nameBox = await row.locator('.balance-account-link').boundingBox();
+      const linkBox = await row.locator('.balance-account-link').boundingBox();
+      const nameBox = await row.locator('.balance-account-name').boundingBox();
       const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
-      if (!rowBox || !nameBox || !metricsBox) throw new Error('balance row geometry is missing');
+      if (!rowBox || !linkBox || !nameBox || !metricsBox) {
+        throw new Error('balance row geometry is missing');
+      }
+      expect(linkBox.x).toBeGreaterThanOrEqual(rowBox.x - 1);
+      expect(linkBox.x + linkBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
       expect(metricsBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
       expect(
         Math.abs(metricsBox.y + metricsBox.height / 2 - (rowBox.y + rowBox.height / 2)),
@@ -1610,7 +1794,9 @@ test('captures natural summary fixtures for mobile and desktop visuals', async (
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
       for (const accountName of visualSummaryAccountNames) {
-        await expect(page.getByRole('link', { name: accountName, exact: true })).toBeVisible();
+        await expect(
+          page.getByRole('link', { name: new RegExp(`^${escapeRegExp(accountName)}`) }),
+        ).toBeVisible();
       }
       await page.screenshot({
         path: `${screenshotDirectory}/balances-natural-mobile-${width}.png`,

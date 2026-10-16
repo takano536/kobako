@@ -26,7 +26,6 @@ import {
   PageHeader,
   PageShell,
   RegisterTransactionAction,
-  SettingsIcon,
 } from '../_components/ui';
 import {
   firstQueryValue,
@@ -57,6 +56,15 @@ function listHref(
   if (categoryId && type !== 'transfer') params.set('category', String(categoryId));
   if (accountId) params.set('account', String(accountId));
   return `/transactions?${params.toString()}`;
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="m4 20 4.2-.9L19.3 8a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z" />
+      <path d="m13.5 6.5 4 4" />
+    </svg>
+  );
 }
 
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -132,10 +140,10 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
               <Link
                 className="asset-settings-link"
                 href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
-                aria-label="資産設定"
-                title="資産設定"
+                aria-label="資産を編集"
+                title="資産を編集"
               >
-                <SettingsIcon />
+                <PencilIcon />
               </Link>
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
