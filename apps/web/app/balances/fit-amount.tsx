@@ -32,6 +32,23 @@ function useBalanceAmountContext(): BalanceAmountContextValue {
   return context;
 }
 
+interface BalanceAmountTextProps {
+  children: ReactNode;
+  className: string;
+}
+
+export function BalanceAmountText({ children, className }: BalanceAmountTextProps) {
+  const { fontSize } = useBalanceAmountContext();
+  return (
+    <span
+      className={className}
+      style={fontSize === null ? undefined : { fontSize: `${fontSize}px` }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function sameFontSize(current: number | null, next: number | null): boolean {
   if (current === null || next === null) return current === next;
   return Math.abs(current - next) < 0.01;
@@ -118,7 +135,7 @@ export function FitAmount({ children, className, ariaLabel }: FitAmountProps) {
       observer.disconnect();
       unregisterMeasurement(measurementKey.current);
     };
-  }, [setMeasurement, unregisterMeasurement]);
+  }, [children, setMeasurement, unregisterMeasurement]);
 
   return (
     <span ref={containerRef} className={className} aria-label={ariaLabel}>

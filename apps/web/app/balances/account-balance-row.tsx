@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { FitAmount } from './fit-amount';
+import { BalanceAmountText, FitAmount } from './fit-amount';
 import { formatYen } from '../../src/lib/format';
 
 type AccountKind = 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
@@ -83,7 +83,7 @@ export function AccountBalanceRow({
   return (
     <li className={`balance-row${hasPaymentMetrics ? ' balance-row-with-metrics' : ''}`}>
       <Link className="balance-account-link" href={transactionsHref}>
-        <span className="balance-account-name">{accountName}</span>
+        <BalanceAmountText className="balance-account-name">{accountName}</BalanceAmountText>
       </Link>
       {paymentSchedule && hasPaymentMetrics ? (
         <div className="balance-row-metrics">
