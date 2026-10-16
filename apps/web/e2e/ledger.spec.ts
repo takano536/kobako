@@ -396,12 +396,15 @@ test('centers transaction detail blocks in the list and overview', async ({ page
     throw new Error('database client is not initialized');
   }
 
-  const categoryName = `${markerFor('vertical-category')} 長いカテゴリ名折返し確認`;
+  const categoryNames = {
+    short: '食費テスト',
+    long: `${markerFor('vertical-category')} 長いカテゴリ名折返し確認`,
+  };
   const accountNames = {
-    short: markerFor('vertical-short'),
+    short: 'Suica試験',
     long: `${markerFor('vertical-long')} とても長い資産名を折り返して確認する口座`,
-    fromShort: markerFor('vertical-from-short'),
-    toShort: markerFor('vertical-to-short'),
+    fromShort: 'Wallet試験',
+    toShort: 'Bank試験',
     fromLong: `${markerFor('vertical-from-long')} とても長い振替元資産名を折り返して確認`,
     toLong: `${markerFor('vertical-to-long')} とても長い振替先資産名を折り返して確認`,
   };
@@ -449,13 +452,25 @@ test('centers transaction detail blocks in the list and overview', async ({ page
   const accountIds = new Map(accountRows.map((row) => [row.name, Number(row.id)]));
   const categoryRows = await databaseClient.sql`
     insert into categories (household_id, type, name, sort_order)
-    values (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryName}, 98)
-    returning id
+    values
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryNames.short}, 97),
+      (${DEFAULT_HOUSEHOLD_ID}, 'expense', ${categoryNames.long}, 98)
+    returning id, name
   `;
-  const categoryId = Number(categoryRows[0]?.id);
-  if (!Number.isInteger(categoryId) || accountIds.size !== Object.keys(accountNames).length) {
+  const categoryIds = new Map(categoryRows.map((row) => [row.name, Number(row.id)]));
+  if (
+    categoryIds.size !== Object.keys(categoryNames).length ||
+    accountIds.size !== Object.keys(accountNames).length
+  ) {
     throw new Error('vertical-centering fixtures were not created');
   }
+  const categoryIdFor = (name: string): number => {
+    const id = categoryIds.get(name);
+    if (id === undefined || !Number.isInteger(id)) {
+      throw new Error(`vertical-centering category fixture is missing: ${name}`);
+    }
+    return id;
+  };
   const accountIdFor = (name: string): number => {
     const id = accountIds.get(name);
     if (id === undefined || !Number.isInteger(id)) {
@@ -474,7 +489,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         'expense',
         1000,
         ${`${month}-10`},
-        ${categoryId},
+        ${categoryIdFor(categoryNames.short)},
         ${accountIdFor(accountNames.short)},
         ''
       ),
@@ -483,7 +498,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         'expense',
         2000,
         ${`${month}-11`},
-        ${categoryId},
+        ${categoryIdFor(categoryNames.long)},
         ${accountIdFor(accountNames.long)},
         ''
       ),
@@ -492,7 +507,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         'expense',
         3000,
         ${`${month}-12`},
-        ${categoryId},
+        ${categoryIdFor(categoryNames.short)},
         ${accountIdFor(accountNames.short)},
         ${`${markerFor('vertical-memo')} ${'折り返し確認用の長いメモ '.repeat(5)}`}
       ),
@@ -501,7 +516,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         'expense',
         4000,
         ${`${month}-17`},
-        ${categoryId},
+        ${categoryIdFor(categoryNames.long)},
         ${accountIdFor(accountNames.long)},
         ${`${markerFor('vertical-long-memo')} ${'長い口座名と一緒に折り返すメモ '.repeat(5)}`}
       ),
@@ -510,7 +525,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         'expense',
         5000,
         ${`${month}-18`},
-        ${categoryId},
+        ${categoryIdFor(categoryNames.short)},
         ${accountIdFor(accountNames.short)},
         ''
       )
@@ -564,7 +579,12 @@ test('centers transaction detail blocks in the list and overview', async ({ page
     expectedTransferCount: number,
   ) => {
     await page.goto(path);
-    const rows = page.locator('.transaction-link').filter({ hasText: markerFor('vertical-') });
+    const rowSelector = [
+      ...transactionIds.map((id) => `.transaction-link[href^="/transactions/${id}/edit"]`),
+      ...transferIds.map((id) => `.transaction-link[href^="/transactions/transfers/${id}/edit"]`),
+    ].join(',');
+    const rows = page.locator(rowSelector);
+    await expect(rows).toHaveCount(expectedRowCount);
     await expect(rows.locator('.transaction-main-transfer')).toHaveCount(expectedTransferCount);
     const geometries = await rows.evaluateAll((elements) =>
       elements.map((row) => {
@@ -622,7 +642,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
   } finally {
     await databaseClient.sql`delete from transfers where id = any(${transferIds})`;
     await databaseClient.sql`delete from transactions where id = any(${transactionIds})`;
-    await databaseClient.sql`delete from categories where id = ${categoryId}`;
+    await databaseClient.sql`delete from categories where id = any(${[...categoryIds.values()]})`;
     await databaseClient.sql`delete from accounts where id = any(${[...accountIds.values()]})`;
   }
 });
