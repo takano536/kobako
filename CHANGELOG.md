@@ -1,4 +1,11 @@
 # Changelog
+## [0.13.3](https://github.com/takano536/kobako/compare/v0.13.2...v0.13.3) (2026-10-16)
+
+
+### Bug Fixes
+
+* **web:** link balance rows and use pencil edit icon ([#78](https://github.com/takano536/kobako/issues/78)) ([2bbeed7](https://github.com/takano536/kobako/commit/2bbeed7329be1eafce9fd919fc702e43919e29bc))
+
 ## [0.13.2](https://github.com/takano536/kobako/compare/v0.13.1...v0.13.2) (2026-10-16)
 
 
