@@ -314,6 +314,22 @@ async function expectUnifiedListAmountFont(page: Page): Promise<void> {
     }
   }
 }
+
+async function expectUnifiedListBodyFont(page: Page): Promise<void> {
+  const values = await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.balances-list-section .balance-account-name, .balances-list-section .balance-amount-content',
+      ),
+    ).map((element) => Number.parseFloat(getComputedStyle(element).fontSize)),
+  );
+  expect(values.length).toBeGreaterThan(0);
+  const first = values[0];
+  if (first === undefined) throw new Error('balance body font measurements are missing');
+  for (const value of values) {
+    expect(Math.abs(value - first)).toBeLessThan(0.02);
+  }
+}
 async function expectMobileSummaryLayout(
   page: Page,
   options: { requireSingleRow?: boolean } = {},
@@ -1374,6 +1390,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await assertNoHorizontalOverflow(page);
     const mobileAmountMeasurements = await readListAmountMeasurements(page);
     await expectUnifiedListAmountFont(page);
+    await expectUnifiedListBodyFont(page);
     const mobileAmount = mobileAmountMeasurements[0];
     if (!mobileAmount) throw new Error('mobile balance amount measurements are missing');
     expect(mobileAmount.fontSize).toBeLessThan(mobileAmount.baseFontSize - 0.1);
@@ -1396,6 +1413,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       .toBe(true);
     await assertNoHorizontalOverflow(page);
     await expectUnifiedListAmountFont(page);
+    await expectUnifiedListBodyFont(page);
     await page.screenshot({
       path: `${screenshotDirectory}/balances-font-unified-desktop.png`,
       fullPage: true,
