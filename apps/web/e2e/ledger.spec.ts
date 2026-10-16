@@ -396,7 +396,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
     throw new Error('database client is not initialized');
   }
 
-  const categoryName = markerFor('vertical-category');
+  const categoryName = `${markerFor('vertical-category')} 長いカテゴリ名折返し確認`;
   const accountNames = {
     short: markerFor('vertical-short'),
     long: `${markerFor('vertical-long')} とても長い資産名を折り返して確認する口座`,
@@ -495,6 +495,24 @@ test('centers transaction detail blocks in the list and overview', async ({ page
         ${categoryId},
         ${accountIdFor(accountNames.short)},
         ${`${markerFor('vertical-memo')} ${'折り返し確認用の長いメモ '.repeat(5)}`}
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        'expense',
+        4000,
+        ${`${month}-17`},
+        ${categoryId},
+        ${accountIdFor(accountNames.long)},
+        ${`${markerFor('vertical-long-memo')} ${'長い口座名と一緒に折り返すメモ '.repeat(5)}`}
+      ),
+      (
+        ${DEFAULT_HOUSEHOLD_ID},
+        'expense',
+        5000,
+        ${`${month}-18`},
+        ${categoryId},
+        ${accountIdFor(accountNames.short)},
+        ''
       )
     returning id
   `;
@@ -540,10 +558,14 @@ test('centers transaction detail blocks in the list and overview', async ({ page
   const transactionIds = transactionRows.map((row) => Number(row.id));
   const transferIds = transferRows.map((row) => Number(row.id));
 
-  const assertCenteredRows = async (path: string, expectedRowCount: number) => {
+  const assertCenteredRows = async (
+    path: string,
+    expectedRowCount: number,
+    expectedTransferCount: number,
+  ) => {
     await page.goto(path);
     const rows = page.locator('.transaction-link').filter({ hasText: markerFor('vertical-') });
-    await expect(rows).toHaveCount(expectedRowCount);
+    await expect(rows.locator('.transaction-main-transfer')).toHaveCount(expectedTransferCount);
     const geometries = await rows.evaluateAll((elements) =>
       elements.map((row) => {
         const box = (selector: string) => {
@@ -594,8 +616,8 @@ test('centers transaction detail blocks in the list and overview', async ({ page
   try {
     for (const width of [360, 390, 1280]) {
       await page.setViewportSize({ width, height: width === 1280 ? 900 : 844 });
-      await assertCenteredRows(`/transactions?month=${month}`, 7);
-      await assertCenteredRows(`/?month=${month}`, 3);
+      await assertCenteredRows(`/transactions?month=${month}`, 9, 4);
+      await assertCenteredRows(`/?month=${month}`, 5, 0);
     }
   } finally {
     await databaseClient.sql`delete from transfers where id = any(${transferIds})`;
