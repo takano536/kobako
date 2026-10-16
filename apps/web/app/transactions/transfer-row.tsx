@@ -32,7 +32,6 @@ export function TransferRow({
           <span className="transfer-category">
             <span className="transfer-account">
               <span>{transfer.fromAccountName}</span>
-              <span className="transaction-asset-category">{transfer.fromAccountCategoryName}</span>
             </span>
             <span className="transfer-destination">
               <span className="transfer-arrow" aria-hidden="true">
@@ -40,7 +39,6 @@ export function TransferRow({
               </span>
               <span className="transfer-account">
                 <span>{transfer.toAccountName}</span>
-                <span className="transaction-asset-category">{transfer.toAccountCategoryName}</span>
               </span>
             </span>
           </span>

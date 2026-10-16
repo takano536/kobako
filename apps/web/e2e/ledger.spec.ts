@@ -471,6 +471,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const overviewRow = page.locator('.recent-row').filter({ hasText: memo });
       await expect(overviewRow).toHaveCount(1);
       await expect(overviewRow.locator('.transaction-asset-name')).toHaveText(accountName);
+      await expect(overviewRow.locator('.transaction-asset-category')).toHaveCount(0);
       await expect(overviewRow.locator('.transaction-asset-name')).not.toHaveText(categoryName);
       await expect(overviewRow.locator('.transaction-memo')).toContainText(memo);
       const overviewColumns = await overviewRow.locator('.transaction-link').evaluate((row) => {
@@ -522,6 +523,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await assertNoHorizontalOverflow();
       await expect(page.locator('.transaction-memo').filter({ hasText: memo })).toBeVisible();
       const layoutRow = page.locator('.transaction-link').filter({ hasText: memo });
+      await expect(layoutRow.locator('.transaction-asset-category')).toHaveCount(0);
       await expect(layoutRow.locator('.record-amount')).toHaveText('−999,999,999円');
       const contentMetrics = await layoutRow
         .locator(
