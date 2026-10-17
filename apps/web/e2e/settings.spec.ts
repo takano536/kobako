@@ -267,13 +267,13 @@ test.describe('設定画面', () => {
       await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
       await page.getByRole('button', { name: '登録する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
-      await page.getByRole('link', { name: '資産設定', exact: true }).click();
+      await page.getByRole('link', { name: '資産を編集', exact: true }).click();
       await expect(page.getByLabel('資産カテゴリ', { exact: true })).toHaveValue(/\d+/);
       await page.getByRole('button', { name: '保存する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all&saved=1$/);
     } finally {
-      if (await page.getByRole('link', { name: '資産設定', exact: true }).count()) {
-        await page.getByRole('link', { name: '資産設定', exact: true }).click();
+      if (await page.getByRole('link', { name: '資産を編集', exact: true }).count()) {
+        await page.getByRole('link', { name: '資産を編集', exact: true }).click();
         await page.locator('.delete-confirm > summary').click();
         await page.getByRole('button', { name: '削除を確定' }).click();
       }
