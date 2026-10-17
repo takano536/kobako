@@ -1,0 +1,46 @@
+.mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.mark svg {
+  width: 24px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.2;
+}
+
+.large svg {
+  width: 38px;
+  height: 33px;
+}
+
+.dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--category-dot);
+}
+
+.emptyMotif {
+  width: 5.5rem;
+  height: 4rem;
+  margin-bottom: 0.2rem;
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+@media (max-width: 30rem) {
+  .mark svg {
+    width: 21px;
+    height: 18px;
+  }
+}

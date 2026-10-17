@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-
+import categoryStyles from './category.module.css';
 export type CategoryType = 'expense' | 'income';
 
 type CategoryPresentation = {
@@ -34,11 +34,20 @@ export function categoryPresentation(type: CategoryType, name: string): Category
 }
 
 /** A quiet, color-coded marker used in place of the former category icon badges. */
-export function CategoryDot({ type, name }: { type: CategoryType; name: string }) {
+export function CategoryDot({
+  type,
+  name,
+  className,
+}: {
+  type: CategoryType;
+  name: string;
+  className?: string;
+}) {
   const presentation = categoryPresentation(type, name);
   return (
     <span
-      className="category-dot"
+      data-slot="category-dot"
+      className={[categoryStyles.dot, className].filter(Boolean).join(' ')}
       style={{ '--category-dot-color': presentation.dot } as CSSProperties}
       aria-hidden="true"
     />
@@ -47,7 +56,10 @@ export function CategoryDot({ type, name }: { type: CategoryType; name: string }
 
 export function KobakoMark({ size = 'small' }: { size?: 'small' | 'large' }) {
   return (
-    <span className={`kobako-mark kobako-mark-${size}`} aria-hidden="true">
+    <span
+      className={`${categoryStyles.mark} ${size === 'large' ? categoryStyles.large : ''}`}
+      aria-hidden="true"
+    >
       <svg viewBox="0 0 28 24" focusable="false">
         <path d="m3 7 11-4 11 4v11l-11 4-11-4z" />
         <path d="m3 7 11 4 11-4M14 11v11" />
@@ -59,7 +71,12 @@ export function KobakoMark({ size = 'small' }: { size?: 'small' | 'large' }) {
 
 export function EmptyLedgerMotif() {
   return (
-    <svg className="empty-motif" viewBox="0 0 88 64" focusable="false" aria-hidden="true">
+    <svg
+      className={categoryStyles.emptyMotif}
+      viewBox="0 0 88 64"
+      focusable="false"
+      aria-hidden="true"
+    >
       <path d="M16 20h56v34H16zM16 20l8-9h40l8 9M30 30h28M30 39h20M30 48h13" />
       <path d="M24 11v9M64 11v9" />
     </svg>

@@ -1,5 +1,9 @@
 'use client';
 
+import importStyles from './import.module.css';
+import primitiveStyles from '../../_components/button.module.css';
+import uiStyles from '../../_components/ui.module.css';
+
 import Link from 'next/link';
 import {
   startTransition,
@@ -29,11 +33,20 @@ import {
   type MoneyManagerPreviewRow,
 } from './state';
 
+function joinClasses(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(' ');
+}
+
+const moneyToneStyles: Record<string, string> = {
+  'money-amount money-neutral': uiStyles['money-neutral'] ?? '',
+  'money-amount money-positive': uiStyles['money-positive'] ?? '',
+  'money-amount money-negative': uiStyles['money-negative'] ?? '',
+};
+
 interface MoneyManagerImportFormProps {
   maxFileBytes: number;
   maxRows: number;
 }
-
 type FormView = MoneyManagerImportState['phase'];
 
 interface SelectedFile {
@@ -162,13 +175,13 @@ function FileSelection({
       .filter((value): value is string => Boolean(value))
       .join(' ') || undefined;
   return (
-    <section className="import-file-section" aria-labelledby="import-file-title">
+    <section className={importStyles['import-file-section']} aria-labelledby="import-file-title">
       <h2 id="import-file-title" className="sr-only">
         Excel ファイルを選ぶ
       </h2>
       <input
         ref={inputRef}
-        className="sr-only import-file-input"
+        className={joinClasses('sr-only', importStyles['import-file-input'])}
         id="money-manager-file"
         name="file"
         type="file"
@@ -179,21 +192,34 @@ function FileSelection({
         onChange={onChange}
       />
       {selectedFile ? (
-        <div className={`import-file-card${pending ? ' is-pending' : ''}`}>
+        <div
+          className={joinClasses(
+            importStyles['import-file-card'],
+            pending && importStyles['is-pending'],
+          )}
+        >
           <span
-            className={`import-file-card-icon${fileMessage ? ' is-invalid' : ''}`}
+            data-slot="import-file-card-icon"
+            className={joinClasses(
+              importStyles['import-file-card-icon'],
+              fileMessage && importStyles['is-invalid'],
+            )}
             aria-hidden="true"
           >
             {fileMessage ? 'FILE' : 'XLSX'}
           </span>
-          <div className="import-file-card-copy">
-            <strong className="import-file-name">{selectedFile.name}</strong>
-            <span className="import-file-size">{formatFileSize(selectedFile.size)}</span>
-            {pending ? <span className="import-file-pending">読み込み中…</span> : null}
+          <div className={importStyles['import-file-card-copy']}>
+            <strong className={importStyles['import-file-name']}>{selectedFile.name}</strong>
+            <span className={importStyles['import-file-size']}>
+              {formatFileSize(selectedFile.size)}
+            </span>
+            {pending ? (
+              <span className={importStyles['import-file-pending']}>読み込み中…</span>
+            ) : null}
           </div>
-          <div className="import-file-actions">
+          <div className={importStyles['import-file-actions']}>
             <button
-              className="button import-file-change"
+              className={joinClasses(primitiveStyles.button, importStyles['import-file-change'])}
               type="button"
               onClick={onOpen}
               disabled={pending}
@@ -201,7 +227,7 @@ function FileSelection({
               ファイルを変える
             </button>
             <button
-              className="button import-file-remove"
+              className={joinClasses(primitiveStyles.button, importStyles['import-file-remove'])}
               type="button"
               onClick={onRemove}
               disabled={pending}
@@ -212,7 +238,11 @@ function FileSelection({
         </div>
       ) : (
         <label
-          className={`import-dropzone${dragging ? ' is-dragging' : ''}`}
+          data-slot="import-dropzone"
+          className={joinClasses(
+            importStyles['import-dropzone'],
+            dragging && importStyles['is-dragging'],
+          )}
           htmlFor="money-manager-file"
           role="button"
           tabIndex={pending ? -1 : 0}
@@ -231,23 +261,23 @@ function FileSelection({
           onDragLeave={onDragLeave}
           data-state={pending ? 'pending' : undefined}
         >
-          <span className="import-dropzone-icon" aria-hidden="true">
+          <span className={importStyles['import-dropzone-icon']} aria-hidden="true">
             ↑
           </span>
-          <span className="import-dropzone-copy">
-            <strong className="button button-primary">
-              <span className="import-dropzone-label-chunk">Excel</span>{' '}
-              <span className="import-dropzone-label-chunk">ファイル</span>
+          <span className={importStyles['import-dropzone-copy']}>
+            <strong className={primitiveStyles.button}>
+              <span className={importStyles['import-dropzone-label-chunk']}>Excel</span>{' '}
+              <span className={importStyles['import-dropzone-label-chunk']}>ファイル</span>
               <wbr />
-              <span className="import-dropzone-label-chunk">を選ぶ</span>
+              <span className={importStyles['import-dropzone-label-chunk']}>を選ぶ</span>
             </strong>
-            <span className="import-dropzone-help">
-              <span className="phrase-wrap phrase-wrap-keep">
+            <span className={importStyles['import-dropzone-help']}>
+              <span className={joinClasses(uiStyles['phrase-wrap'], uiStyles['phrase-wrap-keep'])}>
                 ここにドロップ
                 <wbr />
                 して
               </span>
-              <span className="phrase-wrap phrase-wrap-keep">
+              <span className={joinClasses(uiStyles['phrase-wrap'], uiStyles['phrase-wrap-keep'])}>
                 選ぶこと
                 <wbr />
                 もできます
@@ -257,11 +287,15 @@ function FileSelection({
         </label>
       )}
       {!selectedFile ? (
-        <p id="import-file-note" className="import-file-note">
+        <p id="import-file-note" className={importStyles['import-file-note']}>
           .xlsx・{formatFileSize(maxFileBytes)} まで・{maxRows.toLocaleString('ja-JP')}件まで
         </p>
       ) : null}
-      <p className="import-file-status sr-only" role="status" aria-live="polite">
+      <p
+        className={joinClasses(importStyles['import-file-status'], 'sr-only')}
+        role="status"
+        aria-live="polite"
+      >
         {pending
           ? 'ファイルを読み込んでいます。'
           : selectedFile
@@ -270,8 +304,9 @@ function FileSelection({
       </p>
       {fileError ? (
         <div
+          data-slot="import-file-error"
           id="import-file-error"
-          className="import-file-error-card"
+          className={importStyles['import-file-error-card']}
           role="alert"
           ref={fileErrorRef}
           tabIndex={-1}
@@ -281,8 +316,9 @@ function FileSelection({
         </div>
       ) : fileMessage ? (
         <div
+          data-slot="import-file-error"
           id="import-file-error"
-          className="import-file-error"
+          className={importStyles['import-file-error']}
           role="alert"
           ref={fileErrorRef}
           tabIndex={-1}
@@ -302,14 +338,14 @@ function NamesSummary({ title, names }: { title: string; names: readonly string[
   const text = unique.join('、');
   if (unique.length <= 8) {
     return (
-      <p className="import-new-names">
+      <p className={importStyles['import-new-names']}>
         <strong>{title}</strong>
         <span>{text}</span>
       </p>
     );
   }
   return (
-    <details className="import-new-names">
+    <details className={importStyles['import-new-names']}>
       <summary>
         <strong>{title}</strong>
         <span>{unique.length.toLocaleString('ja-JP')}件</span>
@@ -324,50 +360,61 @@ function SummarySection({ preview }: { preview: MoneyManagerImportPreview }) {
   const sourceAccounts = preview.newAccounts.map((account) => account.name);
   return (
     <section
-      className="import-preview-section import-summary-section"
+      className={joinClasses(
+        importStyles['import-preview-section'],
+        importStyles['import-summary-section'],
+      )}
       aria-labelledby="import-summary-title"
     >
-      <div className="import-section-heading">
+      <div className={importStyles['import-section-heading']}>
         <h2 id="import-summary-title">取り込み内容</h2>
       </div>
-      <p className="import-period">
+      <p className={importStyles['import-period']}>
         <span>対象期間</span>
         <strong>{periodLabel(preview.period)}</strong>
       </p>
-      <dl className="import-kind-summary">
-        <div className="is-income">
+      <dl className={importStyles['import-kind-summary']}>
+        <div>
           <dt>
             <span>収入</span>
             <small>{preview.counts.income.count.toLocaleString('ja-JP')}件</small>
           </dt>
           <dd
-            className={moneyToneClass(transactionAmountTone('income', preview.counts.income.total))}
+            className={
+              moneyToneStyles[
+                moneyToneClass(transactionAmountTone('income', preview.counts.income.total))
+              ]
+            }
           >
             {formatTransactionAmount('income', preview.counts.income.total)}
           </dd>
         </div>
-        <div className="is-expense">
+        <div>
           <dt>
             <span>支出</span>
             <small>{preview.counts.expense.count.toLocaleString('ja-JP')}件</small>
           </dt>
           <dd
-            className={moneyToneClass(
-              transactionAmountTone('expense', preview.counts.expense.total),
-            )}
+            className={
+              moneyToneStyles[
+                moneyToneClass(transactionAmountTone('expense', preview.counts.expense.total))
+              ]
+            }
           >
             {formatTransactionAmount('expense', preview.counts.expense.total)}
           </dd>
         </div>
-        <div className="is-transfer">
+        <div>
           <dt>
             <span>振替</span>
             <small>{preview.counts.transfer.count.toLocaleString('ja-JP')}件</small>
           </dt>
-          <dd className={moneyToneClass('neutral')}>{formatYen(preview.counts.transfer.total)}</dd>
+          <dd className={moneyToneStyles[moneyToneClass('neutral')]}>
+            {formatYen(preview.counts.transfer.total)}
+          </dd>
         </div>
       </dl>
-      <div className="import-new-names-list">
+      <div className={importStyles['import-new-names-list']}>
         <NamesSummary title="新しいカテゴリ" names={categories} />
         <NamesSummary title="新しい資産" names={sourceAccounts} />
       </div>
@@ -377,8 +424,8 @@ function SummarySection({ preview }: { preview: MoneyManagerImportPreview }) {
 
 function ErrorItem({ error }: { error: MoneyManagerImportPreview['rowErrors'][number] }) {
   return (
-    <li className="import-row-error-item">
-      <div className="import-row-error-heading">
+    <li className={importStyles['import-row-error-item']}>
+      <div className={importStyles['import-row-error-heading']}>
         <strong>{error.row}行目</strong>
         <span>{error.excerpt}</span>
       </div>
@@ -396,26 +443,29 @@ function AttentionSection({ preview }: { preview: MoneyManagerImportPreview }) {
   const remainingErrors = preview.rowErrors.slice(5);
   return (
     <section
-      className="import-preview-section import-attention"
+      className={joinClasses(
+        importStyles['import-preview-section'],
+        importStyles['import-attention'],
+      )}
       aria-labelledby="import-attention-title"
     >
-      <div className="import-section-heading">
+      <div className={importStyles['import-section-heading']}>
         <h2 id="import-attention-title">確認が必要なところ</h2>
         <span>{preview.errorCount.toLocaleString('ja-JP')}件</span>
       </div>
-      <p className="import-attention-lead">
+      <p className={importStyles['import-attention-lead']}>
         {preview.errorCount.toLocaleString('ja-JP')}
         行に問題があるため、まだ取り込めません。らくな家計簿で直してから、もう一度書き出してください。
       </p>
-      <ol className="import-row-errors-list">
+      <ol className={importStyles['import-row-errors-list']}>
         {visibleErrors.map((error) => (
           <ErrorItem error={error} key={`${error.row}-${error.excerpt}`} />
         ))}
       </ol>
       {remainingErrors.length > 0 ? (
-        <details className="import-more-errors">
+        <details className={importStyles['import-more-errors']}>
           <summary>残り{remainingErrors.length.toLocaleString('ja-JP')}件を表示</summary>
-          <ol className="import-row-errors-list" start={6}>
+          <ol className={importStyles['import-row-errors-list']} start={6}>
             {remainingErrors.map((error) => (
               <ErrorItem error={error} key={`${error.row}-${error.excerpt}`} />
             ))}
@@ -428,8 +478,8 @@ function AttentionSection({ preview }: { preview: MoneyManagerImportPreview }) {
 
 function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
   return (
-    <section className="import-preview-section" aria-labelledby="import-rows-title">
-      <div className="import-section-heading">
+    <section className={importStyles['import-preview-section']} aria-labelledby="import-rows-title">
+      <div className={importStyles['import-section-heading']}>
         <h2 id="import-rows-title">取り込む取引の一部</h2>
         <span>
           全{preview.importableCount.toLocaleString('ja-JP')}件のうち
@@ -437,7 +487,7 @@ function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
         </span>
       </div>
       {preview.sampleRows.length > 0 ? (
-        <ol className="import-transaction-list">
+        <ol className={importStyles['import-transaction-list']}>
           {preview.sampleRows.map((row) => {
             const content = row.content.trim();
             const category = row.category?.trim() ?? '';
@@ -463,19 +513,29 @@ function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
                     .join('・') || undefined;
             return (
               <li
-                className={`import-transaction-row kind-${row.kind}`}
+                data-slot={`import-transaction-row-${row.kind}`}
+                className={joinClasses(
+                  importStyles['import-transaction-row'],
+                  importStyles[`kind-${row.kind}`],
+                )}
                 key={`${row.sourceRow}-${row.kind}`}
               >
-                <div className="import-transaction-link">
-                  <span className="import-kind-badge">{KIND_LABELS[row.kind]}</span>
-                  <time className="import-transaction-date" dateTime={row.date}>
+                <div className={importStyles['import-transaction-link']}>
+                  <span className={importStyles['import-kind-badge']}>{KIND_LABELS[row.kind]}</span>
+                  <time className={importStyles['import-transaction-date']} dateTime={row.date}>
                     {formatShortDate(row.date)}
                   </time>
-                  <span className="import-transaction-main">
+                  <span className={importStyles['import-transaction-main']}>
                     <strong>{main}</strong>
                     {sub ? <span>{sub}</span> : null}
                   </span>
-                  <span className={`record-amount ${moneyToneClass(previewAmountTone(row))}`}>
+                  <span
+                    data-slot="import-preview-amount"
+                    className={joinClasses(
+                      importStyles['record-amount'],
+                      moneyToneStyles[moneyToneClass(previewAmountTone(row))],
+                    )}
+                  >
                     {previewAmount(row)}
                   </span>
                 </div>
@@ -484,7 +544,7 @@ function PreviewRows({ preview }: { preview: MoneyManagerImportPreview }) {
           })}
         </ol>
       ) : (
-        <p className="import-empty-preview">表示できる取引がありません。</p>
+        <p className={importStyles['import-empty-preview']}>表示できる取引がありません。</p>
       )}
     </section>
   );
@@ -501,11 +561,13 @@ function ConfirmActions({
 }) {
   const confirmDisabled = pending || preview.errorCount > 0 || preview.importableCount === 0;
   return (
-    <section className="import-confirm" aria-label="取り込みを確定">
-      <p className="import-confirm-note">同じデータを取り込むと重複して登録されます</p>
-      <div className="import-confirm-actions">
+    <section className={importStyles['import-confirm']} aria-label="取り込みを確定">
+      <p className={importStyles['import-confirm-note']}>
+        同じデータを取り込むと重複して登録されます
+      </p>
+      <div className={importStyles['import-confirm-actions']}>
         <button
-          className="button button-primary"
+          className={primitiveStyles.button}
           type="submit"
           name="intent"
           value="confirm"
@@ -516,10 +578,12 @@ function ConfirmActions({
             : `${preview.importableCount.toLocaleString('ja-JP')}件を取り込む`}
         </button>
         {preview.errorCount > 0 ? (
-          <span className="import-confirm-note">エラーを直してから取り込んでください</span>
+          <span className={importStyles['import-confirm-note']}>
+            エラーを直してから取り込んでください
+          </span>
         ) : null}
         <button
-          className="button import-secondary-action"
+          className={joinClasses(primitiveStyles.button, importStyles['import-secondary-action'])}
           type="button"
           onClick={onReset}
           disabled={pending}
@@ -543,7 +607,7 @@ function PreviewView({
   headingRef: RefObject<HTMLHeadingElement | null>;
 }) {
   return (
-    <div className="import-preview" aria-labelledby="import-preview-title">
+    <div className={importStyles['import-preview']} aria-labelledby="import-preview-title">
       <h2 id="import-preview-title" className="sr-only" ref={headingRef} tabIndex={-1}>
         取り込み内容を確認
       </h2>
@@ -596,8 +660,8 @@ function SuccessView({
       ? '新しいカテゴリ・資産はありません。'
       : `カテゴリを${success.createdCategories?.toLocaleString('ja-JP')}件、資産を${success.createdAccounts?.toLocaleString('ja-JP')}件作成しました。`;
   return (
-    <section className="import-success" aria-labelledby="import-success-title">
-      <p className="import-success-mark" aria-hidden="true">
+    <section className={importStyles['import-success']} aria-labelledby="import-success-title">
+      <p className={importStyles['import-success-mark']} aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false">
           <path d="m5 12.5 4.5 4.5L19 7.5" />
         </svg>
@@ -605,26 +669,34 @@ function SuccessView({
       <h2 id="import-success-title" ref={headingRef} tabIndex={-1}>
         {success.duplicateOperation ? '取込操作は確定済みです' : '取り込みました'}
       </h2>
-      <p className="import-success-period" role="status">
+      <p
+        data-slot="import-success-period"
+        className={importStyles['import-success-period']}
+        role="status"
+      >
         {periodLabel(success.period)}
       </p>
-      <dl className="import-success-counts">
+      <dl data-slot="import-success-counts" className={importStyles['import-success-counts']}>
         {kinds.map((kind) => (
-          <div key={kind.label} className={`is-${kind.tone}`}>
+          <div key={kind.label}>
             <dt>
               <span>{kind.label}</span>
               <small>{kind.count.toLocaleString('ja-JP')}件</small>
             </dt>
-            <dd className={moneyToneClass(kind.tone)}>{kind.amount}</dd>
+            <dd className={moneyToneStyles[moneyToneClass(kind.tone)]}>{kind.amount}</dd>
           </div>
         ))}
       </dl>
-      <p className="import-success-created">{created}</p>
-      <div className="import-success-actions">
-        <Link className="button button-primary" href={`/transactions${monthQuery}`}>
+      <p className={importStyles['import-success-created']}>{created}</p>
+      <div className={importStyles['import-success-actions']}>
+        <Link className={primitiveStyles.button} href={`/transactions${monthQuery}`}>
           取引一覧へ
         </Link>
-        <button className="button import-secondary-action" type="button" onClick={onReset}>
+        <button
+          className={joinClasses(primitiveStyles.button, importStyles['import-secondary-action'])}
+          type="button"
+          onClick={onReset}
+        >
           別のファイルを取り込む
         </button>
       </div>
@@ -801,7 +873,7 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
   return (
     <form
       ref={formRef}
-      className="import-form"
+      className={importStyles['import-form']}
       action={formAction}
       onSubmit={handleSubmit}
       noValidate
@@ -827,7 +899,7 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
         <>
           {!hydrated || fileMessage ? (
             <button
-              className="import-fallback-submit"
+              className={importStyles['import-fallback-submit']}
               type="submit"
               name="intent"
               value="preview"
@@ -837,18 +909,20 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
               {fileMessage ? 'もう一度読み込む' : 'ファイルを読み込む'}
             </button>
           ) : null}
-          <details className="import-details">
+          <details className={importStyles['import-details']}>
             <summary>取り込まれる内容を確認</summary>
-            <div className="import-details-content">
+            <div className={importStyles['import-details-content']}>
               <p>
-                <span className="phrase-wrap">らくな家計簿 Android 日本語版から</span>
-                <span className="phrase-wrap">出力した Excel（.xlsx）に対応しています。</span>
+                <span className={uiStyles['phrase-wrap']}>らくな家計簿 Android 日本語版から</span>
+                <span className={uiStyles['phrase-wrap']}>
+                  出力した Excel（.xlsx）に対応しています。
+                </span>
               </p>
               <ul>
                 <li>収入・支出・振替を取り込みます。</li>
                 <li>
-                  <span className="phrase-wrap">日付・金額・カテゴリ・小分類・</span>
-                  <span className="phrase-wrap">内容・メモ・資産を使います。</span>
+                  <span className={uiStyles['phrase-wrap']}>日付・金額・カテゴリ・小分類・</span>
+                  <span className={uiStyles['phrase-wrap']}>内容・メモ・資産を使います。</span>
                 </li>
                 <li>ファイルそのものは保存しません。</li>
                 <li>確認するまで、家計簿は変わりません。</li>
@@ -858,7 +932,7 @@ export function MoneyManagerImportForm({ maxFileBytes, maxRows }: MoneyManagerIm
         </>
       ) : null}
       {displayedView === 'preview' && state.message ? (
-        <p className="form-message" role="alert">
+        <p className={importStyles['form-message']} role="alert">
           {state.message}
         </p>
       ) : null}

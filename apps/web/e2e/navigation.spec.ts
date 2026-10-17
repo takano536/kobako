@@ -9,16 +9,16 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function expectNavigationLayout(page: Page, width: number): Promise<void> {
-  const nav = page.locator('.site-nav');
+  const nav = page.locator('[data-slot="site-nav"]');
   await expect(nav).toHaveCount(1);
   await expect(nav).toBeVisible();
   await expect(nav.getByRole('link')).toHaveCount(3);
-  await expect(page.locator('.site-nav .nav-add')).toHaveCount(0);
+  await expect(nav.locator('[data-variant="primary"]')).toHaveCount(0);
   expect((await nav.textContent()) ?? '').not.toContain('＋');
 
   const geometry = await page.evaluate(() => {
-    const navElement = document.querySelector<HTMLElement>('.site-nav');
-    const headerElement = document.querySelector<HTMLElement>('.site-header');
+    const navElement = document.querySelector<HTMLElement>('[data-slot="site-nav"]');
+    const headerElement = document.querySelector<HTMLElement>('[data-slot="site-header"]');
     if (!navElement || !headerElement) throw new Error('navigation geometry is missing');
     const nav = navElement.getBoundingClientRect();
     const header = headerElement.getBoundingClientRect();
@@ -76,7 +76,7 @@ async function scrollToBottom(page: Page): Promise<void> {
 
 async function expectNotCoveredByNavigation(page: Page, target: Locator): Promise<void> {
   const targetBox = await target.boundingBox();
-  const navBox = await page.locator('.site-nav').boundingBox();
+  const navBox = await page.locator('[data-slot="site-nav"]').boundingBox();
   if (!targetBox || !navBox) throw new Error('navigation overlap geometry is missing');
   expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(navBox.y);
 }
@@ -88,7 +88,7 @@ test.describe('responsive main navigation', () => {
     for (const width of [320, 390, 479, 481, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(`/transactions?month=${month}`);
-      await expect(page.locator('.brand')).toBeVisible();
+      await expect(page.locator('[data-slot="brand"]')).toBeVisible();
       const settings = page.getByRole('link', { name: '設定', exact: true });
       await expect(settings).toHaveCount(1);
       await expect(settings).toHaveAttribute('href', '/settings');
@@ -99,7 +99,7 @@ test.describe('responsive main navigation', () => {
       expect(settingsBox.height).toBeGreaterThanOrEqual(44);
       if (width <= 480) {
         const headerControls = page.locator(
-          '.site-header .header-inner > .brand, .site-header .header-inner > .site-settings',
+          '[data-slot="site-header"] [data-slot="brand"], [data-slot="site-header"] [data-slot="site-settings"]',
         );
         await expect(headerControls).toHaveCount(2);
         await expect(headerControls.nth(0)).toBeVisible();
@@ -155,7 +155,10 @@ test.describe('responsive main navigation', () => {
     await expect(page).toHaveURL(`/?month=${month}`);
 
     await page.goto('/settings');
-    const lastSettingRow = page.locator('.settings-list-rows .action-link').last();
+    const lastSettingRow = page
+      .getByRole('link')
+      .filter({ hasText: /取り込む|すべてのデータを削除/ })
+      .last();
     await scrollToBottom(page);
     await expectNotCoveredByNavigation(page, lastSettingRow);
 
@@ -169,7 +172,7 @@ test.describe('responsive main navigation', () => {
   test('hides the mobile navigation while a text-entry control is focused', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/transactions/new?month=${month}`);
-    const nav = page.locator('.site-nav');
+    const nav = page.locator('[data-slot="site-nav"]');
     await expect(nav).toBeVisible();
     await page.getByLabel('金額').focus();
     await expect(nav).toBeHidden();

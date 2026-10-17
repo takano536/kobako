@@ -3,12 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 const runSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 function categoryRow(page: Page, name: string) {
-  return page.locator('.settings-category-row').filter({ hasText: name });
+  return page.locator('[data-slot="settings-category-row"]').filter({ hasText: name });
 }
 
 async function addCategory(page: Page, name: string) {
   await page.getByLabel('新しいカテゴリ').fill(name);
-  await page.getByRole('button', { name: '追加' }).click();
+  await page.getByLabel('新しいカテゴリ').press('Enter');
   await expect(categoryRow(page, name)).toHaveCount(1);
 }
 
@@ -42,8 +42,8 @@ test.describe('設定画面', () => {
     const deleteLink = page.getByRole('link', { name: 'すべてのデータを削除' });
     await expect(importLink).toHaveAttribute('href', '/settings/import');
     await expect(deleteLink).toBeVisible();
-    await expect(importLink).not.toHaveClass(/action-link-danger/);
-    await expect(deleteLink).toHaveClass(/action-link-danger/);
+    await expect(importLink).not.toHaveAttribute('data-variant', 'danger');
+    await expect(deleteLink).toHaveAttribute('data-variant', 'danger');
     const [importColor, deleteColor] = await Promise.all(
       [importLink, deleteLink].map((link) =>
         link.evaluate((element) => getComputedStyle(element).color),
@@ -108,13 +108,13 @@ test.describe('設定画面', () => {
       await expect(heading).toBeVisible();
       await expect(titleLink).toHaveAttribute('href', '/settings');
       await expect(page.getByRole('link', { name: '設定へ戻る', exact: true })).toHaveCount(0);
-      await expect(titleLink.locator('.page-header-back-chevron')).toHaveAttribute(
+      await expect(titleLink.locator('[data-slot="page-header-back-chevron"]')).toHaveAttribute(
         'aria-hidden',
         'true',
       );
-      await expect(titleLink.locator('.heading-count')).toHaveCount(0);
+      await expect(titleLink.locator('[data-slot="heading-count"]')).toHaveCount(0);
       if (hasCount) {
-        await expect(heading.locator('.heading-count')).toHaveText(/^\d+件$/);
+        await expect(heading.locator('[data-slot="heading-count"]')).toHaveText(/^\d+件$/);
       }
 
       await titleLink.getByText(title, { exact: true }).click();
@@ -122,7 +122,7 @@ test.describe('設定画面', () => {
 
       await page.goto(path);
       const chevronLink = page.getByRole('link', { name: `${title} — 設定へ戻る` });
-      await chevronLink.locator('.page-header-back-chevron').click();
+      await chevronLink.locator('[data-slot="page-header-back-chevron"]').click();
       await expect(page).toHaveURL(/\/settings$/);
 
       await page.goto(path);
@@ -144,9 +144,9 @@ test.describe('設定画面', () => {
     ] as const) {
       await page.goto(path);
       const heading = page.getByRole('heading', { name: title, level: 1 });
-      const titleText = heading.locator('.heading-title');
-      const count = heading.locator('.heading-count');
-      const chevron = heading.locator('.page-header-back-chevron');
+      const titleText = heading.locator('[data-slot="heading-title"]');
+      const count = heading.locator('[data-slot="heading-count"]');
+      const chevron = heading.locator('[data-slot="page-header-back-chevron"]');
       const titleBox = await titleText.boundingBox();
       const countBox = await count.boundingBox();
       const chevronBox = await chevron.boundingBox();
@@ -165,8 +165,8 @@ test.describe('設定画面', () => {
         ),
       ).toBeLessThanOrEqual(1);
 
-      const headerBox = await page.locator('.page-header').boundingBox();
-      const listBox = await page.locator('.settings-category-list').boundingBox();
+      const headerBox = await page.locator('[data-slot="page-header"]').boundingBox();
+      const listBox = await page.locator('[data-slot="settings-category-list"]').boundingBox();
       const headerToListGap = (listBox?.y ?? 0) - ((headerBox?.y ?? 0) + (headerBox?.height ?? 0));
       expect(headerToListGap).toBeGreaterThanOrEqual(15);
       expect(headerToListGap).toBeLessThanOrEqual(17);
@@ -194,7 +194,9 @@ test.describe('設定画面', () => {
     await expect(page.getByRole('heading', { name: '削除されるデータ' })).toBeVisible();
     await expect(page.getByText('この操作は取り消せません')).toBeVisible();
     expect(
-      await page.locator('.delete-all-warning').evaluate((el) => getComputedStyle(el).fontSize),
+      await page
+        .locator('[data-slot="delete-all-warning"]')
+        .evaluate((el) => getComputedStyle(el).fontSize),
     ).toBe('14px');
     await page.getByLabel('確認のため「削除」と入力してください').fill('削除ではない');
     await page.getByRole('button', { name: 'すべてのデータを削除する' }).click();
@@ -236,8 +238,10 @@ test.describe('設定画面', () => {
       page.getByRole('list', { name: '資産カテゴリの一覧' }).getByRole('listitem'),
     ).toHaveCount(6);
     const defaultRow = categoryRow(page, '銀行');
-    await expect(defaultRow.locator('.settings-category-name')).toHaveCount(1);
-    await expect(defaultRow.locator('.settings-category-name')).not.toHaveAttribute('href');
+    await expect(defaultRow.locator('[data-slot="settings-category-name"]')).toHaveCount(1);
+    await expect(defaultRow.locator('[data-slot="settings-category-name"]')).not.toHaveAttribute(
+      'href',
+    );
     await expect(defaultRow).toContainText('変更・削除不可');
     await expect(defaultRow.getByRole('button')).toHaveCount(0);
 
@@ -274,7 +278,7 @@ test.describe('設定画面', () => {
     } finally {
       if (await page.getByRole('link', { name: '資産を編集', exact: true }).count()) {
         await page.getByRole('link', { name: '資産を編集', exact: true }).click();
-        await page.locator('.delete-confirm > summary').click();
+        await page.locator('[data-slot="delete-confirm"] > summary').click();
         await page.getByRole('button', { name: '削除を確定' }).click();
       }
       await page.goto('/settings/categories/asset');
@@ -300,7 +304,7 @@ test.describe('設定画面', () => {
     await page.getByLabel('資産', { exact: true }).selectOption(accountId);
     await page.getByLabel('金額').fill('1');
     await page.locator('input[name="occurredOn"]').fill('2099-12-01');
-    await page.locator('.category-field-expense select').selectOption({ label: '食費' });
+    await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
     await page.getByLabel('メモ（任意）').fill(customName);
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/transactions\?month=2099-12$/);
@@ -320,7 +324,7 @@ test.describe('設定画面', () => {
     await page.goto('/settings/categories/expense');
     await expect(page.getByRole('heading', { level: 1, name: '支出カテゴリ' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
-    await expect(page.locator('.heading-count')).toHaveText(/^\d+件$/);
+    await expect(page.locator('[data-slot="heading-count"]')).toHaveText(/^\d+件$/);
     await expect(page.getByRole('textbox')).toHaveCount(1);
     const row = categoryRow(page, '食費');
     for (const name of ['名前を変更', '上へ', '下へ', '削除']) {
@@ -341,7 +345,7 @@ test.describe('設定画面', () => {
       );
       const rename = row.getByRole('button', { name: '名前を変更' });
       await rename.click();
-      const editRow = page.locator('.settings-category-row').nth(rowIndex);
+      const editRow = page.locator('[data-slot="settings-category-row"]').nth(rowIndex);
       const input = editRow.getByRole('textbox');
       await expect(input).toBeFocused();
       await expect(input).toHaveValue(name);
@@ -350,45 +354,26 @@ test.describe('設定画面', () => {
       await expect(editRow.getByRole('textbox')).toHaveCount(0);
       await expect(
         page
-          .locator('.settings-category-row')
+          .locator('[data-slot="settings-category-row"]')
           .nth(rowIndex)
           .getByRole('button', { name: '名前を変更' }),
       ).toBeFocused();
-      await expect(
-        page.locator('.settings-category-row').nth(rowIndex).getByText(name, { exact: true }),
-      ).toBeVisible();
-
-      await page
-        .locator('.settings-category-row')
-        .nth(rowIndex)
-        .getByRole('button', { name: '名前を変更' })
-        .click();
-      await expect(
-        page.locator('.settings-category-row').nth(rowIndex).getByRole('textbox'),
-      ).toHaveValue(name);
-      await page
-        .locator('.settings-category-row')
-        .nth(rowIndex)
-        .getByRole('button', { name: 'キャンセル' })
-        .click();
       await expect(
         page
-          .locator('.settings-category-row')
+          .locator('[data-slot="settings-category-row"]')
           .nth(rowIndex)
-          .getByRole('button', { name: '名前を変更' }),
-      ).toBeFocused();
+          .getByText(name, { exact: true }),
+      ).toBeVisible();
 
-      await page
-        .locator('.settings-category-row')
-        .nth(rowIndex)
-        .getByRole('button', { name: '名前を変更' })
-        .click();
-      await page.locator('.settings-category-row').nth(rowIndex).getByRole('textbox').fill(renamed);
-      await page
-        .locator('.settings-category-row')
-        .nth(rowIndex)
-        .getByRole('button', { name: '保存' })
-        .click();
+      const targetRow = page.locator('[data-slot="settings-category-row"]').nth(rowIndex);
+      await targetRow.getByRole('button', { name: '名前を変更' }).click();
+      await expect(targetRow.getByRole('textbox')).toHaveValue(name);
+      await targetRow.getByRole('button', { name: 'キャンセル' }).click();
+      await expect(targetRow.getByRole('button', { name: '名前を変更' })).toBeFocused();
+
+      await targetRow.getByRole('button', { name: '名前を変更' }).click();
+      await targetRow.getByRole('textbox').fill(renamed);
+      await targetRow.getByRole('button', { name: '保存' }).click();
       await expect(categoryRow(page, renamed)).toHaveCount(1);
       await expect(page.getByRole('textbox')).toHaveCount(1);
     } finally {
@@ -407,7 +392,7 @@ test.describe('設定画面', () => {
         [...element.parentElement!.children].indexOf(element),
       );
       await row.getByRole('button', { name: '名前を変更' }).click();
-      const editRow = page.locator('.settings-category-row').nth(rowIndex);
+      const editRow = page.locator('[data-slot="settings-category-row"]').nth(rowIndex);
       const input = editRow.getByRole('textbox');
       await input.fill('食費');
       await editRow.getByRole('button', { name: '保存' }).click();
@@ -430,7 +415,7 @@ test.describe('設定画面', () => {
     try {
       await categoryRow(page, second).getByRole('button', { name: '上へ' }).click();
       await expect(async () => {
-        const names = await page.locator('.settings-category-name').allTextContents();
+        const names = await page.locator('[data-slot="settings-category-name"]').allTextContents();
         expect(names.indexOf(second)).toBeLessThan(names.indexOf(first));
       }).toPass();
       await expect(categoryRow(page, second).getByRole('button', { name: '上へ' })).toBeEnabled();

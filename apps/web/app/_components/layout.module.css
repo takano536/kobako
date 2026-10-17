@@ -1,0 +1,74 @@
+/* Shared shell and page framing; classes are locally scoped by CSS Modules. */
+
+.app-shell {
+  min-height: 100svh;
+}
+
+.site-header {
+  box-sizing: border-box;
+  width: min(100%, var(--layout-wide));
+  min-height: 4.125rem;
+  margin: 0 auto;
+  padding: 0.9375rem max(1rem, 2.5vw) 0.5rem;
+}
+
+.header-inner {
+  display: flex;
+  min-height: 2.6875rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--space-group);
+}
+
+.page-content {
+  box-sizing: border-box;
+  width: min(100%, var(--layout-wide));
+  margin: 0 auto;
+  padding: 0 max(1rem, 2.5vw) var(--space-page);
+}
+
+.content-stack {
+  min-width: 0;
+}
+
+.page-transition-content {
+  min-width: 0;
+}
+
+.page-shell-narrow {
+  width: min(100%, var(--layout-narrow));
+  margin: 0 auto;
+}
+
+.page-shell-import {
+  width: min(100%, var(--layout-import));
+  margin: 0 auto;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 30rem) {
+  .page-content {
+    padding-bottom: calc(
+      var(--space-page) + var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  .header-inner {
+    gap: var(--space-item);
+  }
+}
+@media (max-width: 30rem) and (max-height: 32rem) {
+  .page-content {
+    padding-bottom: var(--space-page);
+  }
+
+  .header-inner {
+    display: grid;
+    grid-template-areas:
+      'brand settings'
+      'nav nav';
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-item);
+  }
+}

@@ -1,4 +1,6 @@
-import type { CSSProperties } from 'react';
+import overviewStyles from './overview.module.css';
+import uiStyles from './_components/ui.module.css';
+import transactionStyles from './transactions/transaction-row.module.css';
 import {
   MAX_SUPPORTED_YEAR,
   MIN_SUPPORTED_YEAR,
@@ -10,19 +12,19 @@ import {
   shiftMonth,
 } from '@kobako/db';
 
-import { CategoryDot } from '../src/lib/category';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../src/lib/ledger-data';
-import { expenseBarWidth, formatExpenseShare, monthLabel } from '../src/lib/format';
+import { monthLabel } from '../src/lib/format';
+import { PageHeader } from './_components/page-header';
 import {
   ActionLink,
   EmptyState,
   MonthSwitcher,
-  PageHeader,
   PageShell,
   RegisterTransactionAction,
   SectionHeading,
   SignedYen,
 } from './_components/ui';
+import { CategoryBreakdown } from './overview/category-breakdown';
 import { TransactionRow } from './transactions/transaction-row';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +53,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   ]);
 
   return (
-    <PageShell className="overview-page">
+    <PageShell transition className={overviewStyles['overview-page']}>
       <PageHeader title="概要" actions={<RegisterTransactionAction month={month} />} />
       <MonthSwitcher
         month={month}
@@ -63,17 +65,24 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         }
       />
 
-      <section className="overview-summary" role="group" aria-labelledby="expense-label">
-        <div className="overview-lead">
-          <h2 id="expense-label" className="eyebrow">
+      <section
+        className={overviewStyles['overview-summary']}
+        role="group"
+        aria-labelledby="expense-label"
+      >
+        <div className={overviewStyles['overview-lead']}>
+          <h2 id="expense-label" className={overviewStyles.eyebrow}>
             この月の支出
           </h2>
-          <p className="lead-amount">
+          <p data-slot="lead-amount" className={overviewStyles['lead-amount']}>
             <SignedYen value={totals.expense} tone="negative" />
           </p>
         </div>
 
-        <dl className="summary-inline" aria-label={`${monthLabel(month)}の収入と差額`}>
+        <dl
+          className={overviewStyles['summary-inline']}
+          aria-label={`${monthLabel(month)}の収入と差額`}
+        >
           <div role="group" aria-labelledby="income-total-label">
             <dt id="income-total-label">収入</dt>
             <dd>
@@ -89,7 +98,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         </dl>
       </section>
 
-      <section className="section" aria-labelledby="breakdown-title">
+      <section className={overviewStyles.section} aria-labelledby="breakdown-title">
         <SectionHeading
           id="breakdown-title"
           title="支出カテゴリ別の支出"
@@ -99,39 +108,17 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             </ActionLink>
           }
         />
-        {categoryTotals.length === 0 ? (
-          <p className="empty-inline">この月の支出はありません。</p>
-        ) : (
-          <ul className="category-list">
-            {categoryTotals.map((category) => {
-              const categoryWidth = expenseBarWidth(category.total, totals.expense);
-              return (
-                <li
-                  className="category-item"
-                  key={category.categoryId}
-                  style={{ '--category-width': `${categoryWidth}%` } as CSSProperties}
-                >
-                  <div className="category-row">
-                    <CategoryDot type="expense" name={category.categoryName} />
-                    <span className="category-name">{category.categoryName}</span>
-                    <span className="category-bar" aria-hidden="true">
-                      <span />
-                    </span>
-                    <span className="category-amount">
-                      <SignedYen value={category.total} tone="negative" />
-                    </span>
-                    <small className="category-share">
-                      {formatExpenseShare(category.total, totals.expense)}
-                    </small>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <CategoryBreakdown
+          categories={categoryTotals}
+          totalExpense={totals.expense}
+          month={month}
+        />
       </section>
 
-      <section className="section recent-section" aria-labelledby="latest-title">
+      <section
+        className={[overviewStyles.section, overviewStyles['recent-section']].join(' ')}
+        aria-labelledby="latest-title"
+      >
         <SectionHeading
           id="latest-title"
           title="最近の取引"
@@ -148,14 +135,21 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             title="まだ記録がありません"
             description={
               <>
-                <span className="phrase-wrap">この月の記録を、</span>
-                <span className="phrase-wrap">ひとつずつ残しましょう。</span>
+                <span className={uiStyles['phrase-wrap']}>この月の記録を、</span>
+                <span className={uiStyles['phrase-wrap']}>ひとつずつ残しましょう。</span>
               </>
             }
             action={<RegisterTransactionAction month={month} variant="quiet" />}
           />
         ) : (
-          <ul className="recent-list transaction-list-full" aria-label="最近の取引">
+          <ul
+            data-slot="recent-list"
+            className={[
+              transactionStyles['transaction-list'],
+              transactionStyles['transaction-list-recent'],
+            ].join(' ')}
+            aria-label="最近の取引"
+          >
             {latestTransactions.map((transaction) => (
               <TransactionRow
                 key={transaction.id}

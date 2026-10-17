@@ -1,0 +1,102 @@
+.page-header {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-group);
+  margin: var(--space-page) 0 var(--space-group);
+}
+
+.page-header h1 {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: var(--space-item);
+  letter-spacing: -0.03em;
+  line-height: calc(var(--text-title) * var(--leading-heading));
+}
+
+.page-header:has(.page-header-title-link) h1 {
+  align-items: flex-start;
+}
+
+.page-header-title-link {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  flex: 0 1 auto;
+  align-items: flex-start;
+  gap: var(--space-item);
+  margin: calc(var(--space-item) * -1);
+  padding: var(--space-item);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.page-header-title-link .heading-title {
+  min-width: 0;
+}
+
+.page-header-back-chevron {
+  width: 0.875rem;
+  height: 1lh;
+  flex: 0 0 0.875rem;
+  color: var(--muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.page-header-title-link:hover {
+  color: var(--accent);
+}
+
+.page-header-title-link:active {
+  transform: translateY(1px);
+}
+
+.page-header-title-link:hover .page-header-back-chevron,
+.page-header-title-link:focus-visible .page-header-back-chevron {
+  color: var(--muted);
+}
+
+.heading-count {
+  color: var(--muted);
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: inherit;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transform: translateY(0.07em);
+}
+
+.heading-title {
+  min-width: 0;
+}
+
+.page-header-actions {
+  display: flex;
+  min-width: min-content;
+  flex: 0 1 11.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-item);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-header-title-link,
+  .heading-count {
+    transition: none;
+    transform: none;
+  }
+}

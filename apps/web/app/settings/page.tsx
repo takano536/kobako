@@ -1,6 +1,8 @@
+import settingsStyles from './settings.module.css';
 import type { Metadata } from 'next';
 
-import { ActionLink, PageHeader, PageShell } from '../_components/ui';
+import { ActionLink, PageShell } from '../_components/ui';
+import { PageHeader } from '../_components/page-header';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -19,22 +21,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     <PageShell width="narrow">
       <PageHeader title="設定" />
       {resetCompleted ? (
-        <p className="settings-notice" role="status">
+        <p className={settingsStyles['settings-notice']} role="status">
           家計のデータを削除し、初期カテゴリを再作成しました。
         </p>
       ) : null}
-      <div className="settings-list">
-        <section className="settings-list-section" aria-labelledby="category-management-title">
+      <div className={settingsStyles['settings-list']}>
+        <section
+          className={settingsStyles['settings-list-section']}
+          aria-labelledby="category-management-title"
+        >
           <h2 id="category-management-title">カテゴリ管理</h2>
-          <div className="settings-list-rows">
+          <div className={settingsStyles['settings-list-rows']}>
             <ActionLink href="/settings/categories/asset">資産カテゴリ</ActionLink>
             <ActionLink href="/settings/categories/expense">支出カテゴリ</ActionLink>
             <ActionLink href="/settings/categories/income">収入カテゴリ</ActionLink>
           </div>
         </section>
-        <section className="settings-list-section" aria-labelledby="data-management-title">
+        <section
+          className={settingsStyles['settings-list-section']}
+          aria-labelledby="data-management-title"
+        >
           <h2 id="data-management-title">データ管理</h2>
-          <div className="settings-list-rows">
+          <div className={settingsStyles['settings-list-rows']}>
             <ActionLink href="/settings/import">取り込む</ActionLink>
             <ActionLink href="/settings/delete" variant="danger">
               すべてのデータを削除

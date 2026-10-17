@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import balanceStyles from './balances.module.css';
+import uiStyles from '../_components/ui.module.css';
 
-import { BalanceAmountText, FitAmount } from './fit-amount';
+import { BalanceAmount, BalanceAmountText } from './balance-amount';
 import { formatYen } from '../../src/lib/format';
 
 type AccountKind = 'cash' | 'bank' | 'credit_card' | 'debit_card' | 'electronic_money' | 'other';
@@ -36,7 +38,17 @@ function SemanticYen({ value, tone }: { value: string; tone: MoneyTone }) {
   const negative = amount < 0n;
   const absoluteValue = (negative ? -amount : amount).toString();
   return (
-    <span className={`money-amount money-${tone}`}>
+    <span
+      data-slot="money-amount"
+      className={[
+        uiStyles['money-amount'],
+        tone === 'positive'
+          ? uiStyles['money-positive']
+          : tone === 'negative'
+            ? uiStyles['money-negative']
+            : uiStyles['money-neutral'],
+      ].join(' ')}
+    >
       {negative ? <span className="sr-only">マイナス</span> : null}
       <span aria-hidden="true">{negative ? '−' : ''}</span>
       {formatYen(absoluteValue)}
@@ -54,15 +66,26 @@ function BalanceMetric({
   tone: MoneyTone;
 }) {
   return (
-    <div className="balance-metric" role="group" aria-label={label}>
+    <div
+      data-slot="balance-metric"
+      className={balanceStyles['balance-metric']}
+      role="group"
+      aria-label={label}
+    >
       {value === null ? (
-        <FitAmount className="balance-amount balance-metric-unknown" ariaLabel={`${label}不明`}>
+        <BalanceAmount
+          className={[
+            balanceStyles['balance-amount'],
+            balanceStyles['balance-metric-unknown'],
+          ].join(' ')}
+          ariaLabel={`${label}不明`}
+        >
           —
-        </FitAmount>
+        </BalanceAmount>
       ) : (
-        <FitAmount className="balance-amount">
+        <BalanceAmount className={balanceStyles['balance-amount']!}>
           <SemanticYen value={value} tone={tone} />
-        </FitAmount>
+        </BalanceAmount>
       )}
     </div>
   );
@@ -81,11 +104,25 @@ export function AccountBalanceRow({
   const hasPaymentMetrics =
     paymentSchedule !== undefined && (kind === 'bank' || kind === 'credit_card');
   return (
-    <li className={`balance-row${hasPaymentMetrics ? ' balance-row-with-metrics' : ''}`}>
-      <Link className="balance-account-link" href={transactionsHref}>
-        <BalanceAmountText className="balance-account-name">{accountName}</BalanceAmountText>
+    <li
+      data-slot="balance-row"
+      className={[
+        balanceStyles['balance-row'],
+        hasPaymentMetrics && balanceStyles['balance-row-with-metrics'],
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <Link
+        data-slot="balance-account-link"
+        className={balanceStyles['balance-account-link']}
+        href={transactionsHref}
+      >
+        <BalanceAmountText className={balanceStyles['balance-account-name']!}>
+          {accountName}
+        </BalanceAmountText>
         {paymentSchedule && hasPaymentMetrics ? (
-          <div className="balance-row-metrics">
+          <div data-slot="balance-row-metrics" className={balanceStyles['balance-row-metrics']}>
             <BalanceMetric
               label={kind === 'credit_card' ? '決済予定' : '支払予定'}
               value={paymentSchedule.primaryAmount}
@@ -105,7 +142,7 @@ export function AccountBalanceRow({
             />
           </div>
         ) : (
-          <FitAmount className="balance-amount" ariaLabel="残高">
+          <BalanceAmount className={balanceStyles['balance-amount']!} ariaLabel="残高">
             <SemanticYen
               value={displayBalance.toString()}
               tone={
@@ -118,7 +155,7 @@ export function AccountBalanceRow({
                       : 'positive'
               }
             />
-          </FitAmount>
+          </BalanceAmount>
         )}
       </Link>
     </li>

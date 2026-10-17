@@ -6,7 +6,10 @@ import { withSelectedMonth } from '../../../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { firstQueryValue, isValidMonth } from '../../../../src/lib/transaction-query';
 import { parseInt4Id } from '../../../../src/lib/ids';
-import { PageHeader, PageShell } from '../../../_components/ui';
+import formsStyles from '../../../forms.module.css';
+import { Card } from '../../../_components/card';
+import { PageHeader } from '../../../_components/page-header';
+import { PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../transaction-form';
 import { updateTransactionAction } from '../../actions';
 
@@ -58,8 +61,8 @@ export default async function EditTransactionPage({
         titleAriaLabel="取引を編集"
         backLink={{ href: backHref, label: '一覧へ戻る' }}
       />
-      <section className="form-surface" aria-label="取引の入力">
-        <div className="edit-form-layout">
+      <Card as="section" aria-label="取引の入力">
+        <div className={formsStyles['edit-form-layout']}>
           <TransactionForm
             action={action}
             categories={categories}
@@ -78,7 +81,7 @@ export default async function EditTransactionPage({
           />
           <DeleteTransactionForm transactionId={transaction.id} cancelHref={cancelHref} />
         </div>
-      </section>
+      </Card>
     </PageShell>
   );
 }
