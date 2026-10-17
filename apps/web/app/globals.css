@@ -990,7 +990,7 @@ h3 {
 .transaction-list-full .transaction-link {
   display: grid;
   grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content 13px;
-  align-items: start;
+  align-items: center;
   column-gap: var(--space-item);
   min-width: 0;
   min-height: 56px;
@@ -1026,26 +1026,11 @@ h3 {
 }
 
 .transaction-list-full .transaction-main {
-  display: grid;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   gap: var(--space-within);
-}
-
-.transaction-list-full .transaction-main > :only-child {
-  grid-row: 1 / -1;
-  align-self: center;
-}
-
-.transaction-list-full .transaction-main-transfer {
-  grid-template-rows: auto auto;
-  min-height: 0;
-}
-
-.transaction-list-full .transaction-main-transfer > :only-child {
-  grid-row: auto;
-  align-self: center;
 }
 
 .transaction-list-full .transaction-category {
@@ -3240,9 +3225,6 @@ h3 {
 
   .transaction-link {
     column-gap: var(--space-item);
-  }
-  .transaction-list-full .transaction-main-transfer {
-    align-self: center;
   }
 
   .filter-form {
