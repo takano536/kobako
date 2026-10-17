@@ -1,4 +1,11 @@
 # Changelog
+## [0.13.4](https://github.com/takano536/kobako/compare/v0.13.3...v0.13.4) (2026-10-17)
+
+
+### Bug Fixes
+
+* **web:** center transaction detail blocks ([#81](https://github.com/takano536/kobako/issues/81)) ([7498567](https://github.com/takano536/kobako/commit/7498567afd351190c6117334a70220ac1f4468a8))
+
 ## [0.13.3](https://github.com/takano536/kobako/compare/v0.13.2...v0.13.3) (2026-10-16)
 
 
