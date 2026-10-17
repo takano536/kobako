@@ -1,0 +1,317 @@
+/* Settings and destructive-action surfaces. */
+.settings-list {
+  display: grid;
+  gap: var(--space-section);
+  margin-top: var(--space-section);
+}
+
+.settings-list-section {
+  display: grid;
+  gap: var(--space-item);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.4rem;
+  background: var(--surface);
+}
+
+.settings-list-section h2,
+.settings-section-heading h2,
+.delete-all-scope h2 {
+  font-size: var(--text-heading);
+  font-weight: 500;
+  line-height: var(--leading-heading);
+}
+
+.settings-list-rows {
+  display: grid;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Row text sits on the heading's left edge; the hit area and focus ring extend 8px beyond it. */
+.settings-list-rows a {
+  position: relative;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  margin-inline: calc(var(--space-item) * -1);
+  padding-inline: var(--space-item);
+  border-radius: 0.3rem;
+  color: var(--ink);
+}
+
+.settings-list-rows a > span:last-child {
+  text-decoration: none;
+}
+
+.settings-list-rows a::after {
+  margin-left: auto;
+  color: var(--muted);
+  content: '→';
+}
+
+.settings-list-rows a:not(:last-child)::before {
+  position: absolute;
+  right: var(--space-item);
+  bottom: 0;
+  left: var(--space-item);
+  border-bottom: 1px solid var(--rule);
+  content: '';
+}
+
+.settings-list-rows a:hover,
+.settings-list-rows a:focus-visible {
+  background: var(--surface-hover);
+}
+
+.settings-list-rows a:hover::after,
+.settings-list-rows a:focus-visible::after {
+  color: var(--ink);
+}
+
+.settings-list-rows a:focus-visible {
+  outline-offset: 0;
+}
+
+.settings-list-rows a[data-variant='danger'] {
+  color: var(--money-negative);
+}
+
+.settings-list-rows a[data-variant='danger']:hover,
+.settings-list-rows a[data-variant='danger']:focus-visible {
+  background: var(--danger-soft);
+}
+
+.settings-category-manager {
+  display: grid;
+  gap: var(--space-section);
+  margin-top: 0;
+}
+
+.settings-category-section,
+.settings-fixed-assets {
+  display: grid;
+  gap: var(--space-item);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.4rem;
+  background: var(--surface);
+}
+
+.settings-section-heading {
+  display: flex;
+  min-height: 28px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-item);
+}
+
+.settings-section-count {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.settings-help {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+}
+
+.settings-notice {
+  margin: var(--space-item) 0 var(--space-section);
+  padding: var(--space-item) 12px;
+  border-left: 2px solid var(--accent);
+  color: var(--ink);
+}
+
+.settings-inline-error {
+  color: var(--money-negative);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+}
+
+.settings-fixed-asset-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-group);
+  border-top: 1px solid var(--rule);
+}
+
+.settings-fixed-asset-list li {
+  min-height: 44px;
+  font-size: var(--text-body);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.settings-category-list {
+  display: grid;
+  border-top: 1px solid var(--rule);
+}
+
+.settings-category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-item);
+  align-items: center;
+  min-width: 0;
+  min-height: 52px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.settings-category-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.settings-category-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.settings-category-actions form {
+  display: flex;
+}
+
+.settings-category-action {
+  min-height: 44px;
+  padding-inline: 0.5rem;
+  white-space: nowrap;
+}
+
+.settings-category-action:disabled {
+  opacity: 0.5;
+}
+
+.settings-category-row > .settings-inline-error {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-bottom: var(--space-within);
+}
+
+.settings-category-editform {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-item);
+}
+
+.settings-category-editform input {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1 1 0;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+  background: transparent;
+}
+
+.settings-category-editform input:focus {
+  border-color: var(--accent);
+  outline: 0;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.settings-category-editform input[aria-invalid='true'] {
+  border-color: var(--money-negative);
+}
+
+.settings-category-editform > button {
+  flex: none;
+}
+
+.settings-category-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-item);
+  padding-top: var(--space-item);
+}
+
+.settings-category-add label {
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.settings-category-add input,
+.delete-all-form input {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1 1 12rem;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+  background: transparent;
+}
+
+.settings-category-add input:focus,
+.delete-all-form input:focus {
+  border-color: var(--accent);
+  outline: 0;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.delete-all-scope {
+  display: grid;
+  gap: var(--space-item);
+  padding: var(--space-group) 0;
+  border-top: 1px solid var(--danger-rule);
+  border-bottom: 1px solid var(--danger-rule);
+}
+
+.delete-all-scope h2:not(:first-child) {
+  margin-top: var(--space-item);
+}
+
+.delete-all-scope ul {
+  display: grid;
+  gap: var(--space-within);
+  padding-left: 1.2em;
+  list-style: disc;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.delete-all-warning {
+  margin-top: var(--space-group);
+  color: var(--money-negative);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: var(--leading-body);
+}
+
+.delete-all-form {
+  display: grid;
+  gap: var(--space-group);
+  margin-top: var(--space-group);
+}
+
+.delete-all-form > div {
+  display: grid;
+  gap: var(--space-within);
+}
+
+.delete-all-form > button {
+  justify-self: start;
+}
+
+.delete-all-form .settings-inline-error {
+  font-size: var(--text-body);
+}
+@media (max-width: 30rem) {
+  .settings-fixed-asset-list {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-category-add > button {
+    width: 100%;
+  }
+}

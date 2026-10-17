@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { listAssetCategories } from '@kobako/db';
 
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
-import { PageHeader, PageShell } from '../../../_components/ui';
+import { PageHeader } from '../../../_components/page-header';
+import { PageShell } from '../../../_components/ui';
 import { AssetCategoryManager } from '../../asset-category-manager';
 
 export const dynamic = 'force-dynamic';

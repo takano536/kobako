@@ -299,24 +299,26 @@ test('shows complete large month and all-time account lists and preserves settin
 
   await page.goto(`/transactions?month=${listMonth}&account=${accountId}&page=2`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引58件');
-  await expect(page.locator('.transaction-link')).toHaveCount(58);
+  await expect(page.locator('[data-slot="transaction-link"]')).toHaveCount(58);
   await expect(page.getByText(markerFor('large-expense'), { exact: false }).first()).toBeVisible();
   await expect(
     page
-      .locator('.transaction-link')
+      .locator('[data-slot="transaction-link"]')
       .filter({ hasText: markerFor('large-expense') })
       .first()
-      .locator('.transaction-asset-name'),
+      .locator('[data-slot="transaction-asset-name"]'),
   ).toHaveText(targetName);
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
   const expectedMonth = sortExpected(expectedMonthEntries);
-  expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(
-    expectedMonth.map((entry) => entry.memo),
-  );
+  expect(
+    await page
+      .locator('[data-slot="transaction-row"] [data-slot="transaction-memo"]')
+      .allTextContents(),
+  ).toEqual(expectedMonth.map((entry) => entry.memo));
   const expectedMonthHeadings = [...new Set(expectedMonth.map((entry) => entry.occurredOn))].map(
     (occurredOn) => expectedDateHeading(occurredOn, false),
   );
-  expect(await page.locator('.transaction-group-heading').allTextContents()).toEqual(
+  expect(await page.locator('[data-slot="transaction-group-heading"]').allTextContents()).toEqual(
     expectedMonthHeadings,
   );
 
@@ -324,7 +326,7 @@ test('shows complete large month and all-time account lists and preserves settin
     `/transactions?month=${listMonth}&account=${accountId}&type=expense&category=${expenseCategory.id}&page=2`,
   );
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引30件');
-  await expect(page.locator('.transaction-link')).toHaveCount(30);
+  await expect(page.locator('[data-slot="transaction-link"]')).toHaveCount(30);
   await expect(page.getByText(markerFor('large-income'), { exact: false })).toHaveCount(0);
   const editPrefetchRequests: string[] = [];
   const editPrefetchListener = (request: { url(): string }) => {
@@ -337,19 +339,21 @@ test('shows complete large month and all-time account lists and preserves settin
 
   await page.goto(`/transactions?month=all&account=${accountId}&page=2`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引61件');
-  await expect(page.locator('.transaction-link')).toHaveCount(61);
+  await expect(page.locator('[data-slot="transaction-link"]')).toHaveCount(61);
   await expect(page.getByText(markerFor('large-older-expense'), { exact: true })).toBeVisible();
   await expect(page.getByText(markerFor('large-previous-income'), { exact: true })).toBeVisible();
   await expect(page.getByText(markerFor('large-previous-transfer'), { exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: '取引のページ移動' })).toHaveCount(0);
   const expectedAll = sortExpected(expectedAllEntries);
-  expect(await page.locator('.transaction-row .transaction-memo').allTextContents()).toEqual(
-    expectedAll.map((entry) => entry.memo),
-  );
+  expect(
+    await page
+      .locator('[data-slot="transaction-row"] [data-slot="transaction-memo"]')
+      .allTextContents(),
+  ).toEqual(expectedAll.map((entry) => entry.memo));
   const expectedAllHeadings = [...new Set(expectedAll.map((entry) => entry.occurredOn))].map(
     (occurredOn) => expectedDateHeading(occurredOn, true),
   );
-  expect(await page.locator('.transaction-group-heading').allTextContents()).toEqual(
+  expect(await page.locator('[data-slot="transaction-group-heading"]').allTextContents()).toEqual(
     expectedAllHeadings,
   );
   await page.evaluate(async () => {
@@ -384,7 +388,7 @@ test('shows complete large month and all-time account lists and preserves settin
   );
   await expect(page.getByRole('heading', { name: renamedTarget, exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引61件');
-  await expect(page.locator('.transaction-link')).toHaveCount(61);
+  await expect(page.locator('[data-slot="transaction-link"]')).toHaveCount(61);
 });
 
 test('keeps transaction references when an asset is logically deleted', async ({ page }) => {
@@ -406,7 +410,7 @@ test('keeps transaction references when an asset is logically deleted', async ({
     values (${DEFAULT_HOUSEHOLD_ID}, 'expense', 100, '2026-09-01', ${category.id}, ${asset.id}, '削除後も保持')
   `;
   await page.goto(`/accounts/${asset.id}/edit`);
-  await page.locator('.delete-confirm > summary').click();
+  await page.locator('[data-slot="delete-confirm"] > summary').click();
   await page.getByRole('button', { name: '削除を確定' }).click();
   await expect(page).toHaveURL('/balances');
   const deletedAt = await database().sql<{ deleted_at: string; status: string }[]>`

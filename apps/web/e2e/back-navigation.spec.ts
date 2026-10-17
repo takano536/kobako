@@ -62,7 +62,7 @@ async function expectHeadingBack(
   await expect(heading).toBeVisible();
   await expect(titleLink).toHaveAttribute('href', href);
   await expect(page.getByRole('link', { name: label, exact: true })).toHaveCount(0);
-  await expect(titleLink.locator('.page-header-back-chevron')).toHaveAttribute(
+  await expect(titleLink.locator('[data-slot="page-header-back-chevron"]')).toHaveAttribute(
     'aria-hidden',
     'true',
   );
@@ -73,7 +73,7 @@ async function expectHeadingBack(
   await page.goto(path);
   const chevronLink = page.getByRole('link', { name: `${title} — ${label}`, exact: true });
   await expect(chevronLink).toBeVisible();
-  await chevronLink.locator('.page-header-back-chevron').click();
+  await chevronLink.locator('[data-slot="page-header-back-chevron"]').click();
   await expectPath(page, href);
 
   await page.goto(path);
@@ -270,8 +270,8 @@ test('marks each child screen with its parent navigation section', async ({ page
     );
   }
   await page.goto('/settings');
-  await expect(page.locator('.site-settings[aria-current="page"]')).toHaveCount(1);
-  await expect(page.locator('.site-nav a[aria-current="page"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="site-settings"][aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="site-nav"] a[aria-current="page"]')).toHaveCount(0);
 });
 
 test('uses the occurred month when an edit screen has no valid query month', async ({ page }) => {
@@ -282,7 +282,7 @@ test('uses the occurred month when an edit screen has no valid query month', asy
     `/transactions/transfers/${transferId}/edit?month=not-a-month`,
   ]) {
     await page.goto(path);
-    await expect(page.locator('.page-header-title-link')).toHaveAttribute(
+    await expect(page.locator('[data-slot="page-header-title-link"]')).toHaveAttribute(
       'href',
       `/transactions?month=${nextMonth}`,
     );
@@ -298,10 +298,12 @@ test('rejects unsafe or mismatched asset return targets', async ({ page }) => {
     '/settings',
   ]) {
     await page.goto(`/accounts/${accountId}/edit?return=${encodeURIComponent(returnTarget)}`);
-    await expect(page.locator('.page-header-title-link')).toHaveAttribute('href', fallback);
+    await expect(page.locator('[data-slot="page-header-title-link"]')).toHaveAttribute(
+      'href',
+      fallback,
+    );
   }
 });
-
 test('does not add heading back links to top-level screens', async ({ page }) => {
   for (const path of [
     `/?month=${month}`,
@@ -310,7 +312,7 @@ test('does not add heading back links to top-level screens', async ({ page }) =>
     '/settings',
   ]) {
     await page.goto(path);
-    await expect(page.locator('.page-header-title-link')).toHaveCount(0);
+    await expect(page.locator('[data-slot="page-header-title-link"]')).toHaveCount(0);
   }
 });
 
@@ -324,8 +326,8 @@ test('wraps the long import title without horizontal overflow at narrow width', 
     exact: true,
   });
   const metrics = await titleLink.evaluate((element) => {
-    const title = element.querySelector<HTMLElement>('.heading-title');
-    const chevron = element.querySelector<HTMLElement>('.page-header-back-chevron');
+    const title = element.querySelector<HTMLElement>('[data-slot="heading-title"]');
+    const chevron = element.querySelector<HTMLElement>('[data-slot="page-header-back-chevron"]');
     if (!title || !chevron) throw new Error('heading back-link parts are missing');
     const titleRect = title.getBoundingClientRect();
     const chevronRect = chevron.getBoundingClientRect();

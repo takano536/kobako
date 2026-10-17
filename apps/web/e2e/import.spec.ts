@@ -491,7 +491,7 @@ test('navigates from settings to the import screen', async ({ page }) => {
     'page',
   );
   await screenshotState(page, 'e2e-empty');
-  await expect(page.locator('.import-dropzone-help')).toHaveText(
+  await expect(page.locator('[data-slot="import-dropzone"]')).toContainText(
     'ここにドロップして選ぶこともできます',
   );
 });
@@ -516,19 +516,19 @@ test('rejects unsupported, empty, and oversized files before preview', async ({ 
   const input = page.locator('input[type="file"]');
 
   await input.setInputFiles(paths.wrongExtension);
-  await expect(page.locator('.import-file-error')).toHaveText(
+  await expect(page.locator('[data-slot="import-file-error"]')).toHaveText(
     'Excel ファイル（.xlsx）を選んでください。',
   );
-  await expect(page.locator('.import-file-card-icon')).toHaveText('FILE');
+  await expect(page.locator('[data-slot="import-file-card-icon"]')).toHaveText('FILE');
   await screenshotState(page, 'e2e-selected');
 
   await input.setInputFiles(paths.empty);
-  await expect(page.locator('.import-file-error')).toHaveText(
+  await expect(page.locator('[data-slot="import-file-error"]')).toHaveText(
     'ファイルが空です。内容のある .xlsx を選んでください。',
   );
 
   await input.setInputFiles(paths.large);
-  await expect(page.locator('.import-file-error')).toHaveText(
+  await expect(page.locator('[data-slot="import-file-error"]')).toHaveText(
     'ファイルが大きすぎます。5 MiB 以下の .xlsx を選んでください。',
   );
 });
@@ -551,7 +551,7 @@ test('previews a valid workbook without database writes', async ({ page }) => {
   await expect(
     page.getByText(markerFor(runMarkerPrefix, 'category-expense'), { exact: false }).first(),
   ).toBeVisible();
-  await expect(page.locator('.import-transaction-row.kind-transfer')).toBeVisible();
+  await expect(page.locator('[data-slot="import-transaction-row-transfer"]')).toBeVisible();
   await expect(page.getByText('全3件のうち3件を表示', { exact: true })).toBeVisible();
   expect(await runCounts()).toEqual({
     transactions: 0,
@@ -573,10 +573,10 @@ test('confirms the import and shows the rows in the ledger and overview', async 
   await expect(confirmButton).toBeEnabled();
   await confirmButton.click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
-  await expect(page.locator('.import-success-counts')).toContainText('収入1件');
-  await expect(page.locator('.import-success-counts')).toContainText('支出1件');
-  await expect(page.locator('.import-success-counts')).toContainText('振替1件');
-  await expect(page.locator('.import-success-period')).toHaveText(
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('収入1件');
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('支出1件');
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('振替1件');
+  await expect(page.locator('[data-slot="import-success-period"]')).toHaveText(
     /\d{4}年\d+月\d+日〜\d{4}年\d+月\d+日/,
   );
   await screenshotState(page, 'e2e-success');
@@ -594,60 +594,62 @@ test('confirms the import and shows the rows in the ledger and overview', async 
     page.getByText(markerFor(runMarkerPrefix, 'category-expense'), { exact: true }),
   ).toBeVisible();
   const transferRow = page
-    .locator('.transaction-link')
+    .locator('[data-slot="transaction-link"]')
     .filter({ hasText: markerFor(runMarkerPrefix, 'valid-transfer-from') });
   await expect(transferRow).toContainText(markerFor(runMarkerPrefix, 'valid-transfer-from'));
   await expect(transferRow).toContainText(markerFor(runMarkerPrefix, 'valid-transfer-to'));
   await expect(
-    page.locator('.transaction-memo').filter({
+    page.locator('[data-slot="transaction-memo"]').filter({
       hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
     }),
   ).toBeVisible();
-  const importedExpenseRow = page.locator('.transaction-link').filter({
+  const importedExpenseRow = page.locator('[data-slot="transaction-link"]').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
   });
-  const importedIncomeRow = page.locator('.transaction-link').filter({
+  const importedIncomeRow = page.locator('[data-slot="transaction-link"]').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-income-memo'),
   });
-  await expect(importedExpenseRow.locator('.transaction-asset-name')).toHaveText(
+  await expect(importedExpenseRow.locator('[data-slot="transaction-asset-name"]')).toHaveText(
     markerFor(runMarkerPrefix, 'valid-expense-account'),
   );
-  await expect(importedIncomeRow.locator('.transaction-asset-name')).toHaveText(
+  await expect(importedIncomeRow.locator('[data-slot="transaction-asset-name"]')).toHaveText(
     markerFor(runMarkerPrefix, 'valid-income-account'),
   );
   await page.goto(`/?month=${month}`);
   await expect(
-    page.locator('.recent-list .transaction-memo').filter({
+    page.locator('[data-slot="recent-list"] [data-slot="transaction-memo"]').filter({
       hasText: markerFor(runMarkerPrefix, 'valid-expense-memo'),
     }),
   ).toBeVisible();
   await expect(
-    page.locator('.recent-list .transaction-asset-name').filter({
+    page.locator('[data-slot="recent-list"] [data-slot="transaction-asset-name"]').filter({
       hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
     }),
   ).toHaveCount(1);
   await expect(
-    page.locator('.recent-list .transaction-asset-name').filter({
+    page.locator('[data-slot="recent-list"] [data-slot="transaction-asset-name"]').filter({
       hasText: markerFor(runMarkerPrefix, 'valid-income-account'),
     }),
   ).toHaveCount(1);
   await expect(
-    page.getByRole('group', { name: 'この月の支出' }).locator('.lead-amount'),
+    page.getByRole('group', { name: 'この月の支出' }).locator('[data-slot="lead-amount"]'),
   ).toBeVisible();
   await expect(
     page.getByRole('group', { name: '収入' }).getByText('5,678円', { exact: true }),
   ).toBeVisible();
   await page.getByRole('link', { name: '残高', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/balances\\?month=${month}$`));
-  const expenseBalanceRow = page.locator('.balance-row').filter({
+  const expenseBalanceRow = page.locator('[data-slot="balance-row"]').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-expense-account'),
   });
-  await expect(expenseBalanceRow.locator('.balance-amount')).toContainText('1,234円');
-  await expect(expenseBalanceRow.locator('.balance-amount .sr-only')).toHaveText('マイナス');
-  const incomeBalanceRow = page.locator('.balance-row').filter({
+  await expect(expenseBalanceRow.locator('[data-slot="balance-amount"]')).toContainText('1,234円');
+  await expect(expenseBalanceRow.locator('[data-slot="balance-amount"] .sr-only')).toHaveText(
+    'マイナス',
+  );
+  const incomeBalanceRow = page.locator('[data-slot="balance-row"]').filter({
     hasText: markerFor(runMarkerPrefix, 'valid-income-account'),
   });
-  await expect(incomeBalanceRow.locator('.balance-amount')).toContainText('5,678円');
+  await expect(incomeBalanceRow.locator('[data-slot="balance-amount"]')).toContainText('5,678円');
 });
 test('creates unseen source assets without preview account selection', async ({ page }) => {
   const paths = fixturePaths;
@@ -657,7 +659,7 @@ test('creates unseen source assets without preview account selection', async ({ 
   await page.goto('/settings/import');
   await uploadAndPreview(page, paths.keyboard);
   await expect(page.getByText('新しい資産', { exact: true })).toBeVisible();
-  await expect(page.locator('.account-choice-row')).toHaveCount(0);
+  await expect(page.getByRole('combobox')).toHaveCount(0);
   await page.getByRole('button', { name: '2件を取り込む' }).click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
   await expect(page.getByText(/資産を\d+件作成しました。/)).toBeVisible();
@@ -673,9 +675,9 @@ test('warns that a separate re-import creates duplicate rows', async ({ page }) 
   await expect(page.getByText('同じデータを取り込むと重複して登録されます')).toBeVisible();
   await page.getByRole('button', { name: '3件を取り込む' }).click();
   await expect(page.getByRole('heading', { name: '取り込みました' })).toBeVisible();
-  await expect(page.locator('.import-success-counts')).toContainText('収入1件');
-  await expect(page.locator('.import-success-counts')).toContainText('支出1件');
-  await expect(page.locator('.import-success-counts')).toContainText('振替1件');
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('収入1件');
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('支出1件');
+  await expect(page.locator('[data-slot="import-success-counts"]')).toContainText('振替1件');
   await screenshotState(page, 'e2e-reimport');
   expect(await runCounts()).toEqual({
     transactions: before.transactions + 2,
@@ -700,7 +702,7 @@ test('shows row-numbered errors while keeping transfers as importable rows', asy
     page.getByText('移動元と移動先が同じ「さいふ」です。', { exact: true }),
   ).toBeVisible();
   await expect(page.getByText('移動先の資産がありません。', { exact: true })).toBeVisible();
-  await expect(page.locator('.import-transaction-row.kind-transfer')).toBeVisible();
+  await expect(page.locator('[data-slot="import-transaction-row-transfer"]')).toBeVisible();
   const confirmButton = page.getByRole('button', { name: /件を取り込む$/ });
   await expect(confirmButton).toBeDisabled();
   await screenshotState(page, 'e2e-error');

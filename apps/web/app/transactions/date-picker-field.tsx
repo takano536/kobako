@@ -1,5 +1,7 @@
 'use client';
 
+import formsStyles from '../forms.module.css';
+
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 type PickerKind = 'date' | 'month';
@@ -84,7 +86,7 @@ export function DatePickerField({
     <input
       ref={inputRef}
       id={id}
-      className={enhanced ? 'date-picker-input' : className}
+      className={enhanced ? formsStyles['date-picker-input'] : className}
       name={name}
       type={kind}
       value={pickerValue(currentValue, kind)}
@@ -101,9 +103,15 @@ export function DatePickerField({
   }
 
   return (
-    <div className={`date-picker-control${className ? ` ${className}` : ''}`}>
+    <div className={[formsStyles['date-picker-control'], className].filter(Boolean).join(' ')}>
       <button
-        className={`date-picker-display${kind === 'month' ? ' month-picker-display' : ''}`}
+        data-slot={kind === 'month' ? 'month-picker-display' : 'date-picker-display'}
+        className={[
+          formsStyles['date-picker-display'],
+          kind === 'month' && formsStyles['month-picker-display'],
+        ]
+          .filter(Boolean)
+          .join(' ')}
         type="button"
         aria-labelledby={labelId}
         aria-describedby={ariaDescribedBy}
@@ -115,7 +123,7 @@ export function DatePickerField({
         }}
       >
         <span>{formatPickerValue(currentValue, kind)}</span>
-        <span className="date-picker-icon" aria-hidden="true" />
+        <span className={formsStyles['date-picker-icon']} aria-hidden="true" />
       </button>
       {input}
     </div>

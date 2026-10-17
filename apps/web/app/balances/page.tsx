@@ -7,19 +7,14 @@ import {
   getManagedAccountBalances,
 } from '@kobako/db';
 import { AccountBalanceRow } from './account-balance-row';
-import { BalanceAmountProvider } from './fit-amount';
+import balanceStyles from './balances.module.css';
 import { calculateBalanceSummary } from '../../src/lib/balances';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
 import { firstQueryValue } from '../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
-import {
-  ActionLink,
-  EmptyState,
-  PageHeader,
-  PageShell,
-  SectionHeading,
-  SignedYen,
-} from '../_components/ui';
+import { PageHeader } from '../_components/page-header';
+import { ActionLink, EmptyState, PageShell, SectionHeading, SignedYen } from '../_components/ui';
+import uiStyles from '../_components/ui.module.css';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -111,30 +106,38 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           </ActionLink>
         }
       />
-      <section className="balance-summary" aria-labelledby="balance-summary-title">
+      <section className={balanceStyles['balance-summary']} aria-labelledby="balance-summary-title">
         <SectionHeading id="balance-summary-title" title="残高の集計" />
-        <dl className="balance-summary-list">
-          <div className="balance-summary-item">
-            <dt className="balance-summary-label">資産</dt>
-            <dd className="balance-summary-value">
+        <dl className={balanceStyles['balance-summary-list']}>
+          <div className={balanceStyles['balance-summary-item']}>
+            <dt className={balanceStyles['balance-summary-label']}>資産</dt>
+            <dd className={balanceStyles['balance-summary-value']}>
               <SignedYen value={summary.assets} tone="positive" />
             </dd>
           </div>
-          <div className="balance-summary-item">
-            <dt className="balance-summary-label">負債</dt>
-            <dd className="balance-summary-value">
+          <div className={balanceStyles['balance-summary-item']}>
+            <dt className={balanceStyles['balance-summary-label']}>負債</dt>
+            <dd className={balanceStyles['balance-summary-value']}>
               <SignedYen value={summary.liabilities} tone="negative" />
             </dd>
           </div>
-          <div className="balance-summary-item">
-            <dt className="balance-summary-label">純資産</dt>
-            <dd className="balance-summary-value balance-summary-net">
+          <div className={balanceStyles['balance-summary-item']}>
+            <dt className={balanceStyles['balance-summary-label']}>純資産</dt>
+            <dd
+              className={[
+                balanceStyles['balance-summary-value'],
+                balanceStyles['balance-summary-net'],
+              ].join(' ')}
+            >
               <SignedYen value={summary.net} />
             </dd>
           </div>
         </dl>
       </section>
-      <section className="section balances-list-section" aria-label="残高一覧">
+      <section
+        className={[uiStyles.section, balanceStyles['balances-list-section']].join(' ')}
+        aria-label="残高一覧"
+      >
         {balances.length === 0 ? (
           <EmptyState
             title="表示する資産がありません"
@@ -147,50 +150,73 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
             size="section"
           />
         ) : (
-          <BalanceAmountProvider>
-            <div className="balance-groups">
-              {Array.from(groups.values()).map((group) => {
-                const headingId = `balance-group-heading-${group.id}`;
-                const hasMetrics = group.systemKey === 'bank' || group.systemKey === 'credit_card';
-                const columns: readonly string[] =
-                  group.systemKey === 'bank'
-                    ? ['支払予定', '残高']
-                    : group.systemKey === 'credit_card'
-                      ? ['決済予定', '未決済']
-                      : ['残高'];
-                return (
-                  <section className="balance-group" key={group.id} aria-labelledby={headingId}>
+          <div className={balanceStyles['balance-groups']}>
+            {Array.from(groups.values()).map((group) => {
+              const headingId = `balance-group-heading-${group.id}`;
+              const hasMetrics = group.systemKey === 'bank' || group.systemKey === 'credit_card';
+              const columns: readonly string[] =
+                group.systemKey === 'bank'
+                  ? ['支払予定', '残高']
+                  : group.systemKey === 'credit_card'
+                    ? ['決済予定', '未決済']
+                    : ['残高'];
+              return (
+                <section
+                  data-slot="balance-group"
+                  className={balanceStyles['balance-group']}
+                  key={group.id}
+                  aria-labelledby={headingId}
+                >
+                  <div
+                    data-slot="balance-group-heading"
+                    className={[
+                      balanceStyles['balance-group-heading'],
+                      hasMetrics && balanceStyles['balance-group-heading-with-metrics'],
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <h3 id={headingId}>{group.name}</h3>
                     <div
-                      className={`balance-group-heading${hasMetrics ? ' balance-group-heading-with-metrics' : ''}`}
+                      data-slot="balance-group-heading-columns"
+                      className={[
+                        balanceStyles['balance-group-heading-columns'],
+                        hasMetrics && balanceStyles['balance-group-heading-columns-with-metrics'],
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
-                      <h3 id={headingId}>{group.name}</h3>
-                      <div
-                        className={`balance-group-heading-columns${hasMetrics ? ' balance-group-heading-columns-with-metrics' : ''}`}
-                      >
-                        {columns.map((column) => (
-                          <span className="balance-group-heading-label" key={column}>
-                            {column}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <ul className="balance-list" aria-labelledby={headingId}>
-                      {group.accounts.map((account) => (
-                        <AccountBalanceRow
-                          key={account.accountId}
-                          accountName={account.accountName}
-                          balance={account.balance}
-                          kind={account.kind}
-                          transactionsHref={`/transactions?account=${account.accountId}&month=all`}
-                          paymentSchedule={paymentScheduleFor(account)}
-                        />
+                      {columns.map((column) => (
+                        <span
+                          data-slot="balance-group-heading-label"
+                          className={balanceStyles['balance-group-heading-label']}
+                          key={column}
+                        >
+                          {column}
+                        </span>
                       ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-          </BalanceAmountProvider>
+                    </div>
+                  </div>
+                  <ul
+                    data-slot="balance-list"
+                    className={balanceStyles['balance-list']}
+                    aria-labelledby={headingId}
+                  >
+                    {group.accounts.map((account) => (
+                      <AccountBalanceRow
+                        key={account.accountId}
+                        accountName={account.accountName}
+                        balance={account.balance}
+                        kind={account.kind}
+                        transactionsHref={`/transactions?account=${account.accountId}&month=all`}
+                        paymentSchedule={paymentScheduleFor(account)}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
         )}
       </section>
     </PageShell>

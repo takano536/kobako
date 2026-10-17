@@ -1,0 +1,324 @@
+/* Balance summary and account rows. */
+.balances-list-section {
+  margin-top: calc(var(--space-section) - 0.1875rem);
+}
+
+.balance-summary {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+}
+
+.balance-summary-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--rule);
+}
+
+.balance-summary-item {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-within);
+  justify-items: end;
+  padding-block: var(--space-group);
+  padding-inline: var(--space-group);
+  text-align: right;
+}
+
+.balance-summary-item + .balance-summary-item {
+  border-inline-start: 1px solid var(--rule);
+}
+
+.balance-summary-item:last-child {
+  padding-inline-end: 0;
+}
+
+.balance-summary-label {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+}
+
+.balance-summary-value {
+  min-width: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1.3125rem;
+  white-space: nowrap;
+}
+
+.balance-summary-value > span {
+  display: inline-block;
+  line-height: inherit;
+}
+
+.balance-summary-net {
+  font-weight: 500;
+  line-height: 1.3125rem;
+}
+
+.balance-group {
+  --balance-amount-column: minmax(0, 12rem);
+  --balance-metrics-width: calc(24rem + var(--space-group));
+}
+
+.balance-list {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.balance-row,
+.balance-group-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-group);
+  min-width: 0;
+}
+
+.balance-row-with-metrics,
+.balance-group-heading-with-metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--balance-metrics-width));
+}
+
+.balance-group-heading {
+  align-items: center;
+  min-height: 0;
+  padding-block: var(--space-item);
+}
+
+.balance-row {
+  min-height: 2.75rem;
+}
+
+.balance-group-heading-columns,
+.balance-row-metrics {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+}
+
+.balance-group-heading-columns {
+  grid-template-columns: auto;
+  justify-items: stretch;
+}
+
+.balance-group-heading-columns-with-metrics,
+.balance-row-metrics {
+  grid-template-columns: repeat(2, var(--balance-amount-column));
+  gap: var(--space-group);
+}
+
+.balance-group-heading-label {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.25;
+  overflow-wrap: normal;
+  text-align: right;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.balance-metric {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.balance-metric > .balance-amount {
+  flex: 1 1 auto;
+}
+
+.balance-metric-unknown {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  white-space: nowrap;
+}
+
+.balance-account-link {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: inherit;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-block: var(--space-item);
+  border-bottom: 1px solid var(--rule);
+  color: inherit;
+  text-decoration: none;
+}
+
+.balance-account-link:hover .balance-account-name {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.1875rem;
+}
+
+.balance-account-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: var(--leading-body);
+}
+
+.balance-amount {
+  min-width: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.balance-amount-content {
+  display: inline;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.balance-groups {
+  display: grid;
+  gap: calc(var(--space-section) - 0.1875rem);
+  margin-top: calc(var(--space-section) - 0.1875rem);
+}
+
+.balance-group h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+@media (max-width: 44rem) {
+  .balance-group {
+    --balance-metrics-width: 60%;
+  }
+
+  .balance-row,
+  .balance-group-heading {
+    column-gap: var(--space-item);
+  }
+
+  .balance-group-heading-columns-with-metrics,
+  .balance-row-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-item);
+  }
+}
+
+@media (max-width: 30rem) {
+  .balance-summary > [data-slot='section-heading'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    border: 0;
+    white-space: nowrap;
+  }
+
+  .balance-summary-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-group);
+    border-block: 0;
+    padding-inline: 0;
+  }
+
+  .balance-summary-item {
+    position: static;
+    display: grid;
+    flex: 1 1 0;
+    min-width: max-content;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    justify-items: start;
+    gap: var(--space-within);
+    padding-block: var(--space-item);
+    padding-inline: 0;
+    text-align: left;
+  }
+
+  .balance-summary-item + .balance-summary-item {
+    border-inline-start: 0;
+    border-block-start: 0;
+  }
+
+  .balance-summary-item + .balance-summary-item::before {
+    display: none;
+  }
+
+  .balance-summary-label {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .balance-summary-value {
+    align-self: end;
+    justify-self: start;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    color: var(--ink);
+    font-size: var(--text-body);
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: 1.125rem;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .balance-summary-item:has(.balance-summary-net) .balance-summary-label {
+    color: var(--ink);
+  }
+
+  .balance-summary-net {
+    font-size: var(--text-heading);
+    font-weight: 500;
+    line-height: 1.125rem;
+  }
+
+  .balances-list-section {
+    margin-top: calc(var(--space-section) + var(--space-item) - 0.1875rem);
+  }
+
+  .balance-row {
+    gap: var(--space-item);
+  }
+
+  .balance-group-heading-columns-with-metrics,
+  .balance-row-metrics {
+    gap: var(--space-within);
+  }
+
+  .balance-amount-content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .balance-group-heading-label {
+    font-size: 0.68rem;
+  }
+}

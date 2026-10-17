@@ -1,0 +1,342 @@
+/* Transaction and transfer row treatments. */
+.transaction-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transaction-list-recent {
+  /* The overview omits the edit affordance while retaining the same row parts. */
+}
+
+.recent-row {
+  min-width: 0;
+}
+
+.recent-row + .recent-row {
+  margin-top: calc(var(--space-group) + var(--space-within));
+}
+
+.recent-date {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+}
+
+.transaction-link {
+  color: inherit;
+  text-decoration: none;
+}
+.transaction-category-cell {
+  display: grid;
+  grid-column: 1 / 3;
+  grid-row: 1;
+  grid-template-columns: 0.375rem minmax(0, 1fr);
+  column-gap: var(--space-dot-text);
+  align-self: center;
+  min-width: 0;
+}
+
+.transaction-category-cell > [data-slot='category-dot'] {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  margin-top: 0;
+}
+
+.transaction-category-cell > .transaction-category {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.transaction-link-ordinary,
+.transaction-category,
+.transaction-main-transfer,
+.transfer-category,
+.transfer-account,
+.transfer-destination,
+.transfer-arrow,
+.record-amount,
+.row-affordance {
+  min-width: 0;
+}
+
+.transaction-groups {
+  margin-top: var(--space-section);
+}
+
+.transaction-row {
+  min-width: 0;
+}
+
+.transaction-group-heading {
+  min-height: 1.5625rem;
+  margin-top: 0;
+  padding-top: var(--space-within);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.transaction-row + .transaction-row .transaction-group-heading {
+  margin-top: var(--space-group);
+}
+
+.transaction-list .transaction-link {
+  display: grid;
+  grid-template-columns:
+    0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
+    0.8125rem;
+  align-items: center;
+  column-gap: var(--space-item);
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: var(--space-within) 0;
+  text-decoration: none;
+}
+
+.transaction-list-recent .transaction-link {
+  grid-template-columns: 0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.transaction-list .transaction-link-ordinary {
+  grid-template-columns:
+    0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
+    0.8125rem;
+}
+
+.transaction-list-recent .transaction-link-ordinary {
+  grid-template-columns: 0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.transaction-list .transaction-link > [data-slot='category-dot'] {
+  align-self: center;
+  margin-top: 0;
+}
+
+.transaction-list .transaction-link > .record-amount,
+.transaction-list .transaction-link > .row-affordance {
+  align-self: center;
+}
+
+.transaction-main {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--space-within);
+  font-size: var(--text-body);
+}
+
+.transaction-list .transaction-category {
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-list .transaction-category:not(.transfer-type) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.transaction-asset-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  white-space: normal;
+}
+
+.transaction-list .transfer-type {
+  color: var(--muted);
+}
+
+.transaction-list .transfer-category {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-within);
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  white-space: normal;
+}
+
+.transaction-list .transfer-account {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  white-space: normal;
+}
+
+.transaction-list .transfer-destination {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  align-items: baseline;
+  gap: var(--space-within);
+}
+
+.transaction-list .transfer-arrow {
+  flex: 0 0 auto;
+}
+
+.transfer-dot {
+  display: block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.transaction-memo {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-main:not(.transaction-main-transfer) .transaction-memo {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.transaction-list .row-affordance {
+  color: var(--muted);
+  font-size: var(--text-body);
+  line-height: 1;
+  text-align: right;
+}
+
+.transaction-list .transaction-link-ordinary > .record-amount {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.record-amount {
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: normal;
+}
+
+.transaction-list .transaction-link {
+  margin-inline: 0;
+  padding-inline: 0;
+  border-radius: 0.25rem;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.transaction-list .transaction-link:hover,
+.transaction-list .transaction-link:focus-visible {
+  background: var(--surface);
+}
+
+.transaction-list .transaction-link:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 30rem) {
+  .transaction-list .transaction-link {
+    grid-template-columns:
+      0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
+      0.8125rem;
+    align-items: center;
+    column-gap: var(--space-item);
+    row-gap: 0;
+    padding-block: 0.375rem;
+  }
+  .transaction-list-recent .transaction-link,
+  .transaction-list-recent .transaction-link-ordinary {
+    grid-template-columns: 0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .transaction-category-cell {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transaction-category-cell > [data-slot='category-dot'] {
+    position: absolute;
+    top: calc(50% - 0.1875rem);
+    left: 0;
+  }
+
+  .transaction-category-cell > .transaction-category {
+    grid-column: 1;
+    padding-inline-start: calc(0.375rem + var(--space-dot-text));
+  }
+
+  .transaction-list .transaction-link > .row-affordance {
+    display: block;
+  }
+}
+@media (max-width: 20rem) {
+  /*
+   * Give a very narrow row a second line for its amount. The category and
+   * detail columns stay in their normal positions, while the amount gets the
+   * full remaining line and can wrap instead of clipping at large text sizes.
+   */
+  .transaction-list .transaction-link-ordinary {
+    grid-template-columns:
+      0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
+      0.8125rem;
+    grid-template-rows: auto auto;
+  }
+
+  .transaction-list-recent .transaction-link-ordinary {
+    grid-template-columns: 0.375rem minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(
+        0,
+        max-content
+      );
+  }
+
+  .transaction-list .transaction-link-ordinary > .record-amount {
+    grid-column: 2 / 5;
+    grid-row: 2;
+    justify-self: end;
+    white-space: normal;
+  }
+
+  .transaction-list .transaction-link-ordinary > .row-affordance {
+    grid-column: 5;
+    grid-row: 2;
+  }
+
+  .transaction-list-recent .transaction-link-ordinary > .record-amount {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transaction-list .transaction-link {
+    transition: none;
+    transform: none;
+  }
+}

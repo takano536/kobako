@@ -1,3 +1,4 @@
+import formsStyles from '../../../forms.module.css';
 import type { Metadata } from 'next';
 import {
   getActiveManagedAccount,
@@ -10,7 +11,9 @@ import { notFound } from 'next/navigation';
 import { validatedTransactionReturn } from '../../../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { parseInt4Id } from '../../../../src/lib/ids';
-import { PageHeader, PageShell } from '../../../_components/ui';
+import { Card } from '../../../_components/card';
+import { PageHeader } from '../../../_components/page-header';
+import { PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm } from '../../../transactions/transaction-form';
 import { AccountForm } from '../../account-form';
 import { deleteAccountAction, updateAccountAction } from '../../actions';
@@ -56,8 +59,8 @@ export default async function EditAccountPage({
         titleAriaLabel="資産設定"
         backLink={{ href: returnTo, label: '取引一覧へ戻る' }}
       />
-      <section className="form-surface" aria-label="資産設定">
-        <div className="edit-form-layout">
+      <Card as="section" aria-label="資産設定">
+        <div className={formsStyles['edit-form-layout']}>
           <AccountForm
             action={updateAccountAction.bind(null, idValue)}
             accounts={accounts}
@@ -86,7 +89,7 @@ export default async function EditAccountPage({
             cancelHref={`/accounts/${account.id}/edit?return=${encodeURIComponent(returnTo)}`}
           />
         </div>
-      </section>
+      </Card>
     </PageShell>
   );
 }
