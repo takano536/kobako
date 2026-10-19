@@ -1,6 +1,8 @@
+import settingsStyles from '../settings.module.css';
 import type { Metadata } from 'next';
 
-import { PageHeader, PageShell } from '../../_components/ui';
+import { PageHeader } from '../../_components/page-header';
+import { PageShell } from '../../_components/ui';
 import { DeleteAllForm } from '../delete-all-form';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +20,10 @@ export default function DeleteSettingsPage() {
         titleAriaLabel="すべてのデータを削除"
         backLink={{ href: '/settings', label: '設定へ戻る' }}
       />
-      <section className="delete-all-scope" aria-labelledby="delete-all-remove-title">
+      <section
+        className={settingsStyles['delete-all-scope']}
+        aria-labelledby="delete-all-remove-title"
+      >
         <h2 id="delete-all-remove-title">削除されるデータ</h2>
         <ul aria-labelledby="delete-all-remove-title">
           <li>取引・振替</li>
@@ -32,7 +37,9 @@ export default function DeleteSettingsPage() {
           <li>初期の支出・収入カテゴリ（再作成）</li>
         </ul>
       </section>
-      <p className="delete-all-warning">この操作は取り消せません。</p>
+      <p data-slot="delete-all-warning" className={settingsStyles['delete-all-warning']}>
+        この操作は取り消せません。
+      </p>
       <DeleteAllForm />
     </PageShell>
   );

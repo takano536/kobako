@@ -29,7 +29,7 @@ async function getRectangle(locator: Locator): Promise<Rectangle> {
 
 export async function assertDeleteAndSaveAligned(page: Page): Promise<void> {
   const saveButton = page.getByRole('button', { name: '変更を保存' });
-  const deleteTrigger = page.locator('.delete-confirm > summary');
+  const deleteTrigger = page.locator('[data-slot="delete-confirm"] > summary');
   const [saveRect, deleteRect] = await Promise.all([
     getRectangle(saveButton),
     getRectangle(deleteTrigger),
@@ -43,8 +43,8 @@ export async function assertDeleteModalGeometry(
   page: Page,
   viewport: ModalViewport,
 ): Promise<void> {
-  const panel = page.locator('.delete-confirmation');
-  const backdrop = page.locator('.delete-modal-backdrop');
+  const panel = page.locator('[data-slot="delete-confirmation"]');
+  const backdrop = page.locator('[data-slot="delete-modal-backdrop"]');
   const [panelRect, backdropRect, panelPosition, backdropPosition, backgroundColor] =
     await Promise.all([
       getRectangle(panel),
@@ -79,14 +79,18 @@ export async function assertDeleteModalInteraction(
   page: Page,
   viewport: ModalViewport,
 ): Promise<void> {
-  const deleteTrigger = page.locator('.delete-confirm > summary');
-  const panel = page.locator('.delete-confirmation');
+  const deleteTrigger = page.locator('[data-slot="delete-confirm"] > summary');
+  const panel = page.locator('[data-slot="delete-confirmation"]');
   const confirmButton = panel.getByRole('button', { name: '削除を確定' });
   const cancelLink = panel.getByRole('link', { name: 'キャンセル' });
-  const backdrop = page.locator('.delete-modal-backdrop');
+  const backdrop = page.locator('[data-slot="delete-modal-backdrop"]');
 
   await deleteTrigger.click();
   await expect(panel).toBeVisible();
+  await expect(panel.locator('h2')).toHaveCSS('font-size', '15px');
+  await expect(panel.locator('h2')).toHaveCSS('font-weight', '500');
+  await expect(panel.locator('h2')).toHaveCSS('line-height', '19.5px');
+  await expect(panel.locator('h2')).toHaveCSS('letter-spacing', '-0.3px');
   await expect(panel).toHaveAttribute('role', 'dialog');
   await expect(panel).toHaveAttribute('aria-modal', 'true');
   const labelledBy = await panel.getAttribute('aria-labelledby');

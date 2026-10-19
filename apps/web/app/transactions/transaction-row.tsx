@@ -1,6 +1,7 @@
-import Link from 'next/link';
-
 import type { ListedTransaction } from '@kobako/db';
+import Link from 'next/link';
+import transactionStyles from './transaction-row.module.css';
+import uiStyles from '../_components/ui.module.css';
 
 import { CategoryDot } from '../../src/lib/category';
 import {
@@ -10,6 +11,12 @@ import {
   transactionAmountTone,
 } from '../../src/lib/format';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
+
+const moneyToneStyles: Record<string, string> = {
+  'money-amount money-neutral': uiStyles['money-neutral'] ?? '',
+  'money-amount money-positive': uiStyles['money-positive'] ?? '',
+  'money-amount money-negative': uiStyles['money-negative'] ?? '',
+};
 
 function transactionEditHref(
   transactionId: number,
@@ -55,66 +62,126 @@ export function TransactionRow({
   const assetName = transaction.accountName;
   const amountTone = transactionAmountTone(transaction.type, transaction.amount);
   const amount = formatTransactionAmount(transaction.type, transaction.amount);
+  const amountClassName = [
+    transactionStyles['record-amount'],
+    moneyToneStyles[moneyToneClass(amountTone)],
+  ].join(' ');
+
   if (showDate) {
     return (
-      <li className="recent-row">
-        <time className="recent-date" dateTime={transaction.occurredOn}>
+      <li data-slot="transaction-row" className={transactionStyles['recent-row']}>
+        <time
+          data-slot="transaction-date"
+          className={transactionStyles['recent-date']}
+          dateTime={transaction.occurredOn}
+        >
           {formatJapaneseDate(transaction.occurredOn)}
         </time>
         <Link
-          className="transaction-link transaction-link-ordinary"
+          className={[
+            transactionStyles['transaction-link'],
+            transactionStyles['transaction-link-ordinary'],
+          ].join(' ')}
+          data-slot="transaction-link"
           href={editHref}
           aria-label={label}
+          scroll={false}
         >
-          <CategoryDot type={transaction.type} name={transaction.categoryName} />
-          <span className="transaction-category" title={transaction.categoryName}>
-            {transaction.categoryName}
+          <span className={transactionStyles['transaction-category-cell']}>
+            <CategoryDot type={transaction.type} name={transaction.categoryName} />
+            <span
+              data-slot="transaction-category"
+              className={transactionStyles['transaction-category']}
+              title={transaction.categoryName}
+            >
+              {transaction.categoryName}
+            </span>
           </span>
-          <span className="transaction-main">
+          <span data-slot="transaction-main" className={transactionStyles['transaction-main']}>
             {assetName ? (
-              <span className="transaction-asset-name" title={assetName}>
+              <span
+                data-slot="transaction-asset-name"
+                className={transactionStyles['transaction-asset-name']}
+                title={assetName}
+              >
                 {assetName}
               </span>
             ) : null}
             {showMemo && transaction.memo ? (
-              <span className="transaction-memo" title={transaction.memo}>
+              <span
+                data-slot="transaction-memo"
+                className={transactionStyles['transaction-memo']}
+                title={transaction.memo}
+              >
                 {transaction.memo}
               </span>
             ) : null}
           </span>
-          <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
+          <span className={amountClassName} data-slot="record-amount">
+            {amount}
+          </span>
         </Link>
       </li>
     );
   }
 
   return (
-    <li className="transaction-row">
-      {dateHeading ? <h3 className="transaction-group-heading">{dateHeading}</h3> : null}
+    <li data-slot="transaction-row" className={transactionStyles['transaction-row']}>
+      {dateHeading ? (
+        <h3
+          data-slot="transaction-group-heading"
+          className={transactionStyles['transaction-group-heading']}
+        >
+          {dateHeading}
+        </h3>
+      ) : null}
       <Link
-        className="transaction-link transaction-link-ordinary"
+        className={[
+          transactionStyles['transaction-link'],
+          transactionStyles['transaction-link-ordinary'],
+        ].join(' ')}
+        data-slot="transaction-link"
         href={editHref}
         prefetch={false}
+        scroll={false}
         aria-label={label}
       >
         <CategoryDot type={transaction.type} name={transaction.categoryName} />
-        <span className="transaction-category" title={transaction.categoryName}>
+        <span
+          data-slot="transaction-category"
+          className={transactionStyles['transaction-category']}
+          title={transaction.categoryName}
+        >
           {transaction.categoryName}
         </span>
-        <span className="transaction-main">
+        <span data-slot="transaction-main" className={transactionStyles['transaction-main']}>
           {assetName ? (
-            <span className="transaction-asset-name" title={assetName}>
+            <span
+              data-slot="transaction-asset-name"
+              className={transactionStyles['transaction-asset-name']}
+              title={assetName}
+            >
               {assetName}
             </span>
           ) : null}
           {showMemo && transaction.memo ? (
-            <span className="transaction-memo" title={transaction.memo}>
+            <span
+              data-slot="transaction-memo"
+              className={transactionStyles['transaction-memo']}
+              title={transaction.memo}
+            >
               {transaction.memo}
             </span>
           ) : null}
         </span>
-        <span className={`record-amount ${moneyToneClass(amountTone)}`}>{amount}</span>
-        <span className="row-affordance" aria-hidden="true">
+        <span className={amountClassName} data-slot="record-amount">
+          {amount}
+        </span>
+        <span
+          data-slot="row-affordance"
+          className={transactionStyles['row-affordance']}
+          aria-hidden="true"
+        >
           ›
         </span>
       </Link>

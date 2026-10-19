@@ -1,14 +1,18 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import layoutStyles from './layout.module.css';
+import monthStyles from './month-switcher.module.css';
+import uiStyles from './ui.module.css';
+import { Amount } from './amount';
+import { Button, LinkButton } from './button';
+import { PageTransition } from './page-transition';
 
+function joinClasses(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(' ');
+}
+
+import { formatYen, moneyTone, type MoneyTone, monthLabel } from '../../src/lib/format';
 import { EmptyLedgerMotif } from '../../src/lib/category';
-import {
-  formatYen,
-  moneyTone,
-  moneyToneClass,
-  type MoneyTone,
-  monthLabel,
-} from '../../src/lib/format';
 import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
 import { MonthPickerField } from '../transactions/date-picker-field';
 
@@ -19,24 +23,13 @@ interface ActionLinkProps {
   children: ReactNode;
   variant?: ActionLinkVariant;
   icon?: ReactNode;
+  scroll?: boolean;
 }
-
-interface PageHeaderBackLink {
-  href: string;
-  label: string;
-}
-
-export function ActionLink({ href, children, variant = 'quiet', icon }: ActionLinkProps) {
-  const classes = `action-link action-link-${variant}`;
+export function ActionLink({ href, children, variant = 'quiet', icon, scroll }: ActionLinkProps) {
   return (
-    <Link className={classes} href={href}>
-      {icon ? (
-        <span className="action-link-icon" aria-hidden="true">
-          {icon}
-        </span>
-      ) : null}
-      <span>{children}</span>
-    </Link>
+    <LinkButton href={href} variant={variant} icon={icon} scroll={scroll}>
+      {children}
+    </LinkButton>
   );
 }
 
@@ -46,12 +39,17 @@ export function SignedYen({ value, tone }: { value: string | number; tone?: Mone
   const resolvedTone = tone === 'neutral' ? 'neutral' : moneyTone(value, tone);
   const negative = source.startsWith('-');
   const absoluteValue = negative ? source.slice(1) : source;
+  const toneClass = {
+    neutral: uiStyles['money-amount'],
+    positive: joinClasses(uiStyles['money-amount'], uiStyles['money-positive']),
+    negative: joinClasses(uiStyles['money-amount'], uiStyles['money-negative']),
+  }[resolvedTone];
   return (
-    <span className={moneyToneClass(resolvedTone)}>
+    <Amount className={toneClass}>
       {negative ? <span className="sr-only">マイナス</span> : null}
       <span aria-hidden="true">{negative ? '−' : ''}</span>
       {formatYen(absoluteValue)}
-    </span>
+    </Amount>
   );
 }
 
@@ -64,17 +62,12 @@ export function SettingsIcon() {
   );
 }
 
-export function RegisterTransactionAction({
-  month,
-  variant = 'primary',
-}: {
-  month: string;
-  variant?: 'primary' | 'quiet';
-}) {
+export function RegisterTransactionAction({ month }: { month: string }) {
   return (
     <ActionLink
       href={`/transactions/new?month=${encodeURIComponent(month)}`}
-      variant={variant}
+      variant="primary"
+      scroll={false}
       icon="＋"
     >
       取引を登録
@@ -86,60 +79,28 @@ export function PageShell({
   children,
   width = 'wide',
   className,
+  transition = false,
 }: {
   children: ReactNode;
   width?: 'wide' | 'narrow' | 'import';
   className?: string;
+  transition?: boolean;
 }) {
-  const classes = ['content-stack', 'page-shell', `page-shell-${width}`, className]
-    .filter(Boolean)
-    .join(' ');
-  return <div className={classes}>{children}</div>;
-}
-
-export function PageHeader({
-  title,
-  titleAriaLabel,
-  count,
-  backLink,
-  actions,
-  className,
-}: {
-  title: ReactNode;
-  titleAriaLabel?: string;
-  count?: string;
-  backLink?: PageHeaderBackLink;
-  actions?: ReactNode;
-  className?: string;
-}) {
-  const classes = ['page-header', className].filter(Boolean).join(' ');
+  const classes = joinClasses(
+    layoutStyles['content-stack'],
+    layoutStyles[`page-shell-${width}`],
+    className,
+  );
   return (
-    <header className={classes}>
-      <h1 aria-label={titleAriaLabel}>
-        {backLink ? (
-          <Link
-            className="page-header-title-link"
-            href={backLink.href}
-            aria-label={titleAriaLabel ? `${titleAriaLabel} — ${backLink.label}` : undefined}
-          >
-            <svg
-              className="page-header-back-chevron"
-              viewBox="0 0 12 12"
-              focusable="false"
-              aria-hidden="true"
-            >
-              <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
-            </svg>
-            <span className="heading-title">{title}</span>
-            <span className="sr-only"> — {backLink.label}</span>
-          </Link>
-        ) : (
-          <span className="heading-title">{title}</span>
-        )}
-        {count ? <span className="heading-count">{count}</span> : null}
-      </h1>
-      {actions ? <div className="page-header-actions">{actions}</div> : null}
-    </header>
+    <div data-slot="page-shell" className={classes}>
+      {transition ? (
+        <PageTransition className={layoutStyles['page-transition-content']}>
+          {children}
+        </PageTransition>
+      ) : (
+        children
+      )}
+    </div>
   );
 }
 
@@ -152,11 +113,11 @@ export function SectionHeading({
   title: string;
   action?: ReactNode;
 }) {
-  const classes = 'section-heading';
+  const classes = uiStyles['section-heading'];
   return (
-    <div className={classes}>
+    <div data-slot="section-heading" className={classes}>
       <h2 id={id}>{title}</h2>
-      {action ? <div className="section-heading-action">{action}</div> : null}
+      {action ? <div className={uiStyles['section-heading-action']}>{action}</div> : null}
     </div>
   );
 }
@@ -171,21 +132,23 @@ export function MonthSwitcher({
   nextHref?: string;
 }) {
   return (
-    <nav className="month-switcher" aria-label="月を移動">
+    <nav data-slot="month-switcher" className={monthStyles.switcher} aria-label="月を移動">
       {previousHref ? (
-        <Link className="month-switcher-control" href={previousHref} aria-label="前月">
+        <Link className={monthStyles.control} href={previousHref} aria-label="前月" scroll={false}>
           <span aria-hidden="true">‹</span>
         </Link>
       ) : (
-        <span className="month-switcher-control" aria-hidden="true" />
+        <span className={monthStyles.control} aria-hidden="true" />
       )}
-      <span className="month-switcher-label">{monthLabel(month)}</span>
+      <span data-slot="month-switcher-label" className={monthStyles.label}>
+        {monthLabel(month)}
+      </span>
       {nextHref ? (
-        <Link className="month-switcher-control" href={nextHref} aria-label="翌月">
+        <Link className={monthStyles.control} href={nextHref} aria-label="翌月" scroll={false}>
           <span aria-hidden="true">›</span>
         </Link>
       ) : (
-        <span className="month-switcher-control" aria-hidden="true" />
+        <span className={monthStyles.control} aria-hidden="true" />
       )}
     </nav>
   );
@@ -206,11 +169,22 @@ export function EmptyState({
 }) {
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
   return (
-    <div className={`empty-state empty-state-${size}`}>
+    <div
+      className={joinClasses(
+        uiStyles['empty-state'],
+        size === 'section' && uiStyles['empty-state-section'],
+      )}
+    >
       <EmptyLedgerMotif />
-      <Heading>{title}</Heading>
-      <p className="empty-state-description">{description}</p>
-      {action ? <div className="empty-state-action">{action}</div> : null}
+      <Heading data-slot="empty-state-title">{title}</Heading>
+      <p data-slot="empty-state-description" className={uiStyles['empty-state-description']}>
+        {description}
+      </p>
+      {action ? (
+        <div data-slot="empty-state-action" className={uiStyles['empty-state-action']}>
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -253,20 +227,24 @@ export function FilterBar({
   const hasAdditionalFilter = Boolean(type || categoryId);
   return (
     <section
-      className="filter-bar"
+      className={uiStyles['filter-bar']}
       aria-label="取引の絞り込み"
       aria-labelledby={summary ? 'filter-title' : undefined}
     >
-      <details className="filter-details">
+      <details data-slot="filter-details" className={uiStyles['filter-details']}>
         <summary>
-          <span className="filter-summary-action">条件を変更する</span>
+          <span className={uiStyles['filter-summary-action']}>条件を変更する</span>
           {summary ? (
-            <span className="filter-summary" id="filter-title">
+            <span
+              data-slot="filter-summary"
+              className={uiStyles['filter-summary']}
+              id="filter-title"
+            >
               {summary}
             </span>
           ) : null}
         </summary>
-        <form className="filter-form" method="get">
+        <form data-slot="filter-form" className={uiStyles['filter-form']} method="get">
           <label id="filter-month-label" htmlFor="filter-month">
             月
             {accountId !== undefined ? (
@@ -326,9 +304,7 @@ export function FilterBar({
               </select>
             </label>
           ) : null}
-          <button className="button button-primary" type="submit">
-            適用
-          </button>
+          <Button type="submit">適用</Button>
         </form>
       </details>
       {showClearAction && hasAdditionalFilter ? (

@@ -1,3 +1,7 @@
+import monthStyles from '../_components/month-switcher.module.css';
+import pageStyles from './transactions.module.css';
+import transactionStyles from './transaction-row.module.css';
+import uiStyles from '../_components/ui.module.css';
 import {
   MAX_SUPPORTED_YEAR,
   MIN_SUPPORTED_YEAR,
@@ -18,12 +22,12 @@ import {
   formatJapaneseDateWithYear,
   groupTransactionsByDate,
 } from '../../src/lib/format';
+import { PageHeader } from '../_components/page-header';
 import {
   ActionLink,
   EmptyState,
   FilterBar,
   MonthSwitcher,
-  PageHeader,
   PageShell,
   RegisterTransactionAction,
 } from '../_components/ui';
@@ -120,7 +124,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   );
 
   return (
-    <PageShell>
+    <PageShell transition className={pageStyles['transactions-page']}>
       <PageHeader
         title="取引"
         count={`${rows.length}件`}
@@ -129,17 +133,21 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         }
       />
       {saved ? (
-        <p className="form-message" role="status">
+        <p className={pageStyles['form-message']} role="status">
           保存しました
         </p>
       ) : null}
       {account ? (
-        <section className="asset-transaction-header" aria-labelledby="asset-filter-title">
-          <div className="asset-transaction-heading">
+        <section
+          className={pageStyles['asset-transaction-header']}
+          aria-labelledby="asset-filter-title"
+        >
+          <div className={pageStyles['asset-transaction-heading']}>
             {account.deletedAt === null ? (
               <Link
-                className="asset-settings-link"
+                className={pageStyles['asset-settings-link']}
                 href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
+                scroll={false}
                 aria-label="資産を編集"
                 title="資産を編集"
               >
@@ -147,7 +155,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
               </Link>
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
-            <span className="asset-transaction-category">{account.assetCategoryName}</span>
+            <span className={pageStyles['asset-transaction-category']}>
+              {account.assetCategoryName}
+            </span>
           </div>
           <ActionLink href={clearAssetFilterHref} variant="quiet">
             資産の絞り込みを解除
@@ -155,8 +165,11 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         </section>
       ) : null}
       {month === 'all' ? (
-        <div className="month-switcher month-switcher-all" aria-label="表示期間">
-          <span className="month-switcher-label">全期間</span>
+        <div
+          className={[monthStyles.switcher, pageStyles['month-switcher-all']].join(' ')}
+          aria-label="表示期間"
+        >
+          <span className={monthStyles.label}>全期間</span>
           <ActionLink
             href={listHref(currentTokyoMonth(), type, categoryId, accountId)}
             variant="quiet"
@@ -190,7 +203,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         showClearAction={rows.length > 0}
       />
 
-      <section className="transaction-groups" aria-label="取引一覧">
+      <section className={transactionStyles['transaction-groups']} aria-label="取引一覧">
         {rows.length === 0 ? (
           <EmptyState
             size="page"
@@ -198,13 +211,21 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             description={
               hasFilter ? (
                 <>
-                  <span className="phrase-wrap">条件を変えるか、</span>
-                  <span className="phrase-wrap">条件をクリアしてください。</span>
+                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                    条件を変えるか、
+                  </span>
+                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                    条件をクリアしてください。
+                  </span>
                 </>
               ) : (
                 <>
-                  <span className="phrase-wrap">最初の取引を記録すると、</span>
-                  <span className="phrase-wrap">ここに並びます。</span>
+                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                    最初の取引を記録すると、
+                  </span>
+                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                    ここに並びます。
+                  </span>
                 </>
               )
             }
@@ -214,15 +235,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   条件をクリアする
                 </ActionLink>
               ) : (
-                <RegisterTransactionAction
-                  month={month === 'all' ? currentTokyoMonth() : month}
-                  variant="quiet"
-                />
+                <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
               )
             }
           />
         ) : (
-          <ul className="transaction-list transaction-list-full" aria-label="取引">
+          <ul className={transactionStyles['transaction-list']} aria-label="取引">
             {groupedRows.flatMap((group) =>
               group.transactions.map((transaction, index) =>
                 transaction.type === 'transfer' ? (

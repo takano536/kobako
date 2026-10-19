@@ -1,0 +1,21 @@
+.field {
+  min-width: 0;
+}
+
+.input,
+.select {
+  width: 100%;
+  min-height: 2.375rem;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

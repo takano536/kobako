@@ -1,15 +1,22 @@
 'use client';
+
+import formsStyles from '../forms.module.css';
+import primitiveStyles from '../_components/button.module.css';
 import {
   useActionState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
   type MouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useFormStatus } from 'react-dom';
+
+import { useRouter } from 'next/navigation';
 
 import {
   AMOUNT_FORMAT_MESSAGE,
@@ -33,6 +40,7 @@ import {
   type TransactionFormType,
   type TransactionFormValues,
 } from '../../src/lib/transaction-form';
+import { Button } from '../_components/button';
 import { DatePickerField } from './date-picker-field';
 import { deleteTransactionAction } from './actions';
 
@@ -58,6 +66,7 @@ export interface TransactionFormProps {
   accounts: AccountOption[];
   initialValues: TransactionFormValues;
   submitLabel: string;
+  showCancel?: boolean;
 }
 
 const FIELD_ORDER: Array<keyof TransactionFormValues> = [
@@ -77,7 +86,12 @@ function errorMessages(errors: TransactionFieldErrors | undefined): string[] {
 
 function FieldError({ id, message }: { id: string; message: string }) {
   return (
-    <span className="field-error sr-only" id={id} role="alert" aria-live="polite">
+    <span
+      className={[formsStyles['field-error'], 'sr-only'].join(' ')}
+      id={id}
+      role="alert"
+      aria-live="polite"
+    >
       {message}
     </span>
   );
@@ -102,7 +116,7 @@ function FormErrorDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="form-error-dialog"
+      className={formsStyles['form-error-dialog']}
       open={open}
       aria-labelledby={`${dialogId}-title`}
       onClose={onClose}
@@ -114,9 +128,9 @@ function FormErrorDialog({
         ))}
       </ul>
       <form method="dialog">
-        <button className="button button-primary" type="submit">
+        <Button variant="primary" type="submit">
           閉じる
-        </button>
+        </Button>
       </form>
     </dialog>
   );
@@ -126,14 +140,15 @@ function SubmitButton({ label, disabled = false }: { label: string; disabled?: b
   const { pending } = useFormStatus();
   return (
     <>
-      <button
-        className="button button-primary save-button"
+      <Button
+        variant="primary"
+        className={formsStyles['save-button']}
         type="submit"
         disabled={pending || disabled}
         aria-busy={pending}
       >
         {pending ? '保存中…' : label}
-      </button>
+      </Button>
       <span className="sr-only" aria-live="polite">
         {pending ? '保存中…' : ''}
       </span>
@@ -182,7 +197,9 @@ export function TransactionForm({
   accounts,
   initialValues,
   submitLabel,
+  showCancel = false,
 }: TransactionFormProps) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(action, emptyTransactionFormState);
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -238,6 +255,12 @@ export function TransactionForm({
   useEffect(() => {
     setHasHydrated(true);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!hasHydrated) return;
+    const overlay = formRef.current?.closest('[data-card-pattern="overlay-card"]');
+    overlay?.querySelector<HTMLElement>('#transaction-amount')?.focus();
+  }, [hasHydrated]);
 
   function focusFirstInvalidField(): void {
     const firstInvalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
@@ -399,22 +422,30 @@ export function TransactionForm({
       />
       <form
         ref={formRef}
-        className="ledger-form"
+        className={formsStyles['ledger-form']}
         action={formAction}
         onSubmit={handleSubmit}
         noValidate
         aria-busy={pending}
       >
         <fieldset
-          className={`type-field${typeError ? ' has-error' : ''}`}
+          className={[formsStyles['type-field'], typeError && formsStyles['has-error']]
+            .filter(Boolean)
+            .join(' ')}
           aria-invalid={typeError ? true : undefined}
           aria-describedby={typeError ? 'transaction-type-error' : undefined}
         >
           <legend>種別</legend>
-          <div className="type-options">
+          <div className={formsStyles['type-options']}>
             {(['expense', 'income', 'transfer'] as const).map((type) => (
               <label
-                className={selectedType === type ? 'type-choice selected' : 'type-choice'}
+                data-slot="type-choice"
+                className={[
+                  formsStyles['type-choice'],
+                  selectedType === type ? formsStyles.selected : undefined,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 key={type}
               >
                 <input
@@ -434,11 +465,25 @@ export function TransactionForm({
           </div>
         </fieldset>
 
-        <div className={`field amount-field${amountInvalid ? ' has-error' : ''}`}>
+        <div
+          data-slot="amount-field"
+          className={[
+            formsStyles.field,
+            formsStyles['amount-field'],
+            amountInvalid && formsStyles['has-error'],
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <label htmlFor="transaction-amount">金額</label>
-          <div className="amount-line">
+          <div className={formsStyles['amount-line']}>
             <span aria-hidden="true">¥</span>
-            <div className={`field-value${amountInvalid ? ' has-error' : ''}`}>
+            <div
+              data-slot="amount-field-value"
+              className={[formsStyles['field-value'], amountInvalid && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <input
                 id="transaction-amount"
                 name="amount"
@@ -455,7 +500,9 @@ export function TransactionForm({
               {amountInputError ? (
                 <span
                   key={amountInputErrorKey}
-                  className="field-error amount-input-error"
+                  className={[formsStyles['field-error'], formsStyles['amount-input-error']].join(
+                    ' ',
+                  )}
                   id="transaction-amount-format-error"
                   role="alert"
                 >
@@ -469,20 +516,35 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div className="entry-detail-grid category-detail-grid">
+        <div
+          className={[formsStyles['entry-detail-grid'], formsStyles['category-detail-grid']].join(
+            ' ',
+          )}
+        >
           {(['expense', 'income'] as const).map((categoryType) => {
             const categoryErrorId = `transaction-category-${categoryType}-error`;
             return (
               <div
-                className={`field category-field category-field-${categoryType}${
-                  categoryError ? ' has-error' : ''
-                }`}
+                data-slot={`category-field-${categoryType}`}
+                className={[
+                  formsStyles.field,
+                  formsStyles['category-field'],
+                  formsStyles[`category-field-${categoryType}`],
+                  categoryError && formsStyles['has-error'],
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 key={categoryType}
               >
                 <label htmlFor={`transaction-category-${categoryType}`}>カテゴリ</label>
-                <div className={`field-value${categoryError ? ' has-error' : ''}`}>
+                <div
+                  data-slot={`category-field-value-${categoryType}`}
+                  className={[formsStyles['field-value'], categoryError && formsStyles['has-error']]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
                   <select
-                    className="field-select"
+                    className={formsStyles['field-select']}
                     id={`transaction-category-${categoryType}`}
                     name="categoryId"
                     value={formValues.categoryId}
@@ -511,13 +573,30 @@ export function TransactionForm({
 
         <div
           id="transaction-transfer-accounts"
-          className="entry-detail-grid account-detail-grid transfer-account-detail-grid"
+          data-slot="transfer-account-detail"
+          className={[
+            formsStyles['entry-detail-grid'],
+            formsStyles['account-detail-grid'],
+            formsStyles['transfer-account-detail-grid'],
+          ].join(' ')}
         >
-          <div className={`field account-field${fromAccountError ? ' has-error' : ''}`}>
+          <div
+            className={[
+              formsStyles.field,
+              formsStyles['account-field'],
+              fromAccountError && formsStyles['has-error'],
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <label htmlFor="transaction-from-account">振替元</label>
-            <div className={`field-value${fromAccountError ? ' has-error' : ''}`}>
+            <div
+              className={[formsStyles['field-value'], fromAccountError && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <select
-                className="field-select"
+                className={formsStyles['field-select']}
                 id="transaction-from-account"
                 name="fromAccountId"
                 value={formValues.fromAccountId}
@@ -538,11 +617,23 @@ export function TransactionForm({
               ) : null}
             </div>
           </div>
-          <div className={`field account-field${toAccountError ? ' has-error' : ''}`}>
+          <div
+            className={[
+              formsStyles.field,
+              formsStyles['account-field'],
+              toAccountError && formsStyles['has-error'],
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <label htmlFor="transaction-to-account">振替先</label>
-            <div className={`field-value${toAccountError ? ' has-error' : ''}`}>
+            <div
+              className={[formsStyles['field-value'], toAccountError && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <select
-                className="field-select"
+                className={formsStyles['field-select']}
                 id="transaction-to-account"
                 name="toAccountId"
                 value={formValues.toAccountId}
@@ -564,12 +655,30 @@ export function TransactionForm({
             </div>
           </div>
         </div>
-        <div className="entry-detail-grid ordinary-account-detail-grid">
-          <div className={`field account-field${accountError ? ' has-error' : ''}`}>
+        <div
+          data-slot="ordinary-account-detail"
+          className={[
+            formsStyles['entry-detail-grid'],
+            formsStyles['ordinary-account-detail-grid'],
+          ].join(' ')}
+        >
+          <div
+            className={[
+              formsStyles.field,
+              formsStyles['account-field'],
+              accountError && formsStyles['has-error'],
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <label htmlFor="transaction-account">資産</label>
-            <div className={`field-value${accountError ? ' has-error' : ''}`}>
+            <div
+              className={[formsStyles['field-value'], accountError && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <select
-                className="field-select"
+                className={formsStyles['field-select']}
                 id="transaction-account"
                 name="accountId"
                 value={formValues.accountId}
@@ -591,12 +700,25 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div className="entry-detail-grid">
-          <div className={`field date-field${occurredOnError ? ' has-error' : ''}`}>
+        <div className={formsStyles['entry-detail-grid']}>
+          <div
+            className={[
+              formsStyles.field,
+              formsStyles['date-field'],
+              occurredOnError && formsStyles['has-error'],
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <label id="transaction-date-label" htmlFor="transaction-date">
               日付
             </label>
-            <div className={`field-value${occurredOnError ? ' has-error' : ''}`}>
+            <div
+              data-slot="date-field-value"
+              className={[formsStyles['field-value'], occurredOnError && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <DatePickerField
                 id="transaction-date"
                 name="occurredOn"
@@ -614,11 +736,25 @@ export function TransactionForm({
             </div>
           </div>
 
-          <div className={`field memo-field${memoError ? ' has-error' : ''}`}>
+          <div
+            data-slot="memo-field"
+            className={[
+              formsStyles.field,
+              formsStyles['memo-field'],
+              memoError && formsStyles['has-error'],
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <label htmlFor="transaction-memo">
-              メモ（<span className="optional-label">任意</span>）
+              メモ（<span className={formsStyles['optional-label']}>任意</span>）
             </label>
-            <div className={`field-value${memoError ? ' has-error' : ''}`}>
+            <div
+              data-slot="memo-field-value"
+              className={[formsStyles['field-value'], memoError && formsStyles['has-error']]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <textarea
                 ref={memoRef}
                 id="transaction-memo"
@@ -635,11 +771,28 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div className="save-button-options">
-          <span className="save-button-ordinary">
+        <div
+          className={[
+            formsStyles['save-button-options'],
+            showCancel && formsStyles['save-button-options-with-cancel'],
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {showCancel ? (
+            <Button
+              variant="secondary"
+              className={formsStyles['save-button-cancel']}
+              type="button"
+              onClick={() => router.back()}
+            >
+              キャンセル
+            </Button>
+          ) : null}
+          <span className={formsStyles['save-button-ordinary']}>
             <SubmitButton label={submitLabel} />
           </span>
-          <span className="save-button-transfer">
+          <span className={formsStyles['save-button-transfer']}>
             <SubmitButton label={submitLabel} />
           </span>
         </div>
@@ -729,14 +882,14 @@ export function DeleteTransactionForm({
   const closeDeleteConfirm = useCallback(() => {
     detailsRef.current?.removeAttribute('open');
     setIsDeleteConfirmOpen(false);
-    summaryRef.current?.focus();
+    window.requestAnimationFrame(() => summaryRef.current?.focus());
   }, []);
 
   useEffect(() => {
     if (!hasHydrated || !isDeleteConfirmOpen) {
       if (hasHydrated && wasDeleteConfirmOpenRef.current) {
         wasDeleteConfirmOpenRef.current = false;
-        summaryRef.current?.focus();
+        window.requestAnimationFrame(() => summaryRef.current?.focus());
       }
       return;
     }
@@ -747,7 +900,9 @@ export function DeleteTransactionForm({
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
 
-    const dialog = detailsRef.current?.querySelector<HTMLElement>('.delete-confirmation');
+    const dialog = detailsRef.current?.querySelector<HTMLElement>(
+      '[data-slot="delete-confirmation"]',
+    );
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -760,7 +915,7 @@ export function DeleteTransactionForm({
 
       const focusable = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+          'button:not([disabled]):not([aria-label="戻る"]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
         ),
       ).filter((element) => element.getClientRects().length > 0);
       if (focusable.length === 0) {
@@ -809,6 +964,25 @@ export function DeleteTransactionForm({
     closeDeleteConfirm();
   }
 
+  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== 'Tab') return;
+    const dialog = event.currentTarget;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]):not([aria-label="戻る"]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+      ),
+    ).filter((element) => element.getClientRects().length > 0);
+    const first = focusable.at(0);
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
   return (
     <>
       <FormErrorDialog
@@ -820,39 +994,62 @@ export function DeleteTransactionForm({
           modalOpenRef.current = false;
         }}
       />
-      <div className="delete-action">
-        <details ref={detailsRef} className="delete-confirm">
-          <summary ref={summaryRef} className="button button-danger">
+      <div className={formsStyles['delete-action']}>
+        <details
+          data-slot="delete-confirm"
+          ref={detailsRef}
+          className={formsStyles['delete-confirm']}
+        >
+          <summary
+            ref={summaryRef}
+            className={[primitiveStyles.button, primitiveStyles.buttonDangerQuiet].join(' ')}
+          >
             削除する
           </summary>
           <button
-            className="delete-modal-backdrop"
+            data-slot="delete-modal-backdrop"
+            className={formsStyles['delete-modal-backdrop']}
             type="button"
             tabIndex={-1}
             aria-label="削除確認を閉じる"
             onClick={closeDeleteConfirm}
           />
           <div
-            className="delete-confirmation"
+            id={`${formId}-dialog`}
+            data-card-pattern="overlay-card"
+            data-card-kind={targetLabel === '資産' ? 'asset' : 'transaction'}
+            data-slot="delete-confirmation"
+            className={formsStyles['delete-confirmation']}
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${formId}-title`}
+            onKeyDown={handleDialogKeyDown}
           >
-            <p id={`${formId}-title`}>この{targetLabel}を削除しますか？</p>
-            <form id={formId} className="delete-form delete-confirm-form" action={formAction}>
+            <header
+              className={formsStyles['dialog-head']}
+              data-card-kind={targetLabel === '資産' ? 'asset' : 'transaction'}
+            >
+              <h2 id={`${formId}-title`}>この{targetLabel}を削除しますか？</h2>
+            </header>
+            <p className={formsStyles['delete-description']}>削除すると元に戻せません。</p>
+            <form
+              id={formId}
+              className={[formsStyles['delete-form'], formsStyles['delete-confirm-form']].join(' ')}
+              action={formAction}
+            >
               <input type="hidden" name={idFieldName} value={transactionId} />
 
               <input type="hidden" name="confirm" value="delete" />
               <button
                 ref={confirmButtonRef}
-                className="button button-danger"
+                className={[primitiveStyles.button, primitiveStyles.buttonDanger].join(' ')}
                 type="submit"
                 disabled={pending}
                 aria-busy={pending}
               >
                 {pending ? '削除中…' : '削除を確定'}
               </button>
-              <a className="delete-cancel" href={editPath} onClick={handleCancel}>
+              <a className={formsStyles['delete-cancel']} href={editPath} onClick={handleCancel}>
                 キャンセル
               </a>
             </form>

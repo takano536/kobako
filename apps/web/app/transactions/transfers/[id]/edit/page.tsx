@@ -6,7 +6,10 @@ import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../../src/lib
 import { withSelectedMonth } from '../../../../../src/lib/month-navigation';
 import { parseInt4Id } from '../../../../../src/lib/ids';
 import { firstQueryValue, isValidMonth } from '../../../../../src/lib/transaction-query';
-import { PageHeader, PageShell } from '../../../../_components/ui';
+import formsStyles from '../../../../forms.module.css';
+import { Card } from '../../../../_components/card';
+import { PageHeader } from '../../../../_components/page-header';
+import { PageShell } from '../../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../../transaction-form';
 import { updateTransactionAction } from '../../../actions';
 
@@ -18,20 +21,17 @@ export const metadata = {
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-export default async function EditTransferPage({
-  params,
-  searchParams,
-}: {
+
+type TransferEditProps = {
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
-}) {
+};
+
+export async function TransferEditContent({ params, searchParams }: TransferEditProps) {
   const { id: idText } = await params;
   const query = await searchParams;
   const id = parseInt4Id(idText);
-  if (id === undefined) {
-    notFound();
-  }
-
+  if (id === undefined) notFound();
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const [transfer, accounts, categories] = await Promise.all([
@@ -39,20 +39,52 @@ export default async function EditTransferPage({
     listAccounts(db, householdId),
     listCategories(db, householdId),
   ]);
-  if (!transfer) {
-    notFound();
-  }
-
+  if (!transfer) notFound();
   const action = updateTransactionAction.bind(null, idText, 'transfer');
+  const selectedMonth = firstQueryValue(query.month);
+  const cancelHref = withSelectedMonth(
+    `/transactions/transfers/${transfer.id}/edit`,
+    selectedMonth,
+  );
+  return (
+    <div className={formsStyles['edit-form-layout']}>
+      <TransactionForm
+        action={action}
+        categories={categories}
+        accounts={accounts}
+        initialValues={{
+          type: 'transfer',
+          amount: String(transfer.amount),
+          occurredOn: transfer.occurredOn,
+          categoryId: '',
+          accountId: '',
+          fromAccountId: String(transfer.fromAccountId),
+          toAccountId: String(transfer.toAccountId),
+          memo: transfer.memo,
+        }}
+        submitLabel="変更を保存"
+      />
+      <DeleteTransactionForm
+        transactionId={transfer.id}
+        entryType="transfer"
+        cancelHref={cancelHref}
+      />
+    </div>
+  );
+}
+
+export default async function EditTransferPage({ params, searchParams }: TransferEditProps) {
+  const { id: idText } = await params;
+  const query = await searchParams;
+  const id = parseInt4Id(idText);
+  if (id === undefined) notFound();
+  const transfer = await getTransfer(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  if (!transfer) notFound();
   const selectedMonth = firstQueryValue(query.month);
   const backHref =
     selectedMonth && isValidMonth(selectedMonth)
       ? withSelectedMonth('/transactions', selectedMonth)
       : withSelectedMonth('/transactions', transfer.occurredOn.slice(0, 7));
-  const cancelHref = withSelectedMonth(
-    `/transactions/transfers/${transfer.id}/edit`,
-    selectedMonth,
-  );
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -60,31 +92,9 @@ export default async function EditTransferPage({
         titleAriaLabel="取引を編集"
         backLink={{ href: backHref, label: '一覧へ戻る' }}
       />
-      <section className="form-surface" aria-label="取引の入力">
-        <div className="edit-form-layout">
-          <TransactionForm
-            action={action}
-            categories={categories}
-            accounts={accounts}
-            initialValues={{
-              type: 'transfer',
-              amount: String(transfer.amount),
-              occurredOn: transfer.occurredOn,
-              categoryId: '',
-              accountId: '',
-              fromAccountId: String(transfer.fromAccountId),
-              toAccountId: String(transfer.toAccountId),
-              memo: transfer.memo,
-            }}
-            submitLabel="変更を保存"
-          />
-          <DeleteTransactionForm
-            transactionId={transfer.id}
-            entryType="transfer"
-            cancelHref={cancelHref}
-          />
-        </div>
-      </section>
+      <Card as="section" aria-label="取引の入力">
+        <TransferEditContent params={params} searchParams={searchParams} />
+      </Card>
     </PageShell>
   );
 }

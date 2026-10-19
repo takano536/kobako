@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
+import navStyles from './site-nav.module.css';
+import layoutStyles from './_components/layout.module.css';
 import { Suspense } from 'react';
+
+import '@fontsource-variable/noto-sans-jp/index.css';
 
 import { KobakoMark } from '../src/lib/category';
 import {
@@ -27,16 +31,19 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+  modal,
+}: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   return (
     <html lang="ja">
       <body>
-        <div className="app-shell">
-          <header className="site-header">
-            <div className="header-inner">
+        <div data-slot="app-shell" className={layoutStyles['app-shell']}>
+          <header data-slot="site-header" className={layoutStyles['site-header']}>
+            <div data-slot="header-inner" className={layoutStyles['header-inner']}>
               <Suspense
                 fallback={
-                  <Link className="brand" href="/" aria-label="kobako 家計ノート ホーム">
+                  <Link className={navStyles.brand} href="/" aria-label="kobako 家計ノート ホーム">
                     <KobakoMark />
                     <span>kobako</span>
                   </Link>
@@ -52,7 +59,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Suspense>
             </div>
           </header>
-          <main className="page-content">{children}</main>
+          <main data-slot="page-content" className={layoutStyles['page-content']}>
+            {children}
+          </main>
+          {modal}
         </div>
       </body>
     </html>

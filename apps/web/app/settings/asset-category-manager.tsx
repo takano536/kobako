@@ -1,5 +1,8 @@
 'use client';
 
+import primitiveStyles from '../_components/button.module.css';
+import settingsStyles from './settings.module.css';
+
 import type { AssetCategory } from '@kobako/db';
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -14,7 +17,7 @@ import {
 function PendingButton({
   label,
   pendingLabel,
-  className = 'button button-secondary',
+  className = [primitiveStyles.button, primitiveStyles.buttonSecondary].join(' '),
   describedBy,
 }: {
   label: string;
@@ -38,7 +41,7 @@ function PendingButton({
 
 function ErrorMessage({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p className="settings-inline-error" id={id} role="alert">
+    <p className={settingsStyles['settings-inline-error']} id={id} role="alert">
       {message}
     </p>
   ) : null;
@@ -70,18 +73,29 @@ function CategoryRow({ category }: { category: AssetCategory }) {
   }
   if (isDefault) {
     return (
-      <li className="settings-category-row">
-        <span className="settings-category-name">{category.name}</span>
-        <span className="button button-quiet settings-category-action settings-category-unavailable">
+      <li data-slot="settings-category-row" className={settingsStyles['settings-category-row']}>
+        <span
+          data-slot="settings-category-name"
+          className={settingsStyles['settings-category-name']}
+        >
+          {category.name}
+        </span>
+        <span
+          className={[
+            primitiveStyles.button,
+            primitiveStyles.buttonQuiet,
+            settingsStyles['settings-category-action'],
+          ].join(' ')}
+        >
           変更・削除不可
         </span>
       </li>
     );
   }
   return (
-    <li className="settings-category-row">
+    <li data-slot="settings-category-row" className={settingsStyles['settings-category-row']}>
       {editing ? (
-        <form className="settings-category-editform" action={updateAction}>
+        <form className={settingsStyles['settings-category-editform']} action={updateAction}>
           <input type="hidden" name="assetCategoryId" value={category.id} />
           <label className="sr-only" htmlFor={`asset-category-name-${category.id}`}>
             {category.name} の新しい名前
@@ -102,16 +116,29 @@ function CategoryRow({ category }: { category: AssetCategory }) {
             pendingLabel="保存中…"
             describedBy={updateState.error ? errorId : undefined}
           />
-          <button className="button button-quiet" type="button" onClick={cancel}>
+          <button
+            className={[primitiveStyles.button, primitiveStyles.buttonQuiet].join(' ')}
+            type="button"
+            onClick={cancel}
+          >
             キャンセル
           </button>
         </form>
       ) : (
         <>
-          <span className="settings-category-name">{category.name}</span>
-          <div className="settings-category-actions">
+          <span
+            data-slot="settings-category-name"
+            className={settingsStyles['settings-category-name']}
+          >
+            {category.name}
+          </span>
+          <div className={settingsStyles['settings-category-actions']}>
             <button
-              className="button button-quiet settings-category-action"
+              className={[
+                primitiveStyles.button,
+                primitiveStyles.buttonQuiet,
+                settingsStyles['settings-category-action'],
+              ].join(' ')}
               type="button"
               onClick={() => setEditing(true)}
             >
@@ -132,7 +159,11 @@ function CategoryRow({ category }: { category: AssetCategory }) {
               <PendingButton
                 label="削除"
                 pendingLabel="削除中…"
-                className="button button-danger-quiet settings-category-action"
+                className={[
+                  primitiveStyles.button,
+                  primitiveStyles.buttonDanger,
+                  settingsStyles['settings-category-action'],
+                ].join(' ')}
                 describedBy={deleteState.error ? errorId : undefined}
               />
             </form>
@@ -157,7 +188,7 @@ function AddForm() {
     if (state.values?.name !== undefined) setName(state.values.name);
   }, [state.values?.name]);
   return (
-    <form className="settings-category-add" action={action}>
+    <form className={settingsStyles['settings-category-add']} action={action}>
       <label htmlFor="asset-category-new">新しいカテゴリ</label>
       <input
         id="asset-category-new"
@@ -168,7 +199,11 @@ function AddForm() {
         required
         placeholder="カテゴリ名"
       />
-      <PendingButton label="追加" pendingLabel="追加中…" className="button button-primary" />
+      <PendingButton
+        label="追加"
+        pendingLabel="追加中…"
+        className={[primitiveStyles.button, primitiveStyles.buttonSecondary].join(' ')}
+      />
       <ErrorMessage id="asset-category-new-error" message={state.error} />
     </form>
   );
@@ -176,8 +211,12 @@ function AddForm() {
 
 export function AssetCategoryManager({ categories }: { categories: readonly AssetCategory[] }) {
   return (
-    <div className="settings-category-manager">
-      <ul className="settings-category-list" aria-label="資産カテゴリの一覧">
+    <div className={settingsStyles['settings-category-manager']}>
+      <ul
+        data-slot="settings-category-list"
+        className={settingsStyles['settings-category-list']}
+        aria-label="資産カテゴリの一覧"
+      >
         {categories.map((category) => (
           <CategoryRow category={category} key={category.id} />
         ))}

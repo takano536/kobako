@@ -1,5 +1,12 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
+import formsStyles from '../forms.module.css';
+import { Button } from '../_components/button';
+import { Field, Input, Select } from '../_components/field';
+import { Section } from '../_components/section';
+
 import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { SectionHeading } from '../_components/ui';
@@ -49,6 +56,7 @@ export interface AccountFormProps {
   accountId?: number;
   submitLabel: string;
   returnTo?: string;
+  showCancel?: boolean;
 }
 
 const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
@@ -56,20 +64,20 @@ const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      className="button button-primary save-button"
+    <Button
+      className={formsStyles['save-button']}
       type="submit"
       disabled={pending}
       aria-busy={pending}
     >
       {pending ? '保存中…' : label}
-    </button>
+    </Button>
   );
 }
 
 function FieldError({ id, messages }: { id: string; messages?: readonly string[] }) {
   return messages?.length ? (
-    <span id={id} className="field-error" role="alert">
+    <span id={id} className={formsStyles['field-error']} role="alert">
       {messages[0]}
     </span>
   ) : null;
@@ -92,7 +100,9 @@ export function AccountForm({
   submitLabel,
   returnTo,
   accountId,
+  showCancel = false,
 }: AccountFormProps) {
+  const router = useRouter();
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -129,13 +139,17 @@ export function AccountForm({
   const selectedKind = selectedCategory?.systemKey ?? 'other';
 
   return (
-    <form className="ledger-form account-form" action={formAction} noValidate>
+    <form
+      className={[formsStyles['ledger-form'], formsStyles['account-form']].join(' ')}
+      action={formAction}
+      noValidate
+    >
       {returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}
-      <div className="entry-detail-grid">
-        <div className="field">
+      <div className={formsStyles['entry-detail-grid']}>
+        <Field className={formsStyles.field}>
           <label htmlFor="account-name">名前</label>
-          <div className="field-value">
-            <input
+          <div className={formsStyles['field-value']}>
+            <Input
               id="account-name"
               name="name"
               required
@@ -147,12 +161,12 @@ export function AccountForm({
             />
             <FieldError id="account-name-error" messages={nameError} />
           </div>
-        </div>
-        <div className="field">
+        </Field>
+        <Field className={formsStyles.field}>
           <label htmlFor="asset-category">資産カテゴリ</label>
-          <div className="field-value">
-            <select
-              className="field-select"
+          <div className={formsStyles['field-value']}>
+            <Select
+              className={formsStyles['field-select']}
               id="asset-category"
               name="assetCategoryId"
               required
@@ -166,21 +180,21 @@ export function AccountForm({
                   {category.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <FieldError id="asset-category-error" messages={assetCategoryError} />
           </div>
-        </div>
+        </Field>
       </div>
 
       {selectedKind === 'credit_card' ? (
-        <section className="account-card-fields" aria-labelledby="account-card-fields-title">
+        <Section aria-labelledby="account-card-fields-title">
           <SectionHeading id="account-card-fields-title" title="カード条件" />
-          <div className="entry-detail-grid">
-            <div className="field">
+          <div className={formsStyles['entry-detail-grid']}>
+            <div className={formsStyles.field}>
               <label htmlFor="closing-day">締め日</label>
-              <div className="field-value">
+              <div className={formsStyles['field-value']}>
                 <select
-                  className="field-select"
+                  className={formsStyles['field-select']}
                   id="closing-day"
                   name="closingDay"
                   value={card.closingDay}
@@ -199,11 +213,11 @@ export function AccountForm({
                 <FieldError id="closing-day-error" messages={closingDayError} />
               </div>
             </div>
-            <div className="field">
+            <div className={formsStyles.field}>
               <label htmlFor="payment-day">支払日</label>
-              <div className="field-value">
+              <div className={formsStyles['field-value']}>
                 <select
-                  className="field-select"
+                  className={formsStyles['field-select']}
                   id="payment-day"
                   name="paymentDay"
                   value={card.paymentDay}
@@ -222,11 +236,11 @@ export function AccountForm({
                 <FieldError id="payment-day-error" messages={paymentDayError} />
               </div>
             </div>
-            <div className="field">
+            <div className={formsStyles.field}>
               <label htmlFor="payment-month-offset">支払月</label>
-              <div className="field-value">
+              <div className={formsStyles['field-value']}>
                 <select
-                  className="field-select"
+                  className={formsStyles['field-select']}
                   id="payment-month-offset"
                   name="paymentMonthOffset"
                   value={card.paymentMonthOffset}
@@ -246,11 +260,11 @@ export function AccountForm({
                 <FieldError id="payment-month-offset-error" messages={paymentMonthOffsetError} />
               </div>
             </div>
-            <div className="field">
+            <div className={formsStyles.field}>
               <label htmlFor="debit-account">引落口座</label>
-              <div className="field-value">
+              <div className={formsStyles['field-value']}>
                 <select
-                  className="field-select"
+                  className={formsStyles['field-select']}
                   id="debit-account"
                   name="debitAccountId"
                   value={card.debitAccountId}
@@ -277,16 +291,33 @@ export function AccountForm({
               </div>
             </div>
           </div>
-        </section>
+        </Section>
       ) : null}
 
       <input type="hidden" name="expectedAssetCategoryId" value={current.expectedAssetCategoryId} />
       {state.message ? (
-        <p className="form-message" role="alert">
+        <p className={formsStyles['form-message']} role="alert">
           {state.message}
         </p>
       ) : null}
-      <div className="form-actions">
+      <div
+        className={[
+          formsStyles['form-actions'],
+          showCancel && formsStyles['form-actions-with-cancel'],
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {showCancel ? (
+          <Button
+            variant="secondary"
+            className={formsStyles['save-button-cancel']}
+            type="button"
+            onClick={() => router.back()}
+          >
+            キャンセル
+          </Button>
+        ) : null}
         <SubmitButton label={submitLabel} />
       </div>
     </form>

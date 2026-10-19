@@ -6,7 +6,10 @@ import { withSelectedMonth } from '../../../../src/lib/month-navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { firstQueryValue, isValidMonth } from '../../../../src/lib/transaction-query';
 import { parseInt4Id } from '../../../../src/lib/ids';
-import { PageHeader, PageShell } from '../../../_components/ui';
+import formsStyles from '../../../forms.module.css';
+import { Card } from '../../../_components/card';
+import { PageHeader } from '../../../_components/page-header';
+import { PageShell } from '../../../_components/ui';
 import { DeleteTransactionForm, TransactionForm } from '../../transaction-form';
 import { updateTransactionAction } from '../../actions';
 
@@ -19,20 +22,16 @@ export const metadata = {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export default async function EditTransactionPage({
-  params,
-  searchParams,
-}: {
+type TransactionEditProps = {
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
-}) {
+};
+
+export async function TransactionEditContent({ params, searchParams }: TransactionEditProps) {
   const { id: idText } = await params;
   const query = await searchParams;
   const id = parseInt4Id(idText);
-  if (id === undefined) {
-    notFound();
-  }
-
+  if (id === undefined) notFound();
   const db = getLedgerDatabase();
   const householdId = getCurrentHouseholdId();
   const [transaction, categories, accounts] = await Promise.all([
@@ -40,17 +39,47 @@ export default async function EditTransactionPage({
     listCategories(db, householdId),
     listAccounts(db, householdId),
   ]);
-  if (!transaction) {
-    notFound();
-  }
-
+  if (!transaction) notFound();
   const action = updateTransactionAction.bind(null, idText, 'transaction');
+  const cancelHref = withSelectedMonth(
+    `/transactions/${transaction.id}/edit`,
+    firstQueryValue(query.month),
+  );
+  return (
+    <div className={formsStyles['edit-form-layout']}>
+      <TransactionForm
+        action={action}
+        categories={categories}
+        accounts={accounts}
+        initialValues={{
+          type: transaction.type,
+          amount: String(transaction.amount),
+          occurredOn: transaction.occurredOn,
+          categoryId: String(transaction.categoryId),
+          accountId: transaction.accountId ? String(transaction.accountId) : '',
+          fromAccountId: '',
+          toAccountId: '',
+          memo: transaction.memo,
+        }}
+        submitLabel="変更を保存"
+      />
+      <DeleteTransactionForm transactionId={transaction.id} cancelHref={cancelHref} />
+    </div>
+  );
+}
+
+export default async function EditTransactionPage({ params, searchParams }: TransactionEditProps) {
+  const { id: idText } = await params;
+  const query = await searchParams;
+  const id = parseInt4Id(idText);
+  if (id === undefined) notFound();
+  const transaction = await getTransaction(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  if (!transaction) notFound();
   const selectedMonth = firstQueryValue(query.month);
   const backHref =
     selectedMonth && isValidMonth(selectedMonth)
       ? withSelectedMonth('/transactions', selectedMonth)
       : withSelectedMonth('/transactions', transaction.occurredOn.slice(0, 7));
-  const cancelHref = withSelectedMonth(`/transactions/${transaction.id}/edit`, selectedMonth);
   return (
     <PageShell width="narrow">
       <PageHeader
@@ -58,27 +87,9 @@ export default async function EditTransactionPage({
         titleAriaLabel="取引を編集"
         backLink={{ href: backHref, label: '一覧へ戻る' }}
       />
-      <section className="form-surface" aria-label="取引の入力">
-        <div className="edit-form-layout">
-          <TransactionForm
-            action={action}
-            categories={categories}
-            accounts={accounts}
-            initialValues={{
-              type: transaction.type,
-              amount: String(transaction.amount),
-              occurredOn: transaction.occurredOn,
-              categoryId: String(transaction.categoryId),
-              accountId: transaction.accountId ? String(transaction.accountId) : '',
-              fromAccountId: '',
-              toAccountId: '',
-              memo: transaction.memo,
-            }}
-            submitLabel="変更を保存"
-          />
-          <DeleteTransactionForm transactionId={transaction.id} cancelHref={cancelHref} />
-        </div>
-      </section>
+      <Card as="section" aria-label="取引の入力">
+        <TransactionEditContent params={params} searchParams={searchParams} />
+      </Card>
     </PageShell>
   );
 }

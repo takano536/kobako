@@ -1,0 +1,129 @@
+.backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(22 36 29 / 38%);
+  backdrop-filter: blur(2px);
+  animation: overlay-fade-in 220ms var(--ease-standard) both;
+}
+
+.card {
+  min-width: 0;
+  display: flex;
+  width: min(27.5rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  flex-direction: column;
+  overflow: hidden auto;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 24px 90px #18291f24;
+  animation: overlay-card-in 220ms var(--ease-standard) both;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  min-height: 3.75rem;
+  padding: 0.5rem 1rem;
+}
+
+.header h1 {
+  flex: 1 1 auto;
+  font-size: var(--text-heading);
+  font-weight: 500;
+  line-height: var(--leading-heading);
+  letter-spacing: -0.02em;
+}
+
+.header > span {
+  display: none;
+}
+
+.back {
+  display: inline-flex;
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-inline: -0.5rem -7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.backChevron {
+  width: 14px;
+  height: 1lh;
+  flex: 0 0 14px;
+  color: var(--muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transform: translateY(0.031rem);
+}
+
+.back:focus-visible {
+  background: var(--control-hover);
+}
+
+.title {
+  margin: 0;
+  text-align: left;
+}
+
+.body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.75rem 1.5rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.body :global([class*='amount-line']) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.body :global([class*='amount-line'] input) {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.body :global([class*='account-form'] > section) {
+  margin-top: 0;
+}
+
+.body :global([class*='account-form'] [data-slot='section-heading']) {
+  margin: 8px 0;
+}
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-card-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .card {
+    animation: none;
+  }
+}

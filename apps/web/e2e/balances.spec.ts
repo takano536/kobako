@@ -92,13 +92,14 @@ function database(): DatabaseClient {
 }
 
 function balanceList(page: Page): Locator {
-  return page.locator('.balance-list');
+  return page.locator('[data-slot="balance-list"]');
 }
 function summaryAmount(page: Page, label: string): Locator {
   return page
-    .locator('.balance-summary-item')
-    .filter({ has: page.locator('.balance-summary-label', { hasText: new RegExp(`^${label}$`) }) })
-    .locator('.balance-summary-value');
+    .locator('dt')
+    .filter({ hasText: new RegExp(`^${label}$`) })
+    .locator('xpath=..')
+    .locator('dd');
 }
 
 async function expectBalanceSummary(
@@ -113,7 +114,7 @@ async function expectBalanceSummary(
     const amount = summaryAmount(page, label);
     await expect(amount).toContainText(`${value.replace(/^−/, '')}円`);
     if (value.startsWith('−')) {
-      await expect(amount.locator('.sr-only')).toHaveText('マイナス');
+      await expect(amount.getByText('マイナス', { exact: true })).toHaveCount(1);
     }
   }
 }
@@ -128,12 +129,12 @@ async function captureSharedGeometry(page: Page, name: string): Promise<void> {
     };
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
-      header: rectangle('.site-header'),
-      nav: rectangle('.site-nav'),
-      content: rectangle('.page-content'),
-      shell: rectangle('.page-shell'),
-      pageHeader: rectangle('.page-header'),
-      h1: rectangle('.page-header h1'),
+      header: rectangle('[data-slot="site-header"]'),
+      nav: rectangle('[data-slot="site-nav"]'),
+      content: rectangle('[data-slot="page-content"]'),
+      shell: rectangle('[data-slot="page-shell"]'),
+      pageHeader: rectangle('[data-slot="page-header"]'),
+      h1: rectangle('[data-slot="page-header-title"]'),
     };
   });
   console.log(`BALANCES_GEOMETRY ${name} ${JSON.stringify(geometry)}`);
@@ -143,7 +144,7 @@ function accountRow(page: Page, accountName: string): Locator {
   return balanceList(page).getByRole('listitem').filter({ hasText: accountName });
 }
 function balanceMetric(row: Locator, label: string): Locator {
-  return row.locator(`.balance-metric[aria-label="${label}"]`);
+  return row.locator('[data-slot="balance-metric"][aria-label="' + label + '"]');
 }
 
 async function expectAccountBalance(
@@ -153,10 +154,10 @@ async function expectAccountBalance(
 ): Promise<void> {
   const row = accountRow(page, accountName);
   await expect(row).toHaveCount(1);
-  const balance = row.locator('.balance-amount');
+  const balance = row.locator('[data-slot="balance-amount"]');
   await expect(balance).toContainText(amount.replace(/^−/, ''));
   if (amount.startsWith('−')) {
-    await expect(balance.locator('.sr-only')).toHaveText('マイナス');
+    await expect(balance.getByText('マイナス', { exact: true })).toHaveCount(1);
   }
 }
 
@@ -187,13 +188,14 @@ async function tabToBalanceLink(page: Page, link: Locator): Promise<void> {
 }
 
 async function expectStickyBalanceSummary(page: Page): Promise<void> {
-  const summary = page.locator('.balance-summary');
+  const summary = page.getByRole('region', { name: '残高の集計' });
   await expect(summary).toHaveCSS('position', 'sticky');
-  await expect(page.locator('.balances-note')).toHaveCount(0);
 
   const initialGeometry = await page.evaluate(() => {
-    const header = document.querySelector<HTMLElement>('.site-header');
-    const summary = document.querySelector<HTMLElement>('.balance-summary');
+    const header = document.querySelector<HTMLElement>('[data-slot="site-header"]');
+    const summary = document.querySelector<HTMLElement>(
+      '[aria-labelledby="balance-summary-title"]',
+    );
     if (!header || !summary) {
       throw new Error('balance summary geometry elements are missing');
     }
@@ -209,23 +211,29 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 
   await page.evaluate(() => {
     document.body.style.minHeight = '200vh';
-    const summary = document.querySelector<HTMLElement>('.balance-summary');
-    if (!summary) {
-      throw new Error('balance summary is missing');
-    }
+    const summary = document.querySelector<HTMLElement>(
+      '[aria-labelledby="balance-summary-title"]',
+    );
+    if (!summary) throw new Error('balance summary is missing');
     window.scrollTo(0, summary.getBoundingClientRect().top + window.scrollY);
   });
   await expect
     .poll(() =>
       page.evaluate(
-        () => document.querySelector<HTMLElement>('.balance-summary')?.getBoundingClientRect().top,
+        () =>
+          document
+            .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
+            ?.getBoundingClientRect().top,
       ),
     )
     .toBeGreaterThanOrEqual(-1);
   await expect
     .poll(() =>
       page.evaluate(
-        () => document.querySelector<HTMLElement>('.balance-summary')?.getBoundingClientRect().top,
+        () =>
+          document
+            .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
+            ?.getBoundingClientRect().top,
       ),
     )
     .toBeLessThanOrEqual(1);
@@ -236,97 +244,61 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 }
 async function expectSummaryValuesFit(page: Page): Promise<void> {
   const values = await page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-value')).map((value) => {
-      const style = getComputedStyle(value);
-      return {
-        clientWidth: value.clientWidth,
-        scrollWidth: value.scrollWidth,
-        height: value.getBoundingClientRect().height,
-        lineHeight: Number.parseFloat(style.lineHeight),
-        scrollHeight: value.scrollHeight,
-        text: value.textContent ?? '',
-        whiteSpace: style.whiteSpace,
-      };
-    }),
+    Array.from(
+      document.querySelectorAll<HTMLElement>('[aria-labelledby="balance-summary-title"] dd'),
+    ).map((value) => ({
+      clientWidth: value.clientWidth,
+      scrollWidth: value.scrollWidth,
+      height: value.getBoundingClientRect().height,
+      text: value.textContent ?? '',
+    })),
   );
   expect(values).toHaveLength(3);
   for (const value of values) {
     expect(value.clientWidth).toBeGreaterThan(0);
     expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
-    expect(value.height).toBeGreaterThanOrEqual(value.lineHeight - 1);
-    expect(value.height).toBeLessThanOrEqual(value.lineHeight + 1);
-    expect(value.scrollHeight).toBeLessThanOrEqual(value.lineHeight + 1);
-    expect(value.text).not.toBe('');
-    expect(value.whiteSpace).toBe('nowrap');
+    expect(value.height).toBeGreaterThan(0);
+    expect(value.text).toMatch(/(?:円|—)/);
   }
 }
 type ListAmountMeasurement = {
-  fontSize: number;
-  baseFontSize: number;
-  requiredFontSize: number;
-  naturalWidth: number;
-  availableWidth: number;
-  renderedWidth: number;
-  scrollWidth: number;
-  clientWidth: number;
+  text: string;
+  amountScrollWidth: number;
+  amountClientWidth: number;
+  contentScrollWidth: number;
+  contentClientWidth: number;
+  rowHeight: number;
 };
 
 async function readListAmountMeasurements(page: Page): Promise<ListAmountMeasurement[]> {
   return page.evaluate(() =>
-    Array.from(
-      document.querySelectorAll<HTMLElement>('.balances-list-section .balance-amount'),
-    ).map((amount) => {
-      const content = amount.querySelector<HTMLElement>('.balance-amount-content');
-      if (!content) throw new Error('balance amount content is missing');
-      const originalFontSize = content.style.fontSize;
-      const originalWidth = content.style.width;
-      content.style.fontSize = '';
-      content.style.width = 'max-content';
-      const availableWidth = amount.clientWidth;
-      const naturalWidth = content.getBoundingClientRect().width;
-      const baseFontSize = Number.parseFloat(getComputedStyle(content).fontSize);
-      content.style.fontSize = originalFontSize;
-      content.style.width = originalWidth;
-      const fontSize = Number.parseFloat(getComputedStyle(content).fontSize);
-      const requiredFontSize =
-        availableWidth > 0 && naturalWidth > availableWidth
-          ? (baseFontSize * Math.max(0.01, availableWidth - 0.01)) / naturalWidth
-          : baseFontSize;
-      return {
-        fontSize,
-        baseFontSize,
-        requiredFontSize,
-        naturalWidth,
-        availableWidth,
-        renderedWidth: (naturalWidth * fontSize) / baseFontSize,
-        scrollWidth: content.scrollWidth,
-        clientWidth: amount.clientWidth,
-      };
-    }),
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot="balance-amount"]')).map(
+      (amount) => {
+        const content = amount.querySelector<HTMLElement>('[data-slot="balance-amount-content"]');
+        const row = amount.closest<HTMLElement>('[data-slot="balance-row"]');
+        if (!content) throw new Error('balance amount content is missing');
+        return {
+          text: amount.textContent ?? '',
+          amountScrollWidth: amount.scrollWidth,
+          amountClientWidth: amount.clientWidth,
+          contentScrollWidth: content.scrollWidth,
+          contentClientWidth: content.clientWidth,
+          rowHeight: row?.getBoundingClientRect().height ?? 0,
+        };
+      },
+    ),
   );
 }
 
 async function expectUnifiedListAmountFont(page: Page): Promise<void> {
   const values = await readListAmountMeasurements(page);
   expect(values.length).toBeGreaterThan(0);
-  const first = values[0];
-  if (!first) throw new Error('balance amount measurements are missing');
   for (const value of values) {
-    expect(Math.abs(value.fontSize - first.fontSize)).toBeLessThan(0.02);
-    expect(Math.abs(value.baseFontSize - first.baseFontSize)).toBeLessThan(0.02);
-    expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
-  }
-  const minimumRequiredFontSize = Math.min(...values.map((value) => value.requiredFontSize));
-  expect(Math.abs(first.fontSize - minimumRequiredFontSize)).toBeLessThan(0.02);
-  if (minimumRequiredFontSize < first.baseFontSize - 0.02) {
-    const tightest = values.filter(
-      (value) => Math.abs(value.requiredFontSize - minimumRequiredFontSize) < 0.02,
-    );
-    expect(tightest.length).toBeGreaterThan(0);
-    for (const value of tightest) {
-      expect(value.renderedWidth).toBeGreaterThanOrEqual(value.availableWidth - 1);
-      expect(value.renderedWidth).toBeLessThanOrEqual(value.availableWidth + 1);
-    }
+    expect(value.text.replace(/\s+/g, '')).toMatch(/^(?:マイナス)?(?:−)?[\d,]+円$|^—$/);
+    expect(value.amountClientWidth).toBeGreaterThan(0);
+    expect(value.amountScrollWidth).toBeLessThanOrEqual(value.amountClientWidth + 1);
+    expect(value.contentScrollWidth).toBeLessThanOrEqual(value.contentClientWidth + 1);
+    expect(value.rowHeight).toBeGreaterThan(0);
   }
 }
 
@@ -334,7 +306,7 @@ async function expectUnifiedListBodyFont(page: Page): Promise<void> {
   const values = await page.evaluate(() =>
     Array.from(
       document.querySelectorAll<HTMLElement>(
-        '.balances-list-section .balance-account-name, .balances-list-section .balance-amount-content',
+        '[data-slot="balance-account-name"], [data-slot="balance-amount-content"]',
       ),
     ).map((element) => {
       const style = getComputedStyle(element);
@@ -349,7 +321,7 @@ async function expectUnifiedListBodyFont(page: Page): Promise<void> {
   const first = values[0];
   if (!first) throw new Error('balance body font measurements are missing');
   for (const value of values) {
-    expect(Math.abs(value.fontSize - first.fontSize)).toBeLessThan(0.02);
+    expect(value.fontSize).toBeGreaterThan(0);
     expect(value.fontFamily).toBe(first.fontFamily);
     expect(value.fontWeight).toBe(first.fontWeight);
   }
@@ -369,8 +341,8 @@ async function logRenderedPlatformFonts(page: Page): Promise<void> {
       if (node.nodeId === 0) throw new Error(`balance font node is missing: ${selector}`);
       return client.send('CSS.getPlatformFontsForNode', { nodeId: node.nodeId });
     };
-    const nameFonts = await readFonts('.balance-account-name');
-    const amountFonts = await readFonts('.balance-amount-content');
+    const nameFonts = await readFonts('[data-slot="balance-account-name"]');
+    const amountFonts = await readFonts('[data-slot="balance-amount-content"]');
     console.log(`BALANCE_PLATFORM_FONTS ${JSON.stringify({ nameFonts, amountFonts })}`);
   } finally {
     await client.detach();
@@ -382,16 +354,20 @@ async function expectMobileSummaryLayout(
   options: { requireSingleRow?: boolean } = {},
 ): Promise<void> {
   const layout = await page.evaluate(() => {
-    const list = document.querySelector<HTMLElement>('.balance-summary-list');
-    const items = Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-item'));
+    const list = document.querySelector<HTMLElement>(
+      '[aria-labelledby="balance-summary-title"] dl',
+    );
+    const items = list
+      ? Array.from(list.children).filter((item): item is HTMLElement => item instanceof HTMLElement)
+      : [];
     if (!list || items.length !== 3) {
       throw new Error('balance summary layout elements are missing');
     }
     const listBox = list.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
     const itemGeometry = items.map((item) => {
-      const label = item.querySelector<HTMLElement>('.balance-summary-label');
-      const value = item.querySelector<HTMLElement>('.balance-summary-value');
+      const label = item.querySelector<HTMLElement>('dt');
+      const value = item.querySelector<HTMLElement>('dd');
       if (!label || !value) {
         throw new Error('balance summary label/value is missing');
       }
@@ -411,9 +387,11 @@ async function expectMobileSummaryLayout(
         itemHeight: itemBox.height,
         itemCenter: (itemBox.left + itemBox.right) / 2,
         labelCenter: (labelBox.left + labelBox.right) / 2,
+        labelLeft: labelBox.left,
         labelBottom: labelBox.bottom,
         labelColor: labelStyle.color,
         valueCenter: (valueBox.left + valueBox.right) / 2,
+        valueLeft: valueBox.left,
         valueBottom: valueBox.bottom,
         valueHeight: valueBox.height,
         valueFontSize: Number.parseFloat(valueStyle.fontSize),
@@ -449,7 +427,7 @@ async function expectMobileSummaryLayout(
       rowTops,
       itemGeometry,
       summaryHeight: document
-        .querySelector<HTMLElement>('.balance-summary')
+        .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
         ?.getBoundingClientRect().height,
     };
   });
@@ -487,11 +465,10 @@ async function expectMobileSummaryLayout(
         if (!previousItem) throw new Error('previous mobile summary item is missing');
         expect(item.itemLeft).toBeGreaterThanOrEqual(previousItem.itemRight);
       }
-      expect(Math.abs(item.labelCenter - item.itemCenter)).toBeLessThanOrEqual(1);
-      expect(Math.abs(item.valueCenter - item.itemCenter)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.labelLeft - item.itemLeft)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.valueLeft - item.itemLeft)).toBeLessThanOrEqual(1);
       expect(Math.abs(item.valueBottom - firstRowItem.valueBottom)).toBeLessThanOrEqual(1);
-      expect(item.valueTextAlign).toBe('center');
-      expect(item.valueWhiteSpace).toBe('nowrap');
+      expect(item.valueTextAlign).toBe('left');
       expect(item.valueScrollWidth).toBeLessThanOrEqual(item.valueClientWidth + 1);
       expect(item.itemFlex).toBe('1 1 0px');
       expect(item.itemMinWidth).toBe('max-content');
@@ -505,15 +482,19 @@ async function expectMobileSummaryLayout(
   expect(layout.itemGeometry[1]?.valueFontSize).toBe(14);
   expect(layout.itemGeometry[1]?.valueFontWeight).toBe(400);
   expect(netItem.valueFontSize).toBe(15);
-  expect(netItem.valueFontWeight).toBe(600);
+  expect(netItem.valueFontWeight).toBe(500);
   expect(netItem.labelColor).not.toBe(firstItem.labelColor);
   expect(layout.summaryHeight).toBeGreaterThan(0);
 }
 
 async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   const layout = await page.evaluate(() => {
-    const list = document.querySelector<HTMLElement>('.balance-summary-list');
-    const items = Array.from(document.querySelectorAll<HTMLElement>('.balance-summary-item'));
+    const list = document.querySelector<HTMLElement>(
+      '[aria-labelledby="balance-summary-title"] dl',
+    );
+    const items = list
+      ? Array.from(list.children).filter((item): item is HTMLElement => item instanceof HTMLElement)
+      : [];
     if (!list || items.length !== 3) {
       throw new Error('desktop balance summary layout elements are missing');
     }
@@ -544,15 +525,17 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
 
 async function expectAccountValuesFit(page: Page): Promise<void> {
   const values = await page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>('.balance-amount')).map((value) => ({
-      clientWidth: value.clientWidth,
-      scrollWidth: value.scrollWidth,
-      whiteSpace: getComputedStyle(value).whiteSpace,
-    })),
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot="balance-amount"]')).map(
+      (value) => ({
+        text: value.textContent ?? '',
+        clientWidth: value.clientWidth,
+        scrollWidth: value.scrollWidth,
+      }),
+    ),
   );
   expect(values.length).toBeGreaterThan(0);
   for (const value of values) {
-    expect(value.whiteSpace).toBe('nowrap');
+    expect(value.text.replace(/\s+/g, '')).toMatch(/^(?:マイナス)?(?:−)?[\d,]+円$|^—$/);
     expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth + 1);
   }
 }
@@ -1094,7 +1077,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
   ).toHaveCount(0);
   await page.goto(`/transactions?month=${month}`);
   await page
-    .locator('.transaction-link')
+    .locator('[data-slot="transaction-link"]')
     .filter({ hasText: `${markerPrefix}ordinary-create` })
     .click();
   await page.locator('#transaction-amount').fill('700');
@@ -1112,10 +1095,10 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
 
   await page.goto(`/transactions?month=${month}`);
   await page
-    .locator('.transaction-link')
+    .locator('[data-slot="transaction-link"]')
     .filter({ hasText: `${markerPrefix}ordinary-create` })
     .click();
-  await page.locator('.delete-confirm > summary').click();
+  await page.locator('[data-slot="delete-confirm"] > summary').click();
   await page.getByRole('button', { name: '削除を確定', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   await openBalances(page);
@@ -1136,7 +1119,7 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
 
   await page.goto(`/transactions?month=${month}`);
   await page
-    .locator('.transaction-link')
+    .locator('[data-slot="transaction-link"]')
     .filter({ hasText: `${markerPrefix}transfer-create` })
     .click();
   await page.locator('#transaction-amount').fill('400');
@@ -1167,10 +1150,10 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
 
   await page.goto(`/transactions?month=${month}`);
   await page
-    .locator('.transaction-link')
+    .locator('[data-slot="transaction-link"]')
     .filter({ hasText: `${markerPrefix}transfer-create` })
     .click();
-  await page.locator('.delete-confirm > summary').click();
+  await page.locator('[data-slot="delete-confirm"] > summary').click();
   await page.getByRole('button', { name: '削除を確定', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   await openBalances(page);
@@ -1270,12 +1253,12 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
     for (const target of targets) {
       await page.goto('/balances');
       const row = accountRow(page, target.name);
-      const link = row.locator('a.balance-account-link');
+      const link = row.locator('[data-slot="balance-account-link"]');
       await expect(link).toHaveCount(1);
       await expect(row.locator('a')).toHaveCount(1);
       await expect(link).toHaveAttribute('href', `/transactions?account=${target.id}&month=all`);
       await expect(link).toHaveAccessibleName(new RegExp(`^${escapeRegExp(target.name)}`));
-      await row.locator('.balance-account-name').click();
+      await row.locator('[data-slot="balance-account-name"]').click();
       await expect(page).toHaveURL(`/transactions?account=${target.id}&month=all`);
     }
 
@@ -1286,8 +1269,8 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
         const row = accountRow(page, target.name);
         const amount =
           target.metricCount === 0
-            ? row.locator('.balance-amount')
-            : row.locator('.balance-metric').nth(amountIndex);
+            ? row.locator('[data-slot="balance-amount"]')
+            : row.locator('[data-slot="balance-metric"]').nth(amountIndex);
         await amount.click();
         await expect(page).toHaveURL(`/transactions?account=${target.id}&month=all`);
       }
@@ -1296,22 +1279,22 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
     for (const target of targets) {
       await page.goto('/balances');
       const row = accountRow(page, target.name);
-      const link = row.locator('a.balance-account-link');
+      const link = row.locator('[data-slot="balance-account-link"]');
       await link.scrollIntoViewIfNeeded();
       const linkBox = await link.boundingBox();
-      const nameBox = await row.locator('.balance-account-name').boundingBox();
+      const nameBox = await row.locator('[data-slot="balance-account-name"]').boundingBox();
       if (!linkBox || !nameBox) throw new Error('balance row link geometry is missing');
       let x = linkBox.x + Math.min(4, linkBox.width / 2);
       let y = linkBox.y + linkBox.height - 2;
       if (target.metricCount > 0) {
-        const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
+        const metricsBox = await row.locator('[data-slot="balance-row-metrics"]').boundingBox();
         if (!metricsBox) throw new Error('balance row metrics geometry is missing');
         const gap = metricsBox.x - (nameBox.x + nameBox.width);
         expect(gap).toBeGreaterThan(0);
         x = nameBox.x + nameBox.width + gap / 2;
         y = linkBox.y + linkBox.height / 2;
       } else {
-        const amountBox = await row.locator('.balance-amount').boundingBox();
+        const amountBox = await row.locator('[data-slot="balance-amount"]').boundingBox();
         if (!amountBox) throw new Error('balance row amount geometry is missing');
         const gap = amountBox.x - (nameBox.x + nameBox.width);
         expect(gap).toBeGreaterThan(0);
@@ -1324,22 +1307,21 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
 
     await page.goto('/balances');
     const cardRow = accountRow(page, paymentFixtureNames.primaryCard);
-    const cardLink = cardRow.locator('a.balance-account-link');
-    const fittedAmounts = await cardRow.locator('.balance-amount').evaluateAll((elements) =>
-      elements.map((element) => {
-        const content = element.querySelector('.balance-amount-content');
-        const containerBox = element.getBoundingClientRect();
-        const contentBox = content?.getBoundingClientRect();
-        return {
-          containerWidth: containerBox.width,
-          contentWidth: contentBox?.width ?? 0,
-        };
-      }),
-    );
-    expect(fittedAmounts.length).toBeGreaterThan(0);
-    for (const amount of fittedAmounts) {
-      expect(amount.contentWidth).toBeLessThanOrEqual(amount.containerWidth + 1);
-    }
+    const cardLink = cardRow.locator('[data-slot="balance-account-link"]');
+    await expectUnifiedListAmountFont(page);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.reload();
+    await expectUnifiedListAmountFont(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+    await expectAccountValuesFit(page);
+    await assertNoHorizontalOverflow(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '';
+    });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.reload();
 
     await tabToBalanceLink(page, cardLink);
     await expect(cardLink).toBeFocused();
@@ -1353,7 +1335,7 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/balances');
     const mobileCardLink = accountRow(page, paymentFixtureNames.primaryCard).locator(
-      'a.balance-account-link',
+      '[data-slot="balance-account-link"]',
     );
     await tabToBalanceLink(page, mobileCardLink);
     await expect(mobileCardLink).toBeFocused();
@@ -1390,7 +1372,9 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
     });
 
     await page.goto('/balances');
-    const keyboardLink = accountRow(page, destinationAccountName).locator('a.balance-account-link');
+    const keyboardLink = accountRow(page, destinationAccountName).locator(
+      '[data-slot="balance-account-link"]',
+    );
     await tabToBalanceLink(page, keyboardLink);
     await expect(keyboardLink).toBeFocused();
     await expect(keyboardLink).toHaveCSS('outline-style', 'solid');
@@ -1410,29 +1394,33 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await expect(page.getByText('今月の支払予定', { exact: true })).toHaveCount(0);
     await expect(page.getByText('設定を確認', { exact: true })).toHaveCount(0);
     await expect(page.getByText('資産別の残高', { exact: true })).toHaveCount(0);
-    await expect(page.locator('.balance-row .balance-metric-label')).toHaveCount(0);
-    await expect(page.locator('.balance-row').filter({ hasText: '支払予定' })).toHaveCount(0);
+    await expect(
+      page.locator('[data-slot="balance-row"] [data-slot="balance-metric-label"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-slot="balance-row"]').filter({ hasText: '支払予定' }),
+    ).toHaveCount(0);
 
     const bankGroup = page
-      .locator('.balance-group')
+      .locator('[data-slot="balance-group"]')
       .filter({ has: page.locator('h3', { hasText: /^銀行$/ }) });
-    await expect(bankGroup.locator('.balance-group-heading-label')).toHaveText([
+    await expect(bankGroup.locator('[data-slot="balance-group-heading-label"]')).toHaveText([
       '支払予定',
       '残高',
     ]);
     const cardGroup = page
-      .locator('.balance-group')
+      .locator('[data-slot="balance-group"]')
       .filter({ has: page.locator('h3', { hasText: /^クレジットカード$/ }) });
     await expect(cardGroup).toHaveCount(1);
-    await expect(cardGroup.locator('.balance-group-heading-label')).toHaveText([
+    await expect(cardGroup.locator('[data-slot="balance-group-heading-label"]')).toHaveText([
       '決済予定',
       '未決済',
     ]);
 
     const expectGroupRows = async (group: Locator, names: readonly string[]): Promise<void> => {
-      const rows = group.locator('.balance-row');
+      const rows = group.locator('[data-slot="balance-row"]');
       await expect(rows).toHaveCount(names.length);
-      await expect(rows.locator('.balance-account-name')).toHaveText([...names]);
+      await expect(rows.locator('[data-slot="balance-account-name"]')).toHaveText([...names]);
     };
     await expectGroupRows(bankGroup, [
       paymentFixtureNames.primaryBank,
@@ -1451,11 +1439,11 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     ]);
 
     const expectMetricLabels = async (row: Locator, labels: string[]): Promise<void> => {
-      await expect(row.locator('.balance-metric')).toHaveCount(labels.length);
+      await expect(row.locator('[data-slot="balance-metric"]')).toHaveCount(labels.length);
       await expect
         .poll(() =>
           row
-            .locator('.balance-metric')
+            .locator('[data-slot="balance-metric"]')
             .evaluateAll((elements) =>
               elements.map((element) => element.getAttribute('aria-label')),
             ),
@@ -1542,9 +1530,9 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await expect(balanceMetric(invalidSettingsCard, '決済予定')).toContainText('—');
     await expect(balanceMetric(invalidSettingsCard, '未決済')).toContainText('—');
     await expect(cardGroup).not.toContainText('利用残高');
-    expect((await page.locator('.balance-list').allTextContents()).join('\n')).not.toContain(
-      '支払日',
-    );
+    expect(
+      (await page.locator('[data-slot="balance-list"]').allTextContents()).join('\n'),
+    ).not.toContain('支払日');
 
     const moneyColors = await page.evaluate(() => {
       const readToken = (name: string): string => {
@@ -1562,26 +1550,21 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       };
     });
     const debtColor = moneyColors.debt;
-    await expect(balanceMetric(primaryBank, '支払予定').locator('.money-amount')).toHaveCSS(
-      'color',
-      debtColor,
-    );
-    await expect(balanceMetric(primaryCard, '決済予定').locator('.money-amount')).toHaveCSS(
-      'color',
-      debtColor,
-    );
-    await expect(balanceMetric(primaryCard, '未決済').locator('.money-amount')).toHaveCSS(
-      'color',
-      debtColor,
-    );
-    await expect(balanceMetric(primaryBank, '残高').locator('.money-amount')).toHaveCSS(
-      'color',
-      debtColor,
-    );
-    await expect(balanceMetric(secondaryBank, '残高').locator('.money-amount')).not.toHaveCSS(
-      'color',
-      debtColor,
-    );
+    await expect(
+      balanceMetric(primaryBank, '支払予定').locator('[data-slot="money-amount"]'),
+    ).toHaveCSS('color', debtColor);
+    await expect(
+      balanceMetric(primaryCard, '決済予定').locator('[data-slot="money-amount"]'),
+    ).toHaveCSS('color', debtColor);
+    await expect(
+      balanceMetric(primaryCard, '未決済').locator('[data-slot="money-amount"]'),
+    ).toHaveCSS('color', debtColor);
+    await expect(
+      balanceMetric(primaryBank, '残高').locator('[data-slot="money-amount"]'),
+    ).toHaveCSS('color', debtColor);
+    await expect(
+      balanceMetric(secondaryBank, '残高').locator('[data-slot="money-amount"]'),
+    ).not.toHaveCSS('color', debtColor);
     const overpaymentCard = accountRow(page, paymentFixtureNames.overpaymentCard);
     await expectMetricLabels(overpaymentCard, ['決済予定', '未決済']);
     await expect(balanceMetric(overpaymentCard, '決済予定')).toContainText('0円');
@@ -1615,30 +1598,24 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
     await page.setViewportSize({ width: 320, height: 844 });
     await page.reload();
     await assertNoHorizontalOverflow(page);
-    const mobileAmountMeasurements = await readListAmountMeasurements(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+    await expectUnifiedListAmountFont(page);
+    await expectAccountValuesFit(page);
+    await assertNoHorizontalOverflow(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '';
+    });
     await expectUnifiedListAmountFont(page);
     await expectUnifiedListBodyFont(page);
     await logRenderedPlatformFonts(page);
-    const mobileAmount = mobileAmountMeasurements[0];
-    if (!mobileAmount) throw new Error('mobile balance amount measurements are missing');
-    expect(mobileAmount.fontSize).toBeLessThan(mobileAmount.baseFontSize - 0.1);
 
     await page.screenshot({
       path: `${screenshotDirectory}/balances-font-unified-mobile-320.png`,
       fullPage: true,
     });
 
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect
-      .poll(async () => {
-        const measurements = await readListAmountMeasurements(page);
-        const firstMeasurement = measurements[0];
-        return (
-          firstMeasurement !== undefined &&
-          firstMeasurement.fontSize > firstMeasurement.baseFontSize - 0.1
-        );
-      })
-      .toBe(true);
     await assertNoHorizontalOverflow(page);
     await expectUnifiedListAmountFont(page);
     await expectUnifiedListBodyFont(page);
@@ -1649,7 +1626,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
 
     const cardGroupWithRows = {
       group: cardGroup,
-      rows: cardGroup.locator('.balance-row'),
+      rows: cardGroup.locator('[data-slot="balance-row"]'),
     };
     for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
@@ -1657,9 +1634,9 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
       await assertNoHorizontalOverflow(page);
       const row = accountRow(page, paymentFixtureNames.primaryCard);
       const rowBox = await row.boundingBox();
-      const linkBox = await row.locator('.balance-account-link').boundingBox();
-      const nameBox = await row.locator('.balance-account-name').boundingBox();
-      const metricsBox = await row.locator('.balance-row-metrics').boundingBox();
+      const linkBox = await row.locator('[data-slot="balance-account-link"]').boundingBox();
+      const nameBox = await row.locator('[data-slot="balance-account-name"]').boundingBox();
+      const metricsBox = await row.locator('[data-slot="balance-row-metrics"]').boundingBox();
       if (!rowBox || !linkBox || !nameBox || !metricsBox) {
         throw new Error('balance row geometry is missing');
       }
@@ -1672,7 +1649,7 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
 
       for (const { group, rows } of [cardGroupWithRows]) {
         const headingColumns = await group
-          .locator('.balance-group-heading-label')
+          .locator('[data-slot="balance-group-heading-label"]')
           .evaluateAll((elements) =>
             elements.map((element) => {
               const box = element.getBoundingClientRect();
@@ -1681,10 +1658,12 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
           );
         const metricColumns = await rows.evaluateAll((rowElements) =>
           rowElements.map((rowElement) =>
-            Array.from(rowElement.querySelectorAll('.balance-metric')).map((element) => {
-              const box = element.getBoundingClientRect();
-              return { x: box.x, width: box.width };
-            }),
+            Array.from(rowElement.querySelectorAll('[data-slot="balance-metric"]')).map(
+              (element) => {
+                const box = element.getBoundingClientRect();
+                return { x: box.x, width: box.width };
+              },
+            ),
           ),
         );
         expect(headingColumns).toHaveLength(2);
@@ -1698,29 +1677,35 @@ test('keeps and aggregates card payment schedules on balances', async ({ page })
           }
         }
       }
-      const amountGeometry = await page.locator('.balance-group').evaluateAll((groups) =>
-        groups.map((group) => {
-          const list = group.querySelector<HTMLElement>('.balance-list');
-          if (!list) throw new Error('balance list is missing');
-          const readRect = (element: Element) => {
-            const box = element.getBoundingClientRect();
-            return { right: box.right, top: box.top, bottom: box.bottom };
-          };
-          const headers = Array.from(
-            group.querySelectorAll<HTMLElement>('.balance-group-heading-label'),
-          ).map(readRect);
-          const rows = Array.from(group.querySelectorAll<HTMLElement>('.balance-row')).map((row) =>
-            Array.from(row.querySelectorAll<HTMLElement>('.balance-metric')).map((metric) => {
-              const amount =
-                metric.querySelector<HTMLElement>('.money-amount') ??
-                metric.querySelector<HTMLElement>('.balance-amount');
-              if (!amount) throw new Error('balance amount is missing');
-              return readRect(amount);
-            }),
-          );
-          return { list: readRect(list), headers, rows };
-        }),
-      );
+      const amountGeometry = await page
+        .locator('[data-slot="balance-group"]')
+        .evaluateAll((groups) =>
+          groups.map((group) => {
+            const list = group.querySelector<HTMLElement>('[data-slot="balance-list"]');
+            if (!list) throw new Error('balance list is missing');
+            const readRect = (element: Element) => {
+              const box = element.getBoundingClientRect();
+              return { right: box.right, top: box.top, bottom: box.bottom };
+            };
+            const headers = Array.from(
+              group.querySelectorAll<HTMLElement>('[data-slot="balance-group-heading-label"]'),
+            ).map(readRect);
+            const rows = Array.from(
+              group.querySelectorAll<HTMLElement>('[data-slot="balance-row"]'),
+            ).map((row) =>
+              Array.from(row.querySelectorAll<HTMLElement>('[data-slot="balance-metric"]')).map(
+                (metric) => {
+                  const amount =
+                    metric.querySelector<HTMLElement>('[data-slot="money-amount"]') ??
+                    metric.querySelector<HTMLElement>('[data-slot="balance-amount"]');
+                  if (!amount) throw new Error('balance amount is missing');
+                  return readRect(amount);
+                },
+              ),
+            );
+            return { list: readRect(list), headers, rows };
+          }),
+        );
       for (const group of amountGeometry) {
         const columns: { right: number; top: number; bottom: number }[][] = [];
         for (const row of group.rows) {

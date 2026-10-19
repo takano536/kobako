@@ -1,5 +1,8 @@
 'use client';
 
+import primitiveStyles from '../_components/button.module.css';
+import settingsStyles from './settings.module.css';
+
 import type { Category, TransactionType } from '@kobako/db';
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -15,7 +18,7 @@ import {
 function PendingButton({
   label,
   pendingLabel,
-  className = 'button button-secondary',
+  className = [primitiveStyles.button, primitiveStyles.buttonSecondary].join(' '),
   disabled = false,
   describedBy,
 }: {
@@ -42,7 +45,7 @@ function PendingButton({
 
 function ActionError({ id, message }: { id?: string; message?: string }) {
   return message ? (
-    <p className="settings-inline-error" id={id} role="alert">
+    <p className={settingsStyles['settings-inline-error']} id={id} role="alert">
       {message}
     </p>
   ) : null;
@@ -75,7 +78,11 @@ function OrderForm({
       <PendingButton
         label={direction === 'up' ? '上へ' : '下へ'}
         pendingLabel="…"
-        className="button button-quiet settings-category-action"
+        className={[
+          primitiveStyles.button,
+          primitiveStyles.buttonQuiet,
+          settingsStyles['settings-category-action'],
+        ].join(' ')}
         disabled={boundary}
         describedBy={describedBy}
       />
@@ -137,9 +144,9 @@ function CategoryRow({
   }
 
   return (
-    <li className="settings-category-row">
+    <li data-slot="settings-category-row" className={settingsStyles['settings-category-row']}>
       {editing ? (
-        <form className="settings-category-editform" action={updateAction}>
+        <form className={settingsStyles['settings-category-editform']} action={updateAction}>
           <input type="hidden" name="categoryId" value={category.id} />
           <input type="hidden" name="type" value={type} />
           <label className="sr-only" htmlFor={`category-name-${category.id}`}>
@@ -162,18 +169,35 @@ function CategoryRow({
             aria-invalid={updateState.error ? true : undefined}
             aria-describedby={updateState.error ? errorId : undefined}
           />
-          <PendingButton label="保存" pendingLabel="保存中…" className="button button-secondary" />
-          <button className="button button-quiet" type="button" onClick={cancel}>
+          <PendingButton
+            label="保存"
+            pendingLabel="保存中…"
+            className={[primitiveStyles.button, primitiveStyles.buttonSecondary].join(' ')}
+          />
+          <button
+            className={[primitiveStyles.button, primitiveStyles.buttonQuiet].join(' ')}
+            type="button"
+            onClick={cancel}
+          >
             キャンセル
           </button>
         </form>
       ) : (
         <>
-          <span className="settings-category-name">{category.name}</span>
-          <div className="settings-category-actions">
+          <span
+            data-slot="settings-category-name"
+            className={settingsStyles['settings-category-name']}
+          >
+            {category.name}
+          </span>
+          <div className={settingsStyles['settings-category-actions']}>
             <button
               ref={renameRef}
-              className="button button-quiet settings-category-action"
+              className={[
+                primitiveStyles.button,
+                primitiveStyles.buttonQuiet,
+                settingsStyles['settings-category-action'],
+              ].join(' ')}
               type="button"
               onClick={() => {
                 setName(category.name);
@@ -204,7 +228,11 @@ function CategoryRow({
               <PendingButton
                 label="削除"
                 pendingLabel="削除中…"
-                className="button button-danger-quiet settings-category-action"
+                className={[
+                  primitiveStyles.button,
+                  primitiveStyles.buttonDangerQuiet,
+                  settingsStyles['settings-category-action'],
+                ].join(' ')}
                 describedBy={deleteState.error ? errorId : undefined}
               />
             </form>
@@ -226,7 +254,7 @@ function CategoryAddForm({ type }: { type: TransactionType }) {
     if (state.values?.name !== undefined) setName(state.values.name);
   }, [state.values?.name]);
   return (
-    <form className="settings-category-add" action={formAction}>
+    <form className={settingsStyles['settings-category-add']} action={formAction}>
       <input type="hidden" name="type" value={type} />
       <label htmlFor={`${type}-category-new`}>新しいカテゴリ</label>
       <input
@@ -240,7 +268,7 @@ function CategoryAddForm({ type }: { type: TransactionType }) {
         aria-invalid={state.error ? true : undefined}
         aria-describedby={state.error ? `${type}-category-new-error` : undefined}
       />
-      <PendingButton label="追加" pendingLabel="追加中…" className="button button-primary" />
+      <PendingButton label="追加" pendingLabel="追加中…" className={primitiveStyles.button} />
       <ActionError id={`${type}-category-new-error`} message={state.error} />
     </form>
   );
@@ -256,8 +284,12 @@ export function SingleCategoryManager({
   categories: readonly Category[];
 }) {
   return (
-    <div className="settings-category-manager">
-      <ul className="settings-category-list" aria-label={`${title}の一覧`}>
+    <div className={settingsStyles['settings-category-manager']}>
+      <ul
+        data-slot="settings-category-list"
+        className={settingsStyles['settings-category-list']}
+        aria-label={`${title}の一覧`}
+      >
         {categories.map((category, index) => (
           <CategoryRow
             key={category.id}
