@@ -1,4 +1,11 @@
 # Changelog
+## [0.14.0](https://github.com/takano536/kobako/compare/v0.13.4...v0.14.0) (2026-10-19)
+
+
+### Features
+
+* **web:** refresh paper notebook UI ([#83](https://github.com/takano536/kobako/issues/83)) ([a648744](https://github.com/takano536/kobako/commit/a6487445586fc0c6fbb544ee22b3a21ea1220253))
+
 ## [0.13.4](https://github.com/takano536/kobako/compare/v0.13.3...v0.13.4) (2026-10-17)
 
 
