@@ -67,3 +67,7 @@ App設定（Client ID、bot login、private key）または `takano536/kobako` i
 ## Docker の graceful shutdown
 
 Docker jobは `docker compose stop -t 20` 後に worker終了コード `0`、web終了コード `0` または `143` を確認します。`137`、その他の終了コード、health/DB/page failureはCI失敗です。cleanupはCI専用環境にだけ実行します。
+
+## PR プレビュー
+
+`pull_request` の opened / synchronize / reopened で `preview` job が Cloudflare Workers へデモを配備し、PR にコメントで URL を出します。closed では同じ job が `wrangler preview delete` を実行します。必要な secret と制約は [`docs/preview.md`](preview.md) を参照してください。

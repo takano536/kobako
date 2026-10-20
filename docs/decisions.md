@@ -143,3 +143,9 @@ worker は起動時と一定間隔で期限到来分を処理する。`(househol
 UI の再設計では、見た目を所有する部品ごとに CSS Modules を co-locate し、`globals.css` はトークン・リセット・ベース文字組み・フォーカス・モーションの安全策だけに限定します。Tailwind は導入せず、既存の plain CSS と Next.js の CSS Modules でクラス名の所有範囲と未使用スタイルを追跡しやすくし、React の構造・状態と CSS の見た目を分離します。
 
 日本語・英数字・金額の実描画差を抑えるため、外部フォントサービスではなく OFL-1.1 のローカル `@fontsource-variable/noto-sans-jp` を unicode-range 分割で配信します。CDP の CSS ドメインによる実フォント監査で OS 依存の system-ui と比較し、概要・フォームの本文・入力は 400、見出し・ボタンは 500、金額は 500 を使うことを確認しました。可変フォントのプラットフォーム名が `Noto Sans JP Thin` と返る点は既定インスタンス名であり、CSS ウェイト指定とは別であることを記録します。
+
+## PR プレビュー
+
+UI の確認をスクリーンショットの添付に依存させないため、PR ごとに Cloudflare Workers へ実際に動くプレビューを配備します。`apps/web` は OpenNext Cloudflare で Worker にビルドし、PR ごとの配備は `wrangler preview`、PR を閉じたときの削除は `wrangler preview delete` で行います。Docker image（`node:24` の standalone 構成）は本番用として残し、プレビューのために `output: 'standalone'` を外しません。OpenNext は standalone 出力と併存できます。
+
+DB はデモ専用の PostgreSQL を一つ共有します。PR ごとに DB を分けると migration と seed の管理が増え、プレビューの目的（UI を触って確認する）に対して過剰なためです。代わりに接続先は `DEMO_DATABASE_URL` だけに限定し、seed は固定のデモデータを idempotent に投入します。Hyperdrive は使わず、postgres.js が `nodejs_compat` で TCP 接続します。Hyperdrive を挟んでも Drizzle の postgres-js adapter が prepared statement を再利用できず、設定だけが増えるためです。

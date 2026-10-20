@@ -5,6 +5,7 @@ packages:
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+  workerd: true
 
 minimumReleaseAgeExclude:
   - '@types/node@24.19.0'

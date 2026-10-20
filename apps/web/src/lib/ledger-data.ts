@@ -8,9 +8,13 @@ import {
 
 let databaseClient: DatabaseClient | undefined;
 
-export function getLedgerDatabase(): Database {
+export function getLedgerClient(): DatabaseClient {
   databaseClient ??= createDatabaseClient(getDatabaseUrl());
-  return databaseClient.db;
+  return databaseClient;
+}
+
+export function getLedgerDatabase(): Database {
+  return getLedgerClient().db;
 }
 
 /** Resolve the active household in one place until authentication supplies it. */

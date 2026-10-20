@@ -1,0 +1,112 @@
+name: Preview demo
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: kobako-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+jobs:
+  preview:
+    name: preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIEW_NAME: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Check preview configuration
+        id: config
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+            echo 'Cloudflare の preview 設定が無いため demo deploy を skip しました。`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`DEMO_DATABASE_URL` を repository secrets に登録すると有効になります。' >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "ready=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Check out the pull request head
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - if: steps.config.outputs.ready == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Stop the pull request preview
+        if: steps.config.outputs.ready == 'true' && github.event.action == 'closed'
+        working-directory: apps/web
+        run: pnpm exec wrangler preview delete --name "${PREVIEW_NAME}" || true
+
+      - name: Build the worker bundle
+        if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
+        run: pnpm demo:build
+
+      - name: Migrate and seed the demo database
+        if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL}" ]; then
+            echo 'DEMO_DATABASE_URL が未設定です。demo database の接続文字列を secret に登録してください。' >&2
+            exit 1
+          fi
+          node packages/db/dist/migrate.js
+          pnpm demo:reset
+
+      - name: Deploy the preview
+        id: deploy
+        if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
+        working-directory: apps/web
+        env:
+          DEMO_DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${GITHUB_WORKSPACE}/.tmp"
+          printf 'DATABASE_URL=%s\n' "${DEMO_DATABASE_URL}" > "${GITHUB_WORKSPACE}/.tmp/preview.env"
+          pnpm exec wrangler preview --name "${PREVIEW_NAME}" \
+            --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA}" \
+            --secrets-file "${GITHUB_WORKSPACE}/.tmp/preview.env" \
+            --json > "${GITHUB_WORKSPACE}/.tmp/preview.json"
+          node -e 'const data = require(process.env.GITHUB_WORKSPACE + "/.tmp/preview.json"); const url = data.url ?? data.deploymentUrl ?? data.deployments?.[0]?.url ?? ""; console.log(`url=${url}`); require("node:fs").appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);'
+          cat "${GITHUB_WORKSPACE}/.tmp/preview.json" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Comment the preview URL
+        if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          body="${GITHUB_WORKSPACE}/.tmp/preview-comment.md"
+          {
+            echo '<!-- kobako-preview -->'
+            echo '## プレビュー'
+            if [ -n "${PREVIEW_URL}" ]; then
+              echo "https://${PREVIEW_URL#https://}"
+              echo
+              echo 'デモ用のデータだけが入った DB に接続しています。'
+            else
+              echo 'プレビュー URL を取得できませんでした。workflow のログと summary を確認してください。'
+            fi
+          } > "${body}"
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- kobako-preview -->")) | .id' | head -n 1)
+          if [ -n "${existing}" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -F body=@"${body}" > /dev/null
+          else
+            gh pr comment "${PR_NUMBER}" --body-file "${body}" > /dev/null
+          fi
