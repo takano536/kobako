@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AssetCategorySettingsPage() {
-  const categories = await listAssetCategories(getLedgerDatabase(), getCurrentHouseholdId());
+  const categories = await listAssetCategories(getLedgerDatabase(), await getCurrentHouseholdId());
   return (
     <PageShell width="narrow">
       <PageHeader

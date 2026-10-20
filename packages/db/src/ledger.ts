@@ -39,6 +39,18 @@ import { ensureDefaultAssetCategories } from './asset-categories.js';
 export const DEFAULT_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_HOUSEHOLD_SLUG = 'local';
 
+export interface HouseholdIdentity {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export const DEFAULT_HOUSEHOLD: HouseholdIdentity = {
+  id: DEFAULT_HOUSEHOLD_ID,
+  slug: DEFAULT_HOUSEHOLD_SLUG,
+  name: '自宅',
+};
+
 export const DEFAULT_CATEGORY_SEEDS = [
   { type: 'expense', name: '食費', sortOrder: 10 },
   { type: 'expense', name: '日用品', sortOrder: 20 },
@@ -66,35 +78,42 @@ export const DEFAULT_ACCOUNT_GROUP_SEEDS = [
   { name: 'その他', defaultKind: null, sortOrder: 60 },
 ] as const;
 
-export async function initializeDefaultLedger(db: Database): Promise<void> {
+/**
+ * Create the household row when it is missing and fill in the default categories and
+ * account groups. Pass `household` to initialize an additional household.
+ */
+export async function initializeDefaultLedger(
+  db: Database,
+  household: HouseholdIdentity = DEFAULT_HOUSEHOLD,
+): Promise<void> {
   await db.transaction(async (transaction) => {
     await transaction
       .insert(households)
       .values({
-        id: DEFAULT_HOUSEHOLD_ID,
-        slug: DEFAULT_HOUSEHOLD_SLUG,
-        name: '自宅',
+        id: household.id,
+        slug: household.slug,
+        name: household.name,
       })
       .onConflictDoNothing({ target: households.id });
 
     const householdRows = await transaction
       .select({ ledgerInitialized: households.ledgerInitialized })
       .from(households)
-      .where(eq(households.id, DEFAULT_HOUSEHOLD_ID))
+      .where(eq(households.id, household.id))
       .for('update')
       .limit(1);
-    const household = householdRows[0];
-    if (!household) {
-      throw new Error('Default household not found');
+    const row = householdRows[0];
+    if (!row) {
+      throw new Error('Household not found');
     }
-    await ensureDefaultAssetCategories(transaction, DEFAULT_HOUSEHOLD_ID);
-    if (household.ledgerInitialized) return;
+    await ensureDefaultAssetCategories(transaction, household.id);
+    if (row.ledgerInitialized) return;
 
     await transaction
       .insert(accountGroups)
       .values(
         DEFAULT_ACCOUNT_GROUP_SEEDS.map((group) => ({
-          householdId: DEFAULT_HOUSEHOLD_ID,
+          householdId: household.id,
           ...group,
         })),
       )
@@ -106,7 +125,7 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
       .insert(categories)
       .values(
         DEFAULT_CATEGORY_SEEDS.map((category) => ({
-          householdId: DEFAULT_HOUSEHOLD_ID,
+          householdId: household.id,
           ...category,
         })),
       )
@@ -115,7 +134,7 @@ export async function initializeDefaultLedger(db: Database): Promise<void> {
     await transaction
       .update(households)
       .set({ ledgerInitialized: true })
-      .where(eq(households.id, DEFAULT_HOUSEHOLD_ID));
+      .where(eq(households.id, household.id));
   });
 }
 

@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
           node packages/db/dist/migrate.js
-          pnpm demo:reset
+          pnpm demo:purge
 
       - name: Deploy the preview
         id: deploy

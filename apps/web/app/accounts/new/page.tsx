@@ -23,7 +23,7 @@ export async function AccountNewContent({
   showCancel?: boolean;
 }) {
   await searchParams;
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
   const [accounts, assetCategories] = await Promise.all([
     listActiveManagedAccounts(db, householdId),

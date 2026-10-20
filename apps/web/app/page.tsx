@@ -45,7 +45,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const selectedMonth = firstQueryValue(query.month);
   const month = parseMonth(selectedMonth, currentTokyoMonth());
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const [totals, latestTransactions, categoryTotals] = await Promise.all([
     getMonthlyTotals(db, householdId, month),
     listTransactions(db, householdId, { month, limit: 5 }),

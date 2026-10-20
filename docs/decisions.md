@@ -149,3 +149,9 @@ UI の再設計では、見た目を所有する部品ごとに CSS Modules を 
 UI の確認をスクリーンショットの添付に依存させないため、PR ごとに Cloudflare Workers へ実際に動くプレビューを配備します。`apps/web` は OpenNext Cloudflare で Worker にビルドし、PR ごとの配備は `wrangler preview`、PR を閉じたときの削除は `wrangler preview delete` で行います。Docker image（`node:24` の standalone 構成）は本番用として残し、プレビューのために `output: 'standalone'` を外しません。OpenNext は standalone 出力と併存できます。
 
 DB はデモ専用の PostgreSQL を一つ共有します。PR ごとに DB を分けると migration と seed の管理が増え、プレビューの目的（UI を触って確認する）に対して過剰なためです。代わりに接続先は `DEMO_DATABASE_URL` だけに限定し、seed は固定のデモデータを idempotent に投入します。Hyperdrive は使わず、postgres.js が `nodejs_compat` で TCP 接続します。Hyperdrive を挟んでも Drizzle の postgres-js adapter が prepared statement を再利用できず、設定だけが増えるためです。
+
+## デモの世帯分離
+
+デモ配備では訪問者ごとに世帯を発行します。単一世帯を共有すると、レビュアーAの登録がBの画面に現れ、`/settings/delete` を押した人が全員のデータを消せてしまうためです。スキーマは元々すべてのテーブルを `household_id` で分けているので、`initializeDefaultLedger` に世帯を受け取らせ、`/demo/start` で uuid を発行するだけで足ります。
+
+上限（200世帯）と24時間の生存期間は、`/demo/start` を連打された場合の被害を固定するためのものです。Neon Free は1GB/プロジェクトで、超過すると書き込みが失敗し、CU-hours を使い切ると翌請求期間まで compute が停止します。上限を置けば、掃除が壊れてもストレージは約2MBで止まります。上限に達したときは最古の世帯を捨てるので、訪問者が「満員」で締め出されることはありません。

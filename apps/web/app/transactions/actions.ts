@@ -104,7 +104,7 @@ export async function createTransactionAction(
 ): Promise<TransactionFormState> {
   void previousState;
   const values = transactionFormValuesFromFormData(formData);
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
 
   if (values.type === 'transfer') {
@@ -176,7 +176,7 @@ export async function updateTransactionAction(
   }
 
   const values = transactionFormValuesFromFormData(formData);
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
 
   if (values.type === 'transfer') {
@@ -299,7 +299,7 @@ export async function deleteTransactionAction(
     return { message: '削除する場合は確認操作を完了してください。' };
   }
 
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
 
   if (entryType === 'transfer') {

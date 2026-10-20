@@ -339,7 +339,7 @@ async function buildPreview(
   operationKey: string,
 ): Promise<MoneyManagerBuiltPreview> {
   const parsed = await parseMoneyManagerXlsx(bytes, { maxRows: MONEY_MANAGER_MAX_ROWS });
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
   const categories = await listCategories(db, householdId);
   const categoryPlan = planMoneyManagerCategories(parsed.rows, categories);
@@ -474,7 +474,7 @@ export async function moneyManagerImportAction(
   let committed: MoneyManagerImportCommitResult;
   try {
     committed = await commitMoneyManagerImport(getLedgerDatabase(), {
-      householdId: getCurrentHouseholdId(),
+      householdId: await getCurrentHouseholdId(),
       source: MONEY_MANAGER_SOURCE,
       sha256: upload.hash,
       operationKey,

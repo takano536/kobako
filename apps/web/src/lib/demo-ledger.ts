@@ -1,4 +1,10 @@
-import { DEFAULT_HOUSEHOLD_ID, initializeDefaultLedger, type DatabaseClient } from '@kobako/db';
+import {
+  DEFAULT_HOUSEHOLD_ID,
+  deleteHousehold,
+  getHousehold,
+  initializeDefaultLedger,
+  type DatabaseClient,
+} from '@kobako/db';
 
 export type DemoSeedResult =
   | { status: 'skipped'; accounts: number }
@@ -28,11 +34,13 @@ function recentMonths(count: number): Array<{ year: number; month: number }> {
  */
 export async function seedDemoLedger(
   client: DatabaseClient,
-  options: { reset?: boolean } = {},
+  options: { householdId?: string; reset?: boolean } = {},
 ): Promise<DemoSeedResult> {
   const { db, sql } = client;
+  const householdId = options.householdId ?? DEFAULT_HOUSEHOLD_ID;
 
-  await initializeDefaultLedger(db);
+  // Extra households are initialized by their creator, which owns the slug.
+  if (householdId === DEFAULT_HOUSEHOLD_ID) await initializeDefaultLedger(db);
 
   if (options.reset) {
     // Categories, asset categories, and groups stay; only ledger rows are rebuilt.
@@ -47,7 +55,7 @@ export async function seedDemoLedger(
     const [existing] = await sql<{ count: number }[]>`
       select count(*)::int as count
       from accounts
-      where household_id = ${DEFAULT_HOUSEHOLD_ID} and deleted_at is null
+      where household_id = ${householdId} and deleted_at is null
     `;
     if (existing && existing.count > 0) {
       return { status: 'skipped', accounts: existing.count };
@@ -55,13 +63,13 @@ export async function seedDemoLedger(
   }
 
   const assetCategories = await sql<{ id: number; system_key: string }[]>`
-    select id, system_key from asset_categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    select id, system_key from asset_categories where household_id = ${householdId}
   `;
   const groups = await sql<{ id: number; name: string }[]>`
-    select id, name from account_groups where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    select id, name from account_groups where household_id = ${householdId}
   `;
   const categories = await sql<{ id: number; name: string; type: string }[]>`
-    select id, name, type from categories where household_id = ${DEFAULT_HOUSEHOLD_ID}
+    select id, name, type from categories where household_id = ${householdId}
   `;
 
   const assetCategoryId = (systemKey: string): number => {
@@ -82,7 +90,7 @@ export async function seedDemoLedger(
 
   const accountRows: DemoRow[] = [
     {
-      household_id: DEFAULT_HOUSEHOLD_ID,
+      household_id: householdId,
       name: '給与口座',
       kind: 'bank',
       asset_category_id: assetCategoryId('bank'),
@@ -90,7 +98,7 @@ export async function seedDemoLedger(
       sort_order: 10,
     },
     {
-      household_id: DEFAULT_HOUSEHOLD_ID,
+      household_id: householdId,
       name: '生活費口座',
       kind: 'bank',
       asset_category_id: assetCategoryId('bank'),
@@ -98,7 +106,7 @@ export async function seedDemoLedger(
       sort_order: 20,
     },
     {
-      household_id: DEFAULT_HOUSEHOLD_ID,
+      household_id: householdId,
       name: '現金',
       kind: 'cash',
       asset_category_id: assetCategoryId('cash'),
@@ -106,7 +114,7 @@ export async function seedDemoLedger(
       sort_order: 10,
     },
     {
-      household_id: DEFAULT_HOUSEHOLD_ID,
+      household_id: householdId,
       name: 'クレジットカード',
       kind: 'credit_card',
       asset_category_id: assetCategoryId('credit_card'),
@@ -127,7 +135,7 @@ export async function seedDemoLedger(
   `;
 
   const accountIds = await sql<{ id: number; name: string }[]>`
-    select id, name from accounts where household_id = ${DEFAULT_HOUSEHOLD_ID} and deleted_at is null
+    select id, name from accounts where household_id = ${householdId} and deleted_at is null
   `;
   const accountId = (name: string): number => {
     const row = accountIds.find((account) => account.name === name);
@@ -145,7 +153,7 @@ export async function seedDemoLedger(
     const day = (value: number): string => tokyoDate(year, month, value);
     transactions.push(
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'income',
         amount: 320000,
         occurred_on: day(25),
@@ -154,7 +162,7 @@ export async function seedDemoLedger(
         memo: '給与',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'income',
         amount: 8000,
         occurred_on: day(18),
@@ -163,7 +171,7 @@ export async function seedDemoLedger(
         memo: 'メルカリ売上',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 85000,
         occurred_on: day(27),
@@ -172,7 +180,7 @@ export async function seedDemoLedger(
         memo: '家賃',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 12000,
         occurred_on: day(8),
@@ -181,7 +189,7 @@ export async function seedDemoLedger(
         memo: '電気・ガス',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 7800,
         occurred_on: day(5),
@@ -190,7 +198,7 @@ export async function seedDemoLedger(
         memo: 'インターネット回線',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 42000,
         occurred_on: day(4),
@@ -199,7 +207,7 @@ export async function seedDemoLedger(
         memo: 'スーパー・外食',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 16000,
         occurred_on: day(12),
@@ -208,7 +216,7 @@ export async function seedDemoLedger(
         memo: 'ドラッグストア',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 9500,
         occurred_on: day(15),
@@ -217,7 +225,7 @@ export async function seedDemoLedger(
         memo: '定期券',
       },
       {
-        household_id: DEFAULT_HOUSEHOLD_ID,
+        household_id: householdId,
         type: 'expense',
         amount: 14500,
         occurred_on: day(21),
@@ -248,7 +256,7 @@ export async function seedDemoLedger(
     insert into transfers ${sql(
       [
         {
-          household_id: DEFAULT_HOUSEHOLD_ID,
+          household_id: householdId,
           from_account_id: salaryAccount,
           to_account_id: livingAccount,
           amount: 150000,
@@ -271,4 +279,87 @@ export async function seedDemoLedger(
     transactions: transactions.length,
     transfers: 1,
   };
+}
+
+/**
+ * Create one isolated demo household with the standard demo ledger.
+ * Used by `/demo/start` so every visitor gets a ledger of their own.
+ */
+export async function createDemoHousehold(client: DatabaseClient): Promise<string> {
+  const id = crypto.randomUUID();
+  await initializeDefaultLedger(client.db, { id, slug: `demo-${id.slice(0, 8)}`, name: 'デモ' });
+  await seedDemoLedger(client, { householdId: id });
+  return id;
+}
+
+/** True when the household still exists; evicted demo households return false. */
+export async function demoHouseholdExists(
+  client: DatabaseClient,
+  householdId: string,
+): Promise<boolean> {
+  if (!/^[0-9a-f-]{36}$/i.test(householdId)) return false;
+  return (await getHousehold(client.db, householdId)) !== null;
+}
+
+/**
+ * Delete demo households. `olderThanHours` removes only expired ones, `keep` protects the
+ * newest rows, and no option at all wipes every demo household.
+ */
+export async function purgeDemoHouseholds(
+  client: DatabaseClient,
+  options: { olderThanHours?: number; keep?: number } = {},
+): Promise<number> {
+  const { sql } = client;
+  const { olderThanHours, keep = 0 } = options;
+  const rows =
+    olderThanHours === undefined
+      ? await sql<{ id: string }[]>`
+          select id from households
+          where id <> ${DEFAULT_HOUSEHOLD_ID}
+          order by created_at desc, id desc
+          offset ${keep}
+        `
+      : await sql<{ id: string }[]>`
+          select id from households
+          where id <> ${DEFAULT_HOUSEHOLD_ID}
+            and created_at < now() - make_interval(hours => ${olderThanHours})
+          order by created_at desc, id desc
+          offset ${keep}
+        `;
+
+  let deleted = 0;
+  for (const row of rows) {
+    const result = await deleteHousehold(client.db, row.id);
+    if (result.status === 'ok') deleted += 1;
+  }
+  return deleted;
+}
+
+/**
+ * Provision a demo household for one visitor while keeping the deployment bounded:
+ * expired households go first, and a full deployment evicts its oldest household.
+ */
+export async function provisionDemoHousehold(
+  client: DatabaseClient,
+  options: { limit?: number; ttlHours?: number } = {},
+): Promise<string> {
+  const { limit = 200, ttlHours = 24 } = options;
+  const { sql } = client;
+
+  await purgeDemoHouseholds(client, { olderThanHours: ttlHours });
+
+  const [counted] = await sql<{ count: number }[]>`
+    select count(*)::int as count from households where id <> ${DEFAULT_HOUSEHOLD_ID}
+  `;
+  if ((counted?.count ?? 0) >= limit) {
+    const [oldest] = await sql<{ id: string }[]>`
+      select id from households
+      where id <> ${DEFAULT_HOUSEHOLD_ID}
+      order by created_at asc, id asc
+      limit 1
+    `;
+    if (oldest) await deleteHousehold(client.db, oldest.id);
+  }
+
+  return createDemoHousehold(client);
 }

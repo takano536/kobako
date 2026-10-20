@@ -28,7 +28,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function BalancesPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const accountNewHref = withSelectedMonth('/accounts/new', firstQueryValue(query.month));
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
   const today = currentTokyoDate();
   const allBalances = await getManagedAccountBalances(db, householdId);

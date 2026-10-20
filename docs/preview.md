@@ -9,13 +9,19 @@ PR ごとに、実ブラウザで触れるデモを Cloudflare Workers へ配備
 - DB は**デモ専用の PostgreSQL** を一つ共有します。workflow が `packages/db/dist/migrate.js` で migration を適用し、`apps/web/scripts/seed-demo.ts` で固定のデモデータを idempotent に投入します（既に account がある家計には何もしません）。
 - Worker の接続先は `DATABASE_URL` を `--secrets-file` で配備ごとに渡します。Hyperdrive は使いません（postgres.js が `nodejs_compat` の TCP で直接接続でき、設定を増やさずに済むため）。
 
-## データのリセット
+## 訪問者ごとの世帯
 
-プレビューのデモデータは、**配備のたびに作り直します**。workflow が migration の後に `pnpm demo:reset` を実行し、`transfers`、`transactions`、`accounts` を作り直してから固定のデモデータを入れ直します（口座・カテゴリは残ります）。
+`DEMO_MODE=1` の配備では、訪問者は共有の台帳ではなく**自分専用の世帯**を受け取ります。`/demo/start` が世帯・カテゴリ・デモデータを作成し、`kobako-demo-household` cookie（HttpOnly / SameSite=Lax / 24時間）で結び付けます。cookie の無いページ表示は `/demo/start` へ送られ、世帯が消えていれば作り直されます。本番経路（`DEMO_MODE` 無し）は従来どおり `DEFAULT_HOUSEHOLD_ID` の単一世帯です。
 
-手元やプレビューから明示的に作り直す場合は `POST /api/demo/reset` を叩きます。この route は `DEMO_MODE=1` のときだけ有効で、それ以外は 404 を返します（`apps/web/wrangler.jsonc` の `vars` で設定済み）。
+荒らしと容量の上限は `provisionDemoHousehold()` が担保します。
 
-ページを開くたびの自動リセットは入れていません。フォーム入力中や送信直後の画面遷移でもサーバーへ問い合わせるため、アクセス単位で初期化すると入力した取引が消えます。レビュー中に書き換えた内容を戻したいときは上記の POST を使います。
+| 設定          | 値      | 意味                                                                         |
+| ------------- | ------- | ---------------------------------------------------------------------------- |
+| 世帯数の上限  | 200     | 到達したら最古の世帯を削除して枠を作る。ストレージは約2MBで固定              |
+| 生存期間      | 24時間  | 発行時に期限切れの世帯を掃除する（cleanup が動かない日があっても上限が効く） |
+| 1世帯のデータ | 約4.3KB | 口座4・取引27・振替1・カテゴリ類                                             |
+
+`POST /api/demo/reset` は全訪問者の世帯を削除します。`DEMO_RESET_TOKEN` を設定した配備では `Authorization: Bearer <token>` が必須で、未設定なら 401 を返します。配備前には CI が `pnpm demo:purge` で同じ掃除を行います。
 
 ## 必要な Secrets
 
@@ -30,7 +36,7 @@ PR ごとに、実ブラウザで触れるデモを Cloudflare Workers へ配備
 ## 制約
 
 - プレビュー URL は公開されます。認証は無く、**デモデータだけ**が入った DB に接続します。実データの DB を `DEMO_DATABASE_URL` に設定しません。
-- プレビューは DB を共有します。ある PR の操作は他のプレビューにも見えます。
+- プレビューは DB を共有しますが、訪問者は自分の世帯しか読み書きしません。他人の操作が見えることはありません。
 - migration は PR ブランチのものが共有 DB に適用されます。schema を壊す migration を含む PR は、他のプレビューも巻き込みます。
 - `apps/worker`（定期処理）はプレビューに含めません。
 - Workers の script サイズ上限は 64 MiB（uncompressed）で、現在の bundle は約 9.7 MiB です。

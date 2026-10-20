@@ -79,7 +79,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   if (rawAccount !== undefined && rawAccount !== '' && accountId === undefined) notFound();
   const rawMonth = firstQueryValue(query.month);
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const account =
     accountId === undefined ? null : await getManagedAccount(db, householdId, accountId);
   if (accountId !== undefined && !account) notFound();

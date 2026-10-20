@@ -14,7 +14,11 @@ export const metadata: Metadata = {
 };
 
 export default async function IncomeCategorySettingsPage() {
-  const categories = await listCategories(getLedgerDatabase(), getCurrentHouseholdId(), 'income');
+  const categories = await listCategories(
+    getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    'income',
+  );
   return (
     <PageShell width="narrow">
       <PageHeader

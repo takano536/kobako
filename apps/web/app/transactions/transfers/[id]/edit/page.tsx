@@ -33,7 +33,7 @@ export async function TransferEditContent({ params, searchParams }: TransferEdit
   const id = parseInt4Id(idText);
   if (id === undefined) notFound();
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const [transfer, accounts, categories] = await Promise.all([
     getTransfer(db, householdId, id),
     listAccounts(db, householdId),
@@ -78,7 +78,7 @@ export default async function EditTransferPage({ params, searchParams }: Transfe
   const query = await searchParams;
   const id = parseInt4Id(idText);
   if (id === undefined) notFound();
-  const transfer = await getTransfer(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  const transfer = await getTransfer(getLedgerDatabase(), await getCurrentHouseholdId(), id);
   if (!transfer) notFound();
   const selectedMonth = firstQueryValue(query.month);
   const backHref =

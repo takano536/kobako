@@ -33,7 +33,7 @@ export async function TransactionEditContent({ params, searchParams }: Transacti
   const id = parseInt4Id(idText);
   if (id === undefined) notFound();
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const [transaction, categories, accounts] = await Promise.all([
     getTransaction(db, householdId, id),
     listCategories(db, householdId),
@@ -73,7 +73,7 @@ export default async function EditTransactionPage({ params, searchParams }: Tran
   const query = await searchParams;
   const id = parseInt4Id(idText);
   if (id === undefined) notFound();
-  const transaction = await getTransaction(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  const transaction = await getTransaction(getLedgerDatabase(), await getCurrentHouseholdId(), id);
   if (!transaction) notFound();
   const selectedMonth = firstQueryValue(query.month);
   const backHref =

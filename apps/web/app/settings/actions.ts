@@ -81,7 +81,11 @@ export async function createCategoryAction(
       formData,
       parsed.error.issues[0]?.message ?? 'カテゴリ名を確認してください。',
     );
-  const result = await createCategory(getLedgerDatabase(), getCurrentHouseholdId(), parsed.data);
+  const result = await createCategory(
+    getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    parsed.data,
+  );
   if (result.status === 'duplicate')
     return categoryError(formData, '同じ種別に同じ名前のカテゴリがあります。');
   if (result.status !== 'ok')
@@ -107,7 +111,11 @@ export async function updateCategoryAction(
       formData,
       parsed.error.issues[0]?.message ?? 'カテゴリ名を確認してください。',
     );
-  const result = await updateCategory(getLedgerDatabase(), getCurrentHouseholdId(), parsed.data);
+  const result = await updateCategory(
+    getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    parsed.data,
+  );
   if (result.status === 'not_found') return categoryError(formData, 'カテゴリが見つかりません。');
   if (result.status === 'duplicate')
     return categoryError(formData, '同じ種別に同じ名前のカテゴリがあります。');
@@ -129,7 +137,7 @@ export async function deleteCategoryAction(
   if (!parsedType.success) return categoryError(formData, 'カテゴリが見つかりません。');
   const result = await deleteCategory(
     getLedgerDatabase(),
-    getCurrentHouseholdId(),
+    await getCurrentHouseholdId(),
     categoryId,
     parsedType.data,
   );
@@ -174,7 +182,7 @@ export async function reorderCategoryAction(
   ids.splice(targetIndex, 0, target);
   const result = await reorderCategories(
     getLedgerDatabase(),
-    getCurrentHouseholdId(),
+    await getCurrentHouseholdId(),
     parsedType.data,
     ids,
   );
@@ -215,7 +223,7 @@ export async function createAssetCategoryAction(
       formData,
       parsed.error.issues[0]?.message ?? '資産カテゴリ名を確認してください。',
     );
-  const result = await createAssetCategory(getLedgerDatabase(), getCurrentHouseholdId(), {
+  const result = await createAssetCategory(getLedgerDatabase(), await getCurrentHouseholdId(), {
     name: parsed.data,
   });
   if (result.status === 'duplicate')
@@ -234,7 +242,7 @@ export async function updateAssetCategoryAction(
   const parsedName = assetCategoryNameSchema.safeParse(text(formData, 'name'));
   if (!parsedId.success || !parsedName.success)
     return assetCategoryError(formData, '資産カテゴリ名を確認してください。');
-  const result = await updateAssetCategory(getLedgerDatabase(), getCurrentHouseholdId(), {
+  const result = await updateAssetCategory(getLedgerDatabase(), await getCurrentHouseholdId(), {
     id: parsedId.data,
     name: parsedName.data,
   });
@@ -258,7 +266,7 @@ export async function deleteAssetCategoryAction(
   if (!parsedId.success) return assetCategoryError(formData, '資産カテゴリが見つかりません。');
   const result = await deleteAssetCategory(
     getLedgerDatabase(),
-    getCurrentHouseholdId(),
+    await getCurrentHouseholdId(),
     parsedId.data,
   );
   if (result.status === 'in_use')
@@ -281,7 +289,7 @@ export async function deleteAllDataAction(
   if (confirmation !== '削除') {
     return { error: '確認欄に「削除」と入力してください。', confirmation };
   }
-  const result = await resetHouseholdData(getLedgerDatabase(), getCurrentHouseholdId());
+  const result = await resetHouseholdData(getLedgerDatabase(), await getCurrentHouseholdId());
   if (result.status === 'not_found') return { error: '家計が見つかりません。', confirmation };
   if (result.status !== 'ok') {
     return {

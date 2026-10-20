@@ -97,7 +97,7 @@ export async function createAccountAction(
     : undefined;
   if (parsedCard && !parsedCard.success) return validationState(formData, parsedCard.error);
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const result = await createAccount(
     db,
     householdId,
@@ -133,7 +133,7 @@ export async function updateAccountAction(
   });
   if (!parsed.success) return validationState(formData, parsed.error);
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const selectedCategory = await getAssetCategory(db, householdId, parsed.data.assetCategoryId);
   const parsedCard =
     selectedCategory?.systemKey === 'credit_card'
@@ -181,7 +181,7 @@ export async function deleteAccountAction(
   if (text(formData, 'confirm') !== 'delete') {
     return { message: '削除する場合は確認操作を完了してください。' };
   }
-  const result = await deleteAccount(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  const result = await deleteAccount(getLedgerDatabase(), await getCurrentHouseholdId(), id);
   if (result.status === 'not_found') {
     return { message: '資産を削除できませんでした。' };
   }

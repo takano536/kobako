@@ -23,6 +23,7 @@
     "demo:build": "pnpm --filter @kobako/db build && pnpm --filter @kobako/web exec opennextjs-cloudflare build",
     "demo:seed": "node --import tsx apps/web/scripts/seed-demo.ts",
     "demo:reset": "node --import tsx apps/web/scripts/seed-demo.ts --reset",
+    "demo:purge": "node --import tsx apps/web/scripts/seed-demo.ts --purge",
     "worker:dev": "exec node --env-file-if-exists=.env --import tsx apps/worker/src/index.ts"
   },
   "devDependencies": {

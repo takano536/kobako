@@ -43,7 +43,7 @@ export async function AccountEditContent({ params, searchParams }: AccountEditPr
     validatedTransactionReturn(firstQueryValue(query.return), id) ??
     `/transactions?account=${id}&month=all`;
   const db = getLedgerDatabase();
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const [account, accounts, assetCategories] = await Promise.all([
     getActiveManagedAccount(db, householdId, id),
     listManagedAccounts(db, householdId),
@@ -90,7 +90,11 @@ export default async function EditAccountPage({ params, searchParams }: AccountE
   const returnTo =
     validatedTransactionReturn(firstQueryValue(query.return), id) ??
     `/transactions?account=${id}&month=all`;
-  const account = await getActiveManagedAccount(getLedgerDatabase(), getCurrentHouseholdId(), id);
+  const account = await getActiveManagedAccount(
+    getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    id,
+  );
   if (!account) notFound();
   return (
     <PageShell width="narrow">

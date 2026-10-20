@@ -45,7 +45,7 @@ export async function TransactionNewContent({
   const targetMonth =
     requestedMonth && isValidMonth(requestedMonth) ? requestedMonth : currentMonth;
   const occurredOn = targetMonth === currentMonth ? currentTokyoDate() : `${targetMonth}-01`;
-  const householdId = getCurrentHouseholdId();
+  const householdId = await getCurrentHouseholdId();
   const db = getLedgerDatabase();
   const [categories, accounts] = await Promise.all([
     listCategories(db, householdId),

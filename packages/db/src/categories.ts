@@ -270,6 +270,51 @@ export async function ensureDefaultAccountGroups(
     .onConflictDoNothing({ target: [accountGroups.householdId, accountGroups.name] });
 }
 
+/**
+ * Remove every row that belongs to a household, in the order the foreign keys
+ * require. The household row itself is left in place.
+ */
+async function purgeHouseholdRows(executor: LedgerExecutor, householdId: string): Promise<void> {
+  await executor
+    .delete(cardAutoPaymentRuns)
+    .where(eq(cardAutoPaymentRuns.householdId, householdId));
+  await executor
+    .delete(accountCardSettings)
+    .where(eq(accountCardSettings.householdId, householdId));
+  await executor
+    .delete(accountCardConditions)
+    .where(eq(accountCardConditions.householdId, householdId));
+  await executor.delete(transactionImports).where(eq(transactionImports.householdId, householdId));
+  await executor
+    .delete(accountImportMappings)
+    .where(eq(accountImportMappings.householdId, householdId));
+  await executor.delete(transactions).where(eq(transactions.householdId, householdId));
+  await executor.delete(transfers).where(eq(transfers.householdId, householdId));
+  await executor.delete(accounts).where(eq(accounts.householdId, householdId));
+  await executor.delete(categories).where(eq(categories.householdId, householdId));
+  await executor.delete(accountGroups).where(eq(accountGroups.householdId, householdId));
+  await executor.delete(assetCategories).where(eq(assetCategories.householdId, householdId));
+}
+
+/** Delete a household and everything it owns. */
+export async function deleteHousehold(
+  db: Database,
+  householdId: string,
+): Promise<{ status: 'ok' | 'not_found' | 'error' }> {
+  try {
+    await db.transaction(async (transaction) => {
+      await lockHousehold(transaction, householdId);
+      await purgeHouseholdRows(transaction, householdId);
+      await transaction.delete(households).where(eq(households.id, householdId));
+    });
+    return { status: 'ok' };
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Household not found')
+      return { status: 'not_found' };
+    return { status: 'error' };
+  }
+}
+
 export async function resetHouseholdData(
   db: Database,
   householdId: string,
@@ -277,27 +322,7 @@ export async function resetHouseholdData(
   try {
     await db.transaction(async (transaction) => {
       await lockHousehold(transaction, householdId);
-      await transaction
-        .delete(cardAutoPaymentRuns)
-        .where(eq(cardAutoPaymentRuns.householdId, householdId));
-      await transaction
-        .delete(accountCardSettings)
-        .where(eq(accountCardSettings.householdId, householdId));
-      await transaction
-        .delete(accountCardConditions)
-        .where(eq(accountCardConditions.householdId, householdId));
-      await transaction
-        .delete(transactionImports)
-        .where(eq(transactionImports.householdId, householdId));
-      await transaction
-        .delete(accountImportMappings)
-        .where(eq(accountImportMappings.householdId, householdId));
-      await transaction.delete(transactions).where(eq(transactions.householdId, householdId));
-      await transaction.delete(transfers).where(eq(transfers.householdId, householdId));
-      await transaction.delete(accounts).where(eq(accounts.householdId, householdId));
-      await transaction.delete(categories).where(eq(categories.householdId, householdId));
-      await transaction.delete(accountGroups).where(eq(accountGroups.householdId, householdId));
-      await transaction.delete(assetCategories).where(eq(assetCategories.householdId, householdId));
+      await purgeHouseholdRows(transaction, householdId);
       await ensureDefaultAccountGroups(transaction, householdId);
       await ensureDefaultAssetCategories(transaction, householdId);
       await transaction
