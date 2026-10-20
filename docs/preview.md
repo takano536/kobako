@@ -1,13 +1,18 @@
-# PR プレビュー
+# デモ配備
 
-PR ごとに、実ブラウザで触れるデモを Cloudflare Workers へ配備します。UI の確認をスクリーンショットの添付に頼らず、PR のコメントに出る URL から直接操作するための仕組みです。
+公開デモ（README 用）と PR プレビューの2つを Cloudflare Workers に配備します。どちらも `apps/web` を [OpenNext Cloudflare](https://opennext.js.org/cloudflare) でビルドし、訪問者ごとに使い捨ての世帯を発行します。分けているのはコードではなく、ドメイン・DB・保護の強さです。
 
-## 構成
+|          | 公開デモ                                            | PR プレビュー                                                  |
+| -------- | --------------------------------------------------- | -------------------------------------------------------------- |
+| URL      | `https://demo.example.com`                          | `https://pr-<番号>.preview.example.com`                        |
+| トリガ   | main への push                                      | PR の open / synchronize                                       |
+| Worker   | `kobako-demo`                                       | `kobako-pr-<番号>`（close で削除）                             |
+| 設定     | `apps/web/wrangler.jsonc`                           | `apps/web/wrangler.preview.jsonc`（`PR_NUMBER` を sed で置換） |
+| DB       | `DEMO_DATABASE_URL`                                 | `PREVIEW_DATABASE_URL`                                         |
+| 保護     | 公開。上限とリセットで守る                          | Cloudflare Access（`*.preview.example.com`）                   |
+| リセット | 毎日 03:00 JST（`demo-reset.yml`）と main への push | PR への push                                                   |
 
-- `apps/web` を [OpenNext Cloudflare](https://opennext.js.org/cloudflare)（`@opennextjs/cloudflare`）で Worker へビルドします（`apps/web/wrangler.jsonc`、`apps/web/open-next.config.ts`）。
-- PR ごとの配備は `wrangler preview --name pr-<番号>`（Worker Previews）で行い、PR を閉じたら `wrangler preview delete` で消します。
-- DB は**デモ専用の PostgreSQL** を一つ共有します。workflow が `packages/db/dist/migrate.js` で migration を適用し、`apps/web/scripts/seed-demo.ts` で固定のデモデータを idempotent に投入します（既に account がある家計には何もしません）。
-- Worker の接続先は `DATABASE_URL` を `--secrets-file` で配備ごとに渡します。Hyperdrive は使いません（postgres.js が `nodejs_compat` の TCP で直接接続でき、設定を増やさずに済むため）。
+DB を分けているのは、PR ブランチの migration や濫用が公開デモを壊さないようにするためです。Neon の無料枠はプロジェクト単位（各 100 CU-hours / 1GB）なので、2プロジェクトに分けても費用は変わりません。
 
 ## 訪問者ごとの世帯
 
@@ -40,6 +45,13 @@ PR ごとに、実ブラウザで触れるデモを Cloudflare Workers へ配備
 - migration は PR ブランチのものが共有 DB に適用されます。schema を壊す migration を含む PR は、他のプレビューも巻き込みます。
 - `apps/worker`（定期処理）はプレビューに含めません。
 - Workers の script サイズ上限は 64 MiB（uncompressed）で、現在の bundle は約 9.7 MiB です。
+
+## Cloudflare 側の設定
+
+1. `example.com` のゾーンを同じアカウントに置く。`demo` は Worker の custom domain が自動で作る
+2. `*.preview.example.com` を proxied な DNS レコード（AAAA `100::`）として作成し、`pr-<番号>.preview.example.com/*` の route が受けるようにする
+3. Zero Trust → Access → Applications で self-hosted アプリを追加し、ドメインに `*.preview.example.com` を指定する。ワイルドカードは Access のアプリケーションで利用できる。ポリシーは自分のメール、または GitHub OAuth の許可リストにする（無料枠は50ユーザーまで）
+4. 公開デモ側には Access を付けない。README から誰でも開けることが目的のため
 
 ## ローカルでの確認
 

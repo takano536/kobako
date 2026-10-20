@@ -1,0 +1,27 @@
+name: Demo reset
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: reset
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Drop every visitor household
+        env:
+          DEMO_RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEMO_RESET_TOKEN}" ]; then
+            echo 'DEMO_RESET_TOKEN が未設定のため skip しました。' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          curl -fsS -X POST https://demo.example.com/api/demo/reset \
+            -H "authorization: Bearer ${DEMO_RESET_TOKEN}"

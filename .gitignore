@@ -10,5 +10,6 @@ test-results/
 coverage/
 .open-next/
 .wrangler/
+apps/web/wrangler.generated.jsonc
 *.tsbuildinfo
 .DS_Store
