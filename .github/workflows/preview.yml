@@ -22,7 +22,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
-      PREVIEW_HOST: pr-${{ github.event.pull_request.number }}.preview.example.com
+      DEMO_RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
     steps:
       - name: Check preview configuration
         id: config
@@ -80,12 +80,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${GITHUB_WORKSPACE}/.tmp"
-          printf 'DATABASE_URL=%s\n' "${DATABASE_URL}" > "${GITHUB_WORKSPACE}/.tmp/preview.env"
+          {
+            printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
+            printf 'DEMO_RESET_TOKEN=%s\n' "${DEMO_RESET_TOKEN}"
+          } > "${GITHUB_WORKSPACE}/.tmp/preview.env"
           pnpm exec wrangler deploy \
             --config wrangler.generated.jsonc \
             --secrets-file "${GITHUB_WORKSPACE}/.tmp/preview.env" \
             --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}"
-          echo "url=https://${PREVIEW_HOST}" >> "${GITHUB_OUTPUT}"
+          url=$(node scripts/workers-dev-url.mjs "kobako-pr-${{ github.event.pull_request.number }}")
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+          echo "プレビュー: ${url}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Comment the preview URL
         if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'

@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import {
-  checkDatabaseConnection,
-  createDatabaseClient,
-  getDatabaseUrl,
-  redactDatabaseUrl,
-  type DatabaseClient,
-} from '@kobako/db';
+import { checkDatabaseConnection, getDatabaseUrl, redactDatabaseUrl } from '@kobako/db';
 
 import { healthStatus } from '../../../../src/lib/health';
+import { getLedgerClient, usesServerlessDriver } from '../../../../src/lib/ledger-data';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
-
-let databaseClient: DatabaseClient | undefined;
-
-function getClient(): DatabaseClient {
-  databaseClient ??= createDatabaseClient(getDatabaseUrl());
-  return databaseClient;
-}
 
 function databaseLogContext(): string {
   try {
@@ -31,7 +19,7 @@ function databaseLogContext(): string {
 
 export async function GET(): Promise<NextResponse> {
   try {
-    await checkDatabaseConnection(getClient().sql);
+    await checkDatabaseConnection(getLedgerClient().sql, usesServerlessDriver() ? 10_000 : 3_000);
     return NextResponse.json(healthStatus('ok'), {
       headers: { 'Cache-Control': 'no-store' },
     });

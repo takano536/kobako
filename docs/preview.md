@@ -1,15 +1,15 @@
 # デモ配備
 
-公開デモ（README 用）と PR プレビューの2つを Cloudflare Workers に配備します。どちらも `apps/web` を [OpenNext Cloudflare](https://opennext.js.org/cloudflare) でビルドし、訪問者ごとに使い捨ての世帯を発行します。分けているのはコードではなく、ドメイン・DB・保護の強さです。
+公開デモ（README 用）と PR プレビューの2つを Cloudflare Workers に配備します。どちらも `apps/web` を [OpenNext Cloudflare](https://opennext.js.org/cloudflare) でビルドし、訪問者ごとに使い捨ての世帯を発行します。分けているのはコードではなく、Worker と DB です。どちらも `workers.dev` のサブドメインで配備するため、独自ドメインは使いません。
 
 |          | 公開デモ                                            | PR プレビュー                                                  |
 | -------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| URL      | `https://demo.example.com`                          | `https://pr-<番号>.preview.example.com`                        |
+| URL      | `https://kobako-demo.<account>.workers.dev`         | `https://kobako-pr-<番号>.<account>.workers.dev`               |
 | トリガ   | main への push                                      | PR の open / synchronize                                       |
 | Worker   | `kobako-demo`                                       | `kobako-pr-<番号>`（close で削除）                             |
 | 設定     | `apps/web/wrangler.jsonc`                           | `apps/web/wrangler.preview.jsonc`（`PR_NUMBER` を sed で置換） |
 | DB       | `DEMO_DATABASE_URL`                                 | `PREVIEW_DATABASE_URL`                                         |
-| 保護     | 公開。上限とリセットで守る                          | Cloudflare Access（`*.preview.example.com`）                   |
+| 保護     | 公開。上限とリセットで守る                          | 公開。上限を50世帯に絞る                                       |
 | リセット | 毎日 03:00 JST（`demo-reset.yml`）と main への push | PR への push                                                   |
 
 DB を分けているのは、PR ブランチの migration や濫用が公開デモを壊さないようにするためです。Neon の無料枠はプロジェクト単位（各 100 CU-hours / 1GB）なので、2プロジェクトに分けても費用は変わりません。
@@ -30,11 +30,13 @@ DB を分けているのは、PR ブランチの migration や濫用が公開デ
 
 ## 必要な Secrets
 
-| name                    | 内容                                                      |
-| ----------------------- | --------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`  | Workers Scripts:Edit を持つ token                         |
-| `CLOUDFLARE_ACCOUNT_ID` | 配備先 account                                            |
-| `DEMO_DATABASE_URL`     | デモ専用 PostgreSQL の接続文字列（Neon などの無料枠で可） |
+| name                    | 内容                                                                  |
+| ----------------------- | --------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Workers Scripts:Edit を持つ token                                     |
+| `CLOUDFLARE_ACCOUNT_ID` | 配備先 account                                                        |
+| `DEMO_DATABASE_URL`     | 公開デモ用 PostgreSQL の接続文字列（Neon などの無料枠で可）           |
+| `PREVIEW_DATABASE_URL`  | PR プレビュー用 PostgreSQL の接続文字列（公開デモとは別プロジェクト） |
+| `DEMO_RESET_TOKEN`      | `/api/demo/reset` の Bearer token。Worker の secret としても渡す      |
 
 3 つが揃っていない場合、workflow は fail せず skip し、job summary に理由を出します。`DEMO_DATABASE_URL` だけが無い場合は、デモ DB を黙って本番相当へ向けないため明示的に fail します。
 
@@ -46,12 +48,11 @@ DB を分けているのは、PR ブランチの migration や濫用が公開デ
 - `apps/worker`（定期処理）はプレビューに含めません。
 - Workers の script サイズ上限は 64 MiB（uncompressed）で、現在の bundle は約 9.7 MiB です。
 
-## Cloudflare 側の設定
+## 配備に必要なもの
 
-1. `example.com` のゾーンを同じアカウントに置く。`demo` は Worker の custom domain が自動で作る
-2. `*.preview.example.com` を proxied な DNS レコード（AAAA `100::`）として作成し、`pr-<番号>.preview.example.com/*` の route が受けるようにする
-3. Zero Trust → Access → Applications で self-hosted アプリを追加し、ドメインに `*.preview.example.com` を指定する。ワイルドカードは Access のアプリケーションで利用できる。ポリシーは自分のメール、または GitHub OAuth の許可リストにする（無料枠は50ユーザーまで）
-4. 公開デモ側には Access を付けない。README から誰でも開けることが目的のため
+- `CLOUDFLARE_API_TOKEN` の権限は **Account: Workers Scripts:Edit** だけで足ります（独自ドメインも route も使わないため）
+- アカウントで `workers.dev` のサブドメインが有効になっていること（無効だと配備が失敗します）
+- 初回配備後の URL は job summary に出ます。現在は `https://kobako-demo.takano536.workers.dev` で、repository variable `DEMO_URL` に登録済みです。毎日のリセットはこのホストを叩きます
 
 ## ローカルでの確認
 

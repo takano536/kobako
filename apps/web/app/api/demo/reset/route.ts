@@ -16,7 +16,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const expected = process.env.DEMO_RESET_TOKEN;
-  if (expected && request.headers.get('authorization') !== `Bearer ${expected}`) {
+  if (!expected) {
+    return new NextResponse('reset is not configured', { status: 503 });
+  }
+  if (request.headers.get('authorization') !== `Bearer ${expected}`) {
     return new NextResponse('unauthorized', { status: 401 });
   }
 

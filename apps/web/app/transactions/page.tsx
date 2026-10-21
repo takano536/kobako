@@ -71,7 +71,21 @@ function PencilIcon() {
   );
 }
 
-export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function TransactionsPage(props: { searchParams: SearchParams }) {
+  try {
+    return await TransactionsPageInner(props);
+  } catch (error) {
+    return (
+      <pre style={{ padding: 16, whiteSpace: 'pre-wrap' }}>
+        {String(error)}
+        {'\n'}
+        {((error as Error).stack ?? '').split('\n').slice(0, 8).join('\n')}
+      </pre>
+    );
+  }
+}
+
+async function TransactionsPageInner({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const saved = firstQueryValue(query.saved) === '1';
   const rawAccount = firstQueryValue(query.account);

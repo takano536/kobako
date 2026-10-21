@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 
 import {
   createDatabaseClient,
+  createNeonDatabaseClient,
   DEFAULT_HOUSEHOLD_ID,
   getDatabaseUrl,
   type Database,
@@ -13,6 +14,11 @@ import { demoHouseholdExists } from './demo-ledger';
 
 let databaseClient: DatabaseClient | undefined;
 
+/** Worker deployments reach Neon over WebSocket, so they cannot share a cached client. */
+export function usesServerlessDriver(): boolean {
+  return process.env.DEMO_DB_DRIVER === 'neon';
+}
+
 export const DEMO_HOUSEHOLD_COOKIE = 'kobako-demo-household';
 
 /** True on deployments that hand out throwaway households instead of using the default one. */
@@ -21,6 +27,7 @@ export function isDemoDeployment(): boolean {
 }
 
 export function getLedgerClient(): DatabaseClient {
+  if (usesServerlessDriver()) return createNeonDatabaseClient(getDatabaseUrl());
   databaseClient ??= createDatabaseClient(getDatabaseUrl());
   return databaseClient;
 }

@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 
-import type { Database } from './client.js';
+import { executeRows, type Database } from './client.js';
 import {
   accounts,
   assetCategories,
@@ -74,7 +74,8 @@ async function lockHousehold(
   transaction: Parameters<Parameters<Database['transaction']>[0]>[0],
   householdId: string,
 ): Promise<void> {
-  const rows = await transaction.execute<{ id: string }>(
+  const rows = await executeRows<{ id: string }>(
+    transaction,
     sql`select ${households.id} from ${households} where ${households.id} = ${householdId} for update`,
   );
   if (rows.length === 0) {

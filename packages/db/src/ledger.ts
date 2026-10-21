@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
-import type { Database } from './client.js';
+import { executeRows, type Database } from './client.js';
 import { monthRange } from './month.js';
 import {
   accountGroups,
@@ -420,7 +420,7 @@ export async function listLedgerEntries(
     `);
   }
   if (parts.length === 0) return [];
-  const rows = await db.execute<{
+  const rows = await executeRows<{
     id: number;
     entry_type: string;
     amount: number;
@@ -434,11 +434,14 @@ export async function listLedgerEntries(
     to_account_id: number | null;
     to_account_name: string | null;
     memo: string;
-  }>(sql`
+  }>(
+    db,
+    sql`
     select *
     from (${sql.join(parts, sql` union all `)}) as ledger_entries
     order by occurred_on desc, id desc, (entry_type = 'transfer') desc
-  `);
+  `,
+  );
   return rows.map((row) =>
     row.entry_type === 'transfer'
       ? {
@@ -560,7 +563,9 @@ export async function getAccountBalances(
   db: Database,
   householdId: string,
 ): Promise<AccountBalance[]> {
-  const rows = await db.execute<AccountBalanceRow>(sql`
+  const rows = await executeRows<AccountBalanceRow>(
+    db,
+    sql`
     select
       a.id as "accountId",
       a.name as "accountName",
@@ -601,7 +606,8 @@ export async function getAccountBalances(
     ) tout on tout.household_id = a.household_id and tout.account_id = a.id
     where a.household_id = ${householdId}
     order by ac.sort_order, ac.id, a.sort_order, a.id
-  `);
+  `,
+  );
   return rows;
 }
 

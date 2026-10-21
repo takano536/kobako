@@ -4,6 +4,8 @@ export {
   type Database,
   type DatabaseClient,
 } from './client.js';
+export { createNeonDatabaseClient } from './client-neon.js';
+export { executeRows } from './client.js';
 export { databaseEnvSchema, getDatabaseUrl, redactDatabaseUrl, type DatabaseEnv } from './env.js';
 export {
   DEFAULT_ACCOUNT_GROUP_SEEDS,

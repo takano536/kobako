@@ -4,16 +4,11 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
+  "workers_dev": true,
   "vars": {
     "DEMO_MODE": "1",
+    "DEMO_DB_DRIVER": "neon",
   },
-  "routes": [
-    {
-      "pattern": "demo.example.com",
-      "custom_domain": true,
-    },
-  ],
   "observability": {
     "enabled": true,
   },

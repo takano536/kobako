@@ -21,6 +21,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+      DEMO_RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
     steps:
       - name: Check the demo configuration
         id: config
@@ -58,8 +59,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${GITHUB_WORKSPACE}/.tmp"
-          printf 'DATABASE_URL=%s\n' "${DATABASE_URL}" > "${GITHUB_WORKSPACE}/.tmp/demo.env"
+          {
+            printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
+            printf 'DEMO_RESET_TOKEN=%s\n' "${DEMO_RESET_TOKEN}"
+          } > "${GITHUB_WORKSPACE}/.tmp/demo.env"
           pnpm exec wrangler deploy \
             --config wrangler.jsonc \
             --secrets-file "${GITHUB_WORKSPACE}/.tmp/demo.env" \
             --message "main ${GITHUB_SHA::7}"
+          url=$(node scripts/workers-dev-url.mjs kobako-demo)
+          echo "デモ: ${url}" >> "${GITHUB_STEP_SUMMARY}"
