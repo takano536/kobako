@@ -1,4 +1,12 @@
 # Changelog
+## [0.15.0](https://github.com/takano536/kobako/compare/v0.14.0...v0.15.0) (2026-10-21)
+
+
+### Features
+
+* **ci:** split the public demo from pull request previews ([#88](https://github.com/takano536/kobako/issues/88)) ([82b26ec](https://github.com/takano536/kobako/commit/82b26ec6a6f10b609e30ddd2203eb14ac487d10f))
+* **web:** give every demo visitor their own household ([#87](https://github.com/takano536/kobako/issues/87)) ([c434953](https://github.com/takano536/kobako/commit/c4349532fe8ba3dc7cdbdf8460562386be7f3fa3))
+
 ## [0.14.0](https://github.com/takano536/kobako/compare/v0.13.4...v0.14.0) (2026-10-19)
 
 
