@@ -7,7 +7,9 @@
   min-height: 44px;
   grid-template-columns: 44px minmax(5rem, max-content) 44px;
   align-items: center;
-  margin: 0 0 var(--space-group);
+  /* Optical alignment: the 44px arrow targets pad the chevrons inwards, so pull the
+     row out by the same amount to line the chevron up with the text column edge. */
+  margin: 0 0 var(--space-group) calc((0.75rem - 44px) / 2);
 }
 
 /* All-period state: the arrows are replaced by a label and a reset link. */

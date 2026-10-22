@@ -792,6 +792,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       expect(overviewColumns.amount!.right).toBeCloseTo(overviewList.x + overviewList.width, 1);
       const overviewShell = await measure('[data-slot="page-shell"]');
       const overviewMonth = await measure('[data-slot="month-switcher"]');
+      const overviewChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
       const overviewSummary = page.locator('[role="group"][aria-labelledby="expense-label"]');
       await expect(overviewSummary).toHaveCount(1);
       await expect(overviewSummary.locator('[data-slot="lead-amount"]')).toHaveCount(1);
@@ -836,6 +837,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const transactionsHeader = await measure('[data-slot="page-header"]');
       const transactionsAction = await measure('[data-slot="page-header"] [data-variant]');
       const transactionsMonth = await measure('[data-slot="month-switcher"]');
+      const transactionsChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
       assertShellGeometry(overviewShell, width, 16, 61 * 16, 107);
       assertShellGeometry(transactionShell, width, 16, 61 * 16, 107);
       expect(transactionShell.x).toBeCloseTo(overviewShell.x, 0);
@@ -846,7 +848,11 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
         transactionsHeader.y + transactionsHeader.height / 2,
         0,
       );
-      expect(transactionsMonth.x).toBeCloseTo(transactionShell.x, 0);
+      // The 44px arrow targets pad the chevrons inwards, so the row is pulled out by
+      // that inset: the chevron lines up with the shell edge, the box starts before it.
+      expect(transactionsChevron.x).toBeCloseTo(transactionShell.x, 0);
+      expect(transactionsChevron.x).toBeCloseTo(overviewChevron.x, 0);
+      expect(transactionsMonth.x).toBeCloseTo(transactionShell.x - 16, 0);
       expect(transactionsMonth.y).toBeCloseTo(overviewMonth.y, 0);
       expect(transactionsMonth.width).toBeCloseTo(overviewMonth.width, 0);
       expect(transactionsMonth.width).toBeCloseTo(168, 0);
