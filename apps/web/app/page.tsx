@@ -63,6 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         nextHref={
           month < `${MAX_SUPPORTED_YEAR}-12` ? `/?month=${shiftMonth(month, 1)}` : undefined
         }
+        selectPathname="/"
       />
 
       <section

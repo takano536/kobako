@@ -849,7 +849,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       expect(transactionsMonth.x).toBeCloseTo(transactionShell.x, 0);
       expect(transactionsMonth.y).toBeCloseTo(overviewMonth.y, 0);
       expect(transactionsMonth.width).toBeCloseTo(overviewMonth.width, 0);
-      expect(transactionsMonth.width).toBeCloseTo(180, 0);
+      expect(transactionsMonth.width).toBeCloseTo(168, 0);
       await assertNoHorizontalOverflow();
       await expect(
         page.locator('[data-slot="transaction-memo"]').filter({ hasText: memo }),
@@ -1056,6 +1056,46 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
     await databaseClient.sql`delete from categories where id = ${categoryId}`;
     await databaseClient.sql`delete from accounts where id = ${accountId}`;
   }
+});
+
+test('opens the month picker from the month label and keeps the running filters', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const target = HTMLInputElement.prototype as HTMLInputElement & { showPicker?: () => void };
+    const original = target.showPicker;
+    const calls: string[] = [];
+    Object.defineProperty(window, 'pickerCalls', { value: calls, configurable: true });
+    if (typeof original !== 'function') return;
+    target.showPicker = function (this: HTMLInputElement, ...args: unknown[]) {
+      calls.push(this.type);
+      return original.apply(this, args as never);
+    };
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`/?month=${month}`);
+  await page.locator('[data-slot="month-switcher-label"]').click();
+  expect(
+    await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
+  ).toEqual(['month']);
+
+  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  await expect(page).toHaveURL(
+    (url) => url.pathname === '/' && url.searchParams.get('month') === nextMonth,
+  );
+  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
+
+  await page.goto(`/transactions?month=${month}&type=expense`);
+  await page.locator('[data-slot="month-switcher-label"]').click();
+  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === '/transactions' &&
+      url.searchParams.get('month') === nextMonth &&
+      url.searchParams.get('type') === 'expense',
+  );
+  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
 });
 
 test('supports keyboard entry and mobile layout for an ordinary transaction', async ({ page }) => {

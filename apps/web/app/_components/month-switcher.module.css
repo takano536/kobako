@@ -1,11 +1,11 @@
-/* Month navigation shared by every month-based screen; geometry is fixed so the
-   control never shifts between the overview and the transaction list. */
+/* Month navigation shared by the overview and the transaction list. The label is a
+   month picker button, and every screen gets the same fixed geometry. */
 .switcher {
   display: grid;
-  width: 180px;
+  width: max-content;
   max-width: 100%;
-  min-height: 2.75rem;
-  grid-template-columns: 44px 92px 44px;
+  min-height: 44px;
+  grid-template-columns: 44px minmax(5rem, max-content) 44px;
   align-items: center;
   margin: 0 0 var(--space-group);
 }
@@ -23,15 +23,14 @@
 
 .control {
   display: inline-flex;
-  width: 2.75rem;
-  min-width: 2.75rem;
-  height: 2.75rem;
-  min-height: 2.75rem;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   transition:
     color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
   color: var(--accent);
   text-decoration: none;
@@ -41,26 +40,33 @@
   transform: translateY(1px);
 }
 
-.control:first-child {
-  justify-content: flex-start;
+.chevron {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
 }
 
-.control:last-child {
-  justify-content: flex-end;
-}
-
-.control span {
-  display: inline-block;
-  font-size: var(--text-body);
-  font-weight: 500;
-  line-height: 1;
-  transform: scale(1.2);
-  transform-origin: center;
+.select {
+  position: relative;
+  display: flex;
+  min-width: 0;
 }
 
 .label {
+  display: flex;
   min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
+  font: inherit;
   font-size: var(--text-body);
   font-weight: 400;
   letter-spacing: 0.03em;
@@ -68,9 +74,35 @@
   white-space: nowrap;
 }
 
+.select > .label {
+  width: 100%;
+}
+
+button.label {
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+button.label:hover {
+  color: var(--ink);
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .control,
-  .control span {
+  button.label {
     transform: none;
+    transition: none;
   }
 }

@@ -201,6 +201,8 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
               ? listHref(shiftMonth(month, 1), type, categoryId, accountId)
               : undefined
           }
+          selectPathname="/transactions"
+          selectQuery={{ type, category: categoryId, account: accountId }}
         />
       )}
       <FilterBar
