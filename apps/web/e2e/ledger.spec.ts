@@ -791,6 +791,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       expect(overviewColumns.assetName!.left).toBeCloseTo(overviewColumns.memo!.left, 1);
       expect(overviewColumns.amount!.right).toBeCloseTo(overviewList.x + overviewList.width, 1);
       const overviewShell = await measure('[data-slot="page-shell"]');
+      const overviewMonth = await measure('[data-slot="month-switcher"]');
       const overviewSummary = page.locator('[role="group"][aria-labelledby="expense-label"]');
       await expect(overviewSummary).toHaveCount(1);
       await expect(overviewSummary.locator('[data-slot="lead-amount"]')).toHaveCount(1);
@@ -836,14 +837,18 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const transactionsAction = await measure('[data-slot="page-header"] [data-variant]');
       const transactionsMonth = await measure('[data-slot="month-switcher"]');
       assertShellGeometry(overviewShell, width, 16, 61 * 16, 107);
-      assertShellGeometry(transactionShell, width, 20, 58 * 16, 99);
+      assertShellGeometry(transactionShell, width, 16, 61 * 16, 107);
+      expect(transactionShell.x).toBeCloseTo(overviewShell.x, 0);
+      expect(transactionShell.y).toBeCloseTo(overviewShell.y, 0);
+      expect(transactionShell.width).toBeCloseTo(overviewShell.width, 0);
       expect(transactionsHeading.x).toBeCloseTo(transactionShell.x, 0);
       expect(transactionsAction.y + transactionsAction.height / 2).toBeCloseTo(
         transactionsHeader.y + transactionsHeader.height / 2,
         0,
       );
       expect(transactionsMonth.x).toBeCloseTo(transactionShell.x, 0);
-      expect(transactionsMonth.y).toBeCloseTo(159, 0);
+      expect(transactionsMonth.y).toBeCloseTo(overviewMonth.y, 0);
+      expect(transactionsMonth.width).toBeCloseTo(overviewMonth.width, 0);
       expect(transactionsMonth.width).toBeCloseTo(180, 0);
       await assertNoHorizontalOverflow();
       await expect(

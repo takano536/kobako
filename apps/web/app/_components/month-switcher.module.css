@@ -1,10 +1,23 @@
+/* Month navigation shared by every month-based screen; geometry is fixed so the
+   control never shifts between the overview and the transaction list. */
 .switcher {
   display: grid;
-  width: max-content;
+  width: 180px;
   max-width: 100%;
   min-height: 2.75rem;
-  grid-template-columns: 2.75rem minmax(0, max-content) 2.75rem;
+  grid-template-columns: 44px 92px 44px;
   align-items: center;
+  margin: 0 0 var(--space-group);
+}
+
+/* All-period state: the arrows are replaced by a label and a reset link. */
+.all {
+  display: flex;
+  width: auto;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-group);
   margin: 0 0 var(--space-group);
 }
 
@@ -29,11 +42,11 @@
 }
 
 .control:first-child {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .control:last-child {
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .control span {

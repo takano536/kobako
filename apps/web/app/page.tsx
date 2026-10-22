@@ -53,7 +53,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   ]);
 
   return (
-    <PageShell transition className={overviewStyles['overview-page']}>
+    <PageShell transition>
       <PageHeader title="概要" actions={<RegisterTransactionAction month={month} />} />
       <MonthSwitcher
         month={month}
