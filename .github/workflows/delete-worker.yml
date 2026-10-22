@@ -1,10 +1,10 @@
-name: Set workers.dev subdomain
+name: Delete a worker
 
 on:
   workflow_dispatch:
     inputs:
-      subdomain:
-        description: 'new workers.dev subdomain (no dots)'
+      name:
+        description: 'worker name to delete'
         required: true
         type: string
 
@@ -12,22 +12,19 @@ permissions:
   contents: read
 
 jobs:
-  set:
+  delete:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Update the account subdomain
+      - name: Delete the script
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SUBDOMAIN: ${{ inputs.subdomain }}
+          NAME: ${{ inputs.name }}
         run: |
           set -euo pipefail
-          code=$(curl -sS -o "${RUNNER_TEMP}/out.json" -w '%{http_code}' -X PUT \
-            "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/subdomain" \
-            -H "authorization: Bearer ${TOKEN}" \
-            -H 'content-type: application/json' \
-            --data "{\"subdomain\":\"${SUBDOMAIN}\"}")
+          code=$(curl -sS -o "${RUNNER_TEMP}/out.json" -w '%{http_code}' -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/scripts/${NAME}")
           cat "${RUNNER_TEMP}/out.json"
           echo
           if [ "${code}" != "200" ]; then

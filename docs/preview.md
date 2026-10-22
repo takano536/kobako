@@ -4,7 +4,7 @@
 
 |          | 公開デモ                                            | PR プレビュー                                                  |
 | -------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| URL      | `https://demo.kobako-app.workers.dev`               | `https://pr-<番号>.kobako-app.workers.dev`                     |
+| URL      | `https://demo.takano536.workers.dev`                | `https://pr-<番号>.takano536.workers.dev`                      |
 | トリガ   | main への push                                      | PR の open / synchronize                                       |
 | Worker   | `demo`                                              | `pr-<番号>`（close で削除）                                    |
 | 設定     | `apps/web/wrangler.jsonc`                           | `apps/web/wrangler.preview.jsonc`（`PR_NUMBER` を sed で置換） |
@@ -52,7 +52,7 @@ DB を分けているのは、PR ブランチの migration や濫用が公開デ
 
 - `CLOUDFLARE_API_TOKEN` の権限は **Account: Workers Scripts:Edit** だけで足ります（独自ドメインも route も使わないため）
 - アカウントで `workers.dev` のサブドメインが有効になっていること（無効だと配備が失敗します）
-- 初回配備後の URL は job summary に出ます。現在は `https://demo.kobako-app.workers.dev` で、repository variable `DEMO_URL` に登録済みです。毎日のリセットはこのホストを叩きます
+- 初回配備後の URL は job summary に出ます。現在は `https://demo.takano536.workers.dev` で、repository variable `DEMO_URL` に登録済みです。毎日のリセットはこのホストを叩きます
 
 ## ローカルでの確認
 

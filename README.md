@@ -8,7 +8,7 @@
 
 登録不要で試せます（外部の公開デモです）。
 
-https://demo.kobako-app.workers.dev
+https://demo.takano536.workers.dev
 
 アクセスすると自分専用の世帯が発行され、サンプルの家計データが入った状態で操作できます。訪問者ごとにデータは分かれ、24時間で消えます。
 
