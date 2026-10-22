@@ -23,7 +23,9 @@ jobs:
           NAME: ${{ inputs.name }}
         run: |
           set -euo pipefail
-          code=$(curl -sS -o "${RUNNER_TEMP}/out.json" -w '%{http_code}' -X DELETE \
+          code=$(curl -sS -o "${RUNNER_TEMP}/out.json" -w '%{http_code}' \
+            --oauth2-bearer "${TOKEN}" \
+            -X DELETE \
             "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/scripts/${NAME}")
           cat "${RUNNER_TEMP}/out.json"
           echo
