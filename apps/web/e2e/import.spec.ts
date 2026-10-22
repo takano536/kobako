@@ -24,6 +24,7 @@ import {
   chooseEmptyMonthPair,
   markerFor,
 } from './e2e-safety';
+import { waitForMotion } from './motion';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -372,6 +373,7 @@ async function confirmImport(page: Page, name: string): Promise<void> {
   await trigger.click();
   const dialog = page.locator('#import-confirm-dialog[data-card-kind="import"]');
   await expect(dialog).toBeVisible();
+  await waitForMotion(page);
   const headingStyles = await page.evaluate(() => {
     const dialogHeading = document.querySelector<HTMLElement>('#import-confirm-dialog h2');
     const confirm = document.querySelector<HTMLElement>(

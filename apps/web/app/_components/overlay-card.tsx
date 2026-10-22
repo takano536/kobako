@@ -35,6 +35,7 @@ export function OverlayCard({
   useLayoutEffect(() => {
     const card = cardRef.current;
     if (!card) return;
+    document.documentElement.dataset.overlayOpen = 'true';
     const activeElement =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     originRef.current =
@@ -87,6 +88,7 @@ export function OverlayCard({
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('popstate', handlePopState, true);
     return () => {
+      delete document.documentElement.dataset.overlayOpen;
       document.removeEventListener('keydown', handleKeyDown);
       window.cancelAnimationFrame(frame);
       window.removeEventListener('popstate', handlePopState, true);

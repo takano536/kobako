@@ -910,9 +910,8 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(22 36 29 / 38%);
-  backdrop-filter: blur(2px);
-  animation: import-confirm-fade-in 220ms var(--ease-standard) both;
+  background: var(--scrim);
+  animation: import-confirm-fade-in var(--motion-fast) var(--ease-standard) backwards;
 }
 
 .import-confirm-dialog {
@@ -923,7 +922,7 @@
   border-radius: 16px;
   background: var(--paper);
   box-shadow: 0 24px 90px #18291f24;
-  animation: import-confirm-fade-in 220ms var(--ease-standard) both;
+  animation: import-confirm-enter var(--motion-enter) var(--ease-standard) backwards;
 }
 
 .dialog-head {
@@ -978,6 +977,18 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes import-confirm-enter {
+  from {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
   }
 }
 

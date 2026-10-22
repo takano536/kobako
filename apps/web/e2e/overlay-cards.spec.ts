@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { currentTokyoMonth } from '@kobako/db';
 
+import { waitForMotion } from './motion';
+
 test.describe('overlay cards', () => {
   const stableMainHtml = async (page: Page) =>
     page.locator('main').evaluate((node) => {
@@ -159,6 +161,7 @@ test.describe('overlay cards', () => {
       .poll(() => page.evaluate(() => window.scrollY), { timeout: 1_000 })
       .toBe(before.scrollY);
 
+    await waitForMotion(page);
     const cardStyles = await page.locator('#entry-dialog').evaluate((card) => {
       const field = card.querySelector<HTMLElement>('[data-slot="amount-field"]');
       const label = field?.querySelector<HTMLElement>('label');

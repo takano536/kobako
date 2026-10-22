@@ -5,9 +5,8 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(22 36 29 / 38%);
-  backdrop-filter: blur(2px);
-  animation: overlay-fade-in 220ms var(--ease-standard) both;
+  background: var(--scrim);
+  animation: overlay-fade-in var(--motion-fast) var(--ease-standard) backwards;
 }
 
 .card {
@@ -21,7 +20,7 @@
   border-radius: 16px;
   background: var(--paper);
   box-shadow: 0 24px 90px #18291f24;
-  animation: overlay-card-in 220ms var(--ease-standard) both;
+  animation: overlay-card-in var(--motion-enter) var(--ease-standard) backwards;
 }
 
 .header {
@@ -115,9 +114,14 @@
 @keyframes overlay-card-in {
   from {
     opacity: 0;
+    translate: 0 0.75rem;
+    scale: 0.985;
   }
+
   to {
     opacity: 1;
+    translate: 0 0;
+    scale: 1;
   }
 }
 

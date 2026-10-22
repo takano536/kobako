@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
+import { waitForMotion } from './motion';
+
 export type ModalViewport = { width: number; height: number };
 
 type Rectangle = {
@@ -43,6 +45,7 @@ export async function assertDeleteModalGeometry(
   page: Page,
   viewport: ModalViewport,
 ): Promise<void> {
+  await waitForMotion(page);
   const panel = page.locator('[data-slot="delete-confirmation"]');
   const backdrop = page.locator('[data-slot="delete-modal-backdrop"]');
   const [panelRect, backdropRect, panelPosition, backdropPosition, backgroundColor] =
