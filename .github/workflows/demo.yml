@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: kobako-demo
+  group: kobako-demo-deploy
   cancel-in-progress: true
 
 jobs:
@@ -67,5 +67,5 @@ jobs:
             --config wrangler.jsonc \
             --secrets-file "${GITHUB_WORKSPACE}/.tmp/demo.env" \
             --message "main ${GITHUB_SHA::7}"
-          url=$(node scripts/workers-dev-url.mjs kobako-demo)
+          url=$(node scripts/workers-dev-url.mjs demo)
           echo "デモ: ${url}" >> "${GITHUB_STEP_SUMMARY}"

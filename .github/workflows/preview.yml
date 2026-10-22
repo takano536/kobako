@@ -88,7 +88,7 @@ jobs:
             --config wrangler.generated.jsonc \
             --secrets-file "${GITHUB_WORKSPACE}/.tmp/preview.env" \
             --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}"
-          url=$(node scripts/workers-dev-url.mjs "kobako-pr-${{ github.event.pull_request.number }}")
+          url=$(node scripts/workers-dev-url.mjs "pr-${{ github.event.pull_request.number }}")
           echo "url=${url}" >> "${GITHUB_OUTPUT}"
           echo "プレビュー: ${url}" >> "${GITHUB_STEP_SUMMARY}"
 

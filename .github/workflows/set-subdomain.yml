@@ -1,0 +1,36 @@
+name: Set workers.dev subdomain
+
+on:
+  workflow_dispatch:
+    inputs:
+      subdomain:
+        description: 'new workers.dev subdomain (no dots)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Update the account subdomain
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUBDOMAIN: ${{ inputs.subdomain }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o "${RUNNER_TEMP}/out.json" -w '%{http_code}' -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/subdomain" \
+            -H "authorization: Bearer ${TOKEN}" \
+            -H 'content-type: application/json' \
+            --data "{\"subdomain\":\"${SUBDOMAIN}\"}")
+          cat "${RUNNER_TEMP}/out.json"
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "Cloudflare returned HTTP ${code}" >&2
+            exit 1
+          fi
