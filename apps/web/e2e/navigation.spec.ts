@@ -251,6 +251,35 @@ test.describe('navigation feedback', () => {
     );
   });
 
+  test('moves the month in the frame while the taps keep coming, and lands once', async ({
+    page,
+  }) => {
+    await page.goto(`/transactions?month=${month}`);
+    await markDocument(page);
+    await delayNavigationResponses(page, 1500);
+
+    await page.getByRole('link', { name: '翌月' }).click();
+
+    const frame = page.locator(navigationSkeleton);
+    await expect(frame).toHaveCount(1);
+    await expect(frame).toContainText('2024年7月');
+    await expect(
+      page.locator('[data-slot="page-content"] h1').filter({ hasText: '取引' }),
+    ).toBeHidden();
+
+    // The frame's own arrows stay live, so the shown month follows every tap.
+    const nextMonth = frame.getByRole('button', { name: '翌月' });
+    await nextMonth.click();
+    await expect(frame).toContainText('2024年8月');
+    await nextMonth.click();
+    await expect(frame).toContainText('2024年9月');
+
+    await expect(page).toHaveURL(`/transactions?month=2024-09`);
+    await expect(frame).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '月を選択（2024年9月）' })).toBeVisible();
+    expect(await documentWasKept(page)).toBe(true);
+  });
+
   test('settles on the last tapped tab after rapid taps', async ({ page }) => {
     await page.goto(`/?month=${month}`);
     await markDocument(page);

@@ -28,7 +28,7 @@ function CategorySettingsSkeleton({ title }: { title: string }) {
  * 取引・資産の登録と編集はクライアント遷移ではカードとして開く（`@modal`）ため、
  * ここには置きません。
  */
-export function pageSkeletonFor(pathname: string): ReactNode | null {
+export function pageSkeletonFor(pathname: string, month?: string | null): ReactNode | null {
   switch (pathname) {
     case '/':
       return (
@@ -37,6 +37,7 @@ export function pageSkeletonFor(pathname: string): ReactNode | null {
           title="概要"
           action={REGISTER_TRANSACTION}
           monthSwitcher
+          month={month ?? undefined}
           blocks={[
             {
               kind: 'summary',
@@ -88,6 +89,7 @@ export function pageSkeletonFor(pathname: string): ReactNode | null {
           count
           action={REGISTER_TRANSACTION}
           monthSwitcher
+          month={month ?? undefined}
           blocks={[{ kind: 'filter' }, { kind: 'list', rows: 8, amount: true, datedEvery: 3 }]}
         />
       );

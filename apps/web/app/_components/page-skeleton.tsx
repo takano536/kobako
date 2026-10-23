@@ -6,6 +6,7 @@ import monthStyles from './month-switcher.module.css';
 import skeletonStyles from './skeleton.module.css';
 import styles from './page-skeleton.module.css';
 import uiStyles from './ui.module.css';
+import { MonthFrameSwitcher } from './month-frame-switcher';
 import { CardSkeletonFields } from './card-skeleton';
 import { PageShell } from './ui';
 
@@ -44,6 +45,8 @@ interface PageSkeletonProps {
   count?: boolean;
   action?: { label: string; icon?: string };
   monthSwitcher?: boolean;
+  /** 月切替に表示する月です。遷移先の月が分かっているときは仮の値ではなくその月を出します。 */
+  month?: string;
   blocks: readonly PageSkeletonBlock[];
 }
 
@@ -213,6 +216,7 @@ export function PageSkeleton({
   count = false,
   action,
   monthSwitcher = false,
+  month,
   blocks,
 }: PageSkeletonProps) {
   return (
@@ -221,7 +225,19 @@ export function PageSkeleton({
         <span className="sr-only">{label}</span>
         <div aria-hidden="true">
           <SkeletonHeader title={title} back={back} count={count} action={action} />
-          {monthSwitcher ? <SkeletonMonthSwitcher /> : null}
+        </div>
+        {/* The month switcher stays live so a burst of taps keeps moving the shown month while one
+            request is in flight. */}
+        {monthSwitcher ? (
+          month ? (
+            <MonthFrameSwitcher month={month} />
+          ) : (
+            <div aria-hidden="true">
+              <SkeletonMonthSwitcher />
+            </div>
+          )
+        ) : null}
+        <div aria-hidden="true">
           {blocks.map((block, index) => (
             <div
               className={styles.block}

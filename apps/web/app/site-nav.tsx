@@ -76,16 +76,16 @@ export function SiteBrand() {
 function useCurrentSection(): SiteNavigationSection | undefined {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const navigatingTo = useNavigationShell()?.navigatingTo ?? null;
-  return navigatingTo
-    ? siteNavigationSection(navigatingTo)
+  const pendingTo = useNavigationShell()?.pending?.pathname ?? null;
+  return pendingTo
+    ? siteNavigationSection(pendingTo)
     : siteNavigationSection(pathname, searchParams.get('return'));
 }
 
 export function SiteNav() {
   const month = useSearchParams().get('month');
   const currentSection = useCurrentSection();
-  const navigatingTo = useNavigationShell()?.navigatingTo ?? null;
+  const pendingTo = useNavigationShell()?.pending?.pathname ?? null;
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
       {navigationLinks.map(({ section, label, href }) => (
@@ -93,8 +93,8 @@ export function SiteNav() {
           key={section}
           href={withSelectedMonth(href, month)}
           aria-current={currentSection === section ? 'page' : undefined}
-          data-pending={navigatingTo === href ? 'true' : undefined}
-          aria-busy={navigatingTo === href || undefined}
+          data-pending={pendingTo === href ? 'true' : undefined}
+          aria-busy={pendingTo === href || undefined}
         >
           <SiteNavIcon section={section} />
           <span>{label}</span>
@@ -119,7 +119,7 @@ export function SiteNavFallback() {
 
 export function SiteSettings() {
   const settingsCurrent = useCurrentSection() === 'settings';
-  const pending = useNavigationShell()?.navigatingTo === '/settings';
+  const pending = useNavigationShell()?.pending?.pathname === '/settings';
   return (
     <PrefetchLink
       data-slot="site-settings"

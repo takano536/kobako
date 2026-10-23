@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 
 import { openNativePicker } from './native-picker';
+import { useNavigationShell } from './navigation-shell-context';
 import styles from './month-switcher.module.css';
 
 /**
@@ -22,6 +23,7 @@ export function MonthSelect({
   query?: Record<string, string | number | undefined>;
 }) {
   const router = useRouter();
+  const shell = useNavigationShell();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleChange(value: string): void {
@@ -32,7 +34,10 @@ export function MonthSelect({
       params.set(key, String(entry));
     }
     params.set('month', value);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    const href = `${pathname}?${params.toString()}`;
+    // A picked month goes through the shell too, so the frame shows the chosen month immediately.
+    if (shell?.navigate(href, { scroll: false })) return;
+    router.push(href, { scroll: false });
   }
 
   return (
