@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
+import { cache } from 'react';
 
 import {
   createDatabaseClient,
@@ -26,8 +28,20 @@ export function isDemoDeployment(): boolean {
   return process.env.DEMO_MODE === '1';
 }
 
+/**
+ * Neon's WebSocket `Pool` has to be connected, used, and ended within one request on
+ * Workers. Pools that were never ended piled up in the isolate until it hit its resource
+ * limits (Error 1102) and answered every request, RSC navigations included, with a 503.
+ * A render shares one pool, and it is ended once the response has been sent.
+ */
+const requestScopedServerlessClient = cache((): DatabaseClient => {
+  const client = createNeonDatabaseClient(getDatabaseUrl());
+  after(() => client.close());
+  return client;
+});
+
 export function getLedgerClient(): DatabaseClient {
-  if (usesServerlessDriver()) return createNeonDatabaseClient(getDatabaseUrl());
+  if (usesServerlessDriver()) return requestScopedServerlessClient();
   databaseClient ??= createDatabaseClient(getDatabaseUrl());
   return databaseClient;
 }
