@@ -16,10 +16,15 @@ import { useNavigationShell } from './navigation-shell-context';
 type PrefetchLinkProps = ComponentProps<typeof Link>;
 
 /**
- * アプリ内の遷移リンクです。ホバー・フォーカス・タッチの時点で遷移先を先読みし（カードなら
+ * アプリ内の遷移リンクです。ホバー・キーボードのフォーカスの時点で遷移先を先読みし（カードなら
  * 枠と骨組み）、画面に入っただけのリンクや開いているページと同じ URL へのリンクは先読み
- * しません。別の画面へ移るクリックは `NavigationShell` が引き受け、遷移先の骨組みを
- * すぐに表示します。
+ * しません。別の画面へ移るクリックは `NavigationShellProvider` が引き受け、本文を保持したまま
+ * タブで遷移先と読み込み状態を示します。
+ *
+ * `NavigationShellProvider` が引き受ける画面へは、タッチやクリックで押した時点（直後に遷移の取得が
+ * 始まる時点）では先読みしません。動的な画面の先読みは遷移の取得に使われず、タップごとに
+ * RSC リクエストが 2 件に増えるだけだったためです。カードなど `Link` に任せるリンクは、
+ * 押した時点でも先読みします。
  */
 export function PrefetchLink({
   href,
@@ -35,16 +40,20 @@ export function PrefetchLink({
 }: PrefetchLinkProps) {
   const router = useRouter();
   const shell = useNavigationShell();
-  const prefetch = useCallback(() => {
-    if (typeof href !== 'string') return;
-    const destination = new URL(href, window.location.href);
-    if (
-      destination.pathname === window.location.pathname &&
-      destination.search === window.location.search
-    )
-      return;
-    router.prefetch(href);
-  }, [href, router]);
+  const prefetch = useCallback(
+    (pressed: boolean) => {
+      if (typeof href !== 'string') return;
+      const destination = new URL(href, window.location.href);
+      if (
+        destination.pathname === window.location.pathname &&
+        destination.search === window.location.search
+      )
+        return;
+      if (pressed && shell?.handles(href)) return;
+      router.prefetch(href);
+    },
+    [href, router, shell],
+  );
   return (
     <Link
       {...props}
@@ -62,23 +71,29 @@ export function PrefetchLink({
           !event.shiftKey &&
           !event.altKey &&
           (target === undefined || target === '_self');
-        if (event.defaultPrevented || !plainClick || replace || typeof href !== 'string') return;
+        if (event.defaultPrevented || !plainClick) return;
+        if (replace || typeof href !== 'string') {
+          shell?.cancel();
+          return;
+        }
         if (shell?.navigate(href, { scroll: scroll !== false })) event.preventDefault();
       }}
       onPointerEnter={(event: PointerEvent<HTMLAnchorElement>) => {
-        prefetch();
+        // タッチでは pointerenter が押した時点で届きます。
+        prefetch(event.pointerType !== 'mouse');
         onPointerEnter?.(event);
       }}
       onPointerDown={(event: PointerEvent<HTMLAnchorElement>) => {
-        prefetch();
+        prefetch(true);
         onPointerDown?.(event);
       }}
       onTouchStart={(event: TouchEvent<HTMLAnchorElement>) => {
-        prefetch();
+        prefetch(true);
         onTouchStart?.(event);
       }}
       onFocus={(event: FocusEvent<HTMLAnchorElement>) => {
-        prefetch();
+        // タップやクリックで当たったフォーカスは押した時点として扱います。
+        prefetch(!event.currentTarget.matches(':focus-visible'));
         onFocus?.(event);
       }}
     />

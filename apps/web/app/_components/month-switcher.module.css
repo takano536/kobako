@@ -42,6 +42,15 @@
   transform: translateY(1px);
 }
 
+/* The month switcher inside a navigation frame uses the same geometry as buttons. */
+button.control {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
 .chevron {
   width: 0.75rem;
   height: 0.75rem;
