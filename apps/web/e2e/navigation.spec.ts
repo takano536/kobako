@@ -263,9 +263,7 @@ test.describe('navigation feedback', () => {
     const frame = page.locator(navigationSkeleton);
     await expect(frame).toHaveCount(1);
     await expect(frame).toContainText('2024年7月');
-    await expect(
-      page.locator('[data-slot="page-content"] h1').filter({ hasText: '取引' }),
-    ).toBeHidden();
+    await expect(page.locator('[data-slot="page-content"] > div[hidden]')).toHaveCount(1);
 
     // The frame's own arrows stay live, so the shown month follows every tap.
     const nextMonth = frame.getByRole('button', { name: '翌月' });
