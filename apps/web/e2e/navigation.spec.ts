@@ -179,3 +179,175 @@ test.describe('responsive main navigation', () => {
     await expect(page.getByRole('button', { name: '登録する', exact: true })).toBeVisible();
   });
 });
+
+declare global {
+  interface Window {
+    __navigationMarker?: boolean;
+  }
+}
+
+const navigationSkeleton = '[data-slot="page-skeleton"]';
+
+/** Delays every navigation RSC response (not prefetches) so the pending state is observable. */
+async function delayNavigationResponses(page: Page, delayMs: number): Promise<void> {
+  await page.route(
+    (url) => url.searchParams.has('_rsc'),
+    async (route) => {
+      if (route.request().headers()['next-router-prefetch'] !== '1') {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      await route.continue().catch(() => undefined);
+    },
+  );
+}
+
+async function currentTabs(page: Page): Promise<string[]> {
+  return page
+    .locator('[data-slot="site-nav"] a[aria-current="page"]')
+    .evaluateAll((links) => links.map((link) => link.textContent ?? ''));
+}
+
+async function markDocument(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.__navigationMarker = true;
+  });
+}
+
+async function documentWasKept(page: Page): Promise<boolean> {
+  return page.evaluate(() => window.__navigationMarker === true);
+}
+
+test.describe('navigation feedback', () => {
+  test('marks the tapped tab immediately while retaining readable content until the response', async ({
+    page,
+  }) => {
+    await page.goto(`/?month=${month}`);
+    await markDocument(page);
+    await delayNavigationResponses(page, 1500);
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+
+    expect(await currentTabs(page)).toEqual(['取引']);
+    await expect(page.getByRole('heading', { level: 1, name: '概要' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '取引', exact: true })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
+    await expect(page.getByRole('heading', { level: 1, name: /取引/ })).toBeVisible();
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    expect(await currentTabs(page)).toEqual(['取引']);
+    await expect(page.getByRole('link', { name: '取引', exact: true })).not.toHaveAttribute(
+      'aria-busy',
+    );
+    expect(await documentWasKept(page)).toBe(true);
+  });
+
+  test('settles on the last tapped tab after rapid taps', async ({ page }) => {
+    await page.goto(`/?month=${month}`);
+    await markDocument(page);
+    await delayNavigationResponses(page, 800);
+    for (const name of ['取引', '残高', '概要', '取引', '残高']) {
+      await page.getByRole('link', { name, exact: true }).click();
+      expect(await currentTabs(page)).toEqual([name]);
+    }
+    await expect(page).toHaveURL(`/balances?month=${month}`);
+    await expect(page.getByRole('heading', { level: 1, name: '残高' })).toBeVisible();
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    expect(await currentTabs(page)).toEqual(['残高']);
+    expect(await documentWasKept(page)).toBe(true);
+  });
+
+  test('returns to the open page when its tab is tapped again before the destination arrives', async ({
+    page,
+  }) => {
+    await page.goto(`/?month=${month}`);
+    await delayNavigationResponses(page, 1500);
+    await page.getByRole('link', { name: '残高', exact: true }).click();
+    expect(await currentTabs(page)).toEqual(['残高']);
+    await page.getByRole('link', { name: '概要', exact: true }).click();
+    expect(await currentTabs(page)).toEqual(['概要']);
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    // The abandoned request to 残高 still resolves; it must not take over the page.
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveURL(`/?month=${month}`);
+    await expect(page.getByRole('heading', { level: 1, name: '概要' })).toBeVisible();
+    expect(await currentTabs(page)).toEqual(['概要']);
+  });
+
+  test('drops the pending state when history moves before the destination arrives', async ({
+    page,
+  }) => {
+    await page.goto(`/?month=${month}`);
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
+    await delayNavigationResponses(page, 1500);
+    await page.getByRole('link', { name: '残高', exact: true }).click();
+    expect(await currentTabs(page)).toEqual(['残高']);
+    await page.goBack();
+    await expect(page).toHaveURL(`/?month=${month}`);
+    await expect(page.getByRole('heading', { level: 1, name: '概要' })).toBeVisible();
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    expect(await currentTabs(page)).toEqual(['概要']);
+  });
+
+  test('retries a temporarily unavailable page instead of reloading the document', async ({
+    page,
+  }) => {
+    await page.goto(`/?month=${month}`);
+    await markDocument(page);
+    let failures = 0;
+    await page.route(
+      (url) => url.pathname === '/transactions' && url.searchParams.has('_rsc'),
+      async (route) => {
+        if (route.request().headers()['next-router-prefetch'] !== '1' && failures < 1) {
+          failures += 1;
+          await route.fulfill({
+            status: 503,
+            contentType: 'text/html; charset=UTF-8',
+            body: '<!DOCTYPE html><title>Worker exceeded resource limits</title>',
+          });
+          return;
+        }
+        await route.continue();
+      },
+    );
+    await page.getByRole('link', { name: '取引', exact: true }).click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
+    await expect(page.getByRole('heading', { level: 1, name: /取引/ })).toBeVisible();
+    expect(failures).toBe(1);
+    expect(await documentWasKept(page)).toBe(true);
+  });
+
+  test('settles on the final tab when tabs, brand, and settings are tapped together', async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto(`/?month=${month}`);
+    await markDocument(page);
+    await delayNavigationResponses(page, 500);
+    for (const name of [
+      // The first same-URL tap must be tracked too, rather than racing a Link refresh.
+      'kobako 家計ノート ホーム',
+      '取引',
+      '設定',
+      '残高',
+      'kobako 家計ノート ホーム',
+      '取引',
+      '設定',
+      '概要',
+      'kobako 家計ノート ホーム',
+      '取引',
+      '残高',
+    ]) {
+      const link = page.getByRole('link', { name, exact: true });
+      if (isMobile) await link.tap();
+      else await link.click();
+      await page.waitForTimeout(100);
+    }
+    await expect(page).toHaveURL(/\/balances(?:\?|$)/);
+    await expect(page.getByRole('heading', { level: 1, name: '残高' })).toBeVisible();
+    await expect(page.locator('[data-slot="site-nav"] a[data-pending]')).toHaveCount(0);
+    expect(await currentTabs(page)).toEqual(['残高']);
+    expect(await documentWasKept(page)).toBe(true);
+  });
+});

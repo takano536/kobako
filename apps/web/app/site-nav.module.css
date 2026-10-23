@@ -61,6 +61,13 @@
   font-weight: 500;
 }
 
+/* A steady surface acknowledges a pending tap without replacing or pulsing the page. */
+.site-nav a[data-pending='true'],
+.site-settings[data-pending='true'] {
+  background-color: var(--soft-control);
+  transition: none;
+}
+
 .site-nav-icon {
   display: none;
 }

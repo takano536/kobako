@@ -1,7 +1,9 @@
 'use client';
 
-import { PrefetchLink } from './_components/prefetch-link';
 import { usePathname, useSearchParams } from 'next/navigation';
+
+import { useNavigationShell } from './_components/navigation-shell-context';
+import { PrefetchLink } from './_components/prefetch-link';
 
 import { KobakoMark } from '../src/lib/category';
 import { withSelectedMonth } from '../src/lib/month-navigation';
@@ -67,11 +69,23 @@ export function SiteBrand() {
   );
 }
 
-export function SiteNav() {
+/**
+ * 現在地の区分です。引き受けた遷移の間はタップした遷移先を現在地とし、押した反応を
+ * 本文の到着を待たずに示します。`aria-current` は遷移の前後で途切れずに移ります。
+ */
+function useCurrentSection(): SiteNavigationSection | undefined {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const month = searchParams.get('month');
-  const currentSection = siteNavigationSection(pathname, searchParams.get('return'));
+  const navigatingTo = useNavigationShell()?.navigatingTo ?? null;
+  return navigatingTo
+    ? siteNavigationSection(navigatingTo)
+    : siteNavigationSection(pathname, searchParams.get('return'));
+}
+
+export function SiteNav() {
+  const month = useSearchParams().get('month');
+  const currentSection = useCurrentSection();
+  const navigatingTo = useNavigationShell()?.navigatingTo ?? null;
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
       {navigationLinks.map(({ section, label, href }) => (
@@ -79,6 +93,8 @@ export function SiteNav() {
           key={section}
           href={withSelectedMonth(href, month)}
           aria-current={currentSection === section ? 'page' : undefined}
+          data-pending={navigatingTo === href ? 'true' : undefined}
+          aria-busy={navigatingTo === href || undefined}
         >
           <SiteNavIcon section={section} />
           <span>{label}</span>
@@ -102,8 +118,8 @@ export function SiteNavFallback() {
 }
 
 export function SiteSettings() {
-  const pathname = usePathname();
-  const settingsCurrent = siteNavigationSection(pathname) === 'settings';
+  const settingsCurrent = useCurrentSection() === 'settings';
+  const pending = useNavigationShell()?.navigatingTo === '/settings';
   return (
     <PrefetchLink
       data-slot="site-settings"
@@ -112,6 +128,8 @@ export function SiteSettings() {
       aria-label="設定"
       title="設定"
       aria-current={settingsCurrent ? 'page' : undefined}
+      data-pending={pending ? 'true' : undefined}
+      aria-busy={pending || undefined}
     >
       <SettingsIcon />
     </PrefetchLink>
