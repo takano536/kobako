@@ -1,4 +1,11 @@
 # Changelog
+## [0.15.3](https://github.com/takano536/kobako/compare/v0.15.2...v0.15.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **web:** ナビの連打を直列化し、遷移先の外枠を先に表示する ([#8](https://github.com/takano536/kobako/issues/8)) ([b6482d9](https://github.com/takano536/kobako/commit/b6482d9f042363a119f61bf848ba1370b3278692))
+
 ## [0.15.2](https://github.com/takano536/kobako/compare/v0.15.1...v0.15.2) (2026-10-23)
 
 
