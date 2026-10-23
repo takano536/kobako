@@ -1,4 +1,11 @@
 # Changelog
+## [0.16.1](https://github.com/takano536/kobako/compare/v0.16.0...v0.16.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **web:** タッチ端末でカードを開いたときにキーボードを出さない ([#13](https://github.com/takano536/kobako/issues/13)) ([933edae](https://github.com/takano536/kobako/commit/933edaef2d5886f726849f7db11451828d39e1a1))
+
 ## [0.16.0](https://github.com/takano536/kobako/compare/v0.15.3...v0.16.0) (2026-10-23)
 
 
