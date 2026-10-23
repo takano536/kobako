@@ -4,7 +4,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -184,11 +183,17 @@ export function NavigationShell({ children }: { children: ReactNode }) {
   // and the list below does not jump up while the frame is up.
   const content = useRef<HTMLDivElement>(null);
   const contentHeight = useRef(0);
-  useLayoutEffect(() => {
-    if (content.current !== null && !content.current.hidden) {
-      contentHeight.current = content.current.offsetHeight;
-    }
-  });
+  useEffect(() => {
+    const element = content.current;
+    if (element === null) return;
+    const measure = (): void => {
+      if (!element.hidden) contentHeight.current = element.offsetHeight;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   return (
     <>
       <div
