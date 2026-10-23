@@ -1,4 +1,11 @@
 # Changelog
+## [0.16.3](https://github.com/takano536/kobako/compare/v0.16.2...v0.16.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **web:** カード見出しの文字でも戻れるようにする ([#17](https://github.com/takano536/kobako/issues/17)) ([d60e6ef](https://github.com/takano536/kobako/commit/d60e6efee6c5a0a9b9cc553af11f76001510d396))
+
 ## [0.16.2](https://github.com/takano536/kobako/compare/v0.16.1...v0.16.2) (2026-10-23)
 
 
