@@ -27,7 +27,7 @@ type ThemeScriptConfig = {
   initializedKey: string;
 };
 
-export const THEME_SCRIPT_CONFIG: ThemeScriptConfig = {
+const THEME_SCRIPT_CONFIG: ThemeScriptConfig = {
   storageKey: THEME_STORAGE_KEY,
   preferenceAttribute: THEME_PREFERENCE_ATTRIBUTE,
   themeAttribute: THEME_ATTRIBUTE,
@@ -36,10 +36,13 @@ export const THEME_SCRIPT_CONFIG: ThemeScriptConfig = {
 };
 
 /**
- * Serialized into an inline `<head>` script, so it must stay self-contained (no imports or
- * closures). It runs before the first paint and lives for the whole document. Documents whose
- * head React renders on the client (the error shell of unmatched routes) never run the inline
- * script, so `ThemeScript` calls it after hydration as well; the second call is a no-op.
+ * Body of `function (c) { … }` with `c: ThemeScriptConfig`. It is a hand-written string, not a
+ * stringified compiled function: bundlers inject helpers into compiled functions (wrangler's
+ * `keepNames` adds `__name(...)` calls), and those helpers do not exist in the page.
+ *
+ * It runs before the first paint and lives for the whole document. Documents whose head React
+ * renders on the client (the error shell of unmatched routes) never run the inline script, so
+ * `ThemeScript` executes the same script after hydration; the second run is a no-op.
  *
  * `<html data-theme-preference>` is the in-session source of truth: the settings UI writes it after
  * trying to persist, so a failed localStorage write still keeps the chosen theme. The script
@@ -49,59 +52,50 @@ export const THEME_SCRIPT_CONFIG: ThemeScriptConfig = {
  * `prefers-color-scheme` while the preference is `system`, mirrors other tabs through the
  * `storage` event, and re-applies when React drops the attributes (development remounts).
  */
-export function initTheme(config: ThemeScriptConfig): void {
-  if (config.initializedKey in window) return;
-  Object.defineProperty(window, config.initializedKey, { value: true });
-  const root = document.documentElement;
-  const themeColor = document.createElement('meta');
-  themeColor.name = 'theme-color';
-  let media: MediaQueryList | null = null;
+const THEME_INIT_BODY = `
+if (c.initializedKey in window) return;
+Object.defineProperty(window, c.initializedKey, { value: true });
+var root = document.documentElement;
+var themeColor = document.createElement('meta');
+themeColor.name = 'theme-color';
+var media = null;
+try { media = window.matchMedia('(prefers-color-scheme: dark)'); } catch (error) { media = null; }
+function storedPreference() {
   try {
-    media = window.matchMedia('(prefers-color-scheme: dark)');
-  } catch {
-    media = null;
+    var value = window.localStorage.getItem(c.storageKey);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch (error) {
+    return 'system';
   }
-
-  function storedPreference(): ThemePreference {
-    try {
-      const value = window.localStorage.getItem(config.storageKey);
-      return value === 'light' || value === 'dark' ? value : 'system';
-    } catch {
-      return 'system';
-    }
-  }
-
-  function apply(): void {
-    const attribute = root.getAttribute(config.preferenceAttribute);
-    const preference: ThemePreference =
-      attribute === 'light' || attribute === 'dark' || attribute === 'system'
-        ? attribute
-        : storedPreference();
-    if (attribute !== preference) root.setAttribute(config.preferenceAttribute, preference);
-    const theme: ResolvedTheme =
-      preference === 'system' ? (media?.matches ? 'dark' : 'light') : preference;
-    if (root.getAttribute(config.themeAttribute) !== theme) {
-      root.setAttribute(config.themeAttribute, theme);
-    }
-    if (root.style.colorScheme !== theme) root.style.colorScheme = theme;
-    if (themeColor.content !== config.colors[theme]) themeColor.content = config.colors[theme];
-    if (document.head.querySelector('meta[name="theme-color"]') !== themeColor) {
-      document.head.insertBefore(themeColor, document.head.firstChild);
-    }
-  }
-
-  apply();
-  media?.addEventListener('change', apply);
-  window.addEventListener('storage', (event) => {
-    if (event.key === config.storageKey || event.key === null) {
-      root.setAttribute(config.preferenceAttribute, storedPreference());
-    }
-  });
-  new MutationObserver(apply).observe(root, {
-    attributes: true,
-    attributeFilter: [config.themeAttribute, config.preferenceAttribute],
-  });
-  new MutationObserver(apply).observe(document.head, { childList: true });
 }
+function apply() {
+  var attribute = root.getAttribute(c.preferenceAttribute);
+  var preference = attribute === 'light' || attribute === 'dark' || attribute === 'system'
+    ? attribute
+    : storedPreference();
+  if (attribute !== preference) root.setAttribute(c.preferenceAttribute, preference);
+  var theme = preference === 'system' ? (media && media.matches ? 'dark' : 'light') : preference;
+  if (root.getAttribute(c.themeAttribute) !== theme) root.setAttribute(c.themeAttribute, theme);
+  if (root.style.colorScheme !== theme) root.style.colorScheme = theme;
+  if (themeColor.content !== c.colors[theme]) themeColor.content = c.colors[theme];
+  if (document.head.querySelector('meta[name="theme-color"]') !== themeColor) {
+    document.head.insertBefore(themeColor, document.head.firstChild);
+  }
+}
+apply();
+if (media) media.addEventListener('change', apply);
+window.addEventListener('storage', function (event) {
+  if (event.key === c.storageKey || event.key === null) {
+    root.setAttribute(c.preferenceAttribute, storedPreference());
+  }
+});
+new MutationObserver(apply).observe(root, {
+  attributes: true,
+  attributeFilter: [c.themeAttribute, c.preferenceAttribute]
+});
+new MutationObserver(apply).observe(document.head, { childList: true });
+`;
 
-export const THEME_INIT_SCRIPT = `(${initTheme.toString()})(${JSON.stringify(THEME_SCRIPT_CONFIG)});`;
+export const THEME_INIT_SCRIPT = `(function (c) {${THEME_INIT_BODY}})(${JSON.stringify(
+  THEME_SCRIPT_CONFIG,
+)});`;
