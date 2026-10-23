@@ -5,7 +5,7 @@ import primitiveStyles from '../../_components/button.module.css';
 import uiStyles from '../../_components/ui.module.css';
 
 import { useBackgroundScrollLock } from '../../_components/use-background-scroll-lock';
-import Link from 'next/link';
+import { PrefetchLink } from '../../_components/prefetch-link';
 import {
   startTransition,
   useActionState,
@@ -792,9 +792,9 @@ function SuccessView({
       </dl>
       <p className={importStyles['import-success-created']}>{created}</p>
       <div className={importStyles['import-success-actions']}>
-        <Link className={primitiveStyles.button} href={`/transactions${monthQuery}`}>
+        <PrefetchLink className={primitiveStyles.button} href={`/transactions${monthQuery}`}>
           取引一覧へ
-        </Link>
+        </PrefetchLink>
         <button
           className={joinClasses(primitiveStyles.button, importStyles['import-secondary-action'])}
           type="button"

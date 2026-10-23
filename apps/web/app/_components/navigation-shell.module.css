@@ -1,0 +1,8 @@
+/* The wrapper takes no box of its own, so the page shell keeps its position. */
+.content {
+  display: contents;
+}
+
+.content[hidden] {
+  display: none;
+}

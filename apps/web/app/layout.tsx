@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import Link from 'next/link';
 import navStyles from './site-nav.module.css';
 import layoutStyles from './_components/layout.module.css';
 import { Suspense } from 'react';
@@ -7,6 +6,8 @@ import { Suspense } from 'react';
 import '@fontsource-variable/noto-sans-jp/index.css';
 
 import { KobakoMark } from '../src/lib/category';
+import { PrefetchLink } from './_components/prefetch-link';
+import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
 import {
   SiteBrand,
   SiteNav,
@@ -38,32 +39,38 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        <div data-slot="app-shell" className={layoutStyles['app-shell']}>
-          <header data-slot="site-header" className={layoutStyles['site-header']}>
-            <div data-slot="header-inner" className={layoutStyles['header-inner']}>
-              <Suspense
-                fallback={
-                  <Link className={navStyles.brand} href="/" aria-label="kobako 家計ノート ホーム">
-                    <KobakoMark />
-                    <span>kobako</span>
-                  </Link>
-                }
-              >
-                <SiteBrand />
-              </Suspense>
-              <Suspense fallback={<SiteNavFallback />}>
-                <SiteNav />
-              </Suspense>
-              <Suspense fallback={<SiteSettingsFallback />}>
-                <SiteSettings />
-              </Suspense>
-            </div>
-          </header>
-          <main data-slot="page-content" className={layoutStyles['page-content']}>
-            {children}
-          </main>
-          {modal}
-        </div>
+        <NavigationShellProvider>
+          <div data-slot="app-shell" className={layoutStyles['app-shell']}>
+            <header data-slot="site-header" className={layoutStyles['site-header']}>
+              <div data-slot="header-inner" className={layoutStyles['header-inner']}>
+                <Suspense
+                  fallback={
+                    <PrefetchLink
+                      className={navStyles.brand}
+                      href="/"
+                      aria-label="kobako 家計ノート ホーム"
+                    >
+                      <KobakoMark />
+                      <span>kobako</span>
+                    </PrefetchLink>
+                  }
+                >
+                  <SiteBrand />
+                </Suspense>
+                <Suspense fallback={<SiteNavFallback />}>
+                  <SiteNav />
+                </Suspense>
+                <Suspense fallback={<SiteSettingsFallback />}>
+                  <SiteSettings />
+                </Suspense>
+              </div>
+            </header>
+            <main data-slot="page-content" className={layoutStyles['page-content']}>
+              <NavigationShell>{children}</NavigationShell>
+            </main>
+            {modal}
+          </div>
+        </NavigationShellProvider>
       </body>
     </html>
   );

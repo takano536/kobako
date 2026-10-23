@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { PrefetchLink } from './prefetch-link';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 import styles from './button.module.css';
@@ -48,7 +48,7 @@ export function LinkButton({
     .replace(styles.buttonSecondary!, styles.linkButtonSecondary!)
     .replace(styles.buttonQuiet!, styles.linkButtonQuiet!);
   return (
-    <Link
+    <PrefetchLink
       data-slot="button-link"
       className={[variantClass, className].filter(Boolean).join(' ')}
       href={href}
@@ -61,6 +61,6 @@ export function LinkButton({
         </span>
       ) : null}
       <span>{children}</span>
-    </Link>
+    </PrefetchLink>
   );
 }

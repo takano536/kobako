@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { PrefetchLink } from './prefetch-link';
 import type { ReactNode } from 'react';
 
 import styles from './page-header.module.css';
@@ -28,7 +28,7 @@ export function PageHeader({
     <header data-slot="page-header" className={classes}>
       <h1 data-slot="page-header-title" aria-label={titleAriaLabel}>
         {backLink ? (
-          <Link
+          <PrefetchLink
             data-slot="page-header-title-link"
             className={styles['page-header-title-link']}
             href={backLink.href}
@@ -47,7 +47,7 @@ export function PageHeader({
               {title}
             </span>
             <span className="sr-only"> — {backLink.label}</span>
-          </Link>
+          </PrefetchLink>
         ) : (
           <span data-slot="heading-title" className={styles['heading-title']}>
             {title}
