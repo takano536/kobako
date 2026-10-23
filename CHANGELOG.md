@@ -1,4 +1,11 @@
 # Changelog
+## [0.16.0](https://github.com/takano536/kobako/compare/v0.15.3...v0.16.0) (2026-10-23)
+
+
+### Features
+
+* **web:** ダークテーマと設定の外観選択を追加する ([#11](https://github.com/takano536/kobako/issues/11)) ([f42944d](https://github.com/takano536/kobako/commit/f42944d791c3c6f4382f2969ccd21cc0ad37433f))
+
 ## [0.15.3](https://github.com/takano536/kobako/compare/v0.15.2...v0.15.3) (2026-10-23)
 
 
