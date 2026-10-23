@@ -81,7 +81,7 @@ test('compensates and restores classic scrollbar width for an overlay card', asy
     expect(Math.abs(openGeometry.x - beforeGeometry.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(openGeometry.width - beforeGeometry.width)).toBeLessThanOrEqual(1);
   }
-  await page.getByRole('button', { name: '戻る', exact: true }).click();
+  await page.getByRole('button', { name: '取引を登録 — 戻る', exact: true }).click();
   await expect(page.locator('#entry-dialog')).toHaveCount(0);
   await expect
     .poll(() =>

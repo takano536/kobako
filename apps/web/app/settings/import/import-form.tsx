@@ -634,21 +634,24 @@ function ConfirmActions({
             data-card-kind="import"
           >
             <header className={importStyles['dialog-head']} data-card-kind="import">
-              <button
-                className={importStyles['dialog-back']}
-                type="button"
-                aria-label="戻る"
-                onClick={() => setOpen(false)}
-              >
-                <svg
-                  className={importStyles['dialog-back-chevron']}
-                  viewBox="0 0 12 12"
-                  aria-hidden="true"
+              {/* 戻るボタンの当たり判定を見出し文字まで広げます（::after が dialog-back-target 全体を覆います）。 */}
+              <div className={importStyles['dialog-back-target']}>
+                <button
+                  className={importStyles['dialog-back']}
+                  type="button"
+                  aria-label="取り込みの確認 — 戻る"
+                  onClick={() => setOpen(false)}
                 >
-                  <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
-                </svg>
-              </button>
-              <h2 id="import-confirm-title">取り込みの確認</h2>
+                  <svg
+                    className={importStyles['dialog-back-chevron']}
+                    viewBox="0 0 12 12"
+                    aria-hidden="true"
+                  >
+                    <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
+                  </svg>
+                </button>
+                <h2 id="import-confirm-title">取り込みの確認</h2>
+              </div>
               <span aria-hidden="true" />
             </header>
             <p className={importStyles['import-confirm-dialog-note']}>

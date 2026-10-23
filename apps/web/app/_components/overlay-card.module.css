@@ -36,7 +36,7 @@
 }
 
 .header h1 {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   font-size: var(--text-heading);
   font-weight: 500;
   line-height: var(--leading-heading);
@@ -47,6 +47,25 @@
   display: none;
 }
 
+/* chevron と見出しを 1 つの戻る操作として包みます。幅は中身に合わせ、見出しの右側の余白は含めません。 */
+.backTarget {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  margin-inline-start: -0.5rem;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.backTarget:hover .title {
+  color: var(--accent);
+}
+
+.backTarget:has(> .back:active) {
+  transform: translateY(1px);
+}
+
 .back {
   display: inline-flex;
   flex: 0 0 44px;
@@ -54,10 +73,17 @@
   min-height: 44px;
   align-items: center;
   justify-content: center;
-  margin-inline: -0.5rem -7px;
+  margin-inline: 0 -7px;
   border: 0;
   border-radius: 999px;
   background: transparent;
+}
+
+/* ボタンの当たり判定を backTarget（chevron＋見出し）全体へ広げます。 */
+.back::after {
+  position: absolute;
+  inset: 0;
+  content: '';
 }
 
 .backChevron {
@@ -80,6 +106,7 @@
 .title {
   margin: 0;
   text-align: left;
+  transition: color var(--motion-fast) var(--ease-standard);
 }
 
 .body {
@@ -134,5 +161,14 @@
   .backdrop,
   .card {
     animation: none;
+  }
+
+  .backTarget,
+  .title {
+    transition: none;
+  }
+
+  .backTarget {
+    transform: none;
   }
 }

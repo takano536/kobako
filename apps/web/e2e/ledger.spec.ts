@@ -182,7 +182,7 @@ test('keeps the selected month across global navigation and browser history', as
     await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
     await page.getByRole('link', { name: '資産を登録', exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`/accounts/new\\?month=${nextMonth}$`));
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '資産を登録 — 戻る', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/balances\\?month=${nextMonth}$`));
     await page.getByRole('link', { name: '取引', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
@@ -309,8 +309,10 @@ test('keeps the selected month through transaction edit navigation, save, and ca
       .click();
     await expect(page).toHaveURL(editUrl);
     await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
-    await expect(page.getByRole('button', { name: '戻る', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await expect(
+      page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }).click();
     await expect(page).toHaveURL(listUrl);
     await expectSelectedList('4,321円');
     await page
@@ -319,7 +321,7 @@ test('keeps the selected month through transaction edit navigation, save, and ca
       .click();
     await expect(page).toHaveURL(editUrl);
 
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }).click();
     await page.getByRole('link', { name: '概要', exact: true }).click();
     await expect(page).toHaveURL(overviewUrl);
     await expectSelectedOverview('4,321円');
@@ -333,7 +335,7 @@ test('keeps the selected month through transaction edit navigation, save, and ca
       .click();
     await expect(page).toHaveURL(editUrl);
 
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }).click();
     await page.getByRole('link', { name: 'kobako 家計ノート ホーム' }).click();
     await expect(page).toHaveURL(overviewUrl);
     await expectSelectedOverview('4,321円');
@@ -366,7 +368,7 @@ test('keeps the selected month through transaction edit navigation, save, and ca
     await expect(page.getByLabel('金額')).toHaveValue('9876');
     await expect(page.getByLabel('メモ（任意）')).toHaveValue(selectedMarker);
 
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }).click();
     await page.getByRole('link', { name: '概要', exact: true }).click();
     await expect(page).toHaveURL(overviewUrl);
     await expectSelectedOverview('9,876円');

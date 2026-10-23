@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { currentTokyoMonth } from '@kobako/db';
 
+import { pressCenter, pressHeaderBlank, pressHeadingText } from './card-header-helpers';
 import { waitForMotion } from './motion';
 
 test.describe('overlay cards', () => {
@@ -292,7 +293,7 @@ test.describe('overlay cards', () => {
     await tapBackdrop();
     await expect(dialog).toBeVisible();
     expect(await focusState()).toEqual({ ...beforeTap, id: 'entry-dialog', ownsKeyboard: false });
-    const back = dialog.getByRole('button', { name: '戻る', exact: true });
+    const back = dialog.getByRole('button', { name: '取引を登録 — 戻る', exact: true });
     await back.focus();
     const backFocused = await focusState();
     await tapBackdrop();
@@ -303,7 +304,7 @@ test.describe('overlay cards', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await entry.click();
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '取引を登録 — 戻る', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await entry.click();
     await expect(dialog).toBeVisible();
@@ -313,6 +314,40 @@ test.describe('overlay cards', () => {
     await page.goto('/transactions/new');
     await expect(page.getByRole('heading', { name: '取引を登録', exact: true })).toBeVisible();
     await expect(dialog).toHaveCount(0);
+  });
+
+  test('closes the card from the heading text and the chevron but not the blank header area', async ({
+    page,
+    isMobile,
+  }) => {
+    const month = currentTokyoMonth();
+    const listUrl = new RegExp(`/transactions\\?month=${month}$`);
+    await page.goto(`/transactions?month=${month}`);
+    const entry = page.getByRole('link', { name: '取引を登録', exact: true }).first();
+    const dialog = page.locator('#entry-dialog');
+    const heading = dialog.getByRole('heading', { name: '取引を登録', exact: true });
+    const back = dialog.getByRole('button', { name: '取引を登録 — 戻る', exact: true });
+
+    await entry.click();
+    await expect(dialog).toBeVisible();
+    // ダイアログ名は戻る操作の名前ではなく、素の見出しテキストのままです。
+    await expect(dialog).toHaveAccessibleName('取引を登録');
+    await expect(heading).toHaveAttribute('id', 'entry-dialog-title');
+    await expect(back).toBeVisible();
+
+    await pressHeaderBlank(page, isMobile, heading);
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/transactions\/new(?:\?.*)?$/);
+
+    await pressHeadingText(page, isMobile, heading);
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(listUrl);
+
+    await entry.click();
+    await expect(dialog).toBeVisible();
+    await pressCenter(page, isMobile, dialog.locator('header svg'));
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(listUrl);
   });
 
   test('opens an asset card over balances and keeps direct asset navigation a page', async ({
@@ -381,7 +416,7 @@ test.describe('overlay cards', () => {
     await expect(transfer).toBeVisible();
     await transfer.click();
     await expect(page.locator('#entry-dialog[data-card-kind="transaction"]')).toBeVisible();
-    await page.getByRole('button', { name: '戻る', exact: true }).click();
+    await page.getByRole('button', { name: '取引を編集 — 戻る', exact: true }).click();
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
 
     await page.goto(`/?month=${currentTokyoMonth()}`);
@@ -418,7 +453,10 @@ test.describe('overlay cards', () => {
     await assetDelete.getByRole('link', { name: 'キャンセル' }).click();
     await expect(assetDelete).not.toBeVisible();
     expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe('hidden');
-    await page.locator('#entry-dialog').getByRole('button', { name: '戻る' }).click();
+    await page
+      .locator('#entry-dialog')
+      .getByRole('button', { name: '資産設定 — 戻る', exact: true })
+      .click();
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
     expect(
       await page.evaluate(() => ({
@@ -558,7 +596,7 @@ test.describe('overlay cards', () => {
       await openCard(card);
       await page.keyboard.press('Tab');
       await expect(
-        dialog.getByRole('button', { name: '戻る', exact: true }),
+        dialog.getByRole('button', { name: `${card.title} — 戻る`, exact: true }),
         card.name,
       ).toBeFocused();
       await openCard(card);

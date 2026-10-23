@@ -24,6 +24,7 @@ import {
   chooseEmptyMonthPair,
   markerFor,
 } from './e2e-safety';
+import { pressCenter, pressHeaderBlank, pressHeadingText } from './card-header-helpers';
 import { waitForMotion } from './motion';
 
 const runId = randomUUID();
@@ -801,6 +802,44 @@ test('warns that a separate re-import creates duplicate rows', async ({ page }) 
     accounts: before.accounts + 4,
     imports: before.imports + 1,
   });
+});
+
+test('closes the import confirmation from the heading text and the chevron but not the blank header area', async ({
+  page,
+  isMobile,
+}) => {
+  const paths = fixturePaths;
+  if (!paths) {
+    throw new Error('E2E fixtures are not initialized');
+  }
+  const before = await runCounts();
+  await page.goto('/settings/import');
+  await uploadAndPreview(page, paths.mobile);
+  const trigger = page.getByRole('button', { name: '1件を取り込む', exact: true });
+  const dialog = page.locator('#import-confirm-dialog[data-card-kind="import"]');
+  const heading = dialog.getByRole('heading', { name: '取り込みの確認', exact: true });
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  // ダイアログ名は戻る操作の名前ではなく、素の見出しテキストのままです。
+  await expect(dialog).toHaveAccessibleName('取り込みの確認');
+  await expect(heading).toHaveAttribute('id', 'import-confirm-title');
+  await expect(
+    dialog.getByRole('button', { name: '取り込みの確認 — 戻る', exact: true }),
+  ).toBeVisible();
+
+  await pressHeaderBlank(page, isMobile, heading);
+  await expect(dialog).toBeVisible();
+
+  await pressHeadingText(page, isMobile, heading);
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '取り込み内容を確認' })).toBeVisible();
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await pressCenter(page, isMobile, dialog.locator('header svg'));
+  await expect(dialog).toHaveCount(0);
+  expect(await runCounts()).toEqual(before);
 });
 
 test('shows row-numbered errors while keeping transfers as importable rows', async ({ page }) => {
