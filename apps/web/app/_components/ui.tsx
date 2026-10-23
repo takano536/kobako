@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import layoutStyles from './layout.module.css';
 import monthStyles from './month-switcher.module.css';
@@ -7,6 +6,7 @@ import { Amount } from './amount';
 import { Button, LinkButton } from './button';
 import { MonthSelect } from './month-select';
 import { PageTransition } from './page-transition';
+import { PrefetchLink } from './prefetch-link';
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -151,9 +151,14 @@ export function MonthSwitcher({
   return (
     <nav data-slot="month-switcher" className={monthStyles.switcher} aria-label="月を移動">
       {previousHref ? (
-        <Link className={monthStyles.control} href={previousHref} aria-label="前月" scroll={false}>
+        <PrefetchLink
+          className={monthStyles.control}
+          href={previousHref}
+          aria-label="前月"
+          scroll={false}
+        >
           <MonthChevron direction="previous" />
-        </Link>
+        </PrefetchLink>
       ) : (
         <span className={monthStyles.control} aria-hidden="true" />
       )}
@@ -164,9 +169,14 @@ export function MonthSwitcher({
         query={selectQuery}
       />
       {nextHref ? (
-        <Link className={monthStyles.control} href={nextHref} aria-label="翌月" scroll={false}>
+        <PrefetchLink
+          className={monthStyles.control}
+          href={nextHref}
+          aria-label="翌月"
+          scroll={false}
+        >
           <MonthChevron direction="next" />
-        </Link>
+        </PrefetchLink>
       ) : (
         <span className={monthStyles.control} aria-hidden="true" />
       )}

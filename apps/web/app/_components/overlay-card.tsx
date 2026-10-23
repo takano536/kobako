@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useBackgroundScrollLock } from './use-background-scroll-lock';
@@ -23,6 +23,7 @@ export function OverlayCard({
   const router = useRouter();
   const pathname = usePathname();
   const cardRef = useRef<HTMLDivElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
   const originRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
   useBackgroundScrollLock();
@@ -105,6 +106,29 @@ export function OverlayCard({
     };
   }, [autoFocusSelector, close, pathname]);
 
+  // 中身をストリーミングで受け取る場合、入力欄はカードの枠より後に現れます。
+  // 入力欄が現れた時点でフォーカスし、利用者が既に別の要素へ移している場合は奪いません。
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !autoFocusSelector) return;
+    if (card.querySelector(autoFocusSelector)) return;
+    const observer = new MutationObserver(() => {
+      const field = card.querySelector<HTMLElement>(autoFocusSelector);
+      if (!field) return;
+      observer.disconnect();
+      const active = document.activeElement;
+      const userMovedFocus =
+        active instanceof HTMLElement &&
+        active !== backButtonRef.current &&
+        card.contains(active) &&
+        active.matches(FOCUSABLE_SELECTOR);
+      if (userMovedFocus) return;
+      field.focus();
+    });
+    observer.observe(card, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [autoFocusSelector]);
+
   return (
     <div
       className={styles.backdrop}
@@ -124,7 +148,13 @@ export function OverlayCard({
         data-card-kind={kind}
       >
         <header className={styles.header}>
-          <button className={styles.back} type="button" aria-label="戻る" onClick={close}>
+          <button
+            className={styles.back}
+            ref={backButtonRef}
+            type="button"
+            aria-label="戻る"
+            onClick={close}
+          >
             <svg className={styles.backChevron} viewBox="0 0 12 12" aria-hidden="true">
               <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
             </svg>

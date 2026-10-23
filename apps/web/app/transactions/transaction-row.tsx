@@ -1,5 +1,5 @@
 import type { ListedTransaction } from '@kobako/db';
-import Link from 'next/link';
+import { PrefetchLink } from '../_components/prefetch-link';
 import transactionStyles from './transaction-row.module.css';
 import uiStyles from '../_components/ui.module.css';
 
@@ -77,7 +77,7 @@ export function TransactionRow({
         >
           {formatJapaneseDate(transaction.occurredOn)}
         </time>
-        <Link
+        <PrefetchLink
           className={[
             transactionStyles['transaction-link'],
             transactionStyles['transaction-link-ordinary'],
@@ -120,7 +120,7 @@ export function TransactionRow({
           <span className={amountClassName} data-slot="record-amount">
             {amount}
           </span>
-        </Link>
+        </PrefetchLink>
       </li>
     );
   }
@@ -135,14 +135,13 @@ export function TransactionRow({
           {dateHeading}
         </h3>
       ) : null}
-      <Link
+      <PrefetchLink
         className={[
           transactionStyles['transaction-link'],
           transactionStyles['transaction-link-ordinary'],
         ].join(' ')}
         data-slot="transaction-link"
         href={editHref}
-        prefetch={false}
         scroll={false}
         aria-label={label}
       >
@@ -184,7 +183,7 @@ export function TransactionRow({
         >
           ›
         </span>
-      </Link>
+      </PrefetchLink>
     </li>
   );
 }

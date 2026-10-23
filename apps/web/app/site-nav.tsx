@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from './_components/prefetch-link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 import { KobakoMark } from '../src/lib/category';
@@ -55,7 +55,7 @@ const navigationLinks = [
 export function SiteBrand() {
   const searchParams = useSearchParams();
   return (
-    <Link
+    <PrefetchLink
       data-slot="brand"
       className={navStyles.brand}
       href={withSelectedMonth('/', searchParams.get('month'))}
@@ -63,7 +63,7 @@ export function SiteBrand() {
     >
       <KobakoMark />
       <span>kobako</span>
-    </Link>
+    </PrefetchLink>
   );
 }
 
@@ -75,14 +75,14 @@ export function SiteNav() {
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
       {navigationLinks.map(({ section, label, href }) => (
-        <Link
+        <PrefetchLink
           key={section}
           href={withSelectedMonth(href, month)}
           aria-current={currentSection === section ? 'page' : undefined}
         >
           <SiteNavIcon section={section} />
           <span>{label}</span>
-        </Link>
+        </PrefetchLink>
       ))}
     </nav>
   );
@@ -92,10 +92,10 @@ export function SiteNavFallback() {
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
       {navigationLinks.map(({ section, label, href }) => (
-        <Link key={section} href={href}>
+        <PrefetchLink key={section} href={href}>
           <SiteNavIcon section={section} />
           <span>{label}</span>
-        </Link>
+        </PrefetchLink>
       ))}
     </nav>
   );
@@ -105,7 +105,7 @@ export function SiteSettings() {
   const pathname = usePathname();
   const settingsCurrent = siteNavigationSection(pathname) === 'settings';
   return (
-    <Link
+    <PrefetchLink
       data-slot="site-settings"
       className={navStyles['site-settings']}
       href="/settings"
@@ -114,19 +114,19 @@ export function SiteSettings() {
       aria-current={settingsCurrent ? 'page' : undefined}
     >
       <SettingsIcon />
-    </Link>
+    </PrefetchLink>
   );
 }
 
 export function SiteSettingsFallback() {
   return (
-    <Link
+    <PrefetchLink
       data-slot="site-settings"
       className={navStyles['site-settings']}
       href="/settings"
       title="設定"
     >
       <SettingsIcon />
-    </Link>
+    </PrefetchLink>
   );
 }

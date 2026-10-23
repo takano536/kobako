@@ -1,0 +1,30 @@
+.skeleton {
+  display: grid;
+  gap: var(--space-item);
+  padding-block: var(--space-within);
+}
+
+.row {
+  display: grid;
+  gap: var(--space-within);
+}
+
+.label {
+  width: 4.5rem;
+  height: 0.75rem;
+}
+
+.control {
+  height: 2.75rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-group);
+}
+
+.button {
+  width: 7.5rem;
+  height: 2.75rem;
+}

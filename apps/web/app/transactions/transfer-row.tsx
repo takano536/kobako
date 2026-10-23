@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import type { ListedTransfer } from '@kobako/db';
+import { PrefetchLink } from '../_components/prefetch-link';
 import transactionStyles from './transaction-row.module.css';
 import uiStyles from '../_components/ui.module.css';
 
@@ -35,11 +35,10 @@ export function TransferRow({
           {dateHeading}
         </h3>
       ) : null}
-      <Link
+      <PrefetchLink
         data-slot="transaction-link"
         className={transactionStyles['transaction-link']}
         href={editHref}
-        prefetch={false}
         aria-label={label}
       >
         <span
@@ -107,7 +106,7 @@ export function TransferRow({
         >
           ›
         </span>
-      </Link>
+      </PrefetchLink>
     </li>
   );
 }

@@ -14,7 +14,7 @@ import {
   shiftMonth,
   type ListedLedgerEntry,
 } from '@kobako/db';
-import Link from 'next/link';
+import { PrefetchLink } from '../_components/prefetch-link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import {
@@ -71,21 +71,7 @@ function PencilIcon() {
   );
 }
 
-export default async function TransactionsPage(props: { searchParams: SearchParams }) {
-  try {
-    return await TransactionsPageInner(props);
-  } catch (error) {
-    return (
-      <pre style={{ padding: 16, whiteSpace: 'pre-wrap' }}>
-        {String(error)}
-        {'\n'}
-        {((error as Error).stack ?? '').split('\n').slice(0, 8).join('\n')}
-      </pre>
-    );
-  }
-}
-
-async function TransactionsPageInner({ searchParams }: { searchParams: SearchParams }) {
+export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const saved = firstQueryValue(query.saved) === '1';
   const rawAccount = firstQueryValue(query.account);
@@ -158,7 +144,7 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
         >
           <div className={pageStyles['asset-transaction-heading']}>
             {account.deletedAt === null ? (
-              <Link
+              <PrefetchLink
                 className={pageStyles['asset-settings-link']}
                 href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
                 scroll={false}
@@ -166,7 +152,7 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
                 title="資産を編集"
               >
                 <PencilIcon />
-              </Link>
+              </PrefetchLink>
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
             <span className={pageStyles['asset-transaction-category']}>
