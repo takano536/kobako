@@ -144,6 +144,8 @@ UI の再設計では、見た目を所有する部品ごとに CSS Modules を 
 
 日本語・英数字・金額の実描画差を抑えるため、外部フォントサービスではなく OFL-1.1 のローカル `@fontsource-variable/noto-sans-jp` を unicode-range 分割で配信します。CDP の CSS ドメインによる実フォント監査で OS 依存の system-ui と比較し、概要・フォームの本文・入力は 400、見出し・ボタンは 500、金額は 500 を使うことを確認しました。可変フォントのプラットフォーム名が `Noto Sans JP Thin` と返る点は既定インスタンス名であり、CSS ウェイト指定とは別であることを記録します。
 
+テーマ（ライト・ダーク・システムに合わせる）の選択は `localStorage` の `kobako-theme` だけに保存し、端末ごとに独立させます。DB・cookie・Server Action は使わないため、サーバー描画は選択を知りません。未設定・未知の値・`localStorage` が使えない環境は「システム」として `prefers-color-scheme` に従います。色は `globals.css` で同じトークン名を `[data-theme='dark']` に再定義する方式にし、CSS Module にはテーマの分岐を置きません。初回描画のちらつきを避けるため、ルートレイアウトの `<head>` に置く `ThemeScript` の同期インラインスクリプト（`src/lib/theme.ts` の `initTheme`）がハイドレーション前に `<html>` の `data-theme-preference`（選択）・`data-theme`（解決後）・`color-scheme` と、先頭の `theme-color` を設定し、`<html>` には `suppressHydrationWarning` を付けます。`viewport.themeColor` の `media` 付き 2 件は JavaScript なしの既定として残し、書き換えません（React が別要素を再挿入するため）。スクリプトは OS 設定の変化と他タブの `storage` イベントに追従し、React が属性やメタを外した場合も付け直します。未一致 URL の 404 のように head がクライアントで描画される文書ではインラインスクリプトが実行されないため、`ThemeScript` がハイドレーション後に同じ処理を一度だけ開始します。設定画面は `data-theme-preference` を書き換えるだけで、保存に失敗してもそのページでの適用は保ちます。
+
 ## PR プレビュー
 
 UI の確認をスクリーンショットの添付に依存させないため、PR ごとに Cloudflare Workers へ実際に動くプレビューを配備します。`apps/web` は OpenNext Cloudflare で Worker にビルドし、PR ごとの配備は `wrangler preview`、PR を閉じたときの削除は `wrangler preview delete` で行います。Docker image（`node:24` の standalone 構成）は本番用として残し、プレビューのために `output: 'standalone'` を外しません。OpenNext は standalone 出力と併存できます。

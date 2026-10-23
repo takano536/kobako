@@ -6,8 +6,10 @@ import { Suspense } from 'react';
 import '@fontsource-variable/noto-sans-jp/index.css';
 
 import { KobakoMark } from '../src/lib/category';
+import { THEME_COLORS } from '../src/lib/theme';
 import { PrefetchLink } from './_components/prefetch-link';
 import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
+import { ThemeScript } from './_components/theme-script';
 import {
   SiteBrand,
   SiteNav,
@@ -30,6 +32,10 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.light },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
+  ],
 };
 
 export default function RootLayout({
@@ -37,7 +43,11 @@ export default function RootLayout({
   modal,
 }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   return (
-    <html lang="ja">
+    // The inline script sets the theme attributes on <html> before hydration.
+    <html lang="ja" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body>
         <NavigationShellProvider>
           <div data-slot="app-shell" className={layoutStyles['app-shell']}>

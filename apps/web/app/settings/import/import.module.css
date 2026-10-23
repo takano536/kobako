@@ -921,7 +921,7 @@
   border: 1px solid var(--rule);
   border-radius: 16px;
   background: var(--paper);
-  box-shadow: 0 24px 90px #18291f24;
+  box-shadow: var(--shadow-raised);
   animation: import-confirm-enter var(--motion-enter) var(--ease-standard) backwards;
 }
 

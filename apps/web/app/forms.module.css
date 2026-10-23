@@ -100,7 +100,7 @@
   border: 1px solid var(--rule);
   border-radius: 16px;
   background: var(--paper);
-  box-shadow: 0 24px 90px #18291f24;
+  box-shadow: var(--shadow-raised);
   color: var(--muted);
   font-size: var(--text-small);
 }
@@ -177,7 +177,7 @@
 }
 
 .form-error-dialog::backdrop {
-  background: rgb(var(--ink-rgb) / 20%);
+  background: var(--scrim-dialog);
 }
 
 .form-error-dialog h2 {
@@ -519,7 +519,7 @@
   border: 1px solid var(--error-border);
   border-radius: 4px;
   background: var(--paper);
-  box-shadow: 0 3px 10px rgb(var(--ink-rgb) / 14%);
+  box-shadow: var(--shadow-popover);
   color: var(--money-negative);
   font-size: var(--text-small);
   line-height: var(--leading-body);
@@ -546,7 +546,7 @@
   font: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
+  background-image: var(--select-chevron);
   background-position: right center;
   background-repeat: no-repeat;
   background-size: 16px 16px;

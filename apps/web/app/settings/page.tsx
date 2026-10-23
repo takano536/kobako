@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import { ActionLink, PageShell } from '../_components/ui';
 import { PageHeader } from '../_components/page-header';
+import { AppearanceSettings } from './appearance-settings';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -26,6 +27,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         </p>
       ) : null}
       <div className={settingsStyles['settings-list']}>
+        <section
+          className={settingsStyles['settings-list-section']}
+          aria-labelledby="appearance-title"
+        >
+          <h2 id="appearance-title">外観</h2>
+          <AppearanceSettings labelledBy="appearance-title" />
+        </section>
         <section
           className={settingsStyles['settings-list-section']}
           aria-labelledby="category-management-title"
