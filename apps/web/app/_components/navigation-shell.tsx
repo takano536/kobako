@@ -186,12 +186,21 @@ export function NavigationShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const element = content.current;
     if (element === null) return;
+    // `.content` is `display: contents`, so measure the page shell inside it.
     const measure = (): void => {
-      if (!element.hidden) contentHeight.current = element.offsetHeight;
+      if (element.hidden) return;
+      const shell = element.firstElementChild;
+      const height =
+        shell instanceof HTMLElement
+          ? shell.getBoundingClientRect().height
+          : element.getBoundingClientRect().height;
+      if (height > 0) contentHeight.current = height;
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
+    const shell = element.firstElementChild;
+    if (shell !== null) observer.observe(shell);
     return () => observer.disconnect();
   }, []);
   return (
