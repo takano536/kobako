@@ -1,4 +1,14 @@
 # Changelog
+## [0.15.1](https://github.com/takano536/kobako/compare/v0.15.0...v0.15.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **ci:** authenticate the worker deletion with the curl bearer flag ([#98](https://github.com/takano536/kobako/issues/98)) ([fb20890](https://github.com/takano536/kobako/commit/fb20890178743983632a5976b2a0bef3e13fb507))
+* **web:** align the month switcher and page shell across screens ([#2](https://github.com/takano536/kobako/issues/2)) ([7ec2763](https://github.com/takano536/kobako/commit/7ec2763cf39f7d26ffc966c21cb2587ab9ff3362))
+* **web:** animate delete modal scrim ([#3](https://github.com/takano536/kobako/issues/3)) ([8b8a834](https://github.com/takano536/kobako/commit/8b8a8345638caa03eefe177034e0a54104b66277))
+* **web:** animate overlay cards and drop the blurred scrim ([#1](https://github.com/takano536/kobako/issues/1)) ([7acc351](https://github.com/takano536/kobako/commit/7acc3517904b2884b60b732f7088321677614b36))
+
 ## [0.15.0](https://github.com/takano536/kobako/compare/v0.14.0...v0.15.0) (2026-10-21)
 
 
