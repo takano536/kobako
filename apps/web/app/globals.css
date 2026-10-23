@@ -1,4 +1,9 @@
-:root {
+/*
+ * Color tokens per theme. The inline script in `layout.tsx` resolves the stored preference onto
+ * `<html data-theme>`; previews may scope a theme to any element with the same attribute.
+ */
+:root,
+[data-theme='light'] {
   color-scheme: light;
   --paper: #fcfcf8;
   --ink: #292e2b;
@@ -19,6 +24,10 @@
   --on-accent: #fff;
   --accent-strong: #315944;
   --scrim: rgb(22 36 29 / 52%);
+  --scrim-dialog: rgb(41 46 43 / 20%);
+  --shadow-raised: 0 24px 90px #18291f24;
+  --shadow-popover: 0 3px 10px rgb(41 46 43 / 14%);
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23292e2b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
   --control-hover: #e7eee7;
   --danger-soft: #f9efed;
   --danger-border: #a84f45;
@@ -35,7 +44,53 @@
   --import-negative-soft: #f8eae7;
   --import-duplicate-border: #9bb2a0;
   --import-duplicate-surface: #f7faf7;
-  --ink-rgb: 41 46 43;
+}
+
+/* Ink paper: the same tokens on a dark green-gray sheet; filled controls use light fills with dark text. */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #1a1f1c;
+  --ink: #e4e7e0;
+  --muted: #a2ada5;
+  --accent: #8cc4a6;
+  --button-primary: #8cc4a6;
+  --button-danger: #ec948a;
+  --money-negative: #f2978e;
+  --money-positive: #8db9ef;
+  --category-dot: #91a99d;
+  --category-bar: #6f8a7c;
+  --rule: #343d37;
+  --bar: #2b332e;
+  --surface: #1f2521;
+  --surface-hover: #28302b;
+  --soft-control: #262d28;
+  --focus: #8cc4a6;
+  --on-accent: #142019;
+  --accent-strong: #a8d6bd;
+  --scrim: rgb(6 9 7 / 64%);
+  --scrim-dialog: rgb(6 9 7 / 48%);
+  --shadow-raised: 0 24px 90px rgb(0 0 0 / 55%);
+  --shadow-popover: 0 3px 10px rgb(0 0 0 / 45%);
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 5 5 5 5-5' fill='none' stroke='%23e4e7e0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'/%3E%3C/svg%3E");
+  --control-hover: #2c352f;
+  --danger-soft: #362422;
+  --danger-border: #ec948a;
+  --danger-rule: #5a3833;
+  --error-border: #b8786f;
+  --error-surface: #2a2120;
+  --error-text: #f3bcb4;
+  --import-border: #56665a;
+  --import-icon-border: #5d6e61;
+  --import-soft: #24352a;
+  --import-muted: #262b28;
+  --import-badge: #26302a;
+  --import-positive-soft: #203227;
+  --import-negative-soft: #3a2725;
+  --import-duplicate-border: #5f7a66;
+  --import-duplicate-surface: #1e2621;
+}
+
+:root {
   --font-ui:
     'Noto Sans JP Variable', 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
     system-ui, sans-serif;
