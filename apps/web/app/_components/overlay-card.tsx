@@ -181,20 +181,24 @@ export function OverlayCard({
         data-card-kind={kind}
       >
         <header className={styles.header}>
-          <button
-            className={styles.back}
-            ref={backButtonRef}
-            type="button"
-            aria-label="戻る"
-            onClick={close}
-          >
-            <svg className={styles.backChevron} viewBox="0 0 12 12" aria-hidden="true">
-              <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
-            </svg>
-          </button>
-          <h1 className={styles.title} id="entry-dialog-title">
-            {title}
-          </h1>
+          {/* 戻るボタンの当たり判定を見出し文字まで広げます（::after が backTarget 全体を覆います）。
+              見出しはボタンの外に置き、ダイアログ名は素の見出しテキストのまま保ちます。 */}
+          <div className={styles.backTarget}>
+            <button
+              className={styles.back}
+              ref={backButtonRef}
+              type="button"
+              aria-label={`${title} — 戻る`}
+              onClick={close}
+            >
+              <svg className={styles.backChevron} viewBox="0 0 12 12" aria-hidden="true">
+                <path d="m7.5 2.25-3.25 3.75L7.5 9.75" />
+              </svg>
+            </button>
+            <h1 className={styles.title} id="entry-dialog-title">
+              {title}
+            </h1>
+          </div>
           <span aria-hidden="true" />
         </header>
         <div className={styles.body}>{children}</div>

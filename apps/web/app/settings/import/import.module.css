@@ -933,7 +933,7 @@
 }
 
 .dialog-head h2 {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   margin: 0;
   text-align: left;
   font-size: var(--text-heading);
@@ -946,6 +946,29 @@
   display: none;
 }
 
+/* chevron と見出しを 1 つの戻る操作として包みます。幅は中身に合わせ、見出しの右側の余白は含めません。 */
+.dialog-back-target {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  margin-inline-start: -0.5rem;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.dialog-back-target h2 {
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.dialog-back-target:hover h2 {
+  color: var(--accent);
+}
+
+.dialog-back-target:has(> .dialog-back:active) {
+  transform: translateY(1px);
+}
+
 .dialog-back {
   display: inline-flex;
   flex: 0 0 44px;
@@ -953,10 +976,17 @@
   min-height: 44px;
   align-items: center;
   justify-content: center;
-  margin-inline: -0.5rem -7px;
+  margin-inline: 0 -7px;
   border: 0;
   border-radius: 999px;
   background: transparent;
+}
+
+/* ボタンの当たり判定を dialog-back-target（chevron＋見出し）全体へ広げます。 */
+.dialog-back::after {
+  position: absolute;
+  inset: 0;
+  content: '';
 }
 
 .dialog-back-chevron {
@@ -1014,6 +1044,15 @@
   .import-confirm-backdrop,
   .import-confirm-dialog {
     animation: none;
+  }
+
+  .dialog-back-target,
+  .dialog-back-target h2 {
+    transition: none;
+  }
+
+  .dialog-back-target {
+    transform: none;
   }
 }
 .form-message {
