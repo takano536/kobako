@@ -138,7 +138,7 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
   );
 
   return (
-    <PageShell transition className={pageStyles['transactions-page']}>
+    <PageShell transition>
       <PageHeader
         title="取引"
         count={`${rows.length}件`}
@@ -179,10 +179,7 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
         </section>
       ) : null}
       {month === 'all' ? (
-        <div
-          className={[monthStyles.switcher, pageStyles['month-switcher-all']].join(' ')}
-          aria-label="表示期間"
-        >
+        <div className={monthStyles.all} aria-label="表示期間">
           <span className={monthStyles.label}>全期間</span>
           <ActionLink
             href={listHref(currentTokyoMonth(), type, categoryId, accountId)}
@@ -204,6 +201,8 @@ async function TransactionsPageInner({ searchParams }: { searchParams: SearchPar
               ? listHref(shiftMonth(month, 1), type, categoryId, accountId)
               : undefined
           }
+          selectPathname="/transactions"
+          selectQuery={{ type, category: categoryId, account: accountId }}
         />
       )}
       <FilterBar

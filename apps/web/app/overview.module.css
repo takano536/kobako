@@ -1,9 +1,5 @@
 /* Overview-specific summary and balance treatments. */
 
-.overview-page {
-  padding-bottom: var(--space-group);
-}
-
 .eyebrow {
   display: block;
 }

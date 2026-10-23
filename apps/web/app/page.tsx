@@ -53,7 +53,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   ]);
 
   return (
-    <PageShell transition className={overviewStyles['overview-page']}>
+    <PageShell transition>
       <PageHeader title="概要" actions={<RegisterTransactionAction month={month} />} />
       <MonthSwitcher
         month={month}
@@ -63,6 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         nextHref={
           month < `${MAX_SUPPORTED_YEAR}-12` ? `/?month=${shiftMonth(month, 1)}` : undefined
         }
+        selectPathname="/"
       />
 
       <section

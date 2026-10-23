@@ -5,6 +5,7 @@ import monthStyles from './month-switcher.module.css';
 import uiStyles from './ui.module.css';
 import { Amount } from './amount';
 import { Button, LinkButton } from './button';
+import { MonthSelect } from './month-select';
 import { PageTransition } from './page-transition';
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
@@ -122,30 +123,49 @@ export function SectionHeading({
   );
 }
 
+function MonthChevron({ direction }: { direction: 'previous' | 'next' }) {
+  return (
+    <svg className={monthStyles.chevron} viewBox="0 0 12 12" focusable="false" aria-hidden="true">
+      <path
+        d={
+          direction === 'previous' ? 'm7.5 2.25-3.25 3.75L7.5 9.75' : 'm4.5 2.25 3.25 3.75L4.5 9.75'
+        }
+      />
+    </svg>
+  );
+}
+
 export function MonthSwitcher({
   month,
   previousHref,
   nextHref,
+  selectPathname,
+  selectQuery,
 }: {
   month: string;
   previousHref?: string;
   nextHref?: string;
+  selectPathname: string;
+  selectQuery?: Record<string, string | number | undefined>;
 }) {
   return (
     <nav data-slot="month-switcher" className={monthStyles.switcher} aria-label="月を移動">
       {previousHref ? (
         <Link className={monthStyles.control} href={previousHref} aria-label="前月" scroll={false}>
-          <span aria-hidden="true">‹</span>
+          <MonthChevron direction="previous" />
         </Link>
       ) : (
         <span className={monthStyles.control} aria-hidden="true" />
       )}
-      <span data-slot="month-switcher-label" className={monthStyles.label}>
-        {monthLabel(month)}
-      </span>
+      <MonthSelect
+        month={month}
+        label={monthLabel(month)}
+        pathname={selectPathname}
+        query={selectQuery}
+      />
       {nextHref ? (
         <Link className={monthStyles.control} href={nextHref} aria-label="翌月" scroll={false}>
-          <span aria-hidden="true">›</span>
+          <MonthChevron direction="next" />
         </Link>
       ) : (
         <span className={monthStyles.control} aria-hidden="true" />

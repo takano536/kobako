@@ -225,18 +225,16 @@
   font-size: var(--text-body);
 }
 
-.filter-form .date-picker-control {
-  width: 100%;
-}
-
-.filter-form .date-picker-display {
+.filter-form :global([data-slot='month-picker-display']),
+.filter-form :global([data-slot='date-picker-display']) {
   min-height: 36px;
   border-bottom: 1px solid var(--rule);
   font-size: var(--text-body);
   justify-self: stretch;
 }
 
-.filter-form .date-picker-display:hover {
+.filter-form :global([data-slot='month-picker-display']):hover,
+.filter-form :global([data-slot='date-picker-display']):hover {
   border-bottom-color: var(--accent);
 }
 

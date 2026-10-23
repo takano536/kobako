@@ -1,6 +1,7 @@
 'use client';
 
 import formsStyles from '../forms.module.css';
+import { openNativePicker } from '../_components/native-picker';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
@@ -36,20 +37,6 @@ function pickerValue(value: string, kind: PickerKind): string {
     : /^(\d{4})-(\d{2})$/.test(value)
       ? value
       : '';
-}
-
-function openNativePicker(input: HTMLInputElement): void {
-  const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-  if (typeof pickerInput.showPicker === 'function') {
-    try {
-      pickerInput.showPicker();
-      return;
-    } catch {
-      // Some browsers reject showPicker unless the input is focused first.
-    }
-  }
-  input.focus();
-  input.click();
 }
 
 export function DatePickerField({
