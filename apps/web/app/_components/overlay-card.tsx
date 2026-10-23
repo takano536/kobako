@@ -155,7 +155,18 @@ export function OverlayCard({
       className={styles.backdrop}
       role="presentation"
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) close();
+        // 背景のタップではカードを閉じません（閉じるのは戻る・Escape・履歴の戻る・保存後の遷移）。
+        // カード内で押し始めたドラッグや選択は target が背景にならないため、ここでは扱いません。
+        if (event.target !== event.currentTarget) return;
+        // 既定の動作（フォーカスを body へ移す・テキスト選択）を止め、フォーカスは動かしません。
+        event.preventDefault();
+        const card = cardRef.current;
+        const active = document.activeElement;
+        const ownsKeyboard =
+          active instanceof HTMLElement &&
+          (active.matches('input, textarea, select') || active.isContentEditable);
+        // 入力中ならフォーカスをカード本体へ移し、ソフトキーボードを閉じます。
+        if (card && ownsKeyboard && card.contains(active)) card.focus({ preventScroll: true });
       }}
     >
       <div

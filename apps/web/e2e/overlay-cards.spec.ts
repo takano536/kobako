@@ -246,30 +246,73 @@ test.describe('overlay cards', () => {
     await expect(entry).toBeFocused();
   });
 
-  test('supports heading close, backdrop close, browser back, and direct page fallback', async ({
+  test('keeps the card open on backdrop taps and closes it from the heading, Escape, and browser back', async ({
     page,
+    isMobile,
   }) => {
     const month = currentTokyoMonth();
     await page.goto(`/transactions?month=${month}`);
     const entry = page.getByRole('link', { name: '取引を登録', exact: true }).first();
+    const dialog = page.locator('#entry-dialog');
+    const amount = page.locator('#transaction-amount');
+    const backdrop = page.locator('[data-card-pattern="overlay-card"]').locator('..');
+    const tapBackdrop = () =>
+      isMobile
+        ? backdrop.tap({ position: { x: 2, y: 2 } })
+        : backdrop.click({ position: { x: 2, y: 2 } });
+    const focusState = () =>
+      page.evaluate(() => {
+        const active = document.activeElement;
+        return {
+          id: active?.id ?? null,
+          label: active?.getAttribute('aria-label') ?? null,
+          ownsKeyboard:
+            active instanceof HTMLElement &&
+            (active.matches('input, textarea, select') || active.isContentEditable),
+          scrollY: window.scrollY,
+          cardScrollTop: document.getElementById('entry-dialog')?.scrollTop ?? null,
+        };
+      });
 
+    await entry.click();
+    await expect(dialog).toBeVisible();
+    if (isMobile) await amount.tap();
+    else await amount.click();
+    await expect(amount).toBeFocused();
+    await amount.fill('4321');
+    const beforeTap = await focusState();
+    await tapBackdrop();
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/transactions\/new(?:\?.*)?$/);
+    // 入力中のタップはフォーカスをカード本体へ移し、キーボードを閉じます。
+    expect(await focusState()).toEqual({ ...beforeTap, id: 'entry-dialog', ownsKeyboard: false });
+    await expect(amount).toHaveValue('4321');
+
+    // 入力フォーカスが無いときのタップは何もしません。
+    await tapBackdrop();
+    await expect(dialog).toBeVisible();
+    expect(await focusState()).toEqual({ ...beforeTap, id: 'entry-dialog', ownsKeyboard: false });
+    const back = dialog.getByRole('button', { name: '戻る', exact: true });
+    await back.focus();
+    const backFocused = await focusState();
+    await tapBackdrop();
+    await expect(dialog).toBeVisible();
+    expect(await focusState()).toEqual(backFocused);
+    await expect(amount).toHaveValue('4321');
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await entry.click();
     await page.getByRole('button', { name: '戻る', exact: true }).click();
-    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
     await entry.click();
-    await page
-      .locator('[data-card-pattern="overlay-card"]')
-      .locator('..')
-      .click({ position: { x: 2, y: 2 } });
-    await expect(page.locator('#entry-dialog')).toHaveCount(0);
-
-    await entry.click();
+    await expect(dialog).toBeVisible();
     await page.goBack();
-    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
 
     await page.goto('/transactions/new');
     await expect(page.getByRole('heading', { name: '取引を登録', exact: true })).toBeVisible();
-    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
   });
 
   test('opens an asset card over balances and keeps direct asset navigation a page', async ({
