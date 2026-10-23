@@ -103,9 +103,14 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   }, [begin, isPending, pathname]);
 
   // Read the month off the URL after every commit instead of `useSearchParams`, which would need a
-  // suspense boundary around the whole shell.
+  // suspense boundary around the whole shell. The mount pass runs even inside a transition, so a tap
+  // on the page that is already open is never mistaken for a month switch.
   useEffect(() => {
-    setCommittedMonth(isPending ? null : monthOfLocation());
+    setCommittedMonth(monthOfLocation());
+  }, []);
+  useEffect(() => {
+    if (isPending) return;
+    setCommittedMonth(monthOfLocation());
   }, [isPending, pathname]);
 
   const handles = useCallback(
@@ -123,12 +128,17 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const navigate = useCallback(
     (href: string, { scroll }: { scroll: boolean }) => {
       const url = new URL(href, window.location.href);
-      // Same-URL taps refresh through the same queue too. Delegating them to Link would start an
-      // untracked router action that the next tap could overtake.
-      const currentPage = url.href === window.location.href && PAGE_PATHS[url.pathname] === true;
-      if (!handles(href) && !currentPage) {
+      const pagePath = PAGE_PATHS[url.pathname] === true;
+      const sameTarget = pagePath && url.href === window.location.href;
+      if (!handles(href) && !sameTarget) {
         cancel();
         return false;
+      }
+      // Tapping the tab of the page that is already on screen asks for nothing: no fetch, no frame,
+      // no busy state. Only scroll back to the top, which is what the tap can still mean.
+      if (sameTarget && active.current === null) {
+        if (scroll) window.scrollTo(0, 0);
+        return true;
       }
       const request = {
         href: url.pathname + url.search + url.hash,

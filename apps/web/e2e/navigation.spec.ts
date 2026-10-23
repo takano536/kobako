@@ -251,6 +251,26 @@ test.describe('navigation feedback', () => {
     );
   });
 
+  test('does nothing when the tab of the open page is tapped', async ({ page }) => {
+    await page.goto(`/?month=${month}`);
+    await markDocument(page);
+    const rsc: string[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).searchParams.has('_rsc')) rsc.push(request.url());
+    });
+
+    const openTab = page.getByRole('link', { name: '概要', exact: true });
+    await openTab.click();
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    await openTab.click();
+    await page.waitForTimeout(600);
+
+    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    await expect(openTab).not.toHaveAttribute('aria-busy');
+    expect(rsc).toEqual([]);
+    expect(await documentWasKept(page)).toBe(true);
+  });
+
   test('moves the month in the frame while the taps keep coming, and lands once', async ({
     page,
   }) => {
