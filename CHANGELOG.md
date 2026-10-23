@@ -1,4 +1,11 @@
 # Changelog
+## [0.16.2](https://github.com/takano536/kobako/compare/v0.16.1...v0.16.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **web:** カードの外側をタップしてもカードを閉じない ([#15](https://github.com/takano536/kobako/issues/15)) ([e4eaf61](https://github.com/takano536/kobako/commit/e4eaf61776f2fa66f2262847a71f8ad5bb9ddee6))
+
 ## [0.16.1](https://github.com/takano536/kobako/compare/v0.16.0...v0.16.1) (2026-10-23)
 
 
