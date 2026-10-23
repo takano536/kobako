@@ -59,8 +59,12 @@
   outline-offset: 0;
 }
 
+/* Only the text carries the danger color; the row keeps the quiet rows' surface and weight. */
 .settings-list-rows a[data-variant='danger'] {
+  border-color: transparent;
+  background: transparent;
   color: var(--money-negative);
+  font-weight: 400;
 }
 
 .settings-list-rows a[data-variant='danger']:hover,
