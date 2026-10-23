@@ -1,4 +1,11 @@
 # Changelog
+## [0.15.2](https://github.com/takano536/kobako/compare/v0.15.1...v0.15.2) (2026-10-23)
+
+
+### Performance Improvements
+
+* **web:** カードの枠を内容より先に描画する ([#6](https://github.com/takano536/kobako/issues/6)) ([602b827](https://github.com/takano536/kobako/commit/602b8277c0146b2ecff69bf8776c9fea94329c43))
+
 ## [0.15.1](https://github.com/takano536/kobako/compare/v0.15.0...v0.15.1) (2026-10-23)
 
 
