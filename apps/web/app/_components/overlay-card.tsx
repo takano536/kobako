@@ -9,6 +9,15 @@ import styles from './overlay-card.module.css';
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * 主たる入力手段がタッチ（`pointer: coarse`）かどうか。タッチ端末でテキスト入力へ
+ * フォーカスするとソフトキーボードが開くため、カード表示時の自動フォーカスはこの判定で止めます。
+ * クライアントでのみ呼び出します。
+ */
+export function prefersTouchInput(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+
 export function OverlayCard({
   title,
   kind,
@@ -18,6 +27,10 @@ export function OverlayCard({
   title: string;
   kind: 'transaction' | 'asset' | 'import';
   children: React.ReactNode;
+  /**
+   * デスクトップ（タッチ以外）でカード表示時にフォーカスする要素。
+   * タッチ端末ではキーボードを開かないよう、これを使わずカード自体にフォーカスします。
+   */
   autoFocusSelector?: string;
 }) {
   const router = useRouter();
@@ -26,6 +39,8 @@ export function OverlayCard({
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const originRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
+  // 初回マウント時に一度だけ判定し、以降の再実行でも同じ初期フォーカス方針を使います。
+  const touchInputRef = useRef<boolean | null>(null);
   useBackgroundScrollLock();
   const close = useCallback(() => {
     if (closingRef.current) return;
@@ -43,8 +58,12 @@ export function OverlayCard({
       activeElement && !card.contains(activeElement)
         ? activeElement
         : document.querySelector<HTMLElement>(`main a[href^="${pathname}"]`);
-    const targetSelector = autoFocusSelector ? autoFocusSelector : FOCUSABLE_SELECTOR;
-    const focusTarget = card.querySelector<HTMLElement>(targetSelector);
+    touchInputRef.current ??= prefersTouchInput();
+    // タッチ端末: 入力欄ではなくダイアログ自体へフォーカスし、キーボードを開きません。
+    // デスクトップ: 指定の入力欄（無ければ先頭の操作要素）へフォーカスします。
+    const focusTarget = touchInputRef.current
+      ? card
+      : card.querySelector<HTMLElement>(autoFocusSelector || FOCUSABLE_SELECTOR);
     const frame = window.requestAnimationFrame(() => focusTarget?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -72,7 +91,7 @@ export function OverlayCard({
         event.preventDefault();
         return;
       }
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === card)) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -107,10 +126,12 @@ export function OverlayCard({
   }, [autoFocusSelector, close, pathname]);
 
   // 中身をストリーミングで受け取る場合、入力欄はカードの枠より後に現れます。
-  // 入力欄が現れた時点でフォーカスし、利用者が既に別の要素へ移している場合は奪いません。
+  // デスクトップでは入力欄が現れた時点でフォーカスし、利用者が既に別の要素へ移している場合は奪いません。
+  // タッチ端末では遅れてキーボードが開かないよう、入力欄の出現を待ちません。
   useEffect(() => {
     const card = cardRef.current;
     if (!card || !autoFocusSelector) return;
+    if (touchInputRef.current) return;
     if (card.querySelector(autoFocusSelector)) return;
     const observer = new MutationObserver(() => {
       const field = card.querySelector<HTMLElement>(autoFocusSelector);
@@ -141,6 +162,7 @@ export function OverlayCard({
         id="entry-dialog"
         ref={cardRef}
         className={styles.card}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="entry-dialog-title"

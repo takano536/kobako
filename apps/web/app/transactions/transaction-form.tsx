@@ -41,6 +41,7 @@ import {
   type TransactionFormValues,
 } from '../../src/lib/transaction-form';
 import { Button } from '../_components/button';
+import { prefersTouchInput } from '../_components/overlay-card';
 import { DatePickerField } from './date-picker-field';
 import { deleteTransactionAction } from './actions';
 
@@ -258,6 +259,8 @@ export function TransactionForm({
 
   useLayoutEffect(() => {
     if (!hasHydrated) return;
+    // タッチ端末ではソフトキーボードを開かないよう、カード表示時に金額欄へフォーカスしません。
+    if (prefersTouchInput()) return;
     const overlay = formRef.current?.closest('[data-card-pattern="overlay-card"]');
     overlay?.querySelector<HTMLElement>('#transaction-amount')?.focus();
   }, [hasHydrated]);

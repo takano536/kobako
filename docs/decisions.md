@@ -36,6 +36,10 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 不正な金額のキー入力・貼り付けは、別の数値へ変換せず元の値を保持して小さな `role="alert"` を再マウントします。見た目の date button と送信用 native input は、後者を `tabIndex=-1` にして Tab stop を一つにし、button のラベルと focus ring を維持します。mouse/touch と keyboard の picker 起動は native date input に委譲します。
 
+## タッチ端末でのカードの初期フォーカス
+
+`OverlayCard` は、デスクトップ（`pointer: fine`）では表示時に金額欄・名前欄へ自動フォーカスし、タッチ端末（`pointer: coarse`）では入力欄へフォーカスせずカード自体（`tabIndex=-1` の `role="dialog"`）へフォーカスします。タッチ端末で入力欄へフォーカスすると、カードを開いただけでソフトキーボードが開き、カードの内容を隠すためです。「戻る」ボタンではなくカードを選んだのは、スクリーンリーダーがダイアログ名から読み上げ、誤って戻る操作を起こさないためです。判定は追加依存なしの `matchMedia` で初回マウント時に1回だけ行います。
+
 ## server-only パッケージ
 
 `server-only` パッケージは依存に追加していません。DB client と household 解決は `apps/web/src/lib/ledger-data.ts` に置き、`apps/web/app/settings/import/actions.ts` は `'use server'` で XLSX 解析と DB 操作を実行します。`import-form.tsx` は Server Action の参照と型だけを持ち、`state.ts` は型 import だけです。`page.tsx` は Server Component です。

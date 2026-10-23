@@ -14,6 +14,7 @@ test.describe('overlay cards', () => {
 
   test('keeps the transaction list behind the new-transaction card and restores focus', async ({
     page,
+    isMobile,
   }) => {
     const month = currentTokyoMonth();
     await page.goto('/settings');
@@ -106,7 +107,9 @@ test.describe('overlay cards', () => {
       page.locator('#entry-dialog[data-card-pattern="overlay-card"][data-card-kind="transaction"]'),
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: '取引を登録', exact: true })).toBeVisible();
-    await expect(page.locator('#transaction-amount')).toBeFocused();
+    // デスクトップは金額欄へ自動フォーカスし、タッチ端末はキーボードを開かないようカード自体へフォーカスします。
+    if (isMobile) await expect(page.locator('#entry-dialog')).toBeFocused();
+    else await expect(page.locator('#transaction-amount')).toBeFocused();
     expect(await stableMainHtml(page)).toBe(beforeHtml);
     const open = await page.locator('main').evaluate((main) => {
       const elements = [
@@ -380,6 +383,147 @@ test.describe('overlay cards', () => {
         bodyPaddingRight: document.body.style.paddingRight,
       })),
     ).toEqual(initialLockStyles);
+  });
+
+  test('keeps touch keyboards closed when cards open and keeps desktop autofocus', async ({
+    page,
+    isMobile,
+  }) => {
+    const month = currentTokyoMonth();
+    // 並列で現在月の一覧を比較する他のテストに影響しないよう、登録する取引は別の月に置きます。
+    const entryMonth = '2098-11';
+    const marker = `overlay-focus-${Date.now()}`;
+    const dialog = page.locator('#entry-dialog');
+    const createAccount = async (name: string) => {
+      await page.goto('/accounts/new');
+      await page.getByLabel('名前', { exact: true }).fill(name);
+      await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ index: 1 });
+      await page.getByRole('button', { name: '登録する', exact: true }).click();
+      await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
+      const accountId = new URL(page.url()).searchParams.get('account');
+      if (!accountId) throw new Error('created account id is missing');
+      return accountId;
+    };
+    const fromAccount = `Focus ${marker}`;
+    const accountId = await createAccount(fromAccount);
+    await createAccount(`Focus second ${marker}`);
+    await page.goto(`/transactions/new?month=${entryMonth}`);
+    await page.getByLabel('金額').fill('1234');
+    await page.locator('input[name="occurredOn"]').fill(`${entryMonth}-15`);
+    await page.locator('[data-slot="category-field-expense"] select').selectOption({ index: 1 });
+    await page.getByLabel('資産').selectOption({ label: fromAccount });
+    await page.getByRole('button', { name: '登録する', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${entryMonth}$`));
+    await page.goto(`/transactions/new?type=transfer&month=${entryMonth}`);
+    await page.getByLabel('金額').fill('123');
+    await page.locator('input[name="occurredOn"]').fill(`${entryMonth}-16`);
+    await page.getByLabel('振替元').selectOption({ label: fromAccount });
+    await page.getByLabel('振替先').selectOption({ label: `Focus second ${marker}` });
+    await page.getByRole('button', { name: '登録する', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${entryMonth}$`));
+
+    const accountList = `/transactions?account=${accountId}&month=all`;
+    const cards = [
+      {
+        name: 'transaction edit',
+        list: accountList,
+        opener: page.locator('[data-slot="transaction-link"]:not([href*="/transfers/"])').first(),
+        url: /\/transactions\/\d+\/edit(?:\?.*)?$/,
+        field: '#transaction-amount',
+        title: '取引を編集',
+      },
+      {
+        name: 'new transaction',
+        list: `/transactions?month=${month}`,
+        opener: page.getByRole('link', { name: '取引を登録', exact: true }).first(),
+        url: /\/transactions\/new(?:\?.*)?$/,
+        field: '#transaction-amount',
+        title: '取引を登録',
+      },
+      {
+        name: 'transfer edit',
+        list: accountList,
+        opener: page.locator('[data-slot="transaction-link"][href*="/transfers/"]').first(),
+        url: /\/transactions\/transfers\/\d+\/edit(?:\?.*)?$/,
+        field: '#transaction-amount',
+        title: '取引を編集',
+      },
+      {
+        name: 'new asset',
+        list: '/balances',
+        opener: page.getByRole('link', { name: '資産を登録', exact: true }).first(),
+        url: /\/accounts\/new(?:\?.*)?$/,
+        field: '#account-name',
+        title: '資産を登録',
+      },
+      {
+        name: 'asset edit',
+        list: accountList,
+        opener: page.getByRole('link', { name: '資産を編集', exact: true }),
+        url: /\/accounts\/\d+\/edit(?:\?.*)?$/,
+        field: '#account-name',
+        title: '資産設定',
+      },
+    ];
+    const openCard = async (card: (typeof cards)[number]) => {
+      await page.goto(card.list);
+      await expect(card.opener).toBeVisible();
+      if (isMobile) await card.opener.tap();
+      else await card.opener.click();
+      await expect(page, card.name).toHaveURL(card.url);
+      await expect(dialog, card.name).toBeVisible();
+      // 本文はストリーミングで届くため、入力欄の出現と出現後のフォーカス処理を待ってから判定します。
+      await expect(page.locator(card.field), card.name).toBeVisible();
+      await page.evaluate(() => {
+        return new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+      });
+    };
+    const activeElementState = () =>
+      page.evaluate(() => {
+        const active = document.activeElement;
+        const card = document.getElementById('entry-dialog');
+        return {
+          id: active?.id ?? null,
+          inCard: Boolean(active && card?.contains(active)),
+          ownsKeyboard:
+            active instanceof HTMLElement &&
+            (active.matches('input, textarea, select') || active.isContentEditable),
+        };
+      });
+
+    for (const card of cards) {
+      await openCard(card);
+      if (!isMobile) {
+        await expect(page.locator(card.field), card.name).toBeFocused();
+        continue;
+      }
+      expect(await activeElementState(), card.name).toEqual({
+        id: 'entry-dialog',
+        inCard: true,
+        ownsKeyboard: false,
+      });
+      await expect(dialog, card.name).toHaveAttribute('role', 'dialog');
+      await expect(dialog, card.name).toHaveAccessibleName(card.title);
+      await expect(dialog, card.name).toHaveCSS('outline-style', 'none');
+      await page.locator(card.field).tap();
+      await expect(page.locator(card.field), card.name).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(dialog, card.name).toHaveCount(0);
+
+      await openCard(card);
+      await page.keyboard.press('Tab');
+      await expect(
+        dialog.getByRole('button', { name: '戻る', exact: true }),
+        card.name,
+      ).toBeFocused();
+      await openCard(card);
+      await page.keyboard.press('Shift+Tab');
+      expect((await activeElementState()).inCard, card.name).toBe(true);
+      await page.keyboard.press('Escape');
+      await expect(dialog, card.name).toHaveCount(0);
+    }
   });
 
   test('keeps cards and transaction lists within a 320px viewport at large root sizes', async ({
