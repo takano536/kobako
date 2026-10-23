@@ -38,6 +38,26 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: install
+    attributes:
+      label: 起動方法
+      options:
+        - Docker Compose（公開イメージ）
+        - Docker Compose（ソースからビルド）
+        - 開発サーバー（pnpm dev）
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: バージョン
+      description: リリースのバージョン、または commit SHA
+      placeholder: '例: v0.15.0'
+    validations:
+      required: true
+
   - type: textarea
     id: environment
     attributes:

@@ -1,1 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
+contact_links:
+  - name: 使い方・セットアップ
+    url: https://github.com/takano536/kobako#readme
+    about: 起動方法や設定は README を見てください
+  - name: セキュリティ上の問題
+    url: https://github.com/takano536/kobako/security/policy
+    about: 脆弱性は公開 Issue に書かず、こちらから報告してください
