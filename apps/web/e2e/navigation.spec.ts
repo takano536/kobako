@@ -218,7 +218,7 @@ async function documentWasKept(page: Page): Promise<boolean> {
 }
 
 test.describe('navigation feedback', () => {
-  test('marks the tapped tab immediately while retaining readable content until the response', async ({
+  test('shows the destination frame immediately and fills it when the page arrives', async ({
     page,
   }) => {
     await page.goto(`/?month=${month}`);
@@ -227,19 +227,28 @@ test.describe('navigation feedback', () => {
     await page.getByRole('link', { name: '取引', exact: true }).click();
 
     expect(await currentTabs(page)).toEqual(['取引']);
-    await expect(page.getByRole('heading', { level: 1, name: '概要' })).toBeVisible();
-    await expect(page.getByRole('link', { name: '取引', exact: true })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
+    const frame = page.locator(navigationSkeleton);
+    await expect(frame).toHaveCount(1);
+    await expect(frame.locator('h1')).toHaveText(/取引/);
+    // The body being replaced is hidden, so the frame is the only thing painted.
+    await expect(
+      page.locator('[data-slot="page-content"] h1').filter({ hasText: '概要' }),
+    ).toBeHidden();
+
+    const frameBox = await frame.locator('h1').boundingBox();
+
     await expect(page).toHaveURL(`/transactions?month=${month}`);
-    await expect(page.getByRole('heading', { level: 1, name: /取引/ })).toBeVisible();
-    await expect(page.locator(navigationSkeleton)).toHaveCount(0);
+    const heading = page.getByRole('heading', { level: 1, name: /取引/ });
+    await expect(heading).toBeVisible();
+    await expect(frame).toHaveCount(0);
+    // The frame holds the heading where the page puts it, so filling in does not move the layout.
+    const headingBox = await heading.boundingBox();
+    expect(Math.abs((frameBox?.y ?? 0) - (headingBox?.y ?? 0))).toBeLessThanOrEqual(1);
+    expect(await documentWasKept(page)).toBe(true);
     expect(await currentTabs(page)).toEqual(['取引']);
     await expect(page.getByRole('link', { name: '取引', exact: true })).not.toHaveAttribute(
       'aria-busy',
     );
-    expect(await documentWasKept(page)).toBe(true);
   });
 
   test('settles on the last tapped tab after rapid taps', async ({ page }) => {

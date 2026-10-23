@@ -11,7 +11,13 @@ import {
   type ReactNode,
 } from 'react';
 
-import { NavigationShellContext, type NavigationShellValue } from './navigation-shell-context';
+import { pageSkeletonFor } from '../page-skeletons';
+import {
+  useNavigationShell,
+  NavigationShellContext,
+  type NavigationShellValue,
+} from './navigation-shell-context';
+import shellStyles from './navigation-shell.module.css';
 import { installRscNavigationRetry } from './rsc-navigation-retry';
 
 installRscNavigationRetry();
@@ -36,9 +42,9 @@ interface NavigationRequest {
 }
 
 /**
- * Keep content painted until the next page commits. Tab feedback is immediate; router pushes are
- * single-flight with one replaceable destination. This avoids overlapping router actions (including
- * the races between brand/settings links and tabs), without a skeleton swap or a reveal timer.
+ * Tab feedback is immediate and the destination frame replaces the body until the next page
+ * commits. Router pushes are single-flight with one replaceable destination, which avoids the
+ * overlapping router actions that turned taps into full document navigations.
  */
 export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -110,6 +116,7 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
       };
       latest.current = request;
       setNavigatingTo(request.pathname);
+      if (scroll) window.scrollTo(0, 0);
       if (active.current === null) begin(request);
       return true;
     },
@@ -120,4 +127,32 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
     [cancel, handles, navigate, navigatingTo],
   );
   return <NavigationShellContext value={value}>{children}</NavigationShellContext>;
+}
+
+/**
+ * 引き受けた遷移の間、遷移先の外枠（骨組み）を本文の位置に表示します。現在の本文は state を
+ * 保ったまま `hidden` で隠し、遷移が確定した commit で骨組みを外します。同じ画面への再タップは
+ * 骨組みを出しません（表示中の画面を一瞬消すだけになるため）。
+ */
+export function NavigationShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const navigatingTo = useNavigationShell()?.navigatingTo ?? null;
+  const skeleton =
+    navigatingTo !== null && navigatingTo !== pathname ? pageSkeletonFor(navigatingTo) : null;
+  // The body was already replaced by the frame, so fading the committed page in would blank the
+  // screen for the length of the transition. The attribute is read when the transition starts,
+  // which happens before this effect removes it.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (skeleton === null) delete root.dataset.navFrame;
+    else root.dataset.navFrame = '';
+  }, [skeleton]);
+  return (
+    <>
+      {skeleton}
+      <div className={shellStyles.content} hidden={skeleton !== null}>
+        {children}
+      </div>
+    </>
+  );
 }

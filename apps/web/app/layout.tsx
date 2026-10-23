@@ -7,7 +7,7 @@ import '@fontsource-variable/noto-sans-jp/index.css';
 
 import { KobakoMark } from '../src/lib/category';
 import { PrefetchLink } from './_components/prefetch-link';
-import { NavigationShellProvider } from './_components/navigation-shell';
+import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
 import {
   SiteBrand,
   SiteNav,
@@ -66,7 +66,7 @@ export default function RootLayout({
               </div>
             </header>
             <main data-slot="page-content" className={layoutStyles['page-content']}>
-              {children}
+              <NavigationShell>{children}</NavigationShell>
             </main>
             {modal}
           </div>
