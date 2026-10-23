@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { PrefetchLink } from '../_components/prefetch-link';
 import balanceStyles from './balances.module.css';
 import uiStyles from '../_components/ui.module.css';
 
@@ -113,7 +113,7 @@ export function AccountBalanceRow({
         .filter(Boolean)
         .join(' ')}
     >
-      <Link
+      <PrefetchLink
         data-slot="balance-account-link"
         className={balanceStyles['balance-account-link']}
         href={transactionsHref}
@@ -157,7 +157,7 @@ export function AccountBalanceRow({
             />
           </BalanceAmount>
         )}
-      </Link>
+      </PrefetchLink>
     </li>
   );
 }

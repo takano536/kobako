@@ -14,7 +14,7 @@ import {
   shiftMonth,
   type ListedLedgerEntry,
 } from '@kobako/db';
-import Link from 'next/link';
+import { PrefetchLink } from '../_components/prefetch-link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import {
@@ -144,7 +144,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         >
           <div className={pageStyles['asset-transaction-heading']}>
             {account.deletedAt === null ? (
-              <Link
+              <PrefetchLink
                 className={pageStyles['asset-settings-link']}
                 href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
                 scroll={false}
@@ -152,7 +152,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                 title="資産を編集"
               >
                 <PencilIcon />
-              </Link>
+              </PrefetchLink>
             ) : null}
             <h2 id="asset-filter-title">{account.name}</h2>
             <span className={pageStyles['asset-transaction-category']}>

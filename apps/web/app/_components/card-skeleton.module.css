@@ -9,15 +9,6 @@
   gap: var(--space-within);
 }
 
-.label,
-.control,
-.button {
-  display: block;
-  border-radius: 6px;
-  background: var(--soft-control);
-  animation: card-skeleton-pulse 1.4s var(--ease-standard) infinite alternate;
-}
-
 .label {
   width: 4.5rem;
   height: 0.75rem;
@@ -36,23 +27,4 @@
 .button {
   width: 7.5rem;
   height: 2.75rem;
-}
-
-@keyframes card-skeleton-pulse {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0.55;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .label,
-  .control,
-  .button {
-    animation: none;
-    opacity: 0.7;
-  }
 }
