@@ -23,6 +23,11 @@
   animation: overlay-card-in var(--motion-enter) var(--ease-standard) backwards;
 }
 
+/* タッチ端末ではカード自体が初期フォーカスを受けます。操作要素ではないためリングを出しません。 */
+.card:focus-visible {
+  outline: none;
+}
+
 .header {
   display: flex;
   align-items: center;
