@@ -1,5 +1,11 @@
 <!-- PR title must use a Conventional Commit prefix (feat:, fix:, docs:, test:, ci:, chore:, refactor:). The squash-merge title becomes the release commit. -->
 
+## 関連 Issue
+
+<!-- あれば記入してください。なければ「なし」と書いてください -->
+
+Closes #
+
 ## 変更概要
 
 <!-- 変更の要約を記述してください -->

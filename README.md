@@ -1,66 +1,90 @@
-# kobako
+<h1 align="center">kobako</h1>
 
-自分のサーバーで動かす、日本語の家計簿です。
+<p align="center">
+  暮らしのお金を、ひと目で。<br>
+  自分のサーバーで動かす、日本語の家計簿。
+</p>
 
-収入と支出を記録し、月ごとの収支や支出カテゴリ別の支出を確認できます。
+<p align="center">
+  <a href="https://demo.takano536.workers.dev"><img src="https://img.shields.io/badge/demo-try%20it-brightgreen.svg" alt="デモ"></a>
+  <a href="https://github.com/takano536/kobako/actions/workflows/ci.yml"><img src="https://github.com/takano536/kobako/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/takano536/kobako/pkgs/container/kobako"><img src="https://img.shields.io/badge/ghcr.io-takano536%2Fkobako-2496ED.svg?logo=docker&logoColor=white" alt="コンテナイメージ"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg" alt="ライセンス"></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/readme/overview.webp" alt="kobako の概要画面" width="100%">
+</p>
+
+## kobako とは
+
+kobako は、毎月の収入と支出を記録して、今月どうだったかをすぐ確認できる家計簿です。
+
+銀行口座、クレジットカード、現金、電子マネーをまとめて持てるので、「今いくらあるか」と「今月いくら使ったか」が同じ場所で分かります。データは自分のサーバーの PostgreSQL に置いたまま。外部サービスに預けず、パソコンからもスマホからも同じ家計を見られます。
+
+家計の記録をどこかのサービスに預けっぱなしにするのが少し落ち着かなくて、自分のサーバーで動かせるものを書きました。
 
 ## デモ
 
-登録不要で試せます（外部の公開デモです）。
+登録もインストールも不要で試せます。
 
-https://demo.takano536.workers.dev
+**https://demo.takano536.workers.dev**
 
-アクセスすると自分専用の世帯が発行され、サンプルの家計データが入った状態で操作できます。訪問者ごとにデータは分かれ、24時間で消えます。
+アクセスすると自分専用の世帯が発行され、サンプルデータの入った状態で操作できます。訪問者ごとにデータは分かれ、24時間で消えます。
 
 ## できること
 
-- 取引の登録・編集・削除（支出・収入・振替を選んで登録）
-- 月ごとの収入、支出、収支の確認
-- 資産・負債・純資産の集計と、現金・銀行・クレジットカード・デビットカード・電子マネー・その他の順に並ぶ資産別残高一覧
-- 資産の登録・設定、資産カテゴリによる管理、論理削除
-- クレジットカードの締め日・支払日・支払月・引落口座を資産設定で一つのフォームから編集
-- カード利用日を基準に導出する締め済み未払い額と、通常の銀行→カード振替としての決済記録
-- 完全なカード設定に基づく期限日 catch-up（設定作成日以降）と、同一銀行に紐づくカード決済予定の合計
-- 取引・振替の資産による絞り込みと、絞り込み画面からの資産設定
-- 手入力の収入・支出で資産を任意に指定（未指定も可）
-- 支出カテゴリ別の集計
-- 月、種別、カテゴリ、資産による取引の絞り込み
-- パソコンとスマートフォンに対応した日本語 UI
-- 設定画面での支出・収入カテゴリ管理と家計データの初期化
-- 「らくな家計簿」の Excel エクスポートファイルからのインポート
+ここに書いているのは、いま動いている機能です。新しく入ったものから、この一覧に足していきます。
 
-## 現在の制限
+### 今月のことが、開いた瞬間に分かる
 
-現在は 1 つの家計を管理する構成です。ユーザー認証や家計の切り替えにはまだ対応していません。
+支出・収入・収支差額をひとつの帯にまとめ、その下にカテゴリ別の支出を割合つきのバーで並べます。数字を眺めるだけで、先月との違いに気づけます。
 
-- Android 版「らくな家計簿」の日本語 Excel 形式のみ対応
-- 振替の登録には2つ以上の削除されていない資産が必要
-- カード請求の期間・期限は現在のカード設定から再計算され、設定変更前の履歴や初期残高は保持しません。全期間（台帳導入前の日付を含む）の取引・振替を FIFO で計算します
-- カードの同月締め・支払日が不正または設定不足の場合、請求期間・期限は表示せず設定画面へ誘導します
-- 自動決済は `auto_payment_starts_on` 以降の期限日（境界日を含む）を対象とし、引落口座が不正・不足なら blocked として次回再試行します。自動作成済み振替を削除しても再作成しません
-- 初期残高（開始残高）の設定には未対応
-- 標準の資産カテゴリは固定順で変更・削除できません。カスタム資産カテゴリは追加・改名・削除できます（取引があるカテゴリは削除できず、取引がない場合は資産を「その他」へ移動します）
-- 資産の削除は `deleted_at` を使う論理削除です。資産の状態、過去の取引・振替・カード設定は保持します
+- 月を切り替えての収入・支出・収支差額の確認
+- 支出カテゴリ別の集計と割合
+- 最近の取引をそのまま一覧で確認
 
-### 家計データの初期化
+### 記録は一覧から、まっすぐ
 
-設定の「すべてのデータを削除」では、`account_card_conditions`（カード条件履歴）、`account_card_settings`（現在のカード設定）、`account_import_mappings`（資産の取り込み対応表）、`transaction_imports`（取り込み履歴）、`card_auto_payment_runs`（自動決済処理記録）、`transactions`（取引）、`transfers`（振替）、`accounts`（論理削除済みを含む資産）、`categories`（支出・収入カテゴリ）、`asset_categories`（カスタム資産カテゴリを含む全カテゴリ）、`account_groups`（利用者作成分を含む全グループ）の家計行をすべて削除します。その後、既存の初期化処理に従って初期カテゴリ、標準資産カテゴリ、初期資産グループを同じ DB transaction 内で再作成します。
+<p>
+  <img src="docs/screenshots/readme/transactions.webp" alt="取引画面" width="100%">
+</p>
 
-`households` の家計行・境界、`system_healthchecks` のシステム管理データ、DB schema、PostgreSQL enum、migration 履歴は残ります。実行には「削除」の入力が必要です。家計行ロックを取引・振替・資産・カード設定・取り込み確定・自動決済 worker と共有し、失敗時は transaction 全体を rollback します。
+支出・収入・振替をひとつのフォームで登録します。振替は送金元と送金先を選んで登録します。一覧では日付・カテゴリ・資産・メモ・金額が一行に並び、直したい行をそのまま開けます。
 
-認証がないため、インターネットへ直接公開せず、ローカルネットワークや VPN 内で使ってください。
+- 取引・振替の登録、編集、削除
+- 月、種別、カテゴリ、資産による絞り込み
+- 支出・収入カテゴリの追加、改名、並べ替え、削除
 
-## 「らくな家計簿」から取り込む
+### 口座も財布も、まとめて残高
 
-Realbyte「らくな家計簿」Android 日本語版からエクスポートした Excel ファイルを取り込めます。
+<p>
+  <img src="docs/screenshots/readme/balances.webp" alt="残高画面" width="100%">
+</p>
 
-設定画面の「取り込む」からファイルを選び、プレビューを確認してください。収入・支出・振替、期間、件数、新しいカテゴリ、新しい資産を確認してから確定します。同じ取り込み内では同じ提供元資産を一つの新規資産にまとめます。過去の取り込みとは照合せず、別の取り込み操作では同じファイルも毎回新しい資産・取引として追加され、重複分も収支と残高に反映されます。同じ確定操作の二重送信では重複しません。
+資産・負債・純資産を上に、その下に現金・銀行・クレジットカード・デビットカード・電子マネー・その他の順で並びます。銀行は「支払予定」と「残高」、カードは「決済予定」と「未決済」を同じ列位置で見比べられます。
 
-対応するファイルは `.xlsx`、5 MiB・10,000 件までです。
+クレジットカードは、締め日・支払日・支払月・引落口座を資産設定のひとつのフォームで管理します。締め済みでまだ払っていない金額と、締め前の利用額は分けて表示。期限日を過ぎた決済はバックグラウンドの worker が拾って、引落口座からの振替として記録します。
 
-## Docker Compose で起動する
+- 資産・負債・純資産の集計
+- カードの締め済み未払い額と締め前利用額
+- 引落口座への振替を自動で作成（同じ決済を二重に作らない冪等処理）
 
-Docker Engine と Docker Compose v2 が必要です。
+### スマホでも、同じ家計
+
+<p align="center">
+  <img src="docs/screenshots/readme/overview-mobile.webp" width="300" alt="スマートフォン表示">
+</p>
+
+狭い画面では下タブに切り替わり、片手で登録・確認ができます。パソコンでつけた記録を、外出先で確かめられます。
+
+### 「らくな家計簿」から、そのまま引っ越せる
+
+Realbyte「らくな家計簿」Android 日本語版が書き出した Excel ファイルを取り込めます。プレビューで期間、件数、新しく増えるカテゴリと資産を確認してから確定するので、いきなり家計が変わりません。対応するのは `.xlsx`、5 MiB・10,000 件までです。
+
+## セルフホスト
+
+Docker Engine と Docker Compose v2 があれば動きます。
 
 ```sh
 git clone https://github.com/takano536/kobako.git
@@ -69,29 +93,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
-起動したら、ブラウザで <http://127.0.0.1:3000> を開きます。
+起動したら <http://127.0.0.1:3000> を開いてください。データは Docker volume に保存されます。
 
-### DB migration
+DB の migration は公開イメージに同梱されていて、`web` の起動前に自動で適用されます。イメージを更新して Deploy し直すだけで、スキーマも一緒に進みます。既存の volume を消す必要はありません。
 
-Compose は PostgreSQL が healthy になってから `web` を起動し、単一の公開 image (`ghcr.io/takano536/kobako:<tag>`) に同梱した migration を Next.js の起動前に自動適用します。`worker` は `web` の health check 後に起動するため、通常構成に終了済みの `migrate` サービスは残りません。`web` と PostgreSQL だけの構成でも、公開 image tag を更新して通常の Deploy を実行でき、既存の DB volume を削除する必要はありません。
+> [!WARNING]
+> 認証はまだありません。1つの家計を管理する構成なので、インターネットへ直接公開せず、ローカルネットワークや VPN の中で使ってください。
 
-Migration に失敗した場合は `web` は起動せず、コンテナログに `[web] migration failed` が出力されます。migration はスキーマを自動 downgrade しないため、バージョンダウン前にはバックアップを取得し、アプリと DB スキーマの互換性を確認してください。
+公開イメージは `ghcr.io/takano536/kobako:<tag>` です。
 
-データは Docker volume に保存されます。通常の停止には次のコマンドを使います。
+## 開発
 
-```sh
-docker compose down
-```
-
-`docker compose down -v` を実行するとデータベースも削除されるため注意してください。
-
-## ローカル開発
-
-必要なもの：
-
-- Node.js 24.21.0
-- Corepack
-- PostgreSQL 17 以上
+必要なもの：Node.js 24.21.0、Corepack、PostgreSQL 17 以上。
 
 ```sh
 corepack enable
@@ -101,9 +114,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-開発サーバーは <http://localhost:3000> で起動します。
-
-## テスト
+<http://localhost:3000> で起動します。テストは次のとおりです。
 
 ```sh
 pnpm format:check
@@ -113,23 +124,26 @@ pnpm test:unit
 pnpm test:integration
 pnpm build
 pnpm test:e2e
-git diff --check
 ```
 
-integration test と E2E には、開発用とは別のテスト専用データベースが必要です。接続先は `.env.example` を参考に設定してください。migration の確認では既存の volume を使わず、ローカル Docker の使い捨て DB を使用してください。
+integration test と E2E には、開発用とは別のテスト専用データベースが必要です。接続先は `.env.example` を参考に設定してください。
+
+branch の切り方、CI、リリースの流れは [docs/branching.md](docs/branching.md) にあります。
 
 ## 構成
 
-kobako は pnpm workspace を使ったモノリポです。
+pnpm workspace のモノリポです。
 
-- `apps/web`：Next.js による Web アプリ（取引・残高・資産設定 UI）
-- `apps/worker`：自動決済の期限日 catch-up と冪等なバックグラウンド処理
-- `packages/db`：PostgreSQL、Drizzle ORM、migration、入力検証、元帳・資産・取り込み
-- `compose.yaml`：ローカル実行用の Docker Compose 構成
+| パス           | 役割                                                     |
+| -------------- | -------------------------------------------------------- |
+| `apps/web`     | Next.js の Web アプリ（概要・取引・残高・設定）          |
+| `apps/worker`  | 自動決済の期限日 catch-up と冪等なバックグラウンド処理   |
+| `packages/db`  | PostgreSQL、Drizzle ORM、migration、入力検証、元帳・資産 |
+| `compose.yaml` | ローカル実行用の Docker Compose 構成                     |
 
-## コントリビューション
+## 名前について
 
-kobako は現在、個人利用を目的に開発しています。Issue や Pull Request は受け付けていません。
+kobako は「小箱」。レシートや通帳をしまっておく箱のように、暮らしの記録をひとつにまとめておけたらいいな、というところから付けました。
 
 ## License
 
