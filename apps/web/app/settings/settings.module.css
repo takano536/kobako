@@ -72,6 +72,71 @@
   background: var(--danger-soft);
 }
 
+/* A device preference row: same edge, height and hover as the link rows; the switch sits at the end. */
+.switch-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-item);
+  margin-inline: calc(var(--space-item) * -1);
+  padding-inline: var(--space-item);
+  border-radius: 0.3rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.switch-row:hover {
+  background: var(--surface-hover);
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* The native checkbox stays the control (keyboard, form state); only its look is replaced. */
+.switch input {
+  width: 2.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--muted);
+  cursor: pointer;
+  appearance: none;
+}
+
+.switch input:checked {
+  background-color: var(--accent);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background-color: var(--paper);
+  pointer-events: none;
+}
+
+.switch input:checked + .switch-thumb {
+  background-color: var(--on-accent);
+  transform: translateX(1rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .switch input,
+  .switch-thumb {
+    transition:
+      background-color 150ms ease,
+      transform 150ms ease;
+  }
+}
+
 /* Appearance: one card per theme; previews scope each theme's real tokens with `data-theme`. */
 .theme-options {
   display: grid;

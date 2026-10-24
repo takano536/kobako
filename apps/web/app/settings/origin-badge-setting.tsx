@@ -7,7 +7,7 @@ import {
   ORIGIN_BADGE_HIDDEN_VALUE,
   ORIGIN_BADGE_STORAGE_KEY,
 } from '../../src/lib/origin-badge';
-import formStyles from '../forms.module.css';
+import settingsStyles from './settings.module.css';
 
 function subscribe(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);
@@ -43,13 +43,18 @@ function setVisible(visible: boolean): void {
 export function OriginBadgeSetting() {
   const visible = useSyncExternalStore(subscribe, readVisible, readServerVisible);
   return (
-    <label className={formStyles['checkbox-field']}>
-      <input
-        type="checkbox"
-        checked={visible}
-        onChange={(event) => setVisible(event.target.checked)}
-      />
+    <label className={settingsStyles['switch-row']}>
       <span>APIの印を表示</span>
+      <span className={settingsStyles.switch}>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-checked={visible}
+          checked={visible}
+          onChange={(event) => setVisible(event.target.checked)}
+        />
+        <span className={settingsStyles['switch-thumb']} aria-hidden="true" />
+      </span>
     </label>
   );
 }
