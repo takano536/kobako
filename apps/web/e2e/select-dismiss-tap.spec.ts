@@ -31,6 +31,9 @@ test.describe('select dismiss taps', () => {
     });
     await page.goto(`/transactions?month=${month}`);
     await page.getByText('条件を変更する', { exact: true }).click();
+    // 月欄の表示ボタンはハイドレーション後の effect で現れます。ルートレイアウトのガードは
+    // それまでに取り付けられているため、これを待ってから操作します。
+    await expect(page.locator('[data-slot="month-picker-display"]')).toBeVisible();
   });
 
   test('discards only the tap that dismisses a select dialog on Android', async ({
