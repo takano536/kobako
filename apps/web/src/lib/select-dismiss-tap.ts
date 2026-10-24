@@ -53,13 +53,22 @@ export function isGuardedTapTarget(value: unknown): boolean {
   );
 }
 
+/** `<select>` への操作から、閉じるタップを待つ最長の時間。 */
+export const ARMED_TIMEOUT_MS = 10_000;
+
 /** 選択ダイアログを閉じるタップを捨てるガード。各メソッドはキャプチャ段階のイベントから呼びます。 */
 export interface TapGuard {
   focusIn(target: unknown): void;
   change(target: unknown): void;
+  /** `pointercancel`・`keydown` で、待機と捨てる予定を取り消します。 */
   disarm(): void;
   /** 真なら、この `pointerdown` を `preventDefault()` します。 */
   pointerDown(target: unknown): boolean;
+  /**
+   * 真なら、この `pointerup`（と `touchend`）を `preventDefault()` します。
+   * `pointerdown` を捨てたジェスチャーの終わりだけが真です。
+   */
+  pointerUp(target: unknown): boolean;
   /** 真なら、この `click` を `preventDefault()` と `stopPropagation()` で捨てます。 */
   click(target: unknown): boolean;
 }
@@ -67,57 +76,65 @@ export interface TapGuard {
 /**
  * タップごとの状態を持つガード。`<select>` への `pointerdown`／`focusin`／`click` のどれかを
  * 見たら「ダイアログが開いた可能性がある」状態（armed）にし、その間に来た最初の対象へのタップを
- * 捨てます。armed はどのタップでも下ろすので、続けて2回捨てることはありません。
+ * `pointerdown`・`pointerup`・`click` のすべてで捨てます。armed はどのタップでも下ろすので、
+ * 続けて2回捨てることはありません。ダイアログの開閉に伴う `scroll`・`visibilitychange` では
+ * 下ろしません（閉じるタップの前に待機が消えるため）。代わりに armed から
+ * {@link ARMED_TIMEOUT_MS} 経つと失効します。
  */
 export function createSelectDismissTapGuard(): TapGuard {
-  let armed = false;
-  // `pointerdown` を捨てたタップの、続く `click` も捨てるための印。
-  let discardClick = false;
+  let armedAt: number | null = null;
+  // `pointerdown` を捨てたジェスチャーの、続く `pointerup`／`touchend`／`click` も捨てるための印。
+  let discardGesture = false;
+  const arm = () => {
+    armedAt = Date.now();
+    discardGesture = false;
+  };
   const disarm = () => {
-    armed = false;
-    discardClick = false;
+    armedAt = null;
+    discardGesture = false;
+  };
+  /** 待機中なら真を返し、どちらの場合も待機を下ろします。 */
+  const takeArmed = () => {
+    const armed = armedAt !== null && Date.now() - armedAt < ARMED_TIMEOUT_MS;
+    armedAt = null;
+    return armed;
   };
 
   return {
     /** `<select>` にフォーカスが入った。 */
     focusIn(target: unknown): void {
-      if (isSelect(asElement(target))) armed = true;
+      if (isSelect(asElement(target))) arm();
     },
     /** 値を選んでダイアログが閉じた。 */
     change(target: unknown): void {
       if (isSelect(asElement(target))) disarm();
     },
-    /** `pointercancel`・ページのスクロール・タブの切り替えで、待機と捨てる予定を取り消します。 */
     disarm,
-    /** キャプチャ段階の `pointerdown`。真なら、この `pointerdown` を `preventDefault()` します。 */
     pointerDown(target: unknown): boolean {
       if (isInsideSelect(target)) {
-        armed = true;
-        discardClick = false;
+        arm();
         return false;
       }
-      const discard = armed && isGuardedTapTarget(target);
-      armed = false;
-      discardClick = discard;
-      return discard;
+      discardGesture = takeArmed() && isGuardedTapTarget(target);
+      return discardGesture;
+    },
+    pointerUp(target: unknown): boolean {
+      if (isInsideSelect(target)) return false;
+      return discardGesture;
     },
     /**
-     * キャプチャ段階の `click`。真なら `preventDefault()` と `stopPropagation()` で捨てます。
      * `pointerdown` を伴わない合成クリックでも、armed なら対象へのクリックを捨てます。
      */
     click(target: unknown): boolean {
       if (isInsideSelect(target)) {
-        armed = true;
-        discardClick = false;
+        arm();
         return false;
       }
-      if (discardClick) {
-        discardClick = false;
+      if (discardGesture) {
+        discardGesture = false;
         return true;
       }
-      const discard = armed && isGuardedTapTarget(target);
-      armed = false;
-      return discard;
+      return takeArmed() && isGuardedTapTarget(target);
     },
   };
 }

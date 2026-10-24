@@ -161,4 +161,53 @@ test.describe('select dismiss taps', () => {
     }
     await expect(page).toHaveURL(/[?&]type=(&|$)/);
   });
+
+  test('discards pointerup and click of the dismiss gesture, then lets the next tap through', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'The guard is installed only on Android touch devices.');
+    const monthLabel = page.locator('#filter-month-label');
+    await page.locator('select[name="type"]').dispatchEvent('pointerdown', {
+      bubbles: true,
+      pointerType: 'touch',
+    });
+    // 閉じるタップを pointerdown → pointerup → click の順で再現し、それぞれの defaultPrevented を読みます。
+    const prevented = await monthLabel.evaluate((label) => {
+      const init = { bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true };
+      const down = new PointerEvent('pointerdown', init);
+      const up = new PointerEvent('pointerup', init);
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+      label.dispatchEvent(down);
+      label.dispatchEvent(up);
+      label.dispatchEvent(click);
+      return {
+        pointerdown: down.defaultPrevented,
+        pointerup: up.defaultPrevented,
+        click: click.defaultPrevented,
+      };
+    });
+    expect(prevented).toEqual({ pointerdown: true, pointerup: true, click: true });
+    expect(await monthPickerState(page)).toEqual({ focused: false, showPickerCalls: 0 });
+
+    await monthLabel.tap({ position: { x: 8, y: 8 } });
+    expect((await monthPickerState(page)).focused).toBe(true);
+  });
+});
+
+test('shows the tap debug log only with ?tap-debug=1', async ({ page, isMobile }) => {
+  const summary = page.getByText('条件を変更する', { exact: true });
+  await page.goto(`/transactions?month=${month}`);
+  await summary.click();
+  // ハイドレーション（effect の実行）後でも、パラメータが無ければログは出ません。
+  await expect(page.locator('[data-slot="month-picker-display"]')).toBeVisible();
+  await expect(page.locator('[data-slot="tap-debug"]')).toHaveCount(0);
+
+  await page.goto(`/transactions?month=${month}&tap-debug=1`);
+  const log = page.locator('[data-slot="tap-debug"]');
+  await expect(log).toBeVisible();
+  if (isMobile) await summary.tap();
+  else await summary.click();
+  await expect(log).toContainText('pointerdown');
+  await expect(log).toContainText(/click .* dp=false active=/);
 });

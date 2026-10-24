@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  ARMED_TIMEOUT_MS,
   createSelectDismissTapGuard,
   isAndroidTouchDevice,
   isGuardedTapTarget,
@@ -154,5 +155,58 @@ describe('createSelectDismissTapGuard', () => {
     expect(tap(guard, monthLabelText)).toEqual(discarded);
     expect(tap(guard, typeSelect)).toEqual(passed);
     expect(tap(guard, monthLabelText)).toEqual(discarded);
+  });
+});
+
+describe('createSelectDismissTapGuard pointerup and expiry', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('discards the pointerup of a gesture whose pointerdown was discarded', () => {
+    const guard = createSelectDismissTapGuard();
+    guard.pointerDown(typeSelect);
+    expect(guard.pointerDown(monthLabelText)).toBe(true);
+    expect(guard.pointerUp(monthLabelText)).toBe(true);
+    expect(guard.click(monthLabelText)).toBe(true);
+
+    // 次のジェスチャーは down・up・click のどれも通します。
+    expect(guard.pointerDown(monthLabelText)).toBe(false);
+    expect(guard.pointerUp(monthLabelText)).toBe(false);
+    expect(guard.click(monthLabelText)).toBe(false);
+  });
+
+  it('lets the pointerup through when the gesture was not discarded', () => {
+    const guard = createSelectDismissTapGuard();
+    expect(guard.pointerDown(monthLabelText)).toBe(false);
+    expect(guard.pointerUp(monthLabelText)).toBe(false);
+
+    guard.pointerDown(typeSelect);
+    expect(guard.pointerUp(typeSelect)).toBe(false);
+    expect(guard.pointerDown(listLink)).toBe(false);
+    expect(guard.pointerUp(listLink)).toBe(false);
+  });
+
+  it('expires the armed state after the timeout', () => {
+    vi.useFakeTimers();
+    const guard = createSelectDismissTapGuard();
+    guard.pointerDown(typeSelect);
+    vi.advanceTimersByTime(ARMED_TIMEOUT_MS - 1);
+    expect(guard.pointerDown(monthLabelText)).toBe(true);
+
+    guard.pointerDown(typeSelect);
+    vi.advanceTimersByTime(ARMED_TIMEOUT_MS);
+    expect(guard.pointerDown(monthLabelText)).toBe(false);
+    expect(guard.pointerUp(monthLabelText)).toBe(false);
+    expect(guard.click(monthLabelText)).toBe(false);
+  });
+
+  it('disarms on change so the whole next gesture passes', () => {
+    const guard = createSelectDismissTapGuard();
+    guard.focusIn(typeSelect);
+    guard.change(typeSelect);
+    expect(guard.pointerDown(applyButton)).toBe(false);
+    expect(guard.pointerUp(applyButton)).toBe(false);
+    expect(guard.click(applyButton)).toBe(false);
   });
 });
