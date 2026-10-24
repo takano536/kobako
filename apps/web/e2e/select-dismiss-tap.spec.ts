@@ -12,8 +12,8 @@ declare global {
 const month = currentTokyoMonth();
 
 /**
- * 月欄のピッカーが開いたかどうか。ラベル経由ではネイティブの月 input にフォーカスが移り、
- * 表示ボタン経由では `showPicker()` が呼ばれます。
+ * 月欄のピッカーが開いたかどうか。ラベル経由（Android では表示部も）ではネイティブの月 input に
+ * フォーカスが移り、デスクトップの表示部経由では `showPicker()` が呼ばれます。
  */
 const monthPickerState = (page: Page) =>
   page.evaluate(() => ({
@@ -63,14 +63,17 @@ test.describe('select dismiss taps', () => {
       expect(await monthPickerState(page)).toEqual({ focused: true, showPickerCalls: 0 });
     }
 
-    // 「YYYY/MM」の表示ボタンでも同じです。
+    // 「YYYY/MM」の表示部でも同じです。Android はラベルの既定動作で input を起動し（showPicker() は
+    // 呼ばない）、デスクトップは showPicker() で開きます。
     await blur();
     await typeSelect.focus();
     await tapDisplay();
-    expect((await monthPickerState(page)).showPickerCalls).toBe(isMobile ? 0 : 1);
+    expect(await monthPickerState(page)).toEqual(
+      isMobile ? { focused: false, showPickerCalls: 0 } : { focused: false, showPickerCalls: 1 },
+    );
     if (isMobile) {
       await tapDisplay();
-      expect((await monthPickerState(page)).showPickerCalls).toBe(1);
+      expect(await monthPickerState(page)).toEqual({ focused: true, showPickerCalls: 0 });
     }
 
     // 値を選んだ（change）後は、1回目のタップで開きます。
@@ -133,15 +136,24 @@ test.describe('select dismiss taps', () => {
       expect((await monthPickerState(page)).focused).toBe(true);
     }
 
-    // ヘッダーの月ラベル（月スイッチャー）。
+    // ヘッダーの月ラベル（月スイッチャー）。Android はラベルの既定動作で隠れた input を起動し
+    // （showPicker() は呼ばない）、デスクトップは showPicker() で開きます。
     const headerMonth = page.locator('[data-slot="month-switcher-label"]').first();
+    const headerInputFocused = () =>
+      page.evaluate(
+        () =>
+          document.activeElement ===
+          document.querySelector('[data-slot="month-switcher"] input[type="month"]'),
+      );
     const callsBefore = await pickerCalls();
     await armWithPointerDown(headerMonth);
     await tapOn(headerMonth);
     expect(await pickerCalls()).toBe(callsBefore + (isMobile ? 0 : 1));
+    expect(await headerInputFocused()).toBe(false);
     if (isMobile) {
       await tapOn(headerMonth);
-      expect(await pickerCalls()).toBe(callsBefore + 1);
+      expect(await pickerCalls()).toBe(callsBefore);
+      expect(await headerInputFocused()).toBe(true);
     }
 
     // 「適用」。
@@ -195,8 +207,31 @@ test.describe('select dismiss taps', () => {
   });
 });
 
+test('opens the header month picker through the label on Android without showPicker()', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'Desktop keeps opening the picker with showPicker().');
+  await page.addInitScript(() => {
+    const original = HTMLInputElement.prototype.showPicker;
+    HTMLInputElement.prototype.showPicker = function showPicker(this: HTMLInputElement) {
+      window.pickerOpens = [...(window.pickerOpens ?? []), this.id];
+      return original.call(this);
+    };
+  });
+  await page.goto(`/transactions?month=${month}`);
+  await page.getByText('条件を変更する', { exact: true }).click();
+  await expect(page.locator('[data-slot="month-picker-display"]')).toBeVisible();
+
+  const headerInput = page.locator('[data-slot="month-switcher"] input[type="month"]');
+  await page.locator('[data-slot="month-switcher-label"]').tap();
+  await expect(headerInput).toBeFocused();
+  expect(await page.evaluate(() => window.pickerOpens ?? [])).toEqual([]);
+});
+
 test('shows the tap debug log only with ?tap-debug=1', async ({ page, isMobile }) => {
   const summary = page.getByText('条件を変更する', { exact: true });
+  const headerMonth = page.locator('[data-slot="month-switcher-label"]');
   await page.goto(`/transactions?month=${month}`);
   await summary.click();
   // ハイドレーション（effect の実行）後でも、パラメータが無ければログは出ません。
@@ -210,4 +245,16 @@ test('shows the tap debug log only with ?tap-debug=1', async ({ page, isMobile }
   else await summary.click();
   await expect(log).toContainText('pointerdown');
   await expect(log).toContainText(/click .* dp=false active=/);
+  // タッチでは touchstart、マウスでは mouseup の行が出ます。
+  await expect(log).toContainText(isMobile ? /touchstart .* dp=/ : /mouseup .* dp=/);
+
+  // JS からの showPicker() 呼び出しは、呼ばれたときだけ行が出ます（Android はラベルの既定動作で開くため出ない）。
+  if (isMobile) await headerMonth.tap();
+  else await headerMonth.click();
+  if (isMobile) {
+    await expect(log).toContainText(/touchstart label\[month-switcher-label\]/);
+    await expect(log).not.toContainText('showPicker');
+  } else {
+    await expect(log).toContainText(/showPicker target=input.* active=/);
+  }
 });

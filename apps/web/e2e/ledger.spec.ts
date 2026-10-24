@@ -1068,6 +1068,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
 
 test('opens the month picker from the month label and keeps the running filters', async ({
   page,
+  isMobile,
 }) => {
   await page.addInitScript(() => {
     const target = HTMLInputElement.prototype as HTMLInputElement & { showPicker?: () => void };
@@ -1084,9 +1085,14 @@ test('opens the month picker from the month label and keeps the running filters'
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/?month=${month}`);
   await page.locator('[data-slot="month-switcher-label"]').click();
+  // デスクトップは showPicker() で開きます。Android のタッチ端末はラベルから隠れた input への
+  // 既定の起動に任せ、showPicker() は呼びません（input がアクティブになります）。
   expect(
     await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
-  ).toEqual(['month']);
+  ).toEqual(isMobile ? [] : ['month']);
+  if (isMobile) {
+    await expect(page.locator('[data-slot="month-switcher"] input[type="month"]')).toBeFocused();
+  }
 
   await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
   await expect(page).toHaveURL(

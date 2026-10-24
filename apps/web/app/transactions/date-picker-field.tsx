@@ -1,7 +1,7 @@
 'use client';
 
 import formsStyles from '../forms.module.css';
-import { openNativePicker } from '../_components/native-picker';
+import { handlePickerDisplayClick, handlePickerDisplayKeyDown } from '../_components/native-picker';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
@@ -18,6 +18,11 @@ interface DatePickerFieldProps {
   ariaDescribedBy?: string;
   onChange?: (value: string) => void;
   className?: string;
+  /**
+   * 呼び出し側の `<label htmlFor={id}>` がこの欄を包んでいるとき真。表示部を `<label>` にすると
+   * ラベルの入れ子になるため、`<span>` にして外側のラベルの既定動作で input を起動します。
+   */
+  wrappedByLabel?: boolean;
 }
 
 function formatPickerValue(value: string, kind: PickerKind): string {
@@ -50,6 +55,7 @@ export function DatePickerField({
   ariaDescribedBy,
   onChange,
   className,
+  wrappedByLabel = false,
 }: DatePickerFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [enhanced, setEnhanced] = useState(false);
@@ -89,29 +95,41 @@ export function DatePickerField({
     return input;
   }
 
+  const displayProps = {
+    'data-slot': kind === 'month' ? 'month-picker-display' : 'date-picker-display',
+    className: [
+      formsStyles['date-picker-display'],
+      kind === 'month' && formsStyles['month-picker-display'],
+    ]
+      .filter(Boolean)
+      .join(' '),
+    role: 'button',
+    tabIndex: 0,
+    'aria-labelledby': labelId,
+    'aria-describedby': ariaDescribedBy,
+    'aria-invalid': ariaInvalid ? true : undefined,
+    // Android のタッチ端末ではラベルから input への既定の起動に任せ、ほかは showPicker() で開きます。
+    onClick: (event: { target: EventTarget | null; preventDefault(): void }) =>
+      handlePickerDisplayClick(event, inputRef.current),
+    onKeyDown: (event: { key: string; target: EventTarget | null; preventDefault(): void }) =>
+      handlePickerDisplayKeyDown(event, inputRef.current),
+  } as const;
+  const displayContent = (
+    <>
+      <span>{formatPickerValue(currentValue, kind)}</span>
+      <span className={formsStyles['date-picker-icon']} aria-hidden="true" />
+    </>
+  );
+
   return (
     <div className={[formsStyles['date-picker-control'], className].filter(Boolean).join(' ')}>
-      <button
-        data-slot={kind === 'month' ? 'month-picker-display' : 'date-picker-display'}
-        className={[
-          formsStyles['date-picker-display'],
-          kind === 'month' && formsStyles['month-picker-display'],
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        type="button"
-        aria-labelledby={labelId}
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={ariaInvalid ? true : undefined}
-        onClick={() => {
-          if (inputRef.current) {
-            openNativePicker(inputRef.current);
-          }
-        }}
-      >
-        <span>{formatPickerValue(currentValue, kind)}</span>
-        <span className={formsStyles['date-picker-icon']} aria-hidden="true" />
-      </button>
+      {wrappedByLabel ? (
+        <span {...displayProps}>{displayContent}</span>
+      ) : (
+        <label htmlFor={id} {...displayProps}>
+          {displayContent}
+        </label>
+      )}
       {input}
     </div>
   );

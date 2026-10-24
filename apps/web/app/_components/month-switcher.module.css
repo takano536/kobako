@@ -1,5 +1,5 @@
 /* Month navigation shared by the overview and the transaction list. The label is a
-   month picker button, and every screen gets the same fixed geometry. */
+   month picker control, and every screen gets the same fixed geometry. */
 .switcher {
   display: grid;
   width: max-content;
@@ -89,13 +89,23 @@ button.control {
   width: 100%;
 }
 
-button.label {
+/* The picker label is a `<label htmlFor>` for the hidden month input (it used to be a
+   button), so it carries the same pointer, hover, and focus treatment as a button. */
+button.label,
+label.label {
   cursor: pointer;
   transition: color var(--motion-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
 }
 
-button.label:hover {
+button.label:hover,
+label.label:hover {
   color: var(--ink);
+}
+
+label.label:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .input {
@@ -112,7 +122,8 @@ button.label:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .control,
-  button.label {
+  button.label,
+  label.label {
     transform: none;
     transition: none;
   }

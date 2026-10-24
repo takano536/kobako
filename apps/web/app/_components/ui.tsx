@@ -288,6 +288,7 @@ export function FilterBar({
                 name="month"
                 value={month}
                 labelId="filter-month-label"
+                wrappedByLabel
               />
             )}
           </label>
