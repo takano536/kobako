@@ -82,6 +82,33 @@ test.describe('in-app month picker', () => {
     );
   });
 
+  test('toggles the filter month grid once per tap on the display and on the label text', async ({
+    page,
+    isMobile,
+  }) => {
+    // 表示ボタンはラベル「月」に包まれています。ラベルの既定動作で同じ押下が2回切り替えないことを確かめます。
+    const display = page.locator('[data-slot="month-picker-display"]');
+    const labelText = page.locator('#filter-month-label');
+    const popover = monthPickerPopover(page);
+    // 押下ごとに少し待ってから、開閉が1回だけ起きた状態のままかを確かめます。
+    const tap = async (locator: typeof display, position?: { x: number; y: number }) => {
+      await (isMobile ? locator.tap({ position }) : locator.click({ position }));
+      await page.waitForTimeout(300);
+    };
+
+    await tap(display);
+    await expect(popover).toBeVisible();
+    await expect(display).toHaveAttribute('aria-expanded', 'true');
+    await tap(display);
+    await expect(popover).toHaveCount(0);
+    await expect(display).toHaveAttribute('aria-expanded', 'false');
+
+    await tap(labelText, { x: 8, y: 8 });
+    await expect(popover).toBeVisible();
+    await tap(labelText, { x: 8, y: 8 });
+    await expect(popover).toHaveCount(0);
+  });
+
   test('closes on an outside tap and on Escape without picking', async ({ page, isMobile }) => {
     const headerMonth = page.locator('[data-slot="month-switcher-label"]');
     const popover = monthPickerPopover(page);

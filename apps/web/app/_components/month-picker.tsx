@@ -110,7 +110,11 @@ export function MonthPicker({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (popoverRef.current?.contains(target) || displayRef.current?.contains(target)) return;
+      // 表示部を包むラベル（フィルタの「月」）の上の押下も表示部の操作として扱います。外側として閉じると、
+      // 続くラベルの既定動作で表示部がクリックされ、もう一度開いてしまうためです。
+      const display = displayRef.current;
+      const owner = display?.closest('label') ?? display;
+      if (popoverRef.current?.contains(target) || owner?.contains(target)) return;
       setViewYear(null);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -143,7 +147,9 @@ export function MonthPicker({
         aria-expanded={open}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
-        onClick={() => {
+        onClick={(event) => {
+          // 包んでいるラベルの既定動作で同じ押下が表示部へもう一度届き、2回切り替わらないようにします。
+          event.preventDefault();
           if (open) close(false);
           else setViewYear(yearOfMonth(value) ?? new Date().getFullYear());
         }}
