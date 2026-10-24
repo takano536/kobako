@@ -5,6 +5,7 @@ import {
   isAndroidTouchDevice,
   isGuardedTapTarget,
   type GuardElement,
+  type TapGuard,
 } from './select-dismiss-tap';
 
 const PIXEL_7_UA =
@@ -79,68 +80,79 @@ describe('isGuardedTapTarget', () => {
 });
 
 describe('createSelectDismissTapGuard', () => {
-  it('discards the tap that replaces focus on an open select, then lets the next tap through', () => {
-    const guard = createSelectDismissTapGuard();
-    guard.focusIn(typeSelect);
+  /** 1回のタップ（`pointerdown` → `click`）。それぞれで捨てたかを返します。 */
+  const tap = (guard: TapGuard, target: unknown) => ({
+    pointerDown: guard.pointerDown(target),
+    click: guard.click(target),
+  });
+  const discarded = { pointerDown: true, click: true };
+  const passed = { pointerDown: false, click: false };
 
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(true);
-
-    // 閉じるタップの後もフォーカスが select に残っていても、2回目は本物のタップとして通します。
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(false);
+  it('discards the dismiss tap after a select pointerdown without focusin (Firefox order)', () => {
+    for (const target of [monthLabelText, applyButton, switcherLabel]) {
+      const guard = createSelectDismissTapGuard();
+      // `focusin` は来ず、フォーカスも select に移らない順序。ガードは activeElement を見ません。
+      expect(guard.pointerDown(typeSelect)).toBe(false);
+      expect(tap(guard, target)).toEqual(discarded);
+      expect(tap(guard, target)).toEqual(passed);
+    }
   });
 
-  it('discards a dismiss tap that lands on the apply button or the month switcher', () => {
+  it('discards the dismiss tap after a select focusin (Chromium order), then lets the next tap through', () => {
     const guard = createSelectDismissTapGuard();
     guard.focusIn(typeSelect);
-    guard.pointerDown(applyButton, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(true);
-
-    guard.focusIn(typeSelect);
-    guard.pointerDown(switcherLabel, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(true);
+    expect(tap(guard, monthLabelText)).toEqual(discarded);
+    expect(tap(guard, monthLabelText)).toEqual(passed);
   });
 
-  it('lets the first tap through after a value was chosen', () => {
+  it('arms on a select click and discards a ghost click that has no pointerdown', () => {
     const guard = createSelectDismissTapGuard();
-    guard.focusIn(typeSelect);
-    guard.change(typeSelect);
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(false);
+    expect(guard.click(typeSelect)).toBe(false);
+    expect(guard.click(monthLabelText)).toBe(true);
+    expect(guard.click(monthLabelText)).toBe(false);
   });
 
-  it('does not discard when focus is not on a select or the target is not guarded', () => {
-    const guard = createSelectDismissTapGuard();
-    guard.focusIn(typeSelect);
-    guard.pointerDown(monthLabelText, applyButton);
-    expect(guard.shouldDiscardClick()).toBe(false);
+  it('lets the next tap through after change, scroll, pointercancel, or visibilitychange', () => {
+    const change = createSelectDismissTapGuard();
+    change.pointerDown(typeSelect);
+    change.change(typeSelect);
+    expect(tap(change, monthLabelText)).toEqual(passed);
 
-    guard.focusIn(typeSelect);
-    guard.pointerDown(listLink, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(false);
-
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(false);
+    // scroll・pointercancel・visibilitychange はどれも `disarm()` を呼びます。
+    for (const reason of ['scroll', 'pointercancel', 'visibilitychange']) {
+      const guard = createSelectDismissTapGuard();
+      guard.pointerDown(typeSelect);
+      guard.disarm();
+      expect(tap(guard, monthLabelText), reason).toEqual(passed);
+    }
   });
 
-  it('re-arms when the focused select itself is tapped to open its dialog again', () => {
+  it('forgets the pending click when the discarded pointerdown is cancelled', () => {
     const guard = createSelectDismissTapGuard();
-    guard.focusIn(typeSelect);
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(true);
-
-    guard.pointerDown(typeSelect, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(false);
-    guard.pointerDown(monthLabelText, typeSelect);
-    expect(guard.shouldDiscardClick()).toBe(true);
+    guard.pointerDown(typeSelect);
+    expect(guard.pointerDown(monthLabelText)).toBe(true);
+    guard.disarm();
+    expect(guard.click(monthLabelText)).toBe(false);
   });
 
-  it('forgets a pending discard when the pointer is cancelled', () => {
+  it('passes taps outside the guarded scope and disarms on them', () => {
     const guard = createSelectDismissTapGuard();
-    guard.focusIn(typeSelect);
-    guard.pointerDown(monthLabelText, typeSelect);
-    guard.pointerCancel();
-    expect(guard.shouldDiscardClick()).toBe(false);
+    guard.pointerDown(typeSelect);
+    expect(tap(guard, listLink)).toEqual(passed);
+    expect(tap(guard, monthLabelText)).toEqual(passed);
+  });
+
+  it('does nothing before any select interaction', () => {
+    const guard = createSelectDismissTapGuard();
+    expect(tap(guard, monthLabelText)).toEqual(passed);
+    expect(tap(guard, applyButton)).toEqual(passed);
+  });
+
+  it('re-arms when the select itself is tapped to open its dialog again', () => {
+    const guard = createSelectDismissTapGuard();
+    expect(tap(guard, typeSelect)).toEqual(passed);
+    expect(tap(guard, monthLabelText)).toEqual(discarded);
+    expect(tap(guard, typeSelect)).toEqual(passed);
+    expect(tap(guard, monthLabelText)).toEqual(discarded);
   });
 });

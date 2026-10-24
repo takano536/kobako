@@ -42,7 +42,7 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 ## Android で選択ダイアログを閉じるタップ
 
-Android のブラウザは、`<select>` のネイティブ選択ダイアログを外側のタップで閉じたとき、そのタップをページ側の要素にも届けます。取引の絞り込みでは閉じるタップが月欄に落ちて月ピッカーが開き、適用ボタンに落ちると送信されるため、ルートレイアウトの `SelectDismissTapGuard` が Android のタッチ端末（UA の `Android` と `maxTouchPoints > 0`）でだけ、そのタップの `click` を捨てます。`<select>` にフォーカスが入った後の最初のタップで、開始時（キャプチャ段階の `pointerdown`）のフォーカスがまだ `<select>` にあり、行き先がフィルタのフォーム・月スイッチャー・日付/月ピッカーなら閉じるタップと判定します。捨てるのは1回だけで、値を選んだ（`change`）後は捨てません。判定は `apps/web/src/lib/select-dismiss-tap.ts` に分け、単体テストで確認します。iOS とデスクトップには取り付けません。
+Android のブラウザは、`<select>` のネイティブ選択ダイアログを外側のタップで閉じたとき、そのタップをページ側の要素にも届けます。取引の絞り込みでは閉じるタップが月欄に落ちて月ピッカーが開き、適用ボタンに落ちると送信されるため、ルートレイアウトの `SelectDismissTapGuard` が Android のタッチ端末（UA の `Android` と `maxTouchPoints > 0`）でだけ、そのタップを捨てます。`<select>` への `pointerdown`／`focusin`／`click` のどれかを見たら待機状態にし、待機中の最初のタップの行き先がフィルタのフォーム・月スイッチャー・日付/月ピッカー（`date`／`month` の input を指すラベルを含む）なら、その `pointerdown` を `preventDefault()` し、続く `click` を `preventDefault()` と `stopPropagation()` で止めます。`pointerdown` を伴わない `click` だけでも捨てます。ブラウザによって `focusin` が来ない、閉じるタップの時点でフォーカスが `<select>` にないといった違いがあるため、`document.activeElement` は判定に使いません。待機はどのタップでも、また `<select>` の `change`、`pointercancel`、ページの `scroll`、`visibilitychange` でも解除するので、続けて2回は捨てません。判定は `apps/web/src/lib/select-dismiss-tap.ts` に分け、単体テストで確認します。iOS とデスクトップには取り付けません。
 
 ## server-only パッケージ
 

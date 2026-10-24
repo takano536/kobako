@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { currentTokyoMonth } from '@kobako/db';
 
@@ -100,6 +100,61 @@ test.describe('select dismiss taps', () => {
       expect(await page.locator('main').innerHTML()).toBe(mainHtml);
       // 直後の本物のタップは通します。
       await tapApply();
+    }
+    await expect(page).toHaveURL(/[?&]type=(&|$)/);
+  });
+
+  test('discards the dismiss tap even when the select never received focus (Firefox order)', async ({
+    page,
+    isMobile,
+  }) => {
+    const typeSelect = page.locator('select[name="type"]');
+    // `focus()` を使わず、select に `pointerdown` だけを届けます（`focusin` なし、フォーカスは body）。
+    const armWithPointerDown = async (next: Locator) => {
+      // 先に表示位置へ動かしておきます（ページのスクロールは待機を解除するため）。
+      await next.scrollIntoViewIfNeeded();
+      await typeSelect.dispatchEvent('pointerdown', { bubbles: true, pointerType: 'touch' });
+      expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('SELECT');
+    };
+    const tapOn = (locator: Locator, position?: { x: number; y: number }) =>
+      isMobile ? locator.tap({ position }) : locator.click({ position });
+    const pickerCalls = () => page.evaluate(() => (window.pickerOpens ?? []).length);
+
+    // 「月」の見出し文字。
+    const monthLabel = page.locator('#filter-month-label');
+    await armWithPointerDown(monthLabel);
+    await tapOn(monthLabel, { x: 8, y: 8 });
+    expect(await monthPickerState(page)).toEqual({ focused: !isMobile, showPickerCalls: 0 });
+    if (isMobile) {
+      await tapOn(monthLabel, { x: 8, y: 8 });
+      expect((await monthPickerState(page)).focused).toBe(true);
+    }
+
+    // ヘッダーの月ラベル（月スイッチャー）。
+    const headerMonth = page.locator('[data-slot="month-switcher-label"]').first();
+    const callsBefore = await pickerCalls();
+    await armWithPointerDown(headerMonth);
+    await tapOn(headerMonth);
+    expect(await pickerCalls()).toBe(callsBefore + (isMobile ? 0 : 1));
+    if (isMobile) {
+      await tapOn(headerMonth);
+      expect(await pickerCalls()).toBe(callsBefore + 1);
+    }
+
+    // 「適用」。
+    const startUrl = page.url();
+    let navigations = 0;
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) navigations += 1;
+    });
+    const apply = page.getByRole('button', { name: '適用', exact: true });
+    await armWithPointerDown(apply);
+    await tapOn(apply);
+    if (isMobile) {
+      await page.waitForTimeout(500);
+      expect(navigations).toBe(0);
+      expect(page.url()).toBe(startUrl);
+      await tapOn(apply);
     }
     await expect(page).toHaveURL(/[?&]type=(&|$)/);
   });

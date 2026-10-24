@@ -1,7 +1,9 @@
 /**
  * Android のブラウザは、ネイティブの選択ダイアログ（`<select>`）を外側のタップで閉じたとき、
  * そのタップをページ側の要素にも届けます。閉じるタップが月欄や日付欄、適用ボタンの上に落ちると、
- * 利用者が意図していないピッカーの起動や送信が起きるため、そのタップの `click` だけを捨てます。
+ * 利用者が意図していないピッカーの起動や送信が起きるため、そのタップを `pointerdown` と `click`
+ * の両方で捨てます。ブラウザごとに `focusin` の有無やフォーカスの移る時点が違うため、
+ * 判定は `document.activeElement` に頼らず、`<select>` への操作を見たかどうかだけで決めます。
  */
 
 /** 判定に使う DOM 要素の最小限の形。テストでは同じ形の偽物を渡します。 */
@@ -35,6 +37,10 @@ function isSelect(element: GuardElement | null): boolean {
   return element?.tagName.toUpperCase() === 'SELECT';
 }
 
+function isInsideSelect(target: unknown): boolean {
+  return Boolean(asElement(target)?.closest('select'));
+}
+
 /** フィルタのフォーム・月スイッチャー・日付/月ピッカー（ラベル経由の起動を含む）なら真。 */
 export function isGuardedTapTarget(value: unknown): boolean {
   const element = asElement(value);
@@ -47,43 +53,70 @@ export function isGuardedTapTarget(value: unknown): boolean {
   );
 }
 
+/** 選択ダイアログを閉じるタップを捨てるガード。各メソッドはキャプチャ段階のイベントから呼びます。 */
+export interface TapGuard {
+  focusIn(target: unknown): void;
+  change(target: unknown): void;
+  disarm(): void;
+  /** 真なら、この `pointerdown` を `preventDefault()` します。 */
+  pointerDown(target: unknown): boolean;
+  /** 真なら、この `click` を `preventDefault()` と `stopPropagation()` で捨てます。 */
+  click(target: unknown): boolean;
+}
+
 /**
- * タップごとの状態を持つガード。イベントの順序は Android Chrome のタップと同じく
- * `pointerdown` → （フォーカス移動）→ `click` を想定します。
+ * タップごとの状態を持つガード。`<select>` への `pointerdown`／`focusin`／`click` のどれかを
+ * 見たら「ダイアログが開いた可能性がある」状態（armed）にし、その間に来た最初の対象へのタップを
+ * 捨てます。armed はどのタップでも下ろすので、続けて2回捨てることはありません。
  */
-export function createSelectDismissTapGuard() {
-  // 選択ダイアログが開いている可能性がある間だけ真。閉じるタップ1回で必ず偽に戻します。
+export function createSelectDismissTapGuard(): TapGuard {
   let armed = false;
+  // `pointerdown` を捨てたタップの、続く `click` も捨てるための印。
   let discardClick = false;
+  const disarm = () => {
+    armed = false;
+    discardClick = false;
+  };
 
   return {
-    /** `<select>` にフォーカスが入った（ダイアログが開いた）。 */
+    /** `<select>` にフォーカスが入った。 */
     focusIn(target: unknown): void {
       if (isSelect(asElement(target))) armed = true;
     },
-    /** 値を選んでダイアログが閉じた。次のタップは本物として通します。 */
+    /** 値を選んでダイアログが閉じた。 */
     change(target: unknown): void {
-      if (isSelect(asElement(target))) armed = false;
+      if (isSelect(asElement(target))) disarm();
     },
-    /** キャプチャ段階の `pointerdown`。この時点のフォーカスで、閉じるタップかを決めます。 */
-    pointerDown(target: unknown, activeElement: unknown): void {
-      const element = asElement(target);
-      if (element?.closest('select')) {
-        // select 自体のタップはダイアログを開くタップ。
+    /** `pointercancel`・ページのスクロール・タブの切り替えで、待機と捨てる予定を取り消します。 */
+    disarm,
+    /** キャプチャ段階の `pointerdown`。真なら、この `pointerdown` を `preventDefault()` します。 */
+    pointerDown(target: unknown): boolean {
+      if (isInsideSelect(target)) {
         armed = true;
         discardClick = false;
-        return;
+        return false;
       }
-      discardClick = armed && isSelect(asElement(activeElement)) && isGuardedTapTarget(element);
+      const discard = armed && isGuardedTapTarget(target);
       armed = false;
+      discardClick = discard;
+      return discard;
     },
-    pointerCancel(): void {
-      discardClick = false;
-    },
-    /** キャプチャ段階の `click`。捨てるべきなら真を返し、状態を戻します。 */
-    shouldDiscardClick(): boolean {
-      const discard = discardClick;
-      discardClick = false;
+    /**
+     * キャプチャ段階の `click`。真なら `preventDefault()` と `stopPropagation()` で捨てます。
+     * `pointerdown` を伴わない合成クリックでも、armed なら対象へのクリックを捨てます。
+     */
+    click(target: unknown): boolean {
+      if (isInsideSelect(target)) {
+        armed = true;
+        discardClick = false;
+        return false;
+      }
+      if (discardClick) {
+        discardClick = false;
+        return true;
+      }
+      const discard = armed && isGuardedTapTarget(target);
+      armed = false;
       return discard;
     },
   };

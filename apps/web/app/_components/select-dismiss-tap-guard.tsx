@@ -17,27 +17,34 @@ export function SelectDismissTapGuard() {
     const guard = createSelectDismissTapGuard();
     const handleFocusIn = (event: FocusEvent) => guard.focusIn(event.target);
     const handleChange = (event: Event) => guard.change(event.target);
-    const handlePointerDown = (event: PointerEvent) =>
-      guard.pointerDown(event.target, document.activeElement);
-    const handlePointerCancel = () => guard.pointerCancel();
+    const handlePointerDown = (event: PointerEvent) => {
+      // 閉じるタップのフォーカス移動・既定動作を、`click` を待たずに止めます。
+      if (guard.pointerDown(event.target)) event.preventDefault();
+    };
     const handleClick = (event: MouseEvent) => {
-      if (!guard.shouldDiscardClick()) return;
+      if (!guard.click(event.target)) return;
       // ラベル経由のピッカー起動・送信・リンク遷移と、React のハンドラーの両方を止めます。
       event.preventDefault();
       event.stopPropagation();
     };
-    const options = { capture: true } as const;
-    window.addEventListener('focusin', handleFocusIn, options);
-    window.addEventListener('change', handleChange, options);
-    window.addEventListener('pointerdown', handlePointerDown, options);
-    window.addEventListener('pointercancel', handlePointerCancel, options);
-    window.addEventListener('click', handleClick, options);
+    const handleDisarm = guard.disarm;
+    const capture = { capture: true } as const;
+    const passive = { passive: true } as const;
+    window.addEventListener('focusin', handleFocusIn, capture);
+    window.addEventListener('change', handleChange, capture);
+    window.addEventListener('pointerdown', handlePointerDown, capture);
+    window.addEventListener('pointercancel', handleDisarm, capture);
+    window.addEventListener('click', handleClick, capture);
+    window.addEventListener('scroll', handleDisarm, passive);
+    document.addEventListener('visibilitychange', handleDisarm);
     return () => {
-      window.removeEventListener('focusin', handleFocusIn, options);
-      window.removeEventListener('change', handleChange, options);
-      window.removeEventListener('pointerdown', handlePointerDown, options);
-      window.removeEventListener('pointercancel', handlePointerCancel, options);
-      window.removeEventListener('click', handleClick, options);
+      window.removeEventListener('focusin', handleFocusIn, capture);
+      window.removeEventListener('change', handleChange, capture);
+      window.removeEventListener('pointerdown', handlePointerDown, capture);
+      window.removeEventListener('pointercancel', handleDisarm, capture);
+      window.removeEventListener('click', handleClick, capture);
+      window.removeEventListener('scroll', handleDisarm);
+      document.removeEventListener('visibilitychange', handleDisarm);
     };
   }, []);
   return null;
