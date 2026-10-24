@@ -39,9 +39,10 @@ function transactionLabel(transaction: ListedTransaction, showMemo: boolean): st
     formatJapaneseDate(transaction.occurredOn),
     typeLabel(transaction.type),
     transaction.categoryName,
+    transaction.origin === 'api' ? 'API' : null,
     ...details,
     amount,
-  ].join(' ');
+  ].filter((value): value is string => value !== null).join(' ');
 }
 
 export function TransactionRow({
@@ -96,6 +97,15 @@ export function TransactionRow({
             >
               {transaction.categoryName}
             </span>
+            {transaction.origin === 'api' ? (
+              <span
+                data-slot="origin-badge"
+                className={transactionStyles['origin-badge']}
+                aria-hidden="true"
+              >
+                API
+              </span>
+            ) : null}
           </span>
           <span data-slot="transaction-main" className={transactionStyles['transaction-main']}>
             {assetName ? (
@@ -145,13 +155,24 @@ export function TransactionRow({
         scroll={false}
         aria-label={label}
       >
-        <CategoryDot type={transaction.type} name={transaction.categoryName} />
-        <span
-          data-slot="transaction-category"
-          className={transactionStyles['transaction-category']}
-          title={transaction.categoryName}
-        >
-          {transaction.categoryName}
+        <span className={transactionStyles['transaction-category-cell']}>
+          <CategoryDot type={transaction.type} name={transaction.categoryName} />
+          <span
+            data-slot="transaction-category"
+            className={transactionStyles['transaction-category']}
+            title={transaction.categoryName}
+          >
+            {transaction.categoryName}
+          </span>
+          {transaction.origin === 'api' ? (
+              <span
+                data-slot="origin-badge"
+                className={transactionStyles['origin-badge']}
+                aria-hidden="true"
+              >
+                API
+              </span>
+            ) : null}
         </span>
         <span data-slot="transaction-main" className={transactionStyles['transaction-main']}>
           {assetName ? (

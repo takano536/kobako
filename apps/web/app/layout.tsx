@@ -10,6 +10,7 @@ import { THEME_COLORS } from '../src/lib/theme';
 import { PrefetchLink } from './_components/prefetch-link';
 import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
 import { ThemeScript } from './_components/theme-script';
+import { OriginBadgeScript } from './_components/origin-badge-script';
 import {
   SiteBrand,
   SiteNav,
@@ -47,6 +48,7 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <OriginBadgeScript />
       </head>
       <body>
         <NavigationShellProvider>

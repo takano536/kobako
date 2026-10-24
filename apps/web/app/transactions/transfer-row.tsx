@@ -24,7 +24,7 @@ export function TransferRow({
   selectedMonth?: string | null;
 }) {
   const editHref = transferEditHref(transfer.id, selectedMonth);
-  const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}`;
+  const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}${transfer.origin === 'api' ? ' API' : ''}`;
   return (
     <li data-slot="transaction-row" className={transactionStyles['transaction-row']}>
       {dateHeading ? (
@@ -81,6 +81,15 @@ export function TransferRow({
                 <span>{transfer.toAccountName}</span>
               </span>
             </span>
+            {transfer.origin === 'api' ? (
+              <span
+                data-slot="origin-badge"
+                className={transactionStyles['origin-badge']}
+                aria-hidden="true"
+              >
+                API
+              </span>
+            ) : null}
           </span>
           {showMemo && transfer.memo ? (
             <span

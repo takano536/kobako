@@ -29,6 +29,7 @@ import {
   type Category,
   type NewTransaction,
   type Transaction,
+  type TransactionOriginValue,
   type TransactionType,
   type Transfer,
 } from './schema.js';
@@ -223,6 +224,8 @@ export interface TransactionFilters {
   type?: TransactionType;
   categoryId?: number;
   accountId?: number;
+  /** `api` narrows the list to rows written by an external program. */
+  origin?: TransactionOriginValue;
   limit?: number;
   offset?: number;
 }
@@ -232,6 +235,8 @@ export interface LedgerEntryFilters {
   type?: TransactionType | 'transfer';
   categoryId?: number;
   accountId?: number;
+  /** `api` narrows the list to rows written by an external program. */
+  origin?: TransactionOriginValue;
 }
 
 export interface ListedTransaction {
@@ -244,6 +249,7 @@ export interface ListedTransaction {
   accountId: number | null;
   accountName: string | null;
   memo: string;
+  origin: TransactionOriginValue;
 }
 
 export interface ListedTransfer {
@@ -256,6 +262,7 @@ export interface ListedTransfer {
   toAccountId: number;
   toAccountName: string;
   memo: string;
+  origin: TransactionOriginValue;
 }
 
 export type ListedLedgerEntry = ListedTransaction | ListedTransfer;
@@ -288,6 +295,9 @@ function transactionConditions(householdId: string, filters: TransactionFilters)
   if (filters.accountId !== undefined) {
     conditions.push(eq(transactions.accountId, filters.accountId));
   }
+  if (filters.origin) {
+    conditions.push(eq(transactions.origin, filters.origin));
+  }
   return conditions;
 }
 
@@ -307,6 +317,7 @@ export async function listTransactions(
       accountId: transactions.accountId,
       accountName: accounts.name,
       memo: transactions.memo,
+      origin: transactions.origin,
     })
     .from(transactions)
     .innerJoin(
@@ -354,6 +365,10 @@ export async function listLedgerEntries(
   if (filters.categoryId && filters.type !== 'transfer') {
     transactionWhere.push(eq(transactions.categoryId, filters.categoryId));
   }
+  if (filters.origin) {
+    transactionWhere.push(eq(transactions.origin, filters.origin));
+    transferWhere.push(eq(transfers.origin, filters.origin));
+  }
   if (filters.accountId !== undefined) {
     transactionWhere.push(eq(transactions.accountId, filters.accountId));
     transferWhere.push(
@@ -379,7 +394,8 @@ export async function listLedgerEntries(
         null::text as from_account_name,
         null::integer as to_account_id,
         null::text as to_account_name,
-        ${transactions.memo} as memo
+        ${transactions.memo} as memo,
+        ${transactions.origin}::text as origin
       from ${transactions}
       inner join ${categories}
         on ${categories.id} = ${transactions.categoryId}
@@ -408,7 +424,8 @@ export async function listLedgerEntries(
         ${fromAccounts.name} as from_account_name,
         ${transfers.toAccountId} as to_account_id,
         ${toAccounts.name} as to_account_name,
-        ${transfers.memo} as memo
+        ${transfers.memo} as memo,
+        ${transfers.origin}::text as origin
       from ${transfers}
       inner join ${accounts} as transfer_from_accounts
         on ${fromAccounts.id} = ${transfers.fromAccountId}
@@ -434,6 +451,7 @@ export async function listLedgerEntries(
     to_account_id: number | null;
     to_account_name: string | null;
     memo: string;
+    origin: TransactionOriginValue;
   }>(
     db,
     sql`
@@ -454,6 +472,7 @@ export async function listLedgerEntries(
           toAccountId: row.to_account_id!,
           toAccountName: row.to_account_name!,
           memo: row.memo,
+          origin: row.origin,
         }
       : {
           id: row.id,
@@ -465,6 +484,7 @@ export async function listLedgerEntries(
           accountId: row.account_id,
           accountName: row.account_name,
           memo: row.memo,
+          origin: row.origin,
         },
   );
 }
@@ -485,6 +505,7 @@ export async function getTransaction(
       accountId: transactions.accountId,
       accountName: accounts.name,
       memo: transactions.memo,
+      origin: transactions.origin,
     })
     .from(transactions)
     .innerJoin(
@@ -521,6 +542,7 @@ export async function getTransfer(
       toAccountId: transfers.toAccountId,
       toAccountName: toAccounts.name,
       memo: transfers.memo,
+      origin: transfers.origin,
     })
     .from(transfers)
     .innerJoin(

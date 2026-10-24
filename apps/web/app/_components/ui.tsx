@@ -231,6 +231,7 @@ export function FilterBar({
   type,
   categoryId,
   accountId,
+  origin,
   categories,
   accounts,
   summary,
@@ -240,6 +241,7 @@ export function FilterBar({
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
+  origin?: 'api';
   categories: readonly FilterCategory[];
   accounts?: readonly FilterAccount[];
   summary?: string;
@@ -254,7 +256,7 @@ export function FilterBar({
   const clearParams = new URLSearchParams({ month });
   if (accountId !== undefined) clearParams.set('account', String(accountId));
   const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
-  const hasAdditionalFilter = Boolean(type || categoryId);
+  const hasAdditionalFilter = Boolean(type || categoryId || origin);
   return (
     <section
       className={uiStyles['filter-bar']}
@@ -334,6 +336,10 @@ export function FilterBar({
               </select>
             </label>
           ) : null}
+          <label className={uiStyles['filter-checkbox']}>
+            <input type="checkbox" name="origin" value="api" defaultChecked={origin === 'api'} />
+            APIのみ
+          </label>
           <Button type="submit">適用</Button>
         </form>
       </details>

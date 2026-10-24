@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { ActionLink, PageShell } from '../_components/ui';
 import { PageHeader } from '../_components/page-header';
 import { AppearanceSettings } from './appearance-settings';
+import { OriginBadgeSetting } from './origin-badge-setting';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -33,6 +34,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         >
           <h2 id="appearance-title">外観</h2>
           <AppearanceSettings labelledBy="appearance-title" />
+          <OriginBadgeSetting />
         </section>
         <section
           className={settingsStyles['settings-list-section']}
