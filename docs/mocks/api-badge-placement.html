@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API印の位置 — 案比較</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fcfcf8; --ink: #1c1b19; --muted: #68736c; --rule: #dfe3da;
+    --accent: #426d59; --on-accent: #fff; --surface: #f8faf5; --page: #f2f2ec;
+    --neg: #a8442f; --pos: #2f6b52;
+  }
+  [data-theme='dark'] {
+    --paper: #1a1f1c; --ink: #e6ebe6; --muted: #a2ada5; --rule: #343d37;
+    --accent: #8cc4a6; --on-accent: #142019; --surface: #1f2521; --page: #121613;
+    --neg: #e08f7c; --pos: #9ad3b4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 24px 64px; background: var(--page); color: var(--ink);
+    font-family: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .lead { color: var(--muted); font-size: 12px; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+  .card { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 14px 8px; }
+  .card.dark { background: var(--paper); }
+  .card h2 { font-size: 13px; margin: 0 0 2px; }
+  .card h2 .tag { font-size: 11px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .note { color: var(--muted); font-size: 11px; margin: 0 0 10px; }
+  .rows { border-top: 1px solid var(--rule); }
+  .row {
+    display: grid; grid-template-columns: 0.375rem minmax(0, 1fr) minmax(0, 1.5fr) max-content 0.5rem;
+    align-items: center; gap: 0.5rem; padding: 9px 0; border-bottom: 1px solid var(--rule);
+    text-decoration: none; color: inherit; position: relative;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .cat { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 500; }
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .account { font-size: 12px; color: var(--muted); }
+  .memo { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .amount { font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; }
+  .neg { color: var(--neg); } .pos { color: var(--pos); }
+  .chev { color: var(--muted); font-size: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 15px; padding: 0 5px; border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent); font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+  }
+
+  /* B: 行頭の縦バー */
+  .v-bar .row.api { box-shadow: inset 2px 0 0 var(--accent); padding-left: 8px; }
+  .v-bar .row.api .dot { background: var(--accent); }
+
+  /* C: ドット置換（テキスト無し） */
+  .v-dot .row.api .dot { width: 8px; height: 8px; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+  /* D: メモ行の末尾に小さな文字 */
+  .v-inline .memo-api { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; margin-left: 6px; }
+
+  /* E: 行の淡いハイライト + 金額下の文字 */
+  .v-tint .row.api { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .v-tint .row.api { margin-inline: -8px; padding-inline: 8px; border-radius: 6px; }
+  .v-tint .amount-box { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .v-tint .api-tag { font-size: 9px; color: var(--accent); letter-spacing: 0.05em; }
+  /* A: 現状（カテゴリ名の直後）はそのまま */
+
+  .narrow { width: 375px; }
+  .narrow .row { grid-template-columns: 0.375rem minmax(0, 1fr) minmax(0, 1.1fr) max-content 0.4rem; }
+  .narrow .cat { font-size: 13px; }
+  .section-title { font-size: 12px; color: var(--muted); margin: 32px 0 10px; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+<h1>API印の位置 — 案比較</h1>
+<p class="lead">同じ3行（API支出・API振替・手入力支出）を、印の置き方だけ変えて並べています。下段は375px幅。<br>
+押せる要素は増やしていません（行タップで詳細へ）。</p>
+
+<div class="grid">
+  <div class="card">
+    <h2>A. カテゴリ名の直後<span class="tag">現状</span></h2>
+    <p class="note">カテゴリの語のすぐ右に小さな緑ラベル。狭い幅ではカテゴリの下段に落ちる。</p>
+    <div class="rows">
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">食費 <span class="badge">API</span></span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">振替 <span class="badge">API</span></span>
+        <span class="main"><span class="account">給与口座 → 現金</span><span class="memo">ATMで引き出し</span></span>
+        <span class="amount">20,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount neg">−85,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card v-bar">
+    <h2>B. 行の左端に縦バー<span class="tag">テキスト無し</span></h2>
+    <p class="note">カテゴリ列の外側に2pxの緑線。印というより「由来の帯」。文字が増えないので行が静か。</p>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">振替</span>
+        <span class="main"><span class="account">給与口座 → 現金</span><span class="memo">ATMで引き出し</span></span>
+        <span class="amount">20,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount neg">−85,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card v-dot">
+    <h2>C. カテゴリの点を置き換える<span class="tag">テキスト無し</span></h2>
+    <p class="note">行の先頭にある丸を、API由来だけ大きく緑に。既存の要素を置き換えるので横幅が増えない。</p>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">振替</span>
+        <span class="main"><span class="account">給与口座 → 現金</span><span class="memo">ATMで引き出し</span></span>
+        <span class="amount">20,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount neg">−85,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card v-inline">
+    <h2>D. メモの末尾に小さく「API」<span class="tag">テキスト</span></h2>
+    <p class="note">2行目の補足の続きとして薄く置く。カテゴリ列を圧迫しないが、視線が右へ流れる。</p>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食<span class="memo-api">API</span></span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">振替</span>
+        <span class="main"><span class="account">給与口座 → 現金</span><span class="memo">ATMで引き出し<span class="memo-api">API</span></span></span>
+        <span class="amount">20,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount neg">−85,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card v-tint">
+    <h2>E. 行を淡く塗る + 金額の下<span class="tag">テキスト</span></h2>
+    <p class="note">行全体で「API由来」を示し、金額の下に小さく文字。差は一番強いが、色面が増える。</p>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount-box"><span class="amount neg">−42,000円</span><span class="api-tag">API</span></span><span class="chev">›</span>
+      </a>
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">振替</span>
+        <span class="main"><span class="account">給与口座 → 現金</span><span class="memo">ATMで引き出し</span></span>
+        <span class="amount-box"><span class="amount">20,000円</span><span class="api-tag">API</span></span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount-box"><span class="amount neg">−85,000円</span></span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="card dark" data-theme="dark">
+    <h2>A〜E のダーク<span class="tag">A / B / C の順</span></h2>
+    <p class="note">暗い背景でどう見えるか（A、B、Cを縦に）。</p>
+    <div class="rows">
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">食費 <span class="badge">API</span></span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+    <div class="rows v-bar">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+    <div class="rows v-dot">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード <span class="badge">API</span></span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+    <p class="note" style="margin:6px 0 8px">上から A / B / C / F</p>
+  </div>
+
+  <div class="card">
+    <h2>F. 口座名の右に置く<span class="tag">テキスト</span></h2>
+    <p class="note">2行目の主役（口座名）に添える。カテゴリ列を圧迫せず、由来の説明として読める。</p>
+    <div class="rows">
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">食費</span>
+        <span class="main"><span class="account">クレジットカード <span class="badge">API</span></span><span class="memo">スーパー・外食</span></span>
+        <span class="amount neg">−42,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row api">
+        <span class="dot"></span>
+        <span class="cat">振替</span>
+        <span class="main"><span class="account">給与口座 → 現金 <span class="badge">API</span></span><span class="memo">ATMで引き出し</span></span>
+        <span class="amount">20,000円</span><span class="chev">›</span>
+      </a>
+      <a class="row">
+        <span class="dot"></span>
+        <span class="cat">住居</span>
+        <span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span>
+        <span class="amount neg">−85,000円</span><span class="chev">›</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<p class="section-title">375px（A / B / C / D の順）</p>
+<div class="grid">
+  <div class="card narrow">
+    <h2>A</h2>
+    <div class="rows">
+      <a class="row"><span class="dot"></span><span class="cat">食費 <span class="badge">API</span></span><span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span><span class="amount neg">−42,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">水道・光熱 <span class="badge">API</span></span><span class="main"><span class="account">生活費口座</span><span class="memo">電気・ガス</span></span><span class="amount neg">−12,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">住居</span><span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span><span class="amount neg">−85,000円</span><span class="chev">›</span></a>
+    </div>
+  </div>
+  <div class="card narrow v-bar">
+    <h2>B</h2>
+    <div class="rows">
+      <a class="row api"><span class="dot"></span><span class="cat">食費</span><span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span><span class="amount neg">−42,000円</span><span class="chev">›</span></a>
+      <a class="row api"><span class="dot"></span><span class="cat">水道・光熱</span><span class="main"><span class="account">生活費口座</span><span class="memo">電気・ガス</span></span><span class="amount neg">−12,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">住居</span><span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span><span class="amount neg">−85,000円</span><span class="chev">›</span></a>
+    </div>
+  </div>
+  <div class="card narrow v-dot">
+    <h2>C</h2>
+    <div class="rows">
+      <a class="row api"><span class="dot"></span><span class="cat">食費</span><span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食</span></span><span class="amount neg">−42,000円</span><span class="chev">›</span></a>
+      <a class="row api"><span class="dot"></span><span class="cat">水道・光熱</span><span class="main"><span class="account">生活費口座</span><span class="memo">電気・ガス</span></span><span class="amount neg">−12,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">住居</span><span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span><span class="amount neg">−85,000円</span><span class="chev">›</span></a>
+    </div>
+  </div>
+  <div class="card narrow v-inline">
+    <h2>D</h2>
+    <div class="rows">
+      <a class="row api"><span class="dot"></span><span class="cat">食費</span><span class="main"><span class="account">クレジットカード</span><span class="memo">スーパー・外食<span class="memo-api">API</span></span></span><span class="amount neg">−42,000円</span><span class="chev">›</span></a>
+      <a class="row api"><span class="dot"></span><span class="cat">水道・光熱</span><span class="main"><span class="account">生活費口座</span><span class="memo">電気・ガス<span class="memo-api">API</span></span></span><span class="amount neg">−12,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">住居</span><span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span><span class="amount neg">−85,000円</span><span class="chev">›</span></a>
+    </div>
+  </div>
+  <div class="card narrow">
+    <h2>F</h2>
+    <div class="rows">
+      <a class="row api"><span class="dot"></span><span class="cat">食費</span><span class="main"><span class="account">クレジットカード <span class="badge">API</span></span><span class="memo">スーパー・外食</span></span><span class="amount neg">−42,000円</span><span class="chev">›</span></a>
+      <a class="row api"><span class="dot"></span><span class="cat">水道・光熱</span><span class="main"><span class="account">生活費口座 <span class="badge">API</span></span><span class="memo">電気・ガス</span></span><span class="amount neg">−12,000円</span><span class="chev">›</span></a>
+      <a class="row"><span class="dot"></span><span class="cat">住居</span><span class="main"><span class="account">生活費口座</span><span class="memo">家賃</span></span><span class="amount neg">−85,000円</span><span class="chev">›</span></a>
+    </div>
+  </div>
+</div>
+</body>
+</html>
