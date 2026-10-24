@@ -40,6 +40,10 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 `OverlayCard` は、デスクトップ（`pointer: fine`）では表示時に金額欄・名前欄へ自動フォーカスし、タッチ端末（`pointer: coarse`）では入力欄へフォーカスせずカード自体（`tabIndex=-1` の `role="dialog"`）へフォーカスします。タッチ端末で入力欄へフォーカスすると、カードを開いただけでソフトキーボードが開き、カードの内容を隠すためです。「戻る」ボタンではなくカードを選んだのは、スクリーンリーダーがダイアログ名から読み上げ、誤って戻る操作を起こさないためです。判定は追加依存なしの `matchMedia` で初回マウント時に1回だけ行います。
 
+## Android で選択ダイアログを閉じるタップ
+
+Android のブラウザは、`<select>` のネイティブ選択ダイアログを外側のタップで閉じたとき、そのタップをページ側の要素にも届けます。取引の絞り込みでは閉じるタップが月欄に落ちて月ピッカーが開き、適用ボタンに落ちると送信されるため、ルートレイアウトの `SelectDismissTapGuard` が Android のタッチ端末（UA の `Android` と `maxTouchPoints > 0`）でだけ、そのタップの `click` を捨てます。`<select>` にフォーカスが入った後の最初のタップで、開始時（キャプチャ段階の `pointerdown`）のフォーカスがまだ `<select>` にあり、行き先がフィルタのフォーム・月スイッチャー・日付/月ピッカーなら閉じるタップと判定します。捨てるのは1回だけで、値を選んだ（`change`）後は捨てません。判定は `apps/web/src/lib/select-dismiss-tap.ts` に分け、単体テストで確認します。iOS とデスクトップには取り付けません。
+
 ## server-only パッケージ
 
 `server-only` パッケージは依存に追加していません。DB client と household 解決は `apps/web/src/lib/ledger-data.ts` に置き、`apps/web/app/settings/import/actions.ts` は `'use server'` で XLSX 解析と DB 操作を実行します。`import-form.tsx` は Server Action の参照と型だけを持ち、`state.ts` は型 import だけです。`page.tsx` は Server Component です。

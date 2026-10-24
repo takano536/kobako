@@ -9,6 +9,7 @@ import { KobakoMark } from '../src/lib/category';
 import { THEME_COLORS } from '../src/lib/theme';
 import { PrefetchLink } from './_components/prefetch-link';
 import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
+import { SelectDismissTapGuard } from './_components/select-dismiss-tap-guard';
 import { ThemeScript } from './_components/theme-script';
 import {
   SiteBrand,
@@ -49,6 +50,7 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body>
+        <SelectDismissTapGuard />
         <NavigationShellProvider>
           <div data-slot="app-shell" className={layoutStyles['app-shell']}>
             <header data-slot="site-header" className={layoutStyles['site-header']}>
