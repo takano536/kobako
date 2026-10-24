@@ -311,6 +311,14 @@
     padding-inline-start: calc(0.375rem + var(--space-dot-text));
   }
 
+  /* 狭い幅ではカテゴリ列が 4rem しかなく、横に並べるとカテゴリ名が1文字ずつ折り返すため印を下段へ送る。 */
+  .transaction-category-cell > .origin-badge {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    margin-inline-start: calc(0.375rem + var(--space-dot-text));
+  }
+
   .transaction-list .transaction-link > .row-affordance {
     display: block;
   }
