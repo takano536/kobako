@@ -275,7 +275,8 @@ export function FilterBar({
           ) : null}
         </summary>
         <form data-slot="filter-form" className={uiStyles['filter-form']} method="get">
-          <label id="filter-month-label" htmlFor="filter-month">
+          {/* 月欄はラベルが中の操作要素（select、または月グリッドの表示ボタン）を包んで関連づけます。 */}
+          <label id="filter-month-label">
             月
             {accountId !== undefined ? (
               <select id="filter-month" name="month" defaultValue={month}>
@@ -288,7 +289,6 @@ export function FilterBar({
                 name="month"
                 value={month}
                 labelId="filter-month-label"
-                wrappedByLabel
               />
             )}
           </label>

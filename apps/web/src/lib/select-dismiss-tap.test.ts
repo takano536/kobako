@@ -72,6 +72,11 @@ describe('isGuardedTapTarget', () => {
     ).toBe(true);
   });
 
+  it('covers month buttons in the month grid popover rendered under the body', () => {
+    const popover = element('DIV', { matches: ['[data-slot="month-picker-popover"]'] });
+    expect(isGuardedTapTarget(element('BUTTON', { parent: popover }))).toBe(true);
+  });
+
   it('leaves other controls and non-elements alone', () => {
     expect(isGuardedTapTarget(amountLabel)).toBe(false);
     expect(isGuardedTapTarget(listLink)).toBe(false);

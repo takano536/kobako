@@ -26,6 +26,7 @@ import {
   assertDeleteModalInteraction,
   type ModalViewport,
 } from './delete-modal-helpers';
+import { openMonthPicker, pickMonthInGrid } from './month-picker';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -1084,32 +1085,28 @@ test('opens the month picker from the month label and keeps the running filters'
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/?month=${month}`);
-  await page.locator('[data-slot="month-switcher-label"]').click();
-  // デスクトップは showPicker() で開きます。Android のタッチ端末はラベルから隠れた input への
-  // 既定の起動に任せ、showPicker() は呼びません（input がアクティブになります）。
-  expect(
-    await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
-  ).toEqual(isMobile ? [] : ['month']);
-  if (isMobile) {
-    await expect(page.locator('[data-slot="month-switcher"] input[type="month"]')).toBeFocused();
-  }
-
-  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  const label = page.locator('[data-slot="month-switcher-label"]');
+  // 月はアプリ内の月グリッドで選び、ネイティブのピッカー（showPicker()）は使いません。
+  await openMonthPicker(page, label, isMobile);
+  await pickMonthInGrid(page, nextMonth, isMobile);
   await expect(page).toHaveURL(
     (url) => url.pathname === '/' && url.searchParams.get('month') === nextMonth,
   );
-  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
+  await expect(label).toHaveText(nextMonthLabel);
 
   await page.goto(`/transactions?month=${month}&type=expense`);
-  await page.locator('[data-slot="month-switcher-label"]').click();
-  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  await openMonthPicker(page, label, isMobile);
+  await pickMonthInGrid(page, nextMonth, isMobile);
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === '/transactions' &&
       url.searchParams.get('month') === nextMonth &&
       url.searchParams.get('type') === 'expense',
   );
-  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
+  await expect(label).toHaveText(nextMonthLabel);
+  expect(
+    await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
+  ).toEqual([]);
 });
 
 test('supports keyboard entry and mobile layout for an ordinary transaction', async ({ page }) => {
@@ -1706,9 +1703,8 @@ test('formats date and month controls independently of browser locale', async ({
 
     await page.getByText('条件を変更する', { exact: true }).click();
     await expect(page.locator('[data-slot="month-picker-display"]')).toHaveText(expectedMonth);
-    const monthInput = page.locator('input[type="month"][name="month"]');
-    await monthInput.fill(month);
-    await expect(monthInput).toHaveValue(month);
+    const monthValue = page.locator('input[type="hidden"][name="month"]');
+    await expect(monthValue).toHaveValue(month);
   } finally {
     await context.close();
   }

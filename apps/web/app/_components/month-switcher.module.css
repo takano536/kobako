@@ -89,41 +89,18 @@ button.control {
   width: 100%;
 }
 
-/* The picker label is a `<label htmlFor>` for the hidden month input (it used to be a
-   button), so it carries the same pointer, hover, and focus treatment as a button. */
-button.label,
-label.label {
+button.label {
   cursor: pointer;
   transition: color var(--motion-fast) var(--ease-standard);
-  -webkit-tap-highlight-color: transparent;
 }
 
-button.label:hover,
-label.label:hover {
+button.label:hover {
   color: var(--ink);
-}
-
-label.label:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .control,
-  button.label,
-  label.label {
+  button.label {
     transform: none;
     transition: none;
   }

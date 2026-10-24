@@ -1,17 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useId, useRef } from 'react';
 
-import { handlePickerDisplayClick, handlePickerDisplayKeyDown } from './native-picker';
+import { MonthPicker } from './month-picker';
 import { useNavigationShell } from './navigation-shell-context';
 import styles from './month-switcher.module.css';
 
 /**
- * The month label of the switcher. Tapping it opens the browser's month picker and
- * the chosen month keeps the filters that are already on the list URL. The label is a
- * `<label htmlFor>` for the hidden month input, so Android touch devices open the picker
- * through the label's native activation instead of `showPicker()`.
+ * The month label of the switcher. Tapping it opens the in-app month grid, and the chosen
+ * month keeps the filters that are already on the list URL.
  */
 export function MonthSelect({
   month,
@@ -26,11 +23,8 @@ export function MonthSelect({
 }) {
   const router = useRouter();
   const shell = useNavigationShell();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputId = useId();
 
-  function handleChange(value: string): void {
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return;
+  function handleSelect(value: string): void {
     const params = new URLSearchParams();
     for (const [key, entry] of Object.entries(query ?? {})) {
       if (entry === undefined || entry === '') continue;
@@ -45,28 +39,15 @@ export function MonthSelect({
 
   return (
     <span className={styles.select}>
-      <label
-        htmlFor={inputId}
-        data-slot="month-switcher-label"
-        className={styles.label}
-        role="button"
-        tabIndex={0}
-        aria-label={`月を選択（${label}）`}
-        onClick={(event) => handlePickerDisplayClick(event, inputRef.current)}
-        onKeyDown={(event) => handlePickerDisplayKeyDown(event, inputRef.current)}
+      <MonthPicker
+        value={month}
+        onSelect={handleSelect}
+        displaySlot="month-switcher-label"
+        displayClassName={styles.label}
+        ariaLabel={`月を選択（${label}）`}
       >
         {label}
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="month"
-          className={styles.input}
-          value={month}
-          aria-hidden="true"
-          tabIndex={-1}
-          onChange={(event) => handleChange(event.currentTarget.value)}
-        />
-      </label>
+      </MonthPicker>
     </span>
   );
 }

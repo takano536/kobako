@@ -1,0 +1,102 @@
+/* アプリ内の月選択のポップオーバー。`<body>` 直下に fixed で置き、下部ナビゲーション（20）より上、
+   オーバーレイカード（50）より下に重ねます。 */
+.popover {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  width: 15rem;
+  max-width: calc(100vw - 16px);
+  padding: var(--space-item);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: var(--text-body);
+}
+
+.yearRow {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+}
+
+.year {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+/* `.filter-form button` などの配置指定に負けないよう、クラスを2つ重ねます。 */
+.popover .yearStep,
+.popover .month {
+  justify-self: stretch;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.popover .yearStep {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--accent);
+}
+
+.popover .yearStep:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.4;
+}
+
+.chevron {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-within);
+}
+
+.popover .month {
+  min-height: 44px;
+  padding: 0;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.popover .yearStep:not(:disabled):hover,
+.popover .month:hover {
+  background: var(--surface-hover);
+}
+
+.popover .month[aria-pressed='true'] {
+  background: var(--button-primary);
+  color: var(--on-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover .yearStep,
+  .popover .month {
+    transition: none;
+  }
+}

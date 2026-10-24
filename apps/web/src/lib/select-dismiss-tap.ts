@@ -13,12 +13,16 @@ export interface GuardElement {
   readonly control?: { readonly tagName: string; readonly type?: string } | null;
 }
 
-/** 選択ダイアログを閉じるタップが落ちたときに捨てる対象。 */
+/**
+ * 選択ダイアログを閉じるタップが落ちたときに捨てる対象。月グリッドのポップオーバーは `<body>` 直下に
+ * 出るため、フィルタや月スイッチャーの中にはありません。閉じるタップで月が選ばれないよう明示します。
+ */
 const GUARDED_SCOPE_SELECTOR = [
   '[data-slot="filter-form"]',
   '[data-slot="month-switcher"]',
   '[data-slot="date-picker-display"]',
   '[data-slot="month-picker-display"]',
+  '[data-slot="month-picker-popover"]',
 ].join(', ');
 
 export function isAndroidTouchDevice(userAgent: string, maxTouchPoints: number): boolean {

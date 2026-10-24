@@ -1,8 +1,9 @@
 import { isAndroidTouchDevice } from '../../src/lib/select-dismiss-tap';
 
 /**
- * Open the browser's own picker for a hidden date or month input. Some browsers
+ * Open the browser's own picker for a hidden date input. Some browsers
  * reject showPicker() unless the input is focused first, so fall back to click().
+ * 月の選択はアプリ内の月グリッド（`month-picker.tsx`）で行い、ネイティブのピッカーは使いません。
  */
 export function openNativePicker(input: HTMLInputElement): void {
   const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
@@ -19,12 +20,11 @@ export function openNativePicker(input: HTMLInputElement): void {
 }
 
 /**
- * 月・日付の表示部（`<label htmlFor>`、またはラベルの中の要素）のクリック。
+ * 日付の表示部（`<label htmlFor>`）のクリック。
  *
  * Android のタッチ端末では何もせず、ラベルから隠れた input への既定の起動に任せます。
- * Android Firefox では `showPicker()` で開いたピッカーが、別のネイティブダイアログ（`<select>`）を
- * 閉じたときに勝手に開き直るためです。それ以外の端末では、ラベルの既定動作は input に
- * フォーカスを移すだけでピッカーを開かないため、既定動作を止めて `showPicker()` で開きます。
+ * それ以外の端末では、ラベルの既定動作は input にフォーカスを移すだけでピッカーを開かないため、
+ * 既定動作を止めて `showPicker()` で開きます。
  */
 export function handlePickerDisplayClick(
   event: { target: EventTarget | null; preventDefault(): void },
