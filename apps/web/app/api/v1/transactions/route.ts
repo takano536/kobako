@@ -8,6 +8,7 @@ import {
 
 import {
   apiError,
+  batchResponse,
   handleApi,
   invalidBody,
   ledgerDatabase,
@@ -88,23 +89,14 @@ export function POST(request: Request): Promise<Response> {
     if (!body.data.transactions?.length && !body.data.transfers?.length) {
       return apiError(400, 'invalid_body', 'transactions か transfers に1件以上入れてください。');
     }
+    const dryRun = url.searchParams.get('dry_run') === '1';
     const result = await ingestApiBatch(ledgerDatabase(), householdId, {
       label: body.data.label,
       idempotencyKey: request.headers.get('idempotency-key'),
       transactions: body.data.transactions ?? [],
       transfers: body.data.transfers ?? [],
-      dryRun: url.searchParams.get('dry_run') === '1',
+      dryRun,
     });
-    if (result.status === 'error') {
-      return apiError(
-        500,
-        'write_failed',
-        '登録に失敗しました。',
-        '時間をおいて再試行してください。',
-      );
-    }
-    const status =
-      result.status === 'replayed' || url.searchParams.get('dry_run') === '1' ? 200 : 201;
-    return noStore({ ...result, dryRun: url.searchParams.get('dry_run') === '1' }, status);
+    return batchResponse(result, dryRun);
   });
 }

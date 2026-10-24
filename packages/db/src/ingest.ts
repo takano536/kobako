@@ -424,6 +424,13 @@ export async function ingestApiBatch(
         };
       }
 
+      if (transactionPlans.length === 0 && transferPlans.length === 0) {
+        // Nothing was writable, so record no batch: the caller fixes the rows and resends the
+        // same Idempotency-Key, which must not be replayed as an empty success.
+        rows.sort((left, right) => left.index - right.index);
+        return { status: 'ok' as const, created: 0, skipped: 0, errors: rows.length, rows };
+      }
+
       const inserted = await transaction
         .insert(apiBatches)
         .values({ householdId, label, idempotencyKey })

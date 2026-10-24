@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { toApiIssues } from '@kobako/db';
+import { toApiIssues, type ApiBatchResult } from '@kobako/db';
 
 import { API_TOKEN_ENV, authorizeApiRequest } from './api-auth';
 import { getLedgerDatabase } from './ledger-data';
@@ -80,6 +80,36 @@ export function invalidBody(error: {
   return apiError(400, 'invalid_body', '入力が正しくありません。', undefined, {
     issues: toApiIssues(error),
   });
+}
+
+/**
+ * One status rule for every bulk write: 201 only when a row was actually written, and 400 when
+ * no row could be written, so the per-row `hint`s are not hidden behind a success status.
+ */
+export function batchResponse(result: ApiBatchResult, dryRun: boolean): Response {
+  if (result.status === 'error') {
+    return apiError(
+      500,
+      'write_failed',
+      '登録に失敗しました。',
+      '時間をおいて再試行してください。',
+    );
+  }
+  if (result.status === 'ok' && result.errors > 0 && result.created === 0 && result.skipped === 0) {
+    return noStore(
+      {
+        ...result,
+        dryRun,
+        error: {
+          code: 'rows_rejected',
+          message: '登録できる行がありませんでした。',
+          hint: 'rows の各 hint を見て修正してから再送してください。',
+        },
+      },
+      400,
+    );
+  }
+  return noStore({ ...result, dryRun }, !dryRun && result.created > 0 ? 201 : 200);
 }
 
 export function parseId(raw: string): number | undefined {
