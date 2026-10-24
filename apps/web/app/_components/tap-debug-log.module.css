@@ -1,0 +1,20 @@
+/* `?tap-debug=1` のときだけ出る一時的な診断ログ。操作の邪魔をしないよう、タップを通します。 */
+.log {
+  position: fixed;
+  z-index: 1000;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 30vh;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  overflow: hidden;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  pointer-events: none;
+  opacity: 0.92;
+}

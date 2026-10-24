@@ -1,17 +1,15 @@
 'use client';
 
 import formsStyles from '../forms.module.css';
-import { openNativePicker } from '../_components/native-picker';
+import { MonthPicker } from '../_components/month-picker';
+import { handlePickerDisplayClick, handlePickerDisplayKeyDown } from '../_components/native-picker';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-
-type PickerKind = 'date' | 'month';
 
 interface DatePickerFieldProps {
   id: string;
   name: string;
   value: string;
-  kind: PickerKind;
   labelId?: string;
   required?: boolean;
   ariaInvalid?: boolean;
@@ -20,30 +18,21 @@ interface DatePickerFieldProps {
   className?: string;
 }
 
-function formatPickerValue(value: string, kind: PickerKind): string {
-  if (kind === 'date') {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    return match ? `${match[1]}/${match[2]}/${match[3]}` : value;
-  }
+function formatDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[1]}/${match[2]}/${match[3]}` : value;
+}
+
+function formatMonth(value: string): string {
   const match = /^(\d{4})-(\d{2})$/.exec(value);
   return match ? `${match[1]}/${match[2]}` : value;
 }
 
-function pickerValue(value: string, kind: PickerKind): string {
-  return kind === 'date'
-    ? /^(\d{4})-(\d{2})-(\d{2})$/.test(value)
-      ? value
-      : ''
-    : /^(\d{4})-(\d{2})$/.test(value)
-      ? value
-      : '';
-}
-
+/** 日付欄。ブラウザのネイティブの日付ピッカーで選びます。 */
 export function DatePickerField({
   id,
   name,
   value,
-  kind,
   labelId,
   required = false,
   ariaInvalid,
@@ -75,8 +64,8 @@ export function DatePickerField({
       id={id}
       className={enhanced ? formsStyles['date-picker-input'] : className}
       name={name}
-      type={kind}
-      value={pickerValue(currentValue, kind)}
+      type="date"
+      value={/^(\d{4})-(\d{2})-(\d{2})$/.test(currentValue) ? currentValue : ''}
       onChange={handleChange}
       aria-invalid={ariaInvalid ? true : undefined}
       aria-describedby={ariaDescribedBy}
@@ -91,32 +80,81 @@ export function DatePickerField({
 
   return (
     <div className={[formsStyles['date-picker-control'], className].filter(Boolean).join(' ')}>
-      <button
-        data-slot={kind === 'month' ? 'month-picker-display' : 'date-picker-display'}
-        className={[
-          formsStyles['date-picker-display'],
-          kind === 'month' && formsStyles['month-picker-display'],
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        type="button"
+      <label
+        htmlFor={id}
+        data-slot="date-picker-display"
+        className={formsStyles['date-picker-display']}
+        role="button"
+        tabIndex={0}
         aria-labelledby={labelId}
         aria-describedby={ariaDescribedBy}
         aria-invalid={ariaInvalid ? true : undefined}
-        onClick={() => {
-          if (inputRef.current) {
-            openNativePicker(inputRef.current);
-          }
-        }}
+        // Android のタッチ端末ではラベルから input への既定の起動に任せ、ほかは showPicker() で開きます。
+        onClick={(event) => handlePickerDisplayClick(event, inputRef.current)}
+        onKeyDown={(event) => handlePickerDisplayKeyDown(event, inputRef.current)}
       >
-        <span>{formatPickerValue(currentValue, kind)}</span>
+        <span>{formatDate(currentValue)}</span>
         <span className={formsStyles['date-picker-icon']} aria-hidden="true" />
-      </button>
+      </label>
       {input}
     </div>
   );
 }
 
-export function MonthPickerField(props: Omit<DatePickerFieldProps, 'kind'>) {
-  return <DatePickerField {...props} kind="month" />;
+/**
+ * フィルタの月欄。アプリ内の月グリッド（{@link MonthPicker}）で選び、GET フォームへは隠し input で
+ * 送ります。JavaScript が動く前（と無効なとき）は、ネイティブの `input[type=month]` をそのまま出します。
+ */
+export function MonthPickerField({
+  id,
+  name,
+  value,
+  labelId,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  labelId?: string;
+}) {
+  const [enhanced, setEnhanced] = useState(false);
+  const [currentValue, setCurrentValue] = useState(value);
+
+  useEffect(() => {
+    setCurrentValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    setEnhanced(true);
+  }, []);
+
+  if (!enhanced) {
+    return (
+      <input
+        id={id}
+        name={name}
+        type="month"
+        defaultValue={/^(\d{4})-(\d{2})$/.test(value) ? value : ''}
+      />
+    );
+  }
+
+  return (
+    <div className={formsStyles['date-picker-control']}>
+      <MonthPicker
+        id={id}
+        value={currentValue}
+        onSelect={setCurrentValue}
+        displaySlot="month-picker-display"
+        displayClassName={[
+          formsStyles['date-picker-display'],
+          formsStyles['month-picker-display'],
+        ].join(' ')}
+        ariaLabelledBy={labelId}
+      >
+        <span>{formatMonth(currentValue)}</span>
+        <span className={formsStyles['date-picker-icon']} aria-hidden="true" />
+      </MonthPicker>
+      <input type="hidden" name={name} value={currentValue} />
+    </div>
+  );
 }

@@ -466,6 +466,9 @@
   background: transparent;
   color: var(--ink);
   text-align: left;
+  /* The display is a `<label>` or `<span>` (it used to be a button), so keep the button cues. */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .date-picker-display:focus-visible {

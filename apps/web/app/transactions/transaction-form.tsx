@@ -725,7 +725,6 @@ export function TransactionForm({
               <DatePickerField
                 id="transaction-date"
                 name="occurredOn"
-                kind="date"
                 value={formValues.occurredOn}
                 labelId="transaction-date-label"
                 required

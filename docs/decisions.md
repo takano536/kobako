@@ -40,6 +40,18 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 
 `OverlayCard` は、デスクトップ（`pointer: fine`）では表示時に金額欄・名前欄へ自動フォーカスし、タッチ端末（`pointer: coarse`）では入力欄へフォーカスせずカード自体（`tabIndex=-1` の `role="dialog"`）へフォーカスします。タッチ端末で入力欄へフォーカスすると、カードを開いただけでソフトキーボードが開き、カードの内容を隠すためです。「戻る」ボタンではなくカードを選んだのは、スクリーンリーダーがダイアログ名から読み上げ、誤って戻る操作を起こさないためです。判定は追加依存なしの `matchMedia` で初回マウント時に1回だけ行います。
 
+## Android で選択ダイアログを閉じるタップ
+
+Android のブラウザは、`<select>` のネイティブ選択ダイアログを外側のタップで閉じたとき、そのタップをページ側の要素にも届けます。取引の絞り込みでは閉じるタップが月欄に落ちて月ピッカーが開き、適用ボタンに落ちると送信されるため、ルートレイアウトの `SelectDismissTapGuard` が Android のタッチ端末（UA の `Android` と `maxTouchPoints > 0`）でだけ、そのタップを捨てます。`<select>` への `pointerdown`／`focusin`／`click` のどれかを見たら待機状態にし、待機中の最初のタップの行き先がフィルタのフォーム・月スイッチャー・日付/月ピッカー（`date`／`month` の input を指すラベルを含む）なら、その `pointerdown`・`pointerup`・`touchend` を `preventDefault()` し、`click` を `preventDefault()` と `stopPropagation()` で止めます。`pointerdown` を伴わない `click` だけでも捨てます。ブラウザによって `focusin` が来ない、閉じるタップの時点でフォーカスが `<select>` にないといった違いがあるため、`document.activeElement` は判定に使いません。待機はどのタップでも解除するので続けて2回は捨てず、`<select>` の `change`、`pointercancel`、`keydown`、待機から 10 秒の経過でも解除します。判定は `apps/web/src/lib/select-dismiss-tap.ts` に分け、単体テストで確認します。iOS とデスクトップには取り付けません。
+
+Android Firefox の実機では、ヘッダーの月ラベルから月ピッカーを開いて閉じた後に、`<select>` のダイアログを外側のタップで閉じると月ピッカーが開く不具合が残りました。実機のイベント列が無い段階では、考えられる原因を同時に潰しました。(1) ラベルからの date/month input の起動が `click` より前の `pointerup`／`touchend` で行われる場合に備え、捨てるジェスチャーの `pointerup`・`touchend` も止めます。(2) ダイアログの開閉で起きる `scroll`・`visibilitychange` で待機が解除され、閉じるタップが素通りする場合に備え、これらでは解除せず、代わりに 10 秒で失効させます。(3) ピッカーを閉じた後も隠れた input にフォーカスが残り、フォーカス復元でピッカーが開き直る場合に備え、ページがフォーカスを取り戻したときにその input を `blur()` しました。
+
+その後、実機で `?tap-debug=1` のログを取りました。1件目では、`<select>` のダイアログを閉じる外側のタップがページに届いておらず、月ピッカーを閉じた後の `activeElement` も月ラベルのままでした。この時点では、`showPicker()` で開いたピッカーをブラウザが保持していると考え、ヘッダーの月と日付/月の表示部を `<label htmlFor>` からの既定の起動に変えました（日付の表示部はこの形のままです）。
+
+さらに2件のログで原因が確定しました。ヘッダーの月（ラベルからの既定の起動）でも、フィルタの月欄（同じく既定の起動）でも再発し、どちらも月ピッカーを閉じた後の `activeElement` は隠れた `input[type=month]` のままでした。ヘッダーの例では閉じるタップがフィルタのフォームに届き、ガードが `pointerdown` を止めていたのに月ピッカーが開きました。フィルタの例では閉じるタップはページに届いていません。つまりタップは原因ではなく、Android Firefox が一度開いて閉じたネイティブの date/month ピッカーを保持し、別のネイティブダイアログ（`<select>`）を閉じたときに再表示しています。`showPicker()` でもラベルの既定動作でも起き、ページからは観測も制御もできません。そのため、月の選択は OS のダイアログを使わず、アプリ内の月グリッド（`month-picker.tsx`、`month-picker.module.css`）にしました。表示部（`<button>`、`aria-haspopup="dialog"`・`aria-expanded`）のタップで、年の前後（`‹ 2026年 ›`）と 1〜12 月のグリッドを出し、月を選ぶと即座に確定して閉じます。表示部のもう一度のタップ、外側の `pointerdown`、Escape でも閉じ、スクロールでは閉じません。ポップオーバーは `role="dialog"`・`aria-label="月を選択"` で、`<body>` 直下に `position: fixed` で出します。フィルタの `<details>` の中でも切れず、ラベルの名前にも混ざりません。重なりは下部ナビゲーションより上、オーバーレイカードより下です。フィルタの月は GET フォームで送るため `<input type="hidden" name="month">` を置き、ラベルは中の表示ボタンを包んで関連づけます（`htmlFor` は外しました）。JavaScript が動く前と無効なときは、従来どおりネイティブの `input[type=month]` を出します。日付は変えず、ネイティブの日付ピッカーのままです。月グリッドのポップオーバーは `<body>` 直下にあり、フィルタや月スイッチャーの中に無いため、ガードの対象に `[data-slot="month-picker-popover"]` を明示して、`<select>` を閉じるタップで月が選ばれないようにしました。ガードはフォーム送信・適用ボタンの誤爆を防ぐため残します。
+
+原因を確定させるための一時的な診断として、URL に `?tap-debug=1` があるときだけ `TapDebugLog` が画面下部にタップ関連のイベント（`touchstart`／`pointerdown`／`pointerup`／`pointercancel`／`touchend`／`mouseup`／`click`／`focusin`／`change`／`visibilitychange`）を時刻・target・`defaultPrevented`・`activeElement` 付きで、JS からの `showPicker()` 呼び出しを `showPicker target=…` の行で、最大 60 行表示します。パラメータが無いときは DOM もリスナーも追加せず、`showPicker` も置き換えません。月グリッドへの置き換えで再発しないことを実機で確かめ、外す判断をするまで残します。
+
 ## server-only パッケージ
 
 `server-only` パッケージは依存に追加していません。DB client と household 解決は `apps/web/src/lib/ledger-data.ts` に置き、`apps/web/app/settings/import/actions.ts` は `'use server'` で XLSX 解析と DB 操作を実行します。`import-form.tsx` は Server Action の参照と型だけを持ち、`state.ts` は型 import だけです。`page.tsx` は Server Component です。
