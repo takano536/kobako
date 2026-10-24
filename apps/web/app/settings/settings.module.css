@@ -104,6 +104,8 @@
   border: 0;
   border-radius: 999px;
   background-color: var(--muted);
+  /* The thumb is this control's ink: light track with a dark mark, like the filled buttons. */
+  color: var(--on-accent);
   cursor: pointer;
   appearance: none;
 }
