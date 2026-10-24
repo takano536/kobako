@@ -154,7 +154,13 @@ function clientExternalId(value: string | null | undefined): string | undefined 
   return trimmed ? trimmed.slice(0, 200) : undefined;
 }
 
-function unknownNameError(index: number, field: string, label: string, value: string, names: string[]) {
+function unknownNameError(
+  index: number,
+  field: string,
+  label: string,
+  value: string,
+  names: string[],
+) {
   const suggestions = nearestNames(value, names);
   return {
     index,
@@ -252,7 +258,8 @@ export async function ingestApiBatch(
       const accountNames = accountRows.map((row) => row.name);
 
       const accountIds = new Set<number>();
-      const transactionPlans: Array<{ index: number; values: typeof transactions.$inferInsert }> = [];
+      const transactionPlans: Array<{ index: number; values: typeof transactions.$inferInsert }> =
+        [];
       const transferPlans: Array<{ index: number; values: typeof transfers.$inferInsert }> = [];
       const occurrences = new Map<string, number>();
 

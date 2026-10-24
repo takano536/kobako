@@ -41,7 +41,12 @@ export function PATCH(
     const categories = await listCategories(db, householdId);
     const category = categories.find((row) => row.type === type && row.name === categoryName);
     if (!category) {
-      return apiError(400, 'unknown_category', `カテゴリ「${categoryName}」が見つかりません。`, 'GET /api/v1/categories で名前と種別を確認してください。');
+      return apiError(
+        400,
+        'unknown_category',
+        `カテゴリ「${categoryName}」が見つかりません。`,
+        'GET /api/v1/categories で名前と種別を確認してください。',
+      );
     }
 
     let accountId = existing.accountId;
@@ -54,7 +59,12 @@ export function PATCH(
           (row) => row.deletedAt === null && row.name === body.data.account,
         );
         if (!account) {
-          return apiError(400, 'unknown_account', `資産「${body.data.account}」が見つかりません。`, 'GET /api/v1/accounts で名前を確認してください。');
+          return apiError(
+            400,
+            'unknown_account',
+            `資産「${body.data.account}」が見つかりません。`,
+            'GET /api/v1/accounts で名前を確認してください。',
+          );
         }
         accountId = account.id;
       }

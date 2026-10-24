@@ -67,7 +67,9 @@ export const apiTransactionPatchSchema = z.object({
 });
 
 export const apiTransferPatchSchema = z.object({
-  amount: amountSchema.refine((value) => value > 0, { error: '振替の金額は1円以上です。' }).optional(),
+  amount: amountSchema
+    .refine((value) => value > 0, { error: '振替の金額は1円以上です。' })
+    .optional(),
   occurredOn: occurredOnSchema.optional(),
   from: nameField('振替元の資産名', ACCOUNT_NAME_MAX_LENGTH).optional(),
   to: nameField('振替先の資産名', ACCOUNT_NAME_MAX_LENGTH).optional(),

@@ -47,7 +47,12 @@ export async function handleApi(
     console.error('[api] unhandled failure', {
       errorType: error instanceof Error ? error.name : 'UnknownError',
     });
-    return apiError(500, 'internal_error', '処理に失敗しました。', '時間をおいて再試行してください。');
+    return apiError(
+      500,
+      'internal_error',
+      '処理に失敗しました。',
+      '時間をおいて再試行してください。',
+    );
   }
 }
 

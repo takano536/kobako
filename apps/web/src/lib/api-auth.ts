@@ -4,9 +4,7 @@ import { getCurrentHouseholdId, isDemoDeployment } from './ledger-data';
 export const API_TOKEN_ENV = 'KOBAKO_API_TOKEN';
 
 export type ApiAuth =
-  | { status: 'ok'; householdId: string }
-  | { status: 'disabled' }
-  | { status: 'unauthorized' };
+  { status: 'ok'; householdId: string } | { status: 'disabled' } | { status: 'unauthorized' };
 
 /**
  * The API exists only outside demo deployments, where the household comes from a cookie and no

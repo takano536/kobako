@@ -19,7 +19,9 @@ function subscribe(onChange: () => void): () => void {
 }
 
 function readVisible(): boolean {
-  return document.documentElement.getAttribute(ORIGIN_BADGE_ATTRIBUTE) !== ORIGIN_BADGE_HIDDEN_VALUE;
+  return (
+    document.documentElement.getAttribute(ORIGIN_BADGE_ATTRIBUTE) !== ORIGIN_BADGE_HIDDEN_VALUE
+  );
 }
 
 // Matches the markup the server renders; the inline script corrects it on the client.
@@ -42,7 +44,11 @@ export function OriginBadgeSetting() {
   const visible = useSyncExternalStore(subscribe, readVisible, readServerVisible);
   return (
     <label className={formStyles['checkbox-field']}>
-      <input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} />
+      <input
+        type="checkbox"
+        checked={visible}
+        onChange={(event) => setVisible(event.target.checked)}
+      />
       <span>APIの印を表示</span>
     </label>
   );

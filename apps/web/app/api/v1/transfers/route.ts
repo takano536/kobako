@@ -22,7 +22,12 @@ export function GET(request: Request): Promise<Response> {
   return handleApi(request, async ({ householdId, url }) => {
     const rawMonth = url.searchParams.get('month') ?? currentTokyoMonth();
     if (rawMonth !== 'all' && !isValidMonth(rawMonth)) {
-      return apiError(400, 'invalid_month', '月の形式が正しくありません。', 'YYYY-MM か all を指定してください。');
+      return apiError(
+        400,
+        'invalid_month',
+        '月の形式が正しくありません。',
+        'YYYY-MM か all を指定してください。',
+      );
     }
     const rows = await listLedgerEntries(ledgerDatabase(), householdId, {
       month: rawMonth,
@@ -46,7 +51,12 @@ export function POST(request: Request): Promise<Response> {
       dryRun: url.searchParams.get('dry_run') === '1',
     });
     if (result.status === 'error') {
-      return apiError(500, 'write_failed', '登録に失敗しました。', '時間をおいて再試行してください。');
+      return apiError(
+        500,
+        'write_failed',
+        '登録に失敗しました。',
+        '時間をおいて再試行してください。',
+      );
     }
     const dryRun = url.searchParams.get('dry_run') === '1';
     return noStore({ ...result, dryRun }, result.status === 'replayed' || dryRun ? 200 : 201);

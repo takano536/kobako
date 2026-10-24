@@ -42,7 +42,9 @@ function transactionLabel(transaction: ListedTransaction, showMemo: boolean): st
     transaction.origin === 'api' ? 'API' : null,
     ...details,
     amount,
-  ].filter((value): value is string => value !== null).join(' ');
+  ]
+    .filter((value): value is string => value !== null)
+    .join(' ');
 }
 
 export function TransactionRow({
@@ -165,14 +167,14 @@ export function TransactionRow({
             {transaction.categoryName}
           </span>
           {transaction.origin === 'api' ? (
-              <span
-                data-slot="origin-badge"
-                className={transactionStyles['origin-badge']}
-                aria-hidden="true"
-              >
-                API
-              </span>
-            ) : null}
+            <span
+              data-slot="origin-badge"
+              className={transactionStyles['origin-badge']}
+              aria-hidden="true"
+            >
+              API
+            </span>
+          ) : null}
         </span>
         <span data-slot="transaction-main" className={transactionStyles['transaction-main']}>
           {assetName ? (
