@@ -196,9 +196,11 @@
   block-size: auto;
 }
 
+/* 月・種別・カテゴリ・資産の4項目と「適用」を1行に並べ、適用は行の右端に置きます。
+   （3列 + auto のままだと5つ目の子が2行目に落ち、適用だけが月の下に浮きます。） */
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   gap: var(--space-group);
   align-items: end;
   padding: var(--space-item) 0 var(--space-group);
