@@ -85,11 +85,6 @@
   align-self: center;
 }
 
-.transfer-category > .origin-badge {
-  align-self: center;
-  margin-left: 0.25rem;
-}
-
 /* 端末ごとの表示設定。印は押せない目印で、行のリンクはそのまま生きている。 */
 :global(html[data-origin-badge='hidden']) .origin-badge {
   display: none;

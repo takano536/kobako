@@ -41,19 +41,30 @@ export function TransferRow({
         href={editHref}
         aria-label={label}
       >
-        <span
-          data-slot="category-dot"
-          className={transactionStyles['transfer-dot']}
-          aria-hidden="true"
-        />
-        <span
-          data-slot="transaction-category"
-          className={[
-            transactionStyles['transaction-category'],
-            transactionStyles['transfer-type'],
-          ].join(' ')}
-        >
-          振替
+        <span className={transactionStyles['transaction-category-cell']}>
+          <span
+            data-slot="category-dot"
+            className={transactionStyles['transfer-dot']}
+            aria-hidden="true"
+          />
+          <span
+            data-slot="transaction-category"
+            className={[
+              transactionStyles['transaction-category'],
+              transactionStyles['transfer-type'],
+            ].join(' ')}
+          >
+            振替
+          </span>
+          {transfer.origin === 'api' ? (
+            <span
+              data-slot="origin-badge"
+              className={transactionStyles['origin-badge']}
+              aria-hidden="true"
+            >
+              API
+            </span>
+          ) : null}
         </span>
         <span
           data-slot="transaction-main-transfer"
@@ -81,15 +92,6 @@ export function TransferRow({
                 <span>{transfer.toAccountName}</span>
               </span>
             </span>
-            {transfer.origin === 'api' ? (
-              <span
-                data-slot="origin-badge"
-                className={transactionStyles['origin-badge']}
-                aria-hidden="true"
-              >
-                API
-              </span>
-            ) : null}
           </span>
           {showMemo && transfer.memo ? (
             <span
