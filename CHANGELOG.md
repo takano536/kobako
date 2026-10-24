@@ -1,4 +1,12 @@
 # Changelog
+## [0.16.4](https://github.com/takano536/kobako/compare/v0.16.3...v0.16.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **web:** Android で選択ダイアログを閉じるタップがピッカーや適用に届かないようにする ([#19](https://github.com/takano536/kobako/issues/19)) ([d39fff4](https://github.com/takano536/kobako/commit/d39fff46e9f04edc22bf2f5cb6d2432c57ec6a3e))
+* **web:** フィルタの「適用」を項目と同じ行の右端に揃える ([#21](https://github.com/takano536/kobako/issues/21)) ([4ef262f](https://github.com/takano536/kobako/commit/4ef262fa245f2beaaee76c45200672ff595092a0))
+
 ## [0.16.3](https://github.com/takano536/kobako/compare/v0.16.2...v0.16.3) (2026-10-23)
 
 
