@@ -30,7 +30,7 @@ if (purge) {
     console.log(`demo ledger already has ${result.accounts} accounts; nothing to seed`);
   } else {
     console.log(
-      `demo ledger rebuilt: ${result.accounts} accounts, ${result.transactions} transactions, ${result.transfers} transfer`,
+      `demo ledger rebuilt: ${result.accounts} accounts, ${result.transactions} transactions (${result.apiTransactions} via API), ${result.transfers} transfers (${result.apiTransfers} via API)`,
     );
   }
 }

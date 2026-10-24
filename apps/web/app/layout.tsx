@@ -12,6 +12,7 @@ import { NavigationShell, NavigationShellProvider } from './_components/navigati
 import { SelectDismissTapGuard } from './_components/select-dismiss-tap-guard';
 import { TapDebugLog } from './_components/tap-debug-log';
 import { ThemeScript } from './_components/theme-script';
+import { OriginBadgeScript } from './_components/origin-badge-script';
 import {
   SiteBrand,
   SiteNav,
@@ -49,6 +50,7 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <OriginBadgeScript />
       </head>
       <body>
         <SelectDismissTapGuard />

@@ -39,9 +39,50 @@ function transactionLabel(transaction: ListedTransaction, showMemo: boolean): st
     formatJapaneseDate(transaction.occurredOn),
     typeLabel(transaction.type),
     transaction.categoryName,
+    transaction.origin === 'api' ? 'API' : null,
     ...details,
     amount,
-  ].join(' ');
+  ]
+    .filter((value): value is string => value !== null)
+    .join(' ');
+}
+
+/**
+ * The second line of a row: the memo, then a small "API" mark at its end. The mark is part of the
+ * row link (no role, no tab stop), and with a mark the memo truncates so the mark stays whole.
+ */
+export function MemoLine({ memo, api }: { memo: string | null | undefined; api: boolean }) {
+  if (!memo && !api) return null;
+  return (
+    <span
+      data-slot="memo-line"
+      className={[
+        transactionStyles['memo-line'],
+        api ? transactionStyles['memo-line-with-badge'] : null,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {memo ? (
+        <span
+          data-slot="transaction-memo"
+          className={transactionStyles['transaction-memo']}
+          title={memo}
+        >
+          {memo}
+        </span>
+      ) : null}
+      {api ? (
+        <span
+          data-slot="origin-badge"
+          className={transactionStyles['origin-badge']}
+          aria-hidden="true"
+        >
+          API
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 export function TransactionRow({
@@ -107,15 +148,10 @@ export function TransactionRow({
                 {assetName}
               </span>
             ) : null}
-            {showMemo && transaction.memo ? (
-              <span
-                data-slot="transaction-memo"
-                className={transactionStyles['transaction-memo']}
-                title={transaction.memo}
-              >
-                {transaction.memo}
-              </span>
-            ) : null}
+            <MemoLine
+              memo={showMemo ? transaction.memo : null}
+              api={transaction.origin === 'api'}
+            />
           </span>
           <span className={amountClassName} data-slot="record-amount">
             {amount}
@@ -163,15 +199,7 @@ export function TransactionRow({
               {assetName}
             </span>
           ) : null}
-          {showMemo && transaction.memo ? (
-            <span
-              data-slot="transaction-memo"
-              className={transactionStyles['transaction-memo']}
-              title={transaction.memo}
-            >
-              {transaction.memo}
-            </span>
-          ) : null}
+          <MemoLine memo={showMemo ? transaction.memo : null} api={transaction.origin === 'api'} />
         </span>
         <span className={amountClassName} data-slot="record-amount">
           {amount}

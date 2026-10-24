@@ -227,6 +227,28 @@
   font-size: var(--text-body);
 }
 
+.filter-form .filter-checkbox {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-self: start;
+  gap: var(--space-dot-text);
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.filter-form .filter-checkbox input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  accent-color: var(--accent);
+}
+
 .filter-form :global([data-slot='month-picker-display']),
 .filter-form :global([data-slot='date-picker-display']) {
   min-height: 36px;

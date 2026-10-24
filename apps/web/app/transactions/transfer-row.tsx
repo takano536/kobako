@@ -5,6 +5,7 @@ import uiStyles from '../_components/ui.module.css';
 
 import { formatJapaneseDate, formatYen } from '../../src/lib/format';
 import { withSelectedMonth } from '../../src/lib/month-navigation';
+import { MemoLine } from './transaction-row';
 
 const neutralMoneyClass = uiStyles['money-neutral'] ?? '';
 
@@ -24,7 +25,7 @@ export function TransferRow({
   selectedMonth?: string | null;
 }) {
   const editHref = transferEditHref(transfer.id, selectedMonth);
-  const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}`;
+  const label = `${formatJapaneseDate(transfer.occurredOn)} 振替 ${transfer.fromAccountName}から${transfer.toAccountName}へ ${formatYen(transfer.amount)}${transfer.origin === 'api' ? ' API' : ''}`;
   return (
     <li data-slot="transaction-row" className={transactionStyles['transaction-row']}>
       {dateHeading ? (
@@ -82,15 +83,7 @@ export function TransferRow({
               </span>
             </span>
           </span>
-          {showMemo && transfer.memo ? (
-            <span
-              data-slot="transaction-memo"
-              className={transactionStyles['transaction-memo']}
-              title={transfer.memo}
-            >
-              {transfer.memo}
-            </span>
-          ) : null}
+          <MemoLine memo={showMemo ? transfer.memo : null} api={transfer.origin === 'api'} />
         </span>
         <span
           className={[transactionStyles['record-amount'], neutralMoneyClass].join(' ')}
