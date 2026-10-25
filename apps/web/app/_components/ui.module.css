@@ -196,18 +196,18 @@
   block-size: auto;
 }
 
-/* 月・種別・カテゴリ・資産の4項目と「適用」を1行に並べ、適用は行の右端に置きます。
-   （3列 + auto のままだと5つ目の子が2行目に落ち、適用だけが月の下に浮きます。） */
+/* 月・種別・カテゴリ・資産の項目は幅に応じて auto-fit で並べ、「適用」は下の .filter-actions
+   （全列にまたがる行）の右端に置きます。項目数や幅が変わっても適用だけが浮くことはありません。 */
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr));
   gap: var(--space-group);
   align-items: end;
   padding: var(--space-item) 0 var(--space-group);
   font-size: var(--text-body);
 }
 
-.filter-form label {
+.filter-form > label {
   display: grid;
   gap: var(--space-item);
   color: var(--muted);
@@ -215,8 +215,11 @@
   font-weight: 400;
 }
 
-.filter-form input,
-.filter-form select {
+/*
+ * Fields only. The switch's own checkbox is nested deeper and must keep its pill look.
+ */
+.filter-form > label > input,
+.filter-form > label > select {
   width: 100%;
   min-height: 36px;
   padding: 4px 0;
@@ -225,6 +228,24 @@
   border-radius: 0;
   background: transparent;
   font-size: var(--text-body);
+}
+
+/*
+ * The switch sits in the field row, level with the controls it filters by.
+ * Filters apply on change, so there is no submit button to anchor.
+ */
+.filter-form > .filter-switch {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  grid-column: 1 / -1;
+  justify-self: start;
+  gap: var(--space-dot-text);
+  min-height: 36px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .filter-form :global([data-slot='month-picker-display']),
@@ -254,8 +275,7 @@
     grid-template-columns: repeat(2, minmax(min(12rem, 100%), 1fr));
   }
 
-  .filter-form label:first-child,
-  .filter-form button {
+  .filter-form > label:first-child {
     grid-column: 1 / -1;
   }
 }
@@ -265,8 +285,7 @@
     grid-template-columns: 1fr;
   }
 
-  .filter-form label:first-child,
-  .filter-form button {
+  .filter-form > label:first-child {
     grid-column: auto;
   }
 }
