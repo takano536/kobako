@@ -1356,9 +1356,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
 });
 
-test('filters transactions with a native GET form when JavaScript is disabled', async ({
-  browser,
-}) => {
+test('applies a filter as soon as the field changes', async ({ page }) => {
   if (!databaseClient) {
     throw new Error('ledger filter database is not initialized');
   }
@@ -1388,23 +1386,16 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
   if (!incomeRow) {
     throw new Error('ledger filter income fixture was not created');
   }
-  const context = await browser.newContext({
-    javaScriptEnabled: false,
-    locale: 'ja-JP',
-    timezoneId: 'Asia/Tokyo',
-  });
-  const page = await context.newPage();
   try {
     await page.goto(`/transactions?month=${month}`);
     await expect(page.locator('[data-slot="filter-summary"]')).toHaveCount(0);
     await page.getByText('条件を変更する', { exact: true }).click();
     await page.getByRole('combobox', { name: '種別' }).selectOption('income');
-    await page.getByRole('button', { name: '適用' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
     await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('収入');
-    await page.getByText('条件を変更する', { exact: true }).click();
+    // 選んだ時点で反映され、パネルは開いたままなので次の条件をそのまま選べます。
+    await expect(page.locator('[data-slot="filter-form"]')).toBeVisible();
     await page.getByRole('combobox', { name: 'カテゴリ' }).selectOption(String(incomeCategory.id));
-    await page.getByRole('button', { name: '適用' }).click();
     await expect(page).toHaveURL(
       new RegExp(`/transactions\\?month=${month}.*type=income.*category=`),
     );
@@ -1424,7 +1415,6 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
     await page.getByRole('link', { name: '条件をクリアする' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
   } finally {
-    await context.close();
     await databaseClient.sql`delete from transactions where id = ${incomeRow.id}`;
   }
 });

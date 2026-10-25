@@ -63,7 +63,7 @@ test.describe('in-app month picker', () => {
     await expect(headerMonth).toHaveText(`${previousYear}年3月`);
   });
 
-  test('picks a month in the filter and submits it with the form', async ({ page, isMobile }) => {
+  test('picks a month in the filter and applies it at once', async ({ page, isMobile }) => {
     const display = page.locator('[data-slot="month-picker-display"]');
     const hidden = page.locator('[data-slot="filter-form"] input[type="hidden"][name="month"]');
     await expect(hidden).toHaveValue(month);
@@ -71,11 +71,7 @@ test.describe('in-app month picker', () => {
     await pickMonthInGrid(page, target, isMobile);
     await expect(display).toHaveText(`${previousYear}/03`);
     await expect(hidden).toHaveValue(target);
-    await expect(page).toHaveURL((url) => url.searchParams.get('month') === month);
-
-    const apply = page.getByRole('button', { name: '適用', exact: true });
-    if (isMobile) await apply.tap();
-    else await apply.click();
+    // 送信ボタンはなく、選んだ時点で月が切り替わります。
     await expect(page).toHaveURL(
       (url) =>
         url.searchParams.get('month') === target && url.searchParams.get('type') === 'expense',
