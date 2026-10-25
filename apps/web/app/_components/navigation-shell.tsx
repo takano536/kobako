@@ -50,7 +50,9 @@ interface NavigationRequest {
   href: string;
   pathname: string;
   month: string | null;
+  search: string;
   scroll: boolean;
+  replace: boolean;
 }
 
 /**
@@ -62,9 +64,14 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [pending, setPending] = useState<{ pathname: string; month: string | null } | null>(null);
+  const [pending, setPending] = useState<{
+    pathname: string;
+    month: string | null;
+    search: string;
+  } | null>(null);
   // The month of the body that is on screen now. It only moves when a navigation commits.
   const [committedMonth, setCommittedMonth] = useState<string | null>(null);
+  const [committedSearch, setCommittedSearch] = useState('');
   const active = useRef<{ from: string; href: string } | null>(null);
   const latest = useRef<NavigationRequest | null>(null);
 
@@ -82,7 +89,10 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const begin = useCallback(
     (request: NavigationRequest) => {
       active.current = { from: pathname, href: request.href };
-      startTransition(() => router.push(request.href, { scroll: request.scroll }));
+      startTransition(() => {
+        if (request.replace) router.replace(request.href, { scroll: request.scroll });
+        else router.push(request.href, { scroll: request.scroll });
+      });
     },
     [pathname, router],
   );
@@ -107,10 +117,12 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   // on the page that is already open is never mistaken for a month switch.
   useEffect(() => {
     setCommittedMonth(monthOfLocation());
+    setCommittedSearch(window.location.search);
   }, []);
   useEffect(() => {
     if (isPending) return;
     setCommittedMonth(monthOfLocation());
+    setCommittedSearch(window.location.search);
   }, [isPending, pathname]);
 
   const handles = useCallback(
@@ -118,15 +130,16 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
       const url = new URL(href, window.location.href);
       if (url.origin !== window.location.origin || PAGE_PATHS[url.pathname] !== true) return false;
       if (url.pathname !== pathname) return true;
-      // The same page on another month is a real navigation too; keep other search-only changes on
-      // Link so filters and cards stay out of the queue.
+      // The same page on another month or with another filter is a real navigation too: the page
+      // renders on the server, so it gets the destination frame like a month switch.
       const month = monthOf(url);
-      return month !== null && month !== monthOfLocation();
+      if (month !== null && month !== monthOfLocation()) return true;
+      return url.search !== window.location.search;
     },
     [pathname],
   );
   const navigate = useCallback(
-    (href: string, { scroll }: { scroll: boolean }) => {
+    (href: string, { scroll, replace = false }: { scroll: boolean; replace?: boolean }) => {
       const url = new URL(href, window.location.href);
       const pagePath = PAGE_PATHS[url.pathname] === true;
       const sameTarget = pagePath && url.href === window.location.href;
@@ -144,10 +157,12 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
         href: url.pathname + url.search + url.hash,
         pathname: url.pathname,
         month: monthOf(url),
+        search: url.search,
         scroll,
+        replace,
       };
       latest.current = request;
-      setPending({ pathname: request.pathname, month: request.month });
+      setPending({ pathname: request.pathname, month: request.month, search: url.search });
       if (scroll) window.scrollTo(0, 0);
       if (active.current === null) begin(request);
       return true;
@@ -156,8 +171,8 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   );
   const pendingMonth = pending?.month ?? null;
   const value = useMemo<NavigationShellValue>(
-    () => ({ pending, pendingMonth, committedMonth, navigate, handles, cancel }),
-    [cancel, committedMonth, handles, navigate, pending, pendingMonth],
+    () => ({ pending, pendingMonth, committedMonth, committedSearch, navigate, handles, cancel }),
+    [cancel, committedMonth, committedSearch, handles, navigate, pending, pendingMonth],
   );
   return <NavigationShellContext value={value}>{children}</NavigationShellContext>;
 }
@@ -173,9 +188,13 @@ export function NavigationShell({ children }: { children: ReactNode }) {
   const shell = useNavigationShell();
   const pending = shell?.pending ?? null;
   const committedMonth = shell?.committedMonth ?? null;
+  const committedSearch = shell?.committedSearch ?? '';
+  // 別の画面・別の月・別の絞り込みは、どれもサーバー描画をやり直す本当の遷移です。
   const replaced =
     pending !== null &&
-    (pending.pathname !== pathname || (pending.month !== null && pending.month !== committedMonth));
+    (pending.pathname !== pathname ||
+      (pending.month !== null && pending.month !== committedMonth) ||
+      pending.search !== committedSearch);
   const skeleton =
     replaced && pending !== null ? pageSkeletonFor(pending.pathname, pending.month) : null;
   // A month switch keeps the scroll position, so the frame holds the height of the body it replaced

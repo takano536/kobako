@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useMemo, useRef, type ReactNode } from 'react';
 
+import { useNavigationShell } from './navigation-shell-context';
+
 const FilterFormContext = createContext<(() => void) | null>(null);
 
 /** フィルタのフォームに値を反映させる関数。フォームの外では null。 */
@@ -21,6 +23,7 @@ export function useFilterFormApply(): (() => void) | null {
 export function FilterForm({ className, children }: { className?: string; children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const shell = useNavigationShell();
   const formRef = useRef<HTMLFormElement>(null);
   const apply = useMemo(
     () => () => {
@@ -32,9 +35,13 @@ export function FilterForm({ className, children }: { className?: string; childr
         if (text) params.set(key, text);
       }
       const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      const href = query ? `${pathname}?${query}` : pathname;
+      // The page renders on the server, so the shell shows the destination frame while it loads.
+      // Filters replace rather than push: one history entry per search, not per keystroke.
+      if (shell?.navigate(href, { scroll: false, replace: true }) === true) return;
+      router.replace(href, { scroll: false });
     },
-    [pathname, router],
+    [pathname, router, shell],
   );
   return (
     <FilterFormContext.Provider value={apply}>

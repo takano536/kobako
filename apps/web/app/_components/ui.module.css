@@ -200,7 +200,7 @@
    （全列にまたがる行）の右端に置きます。項目数や幅が変わっても適用だけが浮くことはありません。 */
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   gap: var(--space-group);
   align-items: end;
   padding: var(--space-item) 0 var(--space-group);
