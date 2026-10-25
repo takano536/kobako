@@ -77,6 +77,13 @@
       "when": 1791797567957,
       "tag": "0010_glamorous_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792824337239,
+      "tag": "0011_even_serpent_society",
+      "breakpoints": true
     }
   ]
 }
