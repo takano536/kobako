@@ -200,7 +200,8 @@
    （全列にまたがる行）の右端に置きます。項目数や幅が変わっても適用だけが浮くことはありません。 */
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+  /* 幅いっぱいを等分する固定の列数にします。auto-fit は右側に空の列を残すため使いません。 */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-group);
   align-items: end;
   padding: var(--space-item) 0 var(--space-group);
@@ -293,5 +294,20 @@
 @media (prefers-reduced-motion: reduce) {
   .filter-details::details-content {
     transition: none;
+  }
+}
+
+/*
+ * Filter fields: one column on phones, two on tablets, four on desktop. The switch spans the row.
+ */
+@media (min-width: 34rem) {
+  .filter-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 52rem) {
+  .filter-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
