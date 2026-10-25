@@ -54,11 +54,13 @@ function listHref(
   type?: TransactionListType,
   categoryId?: number,
   accountId?: number,
+  origin?: 'api',
 ): string {
   const params = new URLSearchParams({ month });
   if (type) params.set('type', type);
   if (categoryId && type !== 'transfer') params.set('category', String(categoryId));
   if (accountId) params.set('account', String(accountId));
+  if (origin) params.set('origin', origin);
   return `/transactions?${params.toString()}`;
 }
 
@@ -87,19 +89,20 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     accountId !== undefined && rawMonth === 'all'
       ? 'all'
       : parseMonth(rawMonth, currentTokyoMonth());
-  const { type, categoryId } = parseTransactionListFilters(query);
+  const { type, categoryId, origin } = parseTransactionListFilters(query);
   const [rows, categories, accounts] = await Promise.all([
     listLedgerEntries(db, householdId, {
       month,
       type,
       categoryId,
       accountId,
+      origin,
     }),
     listCategories(db, householdId),
     listManagedAccounts(db, householdId),
   ]);
 
-  const hasFilter = Boolean(type || categoryId || accountId);
+  const hasFilter = Boolean(type || categoryId || accountId || origin);
   const categoryName = categoryId
     ? categories.find((category) => category.id === categoryId)?.name
     : undefined;
@@ -112,15 +115,18 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           ? '振替'
           : undefined,
     categoryName,
+    origin === 'api' ? 'APIのみ' : undefined,
   ]
     .filter((value): value is string => Boolean(value))
     .join('・');
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
-  const currentPath = listHref(month, type, categoryId, accountId);
+  const currentPath = listHref(month, type, categoryId, accountId, origin);
   const clearAssetFilterHref = listHref(
     month === 'all' ? currentTokyoMonth() : month,
     type,
     categoryId,
+    undefined,
+    origin,
   );
 
   return (
@@ -168,7 +174,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         <div className={monthStyles.all} aria-label="表示期間">
           <span className={monthStyles.label}>全期間</span>
           <ActionLink
-            href={listHref(currentTokyoMonth(), type, categoryId, accountId)}
+            href={listHref(currentTokyoMonth(), type, categoryId, accountId, origin)}
             variant="quiet"
           >
             月で絞り込む
@@ -179,16 +185,16 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           month={month}
           previousHref={
             month > `${MIN_SUPPORTED_YEAR}-01`
-              ? listHref(shiftMonth(month, -1), type, categoryId, accountId)
+              ? listHref(shiftMonth(month, -1), type, categoryId, accountId, origin)
               : undefined
           }
           nextHref={
             month < `${MAX_SUPPORTED_YEAR}-12`
-              ? listHref(shiftMonth(month, 1), type, categoryId, accountId)
+              ? listHref(shiftMonth(month, 1), type, categoryId, accountId, origin)
               : undefined
           }
           selectPathname="/transactions"
-          selectQuery={{ type, category: categoryId, account: accountId }}
+          selectQuery={{ type, category: categoryId, account: accountId, origin }}
         />
       )}
       <FilterBar
@@ -196,6 +202,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
         type={type}
         categoryId={categoryId}
         accountId={accountId}
+        origin={origin}
         categories={categories}
         accounts={accounts}
         summary={filterSummary}

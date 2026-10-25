@@ -64,6 +64,41 @@
   min-width: 0;
 }
 
+/* The memo line: memo first, then the small "API" mark at its end. */
+.memo-line {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Shrinks for a long memo but never grows, so the mark follows the text instead of the column edge. */
+.memo-line > .transaction-memo {
+  flex: 0 1 auto;
+}
+
+/* メモの続きに置く小さなバッジ。高さを行送り（17.4px）に合わせ、行の中で上下中央に置く。 */
+.origin-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  block-size: 1.0625rem;
+  padding: 0 0.4375rem;
+  border-radius: 999px;
+  background: var(--import-positive-soft);
+  color: var(--accent-strong);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+  margin-inline-start: 0.375rem;
+}
+
+:global(html[data-origin-badge='hidden']) .origin-badge {
+  display: none;
+}
+
 .transaction-groups {
   margin-top: var(--space-section);
 }
@@ -222,6 +257,13 @@
   text-wrap: pretty;
   text-overflow: clip;
   white-space: normal;
+}
+
+/* With a mark, a long memo ends in "…" so the mark is never cut off (wins over the wrap above). */
+.transaction-main > .memo-line-with-badge > .transaction-memo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transaction-list .row-affordance {
