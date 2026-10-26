@@ -20,6 +20,24 @@
 
 .settings-list-rows {
   display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-account-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-account-category {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+}
+
+.settings-list-rows > li > p {
+  margin: 0;
 }
 
 /* Row text sits on the heading's left edge; the hit area and focus ring extend 8px beyond it. */

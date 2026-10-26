@@ -437,8 +437,8 @@ test.describe('overlay cards', () => {
       htmlOverflow: document.documentElement.style.overflow,
       bodyPaddingRight: document.body.style.paddingRight,
     }));
-    await page.goto(`/transactions?account=${accountId}&month=all`);
-    const assetEdit = page.getByRole('link', { name: '資産を編集', exact: true });
+    await page.goto('/settings');
+    const assetEdit = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`).first();
     await expect(assetEdit).toBeVisible();
     await assetEdit.click();
     await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
@@ -539,8 +539,8 @@ test.describe('overlay cards', () => {
       },
       {
         name: 'asset edit',
-        list: accountList,
-        opener: page.getByRole('link', { name: '資産を編集', exact: true }),
+        list: '/settings',
+        opener: page.locator(`a[href^="/accounts/${accountId}/edit?return="]`).first(),
         url: /\/accounts\/\d+\/edit(?:\?.*)?$/,
         field: '#account-name',
         title: '資産設定',

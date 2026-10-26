@@ -258,28 +258,52 @@ test.describe('設定画面', () => {
     await expect(categoryRow(page, renamed)).toHaveCount(0);
   });
 
-  test('資産カテゴリを資産の追加と編集で選択できる', async ({ page }) => {
+  test('資産カテゴリを資産の追加と設定画面の資産編集で選択できる', async ({ page }) => {
     const customName = `E2E資産選択-${runSuffix}`;
     const assetName = `E2Eカスタム資産-${runSuffix}`;
     await page.goto('/settings/categories/asset');
     await page.getByLabel('新しいカテゴリ').fill(customName);
     await page.getByRole('button', { name: '追加' }).click();
     await expect(categoryRow(page, customName)).toHaveCount(1);
+    let accountId = '';
     try {
       await page.goto('/accounts/new');
       await page.getByLabel('名前', { exact: true }).fill(assetName);
       await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
       await page.getByRole('button', { name: '登録する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
-      await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+      accountId = new URL(page.url()).searchParams.get('account') ?? '';
+      await page.goto('/settings');
+      const assetRow = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`);
+      await expect(assetRow).toContainText(assetName);
+      await expect(assetRow).toContainText(customName);
+      await expect(assetRow).toHaveAttribute(
+        'href',
+        `/accounts/${accountId}/edit?return=%2Fsettings`,
+      );
+      await assetRow.click();
+      await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
+      await page
+        .locator('#entry-dialog')
+        .getByRole('button', { name: '資産設定 — 戻る', exact: true })
+        .click();
+      await expect(page.locator('#entry-dialog')).toHaveCount(0);
+      await expect(page).toHaveURL('/settings');
+      await assetRow.click();
+      await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
       await expect(page.getByLabel('資産カテゴリ', { exact: true })).toHaveValue(/\d+/);
       await page.getByRole('button', { name: '保存する' }).click();
-      await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all&saved=1$/);
+      await expect(page).toHaveURL('/settings?saved=1');
+      await expect(page.getByRole('status')).toHaveText('保存しました');
     } finally {
-      if (await page.getByRole('link', { name: '資産を編集', exact: true }).count()) {
-        await page.getByRole('link', { name: '資産を編集', exact: true }).click();
-        await page.locator('[data-slot="delete-confirm"] > summary').click();
-        await page.getByRole('button', { name: '削除を確定' }).click();
+      if (accountId) {
+        await page.goto('/settings');
+        const assetRow = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`);
+        if (await assetRow.count()) {
+          await assetRow.click();
+          await page.locator('[data-slot="delete-confirm"] > summary').click();
+          await page.getByRole('button', { name: '削除を確定' }).click();
+        }
       }
       await page.goto('/settings/categories/asset');
       await removeCategory(page, customName);
