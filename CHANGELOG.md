@@ -1,4 +1,12 @@
 # Changelog
+## [0.17.0](https://github.com/takano536/kobako/compare/v0.16.4...v0.17.0) (2026-10-26)
+
+
+### Features
+
+* **api:** 外部エージェント向けの取引 API v1 ([#23](https://github.com/takano536/kobako/issues/23)) ([74b2ecc](https://github.com/takano536/kobako/commit/74b2ecca85942907e9f59e646b885b32e4b6304c))
+* **web:** API から入った取引のバッジと、即時反映するフィルタ ([#20](https://github.com/takano536/kobako/issues/20)) ([11a8169](https://github.com/takano536/kobako/commit/11a81694b0994fee9559cfb450c46ab2e397e5cd))
+
 ## [0.16.4](https://github.com/takano536/kobako/compare/v0.16.3...v0.16.4) (2026-10-24)
 
 
