@@ -191,3 +191,85 @@ test('disables the category chip for transfer filters', async ({ page }) => {
   await expect(categoryTrigger).toBeDisabled();
   await expect(categoryTrigger).toHaveAccessibleDescription('振替にはカテゴリがありません');
 });
+
+test('scrolls a long menu within the free space and selects its last item', async ({
+  page,
+  isMobile,
+}) => {
+  if (!databaseClient) throw new Error('filter chip database is not initialized');
+  // 資産のメニューが max-height を超えるよう、資産を足します。
+  const prefix = `チップ長いメニュー-${randomUUID().slice(0, 8)}`;
+  const rows = await databaseClient.sql<{ id: number }[]>`
+    insert into accounts (household_id, name, kind, asset_category_id, sort_order)
+    select
+      ${DEFAULT_HOUSEHOLD_ID},
+      ${prefix} || '-' || lpad(n::text, 2, '0'),
+      'bank',
+      (select id from asset_categories
+       where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank'),
+      100000 + n
+    from generate_series(1, 16) as n
+    returning id
+  `;
+  const ids = rows.map((row) => Number(row.id));
+  try {
+    // 375px 幅で、高さ 420px（低い画面: 下部ナビゲーションは固定されず、チップは画面の下半分）では
+    // 下に入らないので上に開きます。高さ 640px（下部ナビゲーションが固定）では下に開き、
+    // ナビゲーションの上端までに収めます。どちらもメニューの中でスクロールして末尾を選べます。
+    for (const { height, placement } of [
+      { height: 420, placement: 'top' },
+      { height: 640, placement: 'bottom' },
+    ]) {
+      await page.setViewportSize({ width: 375, height });
+      await page.goto(`/transactions?month=${month}`);
+      const trigger = filterChip(page, 'account').getByRole('button', {
+        name: '資産',
+        exact: true,
+      });
+      const menu = page.getByRole('menu', { name: '資産' });
+      // ハイドレーション前の押下は何も起こさないため、開くまで押し直します。
+      await expect(async () => {
+        if ((await menu.count()) === 0) await activate(trigger, isMobile);
+        await expect(menu).toBeVisible({ timeout: 2_000 });
+      }).toPass();
+      await expect(menu).toHaveAttribute('data-placement', placement);
+
+      const geometry = await menu.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const chip = element.parentElement!.getBoundingClientRect();
+        const bottomNav = Array.from(document.querySelectorAll('[data-slot="site-nav"]')).find(
+          (nav) => getComputedStyle(nav).position === 'fixed',
+        );
+        return {
+          top: rect.top,
+          bottom: rect.bottom,
+          chipTop: chip.top,
+          chipBottom: chip.bottom,
+          visibleBottom: bottomNav?.getBoundingClientRect().top ?? window.innerHeight,
+          viewportHeight: window.innerHeight,
+          scrollable: element.scrollHeight > element.clientHeight,
+          overflowY: getComputedStyle(element).overflowY,
+        };
+      });
+      expect(geometry.top).toBeGreaterThanOrEqual(0);
+      expect(geometry.bottom).toBeLessThanOrEqual(geometry.visibleBottom);
+      if (placement === 'top') {
+        expect(geometry.chipBottom).toBeGreaterThan(geometry.viewportHeight / 2);
+        expect(geometry.bottom).toBeLessThanOrEqual(geometry.chipTop);
+      } else {
+        expect(geometry.top).toBeGreaterThanOrEqual(geometry.chipBottom);
+      }
+      expect(geometry.scrollable).toBe(true);
+      expect(geometry.overflowY).toBe('auto');
+
+      const last = menu.getByRole('menuitemradio', { name: new RegExp(`^${prefix}-16`) });
+      await last.scrollIntoViewIfNeeded();
+      await activate(last, isMobile);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get('account') === String(ids[ids.length - 1]),
+      );
+    }
+  } finally {
+    await databaseClient.sql`delete from accounts where id in ${databaseClient.sql(ids)}`;
+  }
+});

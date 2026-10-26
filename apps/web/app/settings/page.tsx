@@ -71,7 +71,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                     scroll={false}
                   >
                     <span className={settingsStyles['settings-account-copy']}>
-                      <span>{account.name}</span>
+                      <span className={settingsStyles['settings-account-name']}>
+                        {account.name}
+                      </span>
                       {/* 「現金（現金）」のように名前と同じ分類名は繰り返しません。 */}
                       {account.assetCategoryName !== account.name ? (
                         <span className={settingsStyles['settings-account-category']}>

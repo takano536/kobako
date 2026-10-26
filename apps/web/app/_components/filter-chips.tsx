@@ -53,6 +53,12 @@ const CHIP_LABELS: Record<MenuName, string> = {
   account: '資産',
 };
 
+/** チップとメニューの間、および画面端との余白（px）。 */
+const MENU_GAP = 6;
+const VIEWPORT_MARGIN = 8;
+/** 画面がどれだけ狭くても、メニューに確保する高さ（px）。 */
+const MIN_MENU_HEIGHT = 120;
+
 /**
  * 絞り込みを反映した後にフォーカスを戻すチップ（`data-filter` の値）。遷移でコンポーネントが
  * 作り直されても引き継げるよう、モジュールに置きます。
@@ -245,14 +251,47 @@ export function FilterChips({
   }
 
   // メニューは開いたチップの左端に揃え、絞り込み行の右端からはみ出す分だけ左へ寄せます。
+  // 縦は直下に開き、下に入りきらず上の方が広ければ直上に開きます。高さは入る分までに抑え、
+  // 中でスクロールします（`month-picker.tsx` と同じ考え方です）。
   useLayoutEffect(() => {
     if (!openMenu) return;
-    const menu = menuRef.current;
-    const row = rowRef.current;
-    if (!menu || !row) return;
-    menu.style.transform = '';
-    const overflow = menu.getBoundingClientRect().right - row.getBoundingClientRect().right;
-    if (overflow > 0) menu.style.transform = `translateX(${-overflow}px)`;
+    const place = (event?: Event) => {
+      const menu = menuRef.current;
+      const row = rowRef.current;
+      const chip = menu?.parentElement;
+      if (!menu || !row || !chip) return;
+      // メニューの中のスクロールでは置き直しません。
+      if (event?.target instanceof Node && menu.contains(event.target)) return;
+      menu.style.transform = '';
+      menu.style.maxHeight = '';
+      const overflow = menu.getBoundingClientRect().right - row.getBoundingClientRect().right;
+      if (overflow > 0) menu.style.transform = `translateX(${-overflow}px)`;
+
+      const rect = chip.getBoundingClientRect();
+      // 狭い画面では下部ナビゲーションが画面下端に固定されるため、その上端までを使えます。
+      const bottomNav = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-slot="site-nav"]'),
+      ).find((element) => getComputedStyle(element).position === 'fixed');
+      const bottomLimit = Math.min(
+        bottomNav?.getBoundingClientRect().top ?? window.innerHeight,
+        window.innerHeight,
+      );
+      const below = bottomLimit - rect.bottom - MENU_GAP - VIEWPORT_MARGIN;
+      const above = rect.top - MENU_GAP - VIEWPORT_MARGIN;
+      // CSS の max-height（上限）を超えない自然な高さ。
+      const natural = Math.min(menu.scrollHeight, menu.getBoundingClientRect().height);
+      const up = natural > below && above > below;
+      menu.dataset.placement = up ? 'top' : 'bottom';
+      const space = Math.max(up ? above : below, MIN_MENU_HEIGHT);
+      if (natural > space) menu.style.maxHeight = `${space}px`;
+    };
+    place();
+    window.addEventListener('scroll', place, { capture: true, passive: true });
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, { capture: true });
+      window.removeEventListener('resize', place);
+    };
   }, [openMenu]);
 
   // 開いたら選択中の項目（無ければ先頭）へフォーカスします。
@@ -263,6 +302,11 @@ export function FilterChips({
       menu?.querySelector<HTMLElement>('[aria-checked="true"]') ??
       menu?.querySelector<HTMLElement>('[role="menuitemradio"]');
     target?.focus({ preventScroll: true });
+    // メニューの中だけをスクロールして、選択中の項目を見せます。
+    if (target && menu) {
+      const top = target.offsetTop - menu.clientHeight / 2 + target.offsetHeight / 2;
+      menu.scrollTop = Math.max(0, top);
+    }
   }, [openMenu]);
 
   // 外側の押下と Escape で閉じます。

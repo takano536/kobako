@@ -25,15 +25,38 @@
   list-style: none;
 }
 
+/* Asset rows keep the one-line height of the other rows: the name truncates, and the asset
+   category sits at the right end before the arrow. Grid items must be allowed to shrink for that. */
+.settings-list-rows > li {
+  min-width: 0;
+}
+
+.settings-list-rows a:has(.settings-account-copy) > span {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .settings-account-copy {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-item);
+  margin-right: var(--space-item);
+}
+
+.settings-account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-account-category {
+  flex: none;
+  margin-left: auto;
   color: var(--muted);
   font-size: var(--text-small);
-  line-height: var(--leading-meta);
+  white-space: nowrap;
 }
 
 .settings-list-rows > li > p {
