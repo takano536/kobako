@@ -356,9 +356,16 @@ test('filters transfer rows by direct transfer URL regardless of category query'
   await clearRunTransfers(databaseClient);
   await seedRunTransfer();
   await page.goto(`/transactions?month=${month}&type=transfer&category=1`);
-  await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('振替');
-  await expect(page.locator('select[name="type"]')).toHaveValue('transfer');
-  await expect(page.locator('select[name="category"]')).toBeDisabled();
+  await expect(
+    page
+      .locator('[data-slot="filter-chip"][data-filter="type"]')
+      .getByRole('button', { name: '種別 振替', exact: true }),
+  ).toBeVisible();
+  const categoryChip = page.locator('[data-slot="filter-chip"][data-filter="category"]');
+  await expect(categoryChip.getByRole('button', { name: 'カテゴリ', exact: true })).toBeDisabled();
+  await expect(
+    categoryChip.getByRole('button', { name: 'カテゴリ', exact: true }),
+  ).toHaveAccessibleDescription('振替にはカテゴリがありません');
   await expect(runTransferRows(page)).toHaveCount(1);
   await expect(
     page.locator('[data-slot="transaction-link"]').filter({ hasText: marker }),

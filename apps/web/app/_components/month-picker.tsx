@@ -28,28 +28,27 @@ function YearChevron({ direction }: { direction: 'previous' | 'next' }) {
  * Android Firefox は、一度開いて閉じたネイティブの月ピッカーを、別のネイティブダイアログ
  * （`<select>`）を閉じたときに再表示します。ページからは制御できないため、月の選択には
  * OS のダイアログを使いません。ポップオーバーは `<body>` 直下に `position: fixed` で出し、
- * フィルタの `<details>` やラベルの中でも切れたり、ラベルの名前に混ざったりしないようにします。
+ * 親要素の `overflow` で切れないようにします。
  */
 export function MonthPicker({
   value,
   onSelect,
+  allowAll = false,
   children,
-  id,
   displaySlot,
   displayClassName,
   ariaLabel,
-  ariaLabelledBy,
 }: {
-  /** 選択中の月（`YYYY-MM`）。 */
+  /** 選択中の月（`YYYY-MM`、全期間なら `all`）。 */
   value: string;
   onSelect: (value: string) => void;
+  /** グリッドの先頭に「全期間」（`all`）を出します。 */
+  allowAll?: boolean;
   /** 表示部の中身。 */
   children: ReactNode;
-  id?: string;
   displaySlot: string;
   displayClassName?: string;
   ariaLabel?: string;
-  ariaLabelledBy?: string;
 }) {
   // 開いている間だけ、表示している年を持ちます。
   const [viewYear, setViewYear] = useState<number | null>(null);
@@ -110,11 +109,7 @@ export function MonthPicker({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      // 表示部を包むラベル（フィルタの「月」）の上の押下も表示部の操作として扱います。外側として閉じると、
-      // 続くラベルの既定動作で表示部がクリックされ、もう一度開いてしまうためです。
-      const display = displayRef.current;
-      const owner = display?.closest('label') ?? display;
-      if (popoverRef.current?.contains(target) || owner?.contains(target)) return;
+      if (popoverRef.current?.contains(target) || displayRef.current?.contains(target)) return;
       setViewYear(null);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -139,17 +134,13 @@ export function MonthPicker({
     <>
       <button
         ref={displayRef}
-        id={id}
         type="button"
         data-slot={displaySlot}
         className={displayClassName}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        onClick={(event) => {
-          // 包んでいるラベルの既定動作で同じ押下が表示部へもう一度届き、2回切り替わらないようにします。
-          event.preventDefault();
+        onClick={() => {
           if (open) close(false);
           else setViewYear(yearOfMonth(value) ?? new Date().getFullYear());
         }}
@@ -174,6 +165,20 @@ export function MonthPicker({
                 setViewYear(null);
               }}
             >
+              {allowAll ? (
+                <button
+                  type="button"
+                  data-slot="month-picker-all"
+                  className={`${styles.month} ${styles.all}`}
+                  aria-pressed={value === 'all'}
+                  onClick={() => {
+                    onSelect('all');
+                    close(true);
+                  }}
+                >
+                  全期間
+                </button>
+              ) : null}
               <div className={styles.yearRow}>
                 <button
                   type="button"

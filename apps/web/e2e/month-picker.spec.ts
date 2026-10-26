@@ -1,6 +1,16 @@
+import { randomUUID } from 'node:crypto';
+
 import { expect, test } from '@playwright/test';
 
-import { currentTokyoMonth } from '@kobako/db';
+import {
+  DEFAULT_HOUSEHOLD_ID,
+  assertSafeTestDatabaseTarget,
+  createDatabaseClient,
+  currentTokyoMonth,
+  initializeDefaultLedger,
+  verifySafeTestDatabaseConnection,
+  type DatabaseClient,
+} from '@kobako/db';
 
 import { monthPickerPopover, openMonthPicker, pickMonthInGrid } from './month-picker';
 
@@ -8,8 +18,52 @@ const month = currentTokyoMonth();
 const previousYear = Number(month.slice(0, 4)) - 1;
 /** 1年前の3月（年を1つ戻してから選ぶ月）。 */
 const target = `${previousYear}-03`;
+const accountName = `月選択テスト口座-${randomUUID().slice(0, 8)}`;
+
+let databaseClient: DatabaseClient | undefined;
+let accountId = 0;
 
 test.describe('in-app month picker', () => {
+  test.beforeAll(async () => {
+    const safeTestDatabase = assertSafeTestDatabaseTarget();
+    databaseClient = createDatabaseClient(safeTestDatabase.url);
+    try {
+      await verifySafeTestDatabaseConnection(
+        databaseClient.sql,
+        safeTestDatabase.target,
+        process.env.DATABASE_URL,
+      );
+      await initializeDefaultLedger(databaseClient.db);
+      const rows = await databaseClient.sql<{ id: number }[]>`
+        insert into accounts (household_id, name, kind, asset_category_id)
+        values (
+          ${DEFAULT_HOUSEHOLD_ID},
+          ${accountName},
+          'bank',
+          (select id from asset_categories
+           where household_id = ${DEFAULT_HOUSEHOLD_ID} and system_key = 'bank')
+        )
+        returning id
+      `;
+      accountId = Number(rows[0]?.id);
+      if (!accountId) throw new Error('month picker account fixture was not created');
+    } catch (error) {
+      await databaseClient.close();
+      databaseClient = undefined;
+      throw error;
+    }
+  });
+
+  test.afterAll(async () => {
+    if (!databaseClient) return;
+    try {
+      await databaseClient.sql`delete from accounts where id = ${accountId}`;
+    } finally {
+      await databaseClient.close();
+      databaseClient = undefined;
+    }
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const calls: string[] = [];
@@ -19,9 +73,6 @@ test.describe('in-app month picker', () => {
       };
     });
     await page.goto(`/transactions?month=${month}&type=expense`);
-    await page.getByText('条件を変更する', { exact: true }).click();
-    // 月欄の表示ボタンはハイドレーション後の effect で現れます。
-    await expect(page.locator('[data-slot="month-picker-display"]')).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -63,46 +114,48 @@ test.describe('in-app month picker', () => {
     await expect(headerMonth).toHaveText(`${previousYear}年3月`);
   });
 
-  test('picks a month in the filter and applies it at once', async ({ page, isMobile }) => {
-    const display = page.locator('[data-slot="month-picker-display"]');
-    const hidden = page.locator('[data-slot="filter-form"] input[type="hidden"][name="month"]');
-    await expect(hidden).toHaveValue(month);
-    await openMonthPicker(page, display, isMobile);
-    await pickMonthInGrid(page, target, isMobile);
-    await expect(display).toHaveText(`${previousYear}/03`);
-    await expect(hidden).toHaveValue(target);
-    // 送信ボタンはなく、選んだ時点で月が切り替わります。
-    await expect(page).toHaveURL(
-      (url) =>
-        url.searchParams.get('month') === target && url.searchParams.get('type') === 'expense',
-    );
-  });
-
-  test('toggles the filter month grid once per tap on the display and on the label text', async ({
+  test('toggles the header month grid once per tap on the month label', async ({
     page,
     isMobile,
   }) => {
-    // 表示ボタンはラベル「月」に包まれています。ラベルの既定動作で同じ押下が2回切り替えないことを確かめます。
-    const display = page.locator('[data-slot="month-picker-display"]');
-    const labelText = page.locator('#filter-month-label');
+    const headerMonth = page.locator('[data-slot="month-switcher-label"]');
     const popover = monthPickerPopover(page);
-    // 押下ごとに少し待ってから、開閉が1回だけ起きた状態のままかを確かめます。
-    const tap = async (locator: typeof display, position?: { x: number; y: number }) => {
-      await (isMobile ? locator.tap({ position }) : locator.click({ position }));
-      await page.waitForTimeout(300);
-    };
-
-    await tap(display);
-    await expect(popover).toBeVisible();
-    await expect(display).toHaveAttribute('aria-expanded', 'true');
-    await tap(display);
+    await openMonthPicker(page, headerMonth, isMobile);
+    await expect(headerMonth).toHaveAttribute('aria-expanded', 'true');
+    if (isMobile) await headerMonth.tap();
+    else await headerMonth.click();
     await expect(popover).toHaveCount(0);
-    await expect(display).toHaveAttribute('aria-expanded', 'false');
+    await expect(headerMonth).toHaveAttribute('aria-expanded', 'false');
+  });
 
-    await tap(labelText, { x: 8, y: 8 });
-    await expect(popover).toBeVisible();
-    await tap(labelText, { x: 8, y: 8 });
-    await expect(popover).toHaveCount(0);
+  test('offers 全期間 only for an account filter and keeps it when selected', async ({
+    page,
+    isMobile,
+  }) => {
+    const headerMonth = page.locator('[data-slot="month-switcher-label"]');
+    await page.goto(`/transactions?month=${month}&account=${accountId}`);
+    await openMonthPicker(page, headerMonth, isMobile);
+    const popover = monthPickerPopover(page);
+    const all = popover.locator('[data-slot="month-picker-all"]');
+    await expect(all).toBeVisible();
+    await expect(popover.locator('button').first()).toHaveAttribute(
+      'data-slot',
+      'month-picker-all',
+    );
+    if (isMobile) await all.tap();
+    else await all.click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/transactions' &&
+        url.searchParams.get('month') === 'all' &&
+        url.searchParams.get('account') === String(accountId),
+    );
+    await expect(page.getByText('全期間', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: '月で絞り込む' })).toBeVisible();
+
+    await page.goto(`/transactions?month=${month}`);
+    await openMonthPicker(page, page.locator('[data-slot="month-switcher-label"]'), isMobile);
+    await expect(monthPickerPopover(page).locator('[data-slot="month-picker-all"]')).toHaveCount(0);
   });
 
   test('closes on an outside tap and on Escape without picking', async ({ page, isMobile }) => {

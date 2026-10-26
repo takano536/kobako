@@ -934,7 +934,11 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       }
 
       await page.goto(`/transactions?month=${month}&type=expense&category=${categoryId}`);
-      await expect(page.locator('[data-slot="filter-summary"]')).toContainText(categoryName);
+      await expect(
+        page
+          .locator('[data-slot="filter-chip"][data-filter="category"]')
+          .getByRole('button', { name: `カテゴリ ${categoryName}`, exact: true }),
+      ).toBeVisible();
       await assertNoHorizontalOverflow();
     }
     for (const width of [320, 360, 390, 414, 1280]) {
@@ -1356,7 +1360,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
 });
 
-test('applies a filter as soon as the field changes', async ({ page }) => {
+test('applies chip filters immediately and clears filtered empty states', async ({ page }) => {
   if (!databaseClient) {
     throw new Error('ledger filter database is not initialized');
   }
@@ -1388,32 +1392,53 @@ test('applies a filter as soon as the field changes', async ({ page }) => {
   }
   try {
     await page.goto(`/transactions?month=${month}`);
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveCount(0);
-    await page.getByText('条件を変更する', { exact: true }).click();
-    await page.getByRole('combobox', { name: '種別' }).selectOption('income');
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('収入');
-    // 選んだ時点で反映され、パネルは開いたままなので次の条件をそのまま選べます。
-    await expect(page.locator('[data-slot="filter-form"]')).toBeVisible();
-    await page.getByRole('combobox', { name: 'カテゴリ' }).selectOption(String(incomeCategory.id));
+    const typeChip = page.locator('[data-slot="filter-chip"][data-filter="type"]');
+    await typeChip.getByRole('button', { name: '種別', exact: true }).click();
+    await page
+      .getByRole('menu', { name: '種別' })
+      .getByRole('menuitemradio', { name: '収入', exact: true })
+      .click();
     await expect(page).toHaveURL(
-      new RegExp(`/transactions\\?month=${month}.*type=income.*category=`),
+      (url) => url.pathname === '/transactions' && url.searchParams.get('type') === 'income',
     );
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('収入・給与');
-    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
-    await page.getByRole('link', { name: '条件をクリアする' }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveCount(0);
+    await expect(typeChip.getByRole('button', { name: '種別 収入', exact: true })).toBeVisible();
     await expect(
       page
-        .locator('[data-slot="transaction-link"]')
+        .getByRole('list', { name: '取引', exact: true })
+        .getByRole('listitem')
         .filter({ hasText: markerFor('native-filter-income') }),
     ).toHaveCount(1);
+
+    const categoryChip = page.locator('[data-slot="filter-chip"][data-filter="category"]');
+    await categoryChip.getByRole('button', { name: 'カテゴリ', exact: true }).click();
+    const categoryMenu = page.getByRole('menu', { name: 'カテゴリ' });
+    await expect(categoryMenu.getByRole('group', { name: '収入' })).toBeVisible();
+    await expect(categoryMenu.getByRole('group', { name: '支出' })).toHaveCount(0);
+    await expect(
+      categoryMenu.getByRole('menuitemradio', { name: '給与', exact: true }),
+    ).toBeVisible();
+    await categoryMenu.getByRole('menuitemradio', { name: '給与', exact: true }).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/transactions' &&
+        url.searchParams.get('type') === 'income' &&
+        url.searchParams.get('category') === String(incomeCategory.id),
+    );
+    await expect(
+      categoryChip.getByRole('button', { name: 'カテゴリ 給与', exact: true }),
+    ).toBeVisible();
+
+    const clear = page.locator('[data-slot="filter-clear"]');
+    await expect(clear).toBeVisible();
+    await clear.click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
+
     await page.goto(`/transactions?month=${month}&type=income&category=${expenseCategory.id}`);
+    await expect(page.getByRole('heading', { name: '条件に合う記録がありません' })).toBeVisible();
     await expect(page.getByRole('list', { name: '取引', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
-    await page.getByRole('link', { name: '条件をクリアする' }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
+    await expect(page.locator('[data-slot="filter-clear"]')).toBeVisible();
+    await page.getByRole('link', { name: '条件をクリア', exact: true }).click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
   } finally {
     await databaseClient.sql`delete from transactions where id = ${incomeRow.id}`;
   }
@@ -1678,7 +1703,7 @@ test('formats date and month controls independently of browser locale', async ({
   const day = `${month}-27`;
   const initialDate = `${month.replace('-', '/')}/01`;
   const expectedDate = `${month.replace('-', '/')}/27`;
-  const expectedMonth = month.replace('-', '/');
+  const expectedMonth = labelForMonth(month);
   try {
     await page.goto(`/transactions/new?month=${month}`);
     const dateInput = page.locator('input[type="date"][name="occurredOn"]');
@@ -1690,11 +1715,7 @@ test('formats date and month controls independently of browser locale', async ({
     await page.getByLabel('メモ（任意）').fill(markerFor('locale-date'));
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
-
-    await page.getByText('条件を変更する', { exact: true }).click();
-    await expect(page.locator('[data-slot="month-picker-display"]')).toHaveText(expectedMonth);
-    const monthValue = page.locator('input[type="hidden"][name="month"]');
-    await expect(monthValue).toHaveValue(month);
+    await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(expectedMonth);
   } finally {
     await context.close();
   }

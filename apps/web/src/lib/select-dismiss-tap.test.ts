@@ -38,18 +38,21 @@ function element(
   return self;
 }
 
-const filterForm = element('FORM', { matches: ['[data-slot="filter-form"]'] });
-const typeSelect = element('SELECT', { parent: filterForm });
-const monthLabel = element('LABEL', {
-  parent: filterForm,
-  control: { tagName: 'INPUT', type: 'month' },
+const transactionForm = element('FORM');
+const typeSelect = element('SELECT', { parent: transactionForm });
+const dateLabel = element('LABEL', {
+  parent: transactionForm,
+  control: { tagName: 'INPUT', type: 'date' },
 });
-const monthLabelText = element('SPAN', { parent: monthLabel });
-const applyButton = element('BUTTON', { parent: filterForm });
+const dateLabelText = element('SPAN', { parent: dateLabel });
+const datePickerDisplay = element('BUTTON', {
+  parent: transactionForm,
+  matches: ['[data-slot="date-picker-display"]'],
+});
 const switcher = element('NAV', { matches: ['[data-slot="month-switcher"]'] });
 const switcherLabel = element('BUTTON', { parent: switcher });
-const dateLabel = element('LABEL', { control: { tagName: 'INPUT', type: 'date' } });
 const amountLabel = element('LABEL', { control: { tagName: 'INPUT', type: 'text' } });
+const transactionButton = element('BUTTON', { parent: transactionForm });
 const listLink = element('A');
 
 describe('isAndroidTouchDevice', () => {
@@ -62,14 +65,11 @@ describe('isAndroidTouchDevice', () => {
 });
 
 describe('isGuardedTapTarget', () => {
-  it('covers the filter form, the month switcher, and labels of date or month inputs', () => {
-    expect(isGuardedTapTarget(monthLabelText)).toBe(true);
-    expect(isGuardedTapTarget(applyButton)).toBe(true);
+  it('covers the month switcher, date labels, and date picker display', () => {
+    expect(isGuardedTapTarget(dateLabelText)).toBe(true);
+    expect(isGuardedTapTarget(datePickerDisplay)).toBe(true);
     expect(isGuardedTapTarget(switcherLabel)).toBe(true);
     expect(isGuardedTapTarget(dateLabel)).toBe(true);
-    expect(
-      isGuardedTapTarget(element('BUTTON', { matches: ['[data-slot="date-picker-display"]'] })),
-    ).toBe(true);
   });
 
   it('covers month buttons in the month grid popover rendered under the body', () => {
@@ -79,6 +79,7 @@ describe('isGuardedTapTarget', () => {
 
   it('leaves other controls and non-elements alone', () => {
     expect(isGuardedTapTarget(amountLabel)).toBe(false);
+    expect(isGuardedTapTarget(transactionButton)).toBe(false);
     expect(isGuardedTapTarget(listLink)).toBe(false);
     expect(isGuardedTapTarget(null)).toBe(false);
     expect(isGuardedTapTarget({})).toBe(false);
@@ -95,7 +96,7 @@ describe('createSelectDismissTapGuard', () => {
   const passed = { pointerDown: false, click: false };
 
   it('discards the dismiss tap after a select pointerdown without focusin (Firefox order)', () => {
-    for (const target of [monthLabelText, applyButton, switcherLabel]) {
+    for (const target of [dateLabelText, datePickerDisplay, switcherLabel]) {
       const guard = createSelectDismissTapGuard();
       // `focusin` は来ず、フォーカスも select に移らない順序。ガードは activeElement を見ません。
       expect(guard.pointerDown(typeSelect)).toBe(false);
@@ -107,59 +108,59 @@ describe('createSelectDismissTapGuard', () => {
   it('discards the dismiss tap after a select focusin (Chromium order), then lets the next tap through', () => {
     const guard = createSelectDismissTapGuard();
     guard.focusIn(typeSelect);
-    expect(tap(guard, monthLabelText)).toEqual(discarded);
-    expect(tap(guard, monthLabelText)).toEqual(passed);
+    expect(tap(guard, dateLabelText)).toEqual(discarded);
+    expect(tap(guard, dateLabelText)).toEqual(passed);
   });
 
   it('arms on a select click and discards a ghost click that has no pointerdown', () => {
     const guard = createSelectDismissTapGuard();
     expect(guard.click(typeSelect)).toBe(false);
-    expect(guard.click(monthLabelText)).toBe(true);
-    expect(guard.click(monthLabelText)).toBe(false);
+    expect(guard.click(dateLabelText)).toBe(true);
+    expect(guard.click(dateLabelText)).toBe(false);
   });
 
   it('lets the next tap through after change, scroll, pointercancel, or visibilitychange', () => {
     const change = createSelectDismissTapGuard();
     change.pointerDown(typeSelect);
     change.change(typeSelect);
-    expect(tap(change, monthLabelText)).toEqual(passed);
+    expect(tap(change, dateLabelText)).toEqual(passed);
 
     // scroll・pointercancel・visibilitychange はどれも `disarm()` を呼びます。
     for (const reason of ['scroll', 'pointercancel', 'visibilitychange']) {
       const guard = createSelectDismissTapGuard();
       guard.pointerDown(typeSelect);
       guard.disarm();
-      expect(tap(guard, monthLabelText), reason).toEqual(passed);
+      expect(tap(guard, dateLabelText), reason).toEqual(passed);
     }
   });
 
   it('forgets the pending click when the discarded pointerdown is cancelled', () => {
     const guard = createSelectDismissTapGuard();
     guard.pointerDown(typeSelect);
-    expect(guard.pointerDown(monthLabelText)).toBe(true);
+    expect(guard.pointerDown(dateLabelText)).toBe(true);
     guard.disarm();
-    expect(guard.click(monthLabelText)).toBe(false);
+    expect(guard.click(dateLabelText)).toBe(false);
   });
 
   it('passes taps outside the guarded scope and disarms on them', () => {
     const guard = createSelectDismissTapGuard();
     guard.pointerDown(typeSelect);
     expect(tap(guard, listLink)).toEqual(passed);
-    expect(tap(guard, monthLabelText)).toEqual(passed);
+    expect(tap(guard, dateLabelText)).toEqual(passed);
   });
 
   it('does nothing before any select interaction', () => {
     const guard = createSelectDismissTapGuard();
-    expect(tap(guard, monthLabelText)).toEqual(passed);
-    expect(tap(guard, applyButton)).toEqual(passed);
+    expect(tap(guard, dateLabelText)).toEqual(passed);
+    expect(tap(guard, datePickerDisplay)).toEqual(passed);
   });
 
   it('re-arms when the select itself is tapped to open its dialog again', () => {
     const guard = createSelectDismissTapGuard();
     expect(tap(guard, typeSelect)).toEqual(passed);
-    expect(tap(guard, monthLabelText)).toEqual(discarded);
+    expect(tap(guard, dateLabelText)).toEqual(discarded);
     expect(tap(guard, typeSelect)).toEqual(passed);
-    expect(tap(guard, monthLabelText)).toEqual(discarded);
+    expect(tap(guard, dateLabelText)).toEqual(discarded);
   });
 });
 
@@ -171,20 +172,20 @@ describe('createSelectDismissTapGuard pointerup and expiry', () => {
   it('discards the pointerup of a gesture whose pointerdown was discarded', () => {
     const guard = createSelectDismissTapGuard();
     guard.pointerDown(typeSelect);
-    expect(guard.pointerDown(monthLabelText)).toBe(true);
-    expect(guard.pointerUp(monthLabelText)).toBe(true);
-    expect(guard.click(monthLabelText)).toBe(true);
+    expect(guard.pointerDown(dateLabelText)).toBe(true);
+    expect(guard.pointerUp(dateLabelText)).toBe(true);
+    expect(guard.click(dateLabelText)).toBe(true);
 
     // 次のジェスチャーは down・up・click のどれも通します。
-    expect(guard.pointerDown(monthLabelText)).toBe(false);
-    expect(guard.pointerUp(monthLabelText)).toBe(false);
-    expect(guard.click(monthLabelText)).toBe(false);
+    expect(guard.pointerDown(dateLabelText)).toBe(false);
+    expect(guard.pointerUp(dateLabelText)).toBe(false);
+    expect(guard.click(dateLabelText)).toBe(false);
   });
 
   it('lets the pointerup through when the gesture was not discarded', () => {
     const guard = createSelectDismissTapGuard();
-    expect(guard.pointerDown(monthLabelText)).toBe(false);
-    expect(guard.pointerUp(monthLabelText)).toBe(false);
+    expect(guard.pointerDown(dateLabelText)).toBe(false);
+    expect(guard.pointerUp(dateLabelText)).toBe(false);
 
     guard.pointerDown(typeSelect);
     expect(guard.pointerUp(typeSelect)).toBe(false);
@@ -197,21 +198,21 @@ describe('createSelectDismissTapGuard pointerup and expiry', () => {
     const guard = createSelectDismissTapGuard();
     guard.pointerDown(typeSelect);
     vi.advanceTimersByTime(ARMED_TIMEOUT_MS - 1);
-    expect(guard.pointerDown(monthLabelText)).toBe(true);
+    expect(guard.pointerDown(dateLabelText)).toBe(true);
 
     guard.pointerDown(typeSelect);
     vi.advanceTimersByTime(ARMED_TIMEOUT_MS);
-    expect(guard.pointerDown(monthLabelText)).toBe(false);
-    expect(guard.pointerUp(monthLabelText)).toBe(false);
-    expect(guard.click(monthLabelText)).toBe(false);
+    expect(guard.pointerDown(dateLabelText)).toBe(false);
+    expect(guard.pointerUp(dateLabelText)).toBe(false);
+    expect(guard.click(dateLabelText)).toBe(false);
   });
 
   it('disarms on change so the whole next gesture passes', () => {
     const guard = createSelectDismissTapGuard();
     guard.focusIn(typeSelect);
     guard.change(typeSelect);
-    expect(guard.pointerDown(applyButton)).toBe(false);
-    expect(guard.pointerUp(applyButton)).toBe(false);
-    expect(guard.click(applyButton)).toBe(false);
+    expect(guard.pointerDown(datePickerDisplay)).toBe(false);
+    expect(guard.pointerUp(datePickerDisplay)).toBe(false);
+    expect(guard.click(datePickerDisplay)).toBe(false);
   });
 });

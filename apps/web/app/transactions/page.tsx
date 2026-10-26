@@ -14,7 +14,6 @@ import {
   shiftMonth,
   type ListedLedgerEntry,
 } from '@kobako/db';
-import { PrefetchLink } from '../_components/prefetch-link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import {
@@ -64,15 +63,6 @@ function listHref(
   return `/transactions?${params.toString()}`;
 }
 
-function PencilIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="m4 20 4.2-.9L19.3 8a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z" />
-      <path d="m13.5 6.5 4 4" />
-    </svg>
-  );
-}
-
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const saved = firstQueryValue(query.saved) === '1';
@@ -103,78 +93,27 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   ]);
 
   const hasFilter = Boolean(type || categoryId || accountId || origin);
-  const categoryName = categoryId
-    ? categories.find((category) => category.id === categoryId)?.name
-    : undefined;
-  const filterSummary = [
-    type === 'expense'
-      ? '支出'
-      : type === 'income'
-        ? '収入'
-        : type === 'transfer'
-          ? '振替'
-          : undefined,
-    categoryName,
-    origin === 'api' ? 'APIのみ' : undefined,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join('・');
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
-  const currentPath = listHref(month, type, categoryId, accountId, origin);
-  const clearAssetFilterHref = listHref(
-    month === 'all' ? currentTokyoMonth() : month,
-    type,
-    categoryId,
-    undefined,
-    origin,
-  );
+  const currentMonth = currentTokyoMonth();
+  const listMonth = month === 'all' ? currentMonth : month;
 
   return (
     <PageShell transition>
       <PageHeader
         title="取引"
         count={`${rows.length}件`}
-        actions={
-          <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
-        }
+        actions={<RegisterTransactionAction month={listMonth} />}
       />
       {saved ? (
         <p className={pageStyles['form-message']} role="status">
           保存しました
         </p>
       ) : null}
-      {account ? (
-        <section
-          className={pageStyles['asset-transaction-header']}
-          aria-labelledby="asset-filter-title"
-        >
-          <div className={pageStyles['asset-transaction-heading']}>
-            {account.deletedAt === null ? (
-              <PrefetchLink
-                className={pageStyles['asset-settings-link']}
-                href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
-                scroll={false}
-                aria-label="資産を編集"
-                title="資産を編集"
-              >
-                <PencilIcon />
-              </PrefetchLink>
-            ) : null}
-            <h2 id="asset-filter-title">{account.name}</h2>
-            <span className={pageStyles['asset-transaction-category']}>
-              {account.assetCategoryName}
-            </span>
-          </div>
-          <ActionLink href={clearAssetFilterHref} variant="quiet">
-            資産の絞り込みを解除
-          </ActionLink>
-        </section>
-      ) : null}
       {month === 'all' ? (
         <div className={monthStyles.all} aria-label="表示期間">
           <span className={monthStyles.label}>全期間</span>
           <ActionLink
-            href={listHref(currentTokyoMonth(), type, categoryId, accountId, origin)}
+            href={listHref(currentMonth, type, categoryId, accountId, origin)}
             variant="quiet"
           >
             月で絞り込む
@@ -195,18 +134,18 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           }
           selectPathname="/transactions"
           selectQuery={{ type, category: categoryId, account: accountId, origin }}
+          allowAll={accountId !== undefined}
         />
       )}
       <FilterBar
         month={month}
+        currentMonth={currentMonth}
         type={type}
         categoryId={categoryId}
         accountId={accountId}
         origin={origin}
         categories={categories}
         accounts={accounts}
-        summary={filterSummary}
-        showClearAction={rows.length > 0}
       />
 
       <section className={transactionStyles['transaction-groups']} aria-label="取引一覧">
@@ -237,11 +176,11 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
             }
             action={
               hasFilter ? (
-                <ActionLink href={`/transactions?month=${month}`} variant="quiet">
-                  条件をクリアする
+                <ActionLink href={`/transactions?month=${listMonth}`} variant="quiet">
+                  条件をクリア
                 </ActionLink>
               ) : (
-                <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
+                <RegisterTransactionAction month={listMonth} />
               )
             }
           />

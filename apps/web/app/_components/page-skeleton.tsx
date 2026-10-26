@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import buttonStyles from './button.module.css';
+import chipStyles from './filter-chips.module.css';
 import headerStyles from './page-header.module.css';
 import monthStyles from './month-switcher.module.css';
 import skeletonStyles from './skeleton.module.css';
@@ -151,9 +152,23 @@ function SkeletonBlockView({ block }: { block: PageSkeletonBlock }) {
     case 'summary':
       return block.content;
     case 'filter':
+      // 絞り込みのチップ行と同じ寸法で、条件なしの状態を出します。
       return (
-        <div className={styles.filter}>
-          <SkeletonText>条件を変更する</SkeletonText>
+        <div className={chipStyles.row}>
+          {['種別', 'カテゴリ', '資産'].map((label) => (
+            <span key={label} className={chipStyles.chip}>
+              <span className={chipStyles.label}>{label}</span>
+              <svg className={chipStyles.chevron} viewBox="0 0 12 12" aria-hidden="true">
+                <path d="m2 4.5 4 4 4-4" />
+              </svg>
+            </span>
+          ))}
+          <span className={`${chipStyles.chip} ${chipStyles.toggle}`}>
+            <svg className={chipStyles.check} viewBox="0 0 12 12" aria-hidden="true">
+              <path d="m2 6.5 2.5 2.5L10 3.5" />
+            </svg>
+            <span className={chipStyles.label}>APIのみ</span>
+          </span>
         </div>
       );
     case 'list':
