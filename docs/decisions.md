@@ -30,7 +30,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## Mutation と再検証
 
-Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
+Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。画面の mutation は Server Actions に統一し、Route Handler は `/api/v1` の外部 API だけに使います。optimistic update と追加キャッシュは使いません。
 
 ## 入力拒否とフォーカス可能な日付欄
 
@@ -173,3 +173,7 @@ DB はデモ専用の PostgreSQL を一つ共有します。PR ごとに DB を�
 デモ配備では訪問者ごとに世帯を発行します。単一世帯を共有すると、レビュアーAの登録がBの画面に現れ、`/settings/delete` を押した人が全員のデータを消せてしまうためです。スキーマは元々すべてのテーブルを `household_id` で分けているので、`initializeDefaultLedger` に世帯を受け取らせ、`/demo/start` で uuid を発行するだけで足ります。
 
 上限（200世帯）と24時間の生存期間は、`/demo/start` を連打された場合の被害を固定するためのものです。Neon Free は1GB/プロジェクトで、超過すると書き込みが失敗し、CU-hours を使い切ると翌請求期間まで compute が停止します。上限を置けば、掃除が壊れてもストレージは約2MBで止まります。上限に達したときは最古の世帯を捨てるので、訪問者が「満員」で締め出されることはありません。
+
+## 外部エージェント向け API
+
+外部エージェント向け API は固定トークン 1 本（`KOBAKO_API_TOKEN`、未設定なら無効）で保護します。カテゴリと資産は ID ではなく名前で受け付けます。指紋と `Idempotency-Key` で重複登録を作らないようにします。Route Handler は `apps/web/app/api/v1/**` だけに置きます。

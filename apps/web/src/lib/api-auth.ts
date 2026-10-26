@@ -6,14 +6,6 @@ export const API_TOKEN_ENV = 'KOBAKO_API_TOKEN';
 export type ApiAuth =
   { status: 'ok'; householdId: string } | { status: 'disabled' } | { status: 'unauthorized' };
 
-/**
- * The API exists only outside demo deployments, where the household comes from a cookie and no
- * operator owns the data. A missing token disables the API instead of opening it.
- */
-export function apiEnabled(): boolean {
-  return !isDemoDeployment() && (process.env[API_TOKEN_ENV] ?? '').trim().length > 0;
-}
-
 /** Compare every byte so a wrong token cannot be guessed from response timing. */
 function constantTimeEqual(left: string, right: string): boolean {
   const encodedLeft = new TextEncoder().encode(left);
