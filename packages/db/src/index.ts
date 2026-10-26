@@ -54,6 +54,33 @@ export {
   type TransferMutationResult,
 } from './ledger.js';
 export {
+  MAX_ROWS_PER_API_CALL,
+  apiTransactionPatchSchema,
+  apiTransactionRowSchema,
+  apiTransferBodySchema,
+  apiTransferPatchSchema,
+  apiTransferRowSchema,
+  apiWriteBodySchema,
+  toApiIssues,
+  type ApiIssue,
+  type ApiTransactionPatch,
+  type ApiTransferPatch,
+  type ApiValidationError,
+  type ApiWriteBody,
+} from './api-contract.js';
+export {
+  API_ORIGIN,
+  ingestApiBatch,
+  nearestNames,
+  normalizeName,
+  transactionFingerprint,
+  transferFingerprint,
+  type ApiBatchResult,
+  type ApiRowResult,
+  type ApiTransactionRow,
+  type ApiTransferRow,
+} from './ingest.js';
+export {
   CATEGORY_SORT_STEP,
   createCategory,
   deleteCategory,
