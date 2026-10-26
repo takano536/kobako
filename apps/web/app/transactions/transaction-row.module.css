@@ -101,6 +101,20 @@
 
 .transaction-groups {
   margin-top: var(--space-section);
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+/* A filter is being applied: keep the previous list in place and fade it slightly. The short delay
+   keeps fast responses from flickering. Position and height do not change. */
+.transaction-groups[aria-busy='true'] {
+  opacity: 0.55;
+  transition-delay: 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transaction-groups {
+    transition: none;
+  }
 }
 
 .transaction-row {

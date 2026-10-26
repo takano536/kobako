@@ -1,6 +1,5 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
 import {
   useEffect,
   useId,
@@ -12,20 +11,13 @@ import {
 
 import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
 import styles from './filter-chips.module.css';
-import { useNavigationShell } from './navigation-shell-context';
+import { useFilterTransition } from './filter-transition';
 
 export interface FilterChipAccount {
   id: number;
   name: string;
   /** 資産カテゴリ名（銀行・クレジットカードなど）。メニューの右端に小さく出します。 */
   categoryName: string;
-}
-
-interface FilterState {
-  type?: TransactionListType;
-  categoryId?: number;
-  accountId?: number;
-  origin?: 'api';
 }
 
 type MenuName = 'type' | 'category' | 'account';
@@ -59,12 +51,6 @@ const VIEWPORT_MARGIN = 8;
 /** 画面がどれだけ狭くても、メニューに確保する高さ（px）。 */
 const MIN_MENU_HEIGHT = 120;
 
-/**
- * 絞り込みを反映した後にフォーカスを戻すチップ（`data-filter` の値）。遷移でコンポーネントが
- * 作り直されても引き継げるよう、モジュールに置きます。
- */
-let pendingFocusFilter: string | null = null;
-
 function Chevron() {
   return (
     <svg className={styles.chevron} viewBox="0 0 12 12" focusable="false" aria-hidden="true">
@@ -81,93 +67,25 @@ function Check() {
   );
 }
 
-function listHref(pathname: string, month: string, state: FilterState): string {
-  const params = new URLSearchParams({ month });
-  if (state.type) params.set('type', state.type);
-  if (state.categoryId !== undefined && state.type !== 'transfer') {
-    params.set('category', String(state.categoryId));
-  }
-  if (state.accountId !== undefined) params.set('account', String(state.accountId));
-  if (state.origin) params.set('origin', state.origin);
-  return `${pathname}?${params.toString()}`;
-}
-
 /**
  * 取引一覧の絞り込み。種別・カテゴリ・資産・APIのみを常時表示のチップ1行に並べ、値はチップ直下の
- * メニューで選びます。選んだ時点で URL を置き換え（履歴は増やさず、スクロールも保ちます）、
- * 一覧はサーバーで描き直します。チップの表示は URL の反映を待たずに先に切り替えます。
+ * メニューで選びます。条件と反映は {@link FilterTransition} が持ち、選んだ時点でチップが選択状態に
+ * なります。
  */
 export function FilterChips({
-  month,
-  currentMonth,
-  type,
-  categoryId,
-  accountId,
-  origin,
   categories,
   accounts,
 }: {
-  /** 表示中の期間（`YYYY-MM` または `all`）。 */
-  month: string;
-  /** 全期間の表示から資産の条件を外したときに戻る月（`YYYY-MM`）。 */
-  currentMonth: string;
   categories: readonly FilterCategory[];
   accounts: readonly FilterChipAccount[];
-} & FilterState) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const shell = useNavigationShell();
-  const [state, setState] = useState<FilterState>({ type, categoryId, accountId, origin });
+}) {
+  const { filters: state, apply } = useFilterTransition();
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const rowRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Partial<Record<MenuName, HTMLButtonElement | null>>>({});
   const id = useId();
   const transferNoteId = `${id}-transfer-note`;
-
-  // 戻る・進むやリンクで URL が変わったら、サーバーから届いた条件に合わせます。
-  useEffect(() => {
-    setState({ type, categoryId, accountId, origin });
-    // 遷移の間は本文が骨組みに置き換わり（`hidden`）、フォーカスが外れます。本文が戻ったら、
-    // 操作したチップへフォーカスを戻します。本文を戻すのはこの後の commit なので、数フレーム待ちます。
-    const key = pendingFocusFilter;
-    pendingFocusFilter = null;
-    if (!key) return;
-    let frame = 0;
-    let attempts = 0;
-    const restore = () => {
-      const target = rowRef.current?.querySelector<HTMLElement>(
-        key === 'origin'
-          ? '[data-filter="origin"]'
-          : `[data-filter="${key}"] [data-slot="filter-chip-trigger"]`,
-      );
-      const active = document.activeElement;
-      if (!target || (active !== null && active !== document.body)) return;
-      target.focus({ preventScroll: true });
-      attempts += 1;
-      if (document.activeElement !== target && attempts < 60) {
-        frame = requestAnimationFrame(restore);
-      }
-    };
-    restore();
-    return () => cancelAnimationFrame(frame);
-  }, [type, categoryId, accountId, origin]);
-
-  function apply(next: FilterState, focusFilter?: string): void {
-    setState(next);
-    const active = document.activeElement;
-    pendingFocusFilter =
-      focusFilter ??
-      (active instanceof HTMLElement && rowRef.current?.contains(active)
-        ? (active.closest('[data-filter]')?.getAttribute('data-filter') ?? null)
-        : null);
-    // 全期間は資産で絞り込んでいるときだけの表示です。資産を外したら月の表示に戻します。
-    const nextMonth = month === 'all' && next.accountId === undefined ? currentMonth : month;
-    const href = listHref(pathname, nextMonth, next);
-    // 絞り込みは置き換えます。検索ごとに履歴を1件ずつ増やしません。
-    if (shell?.navigate(href, { scroll: false, replace: true }) === true) return;
-    router.replace(href, { scroll: false });
-  }
 
   function select(name: MenuName, value: string): void {
     if (name === 'type') {
@@ -508,8 +426,9 @@ export function FilterChips({
           className={styles.clear}
           onClick={() => {
             setOpenMenu(null);
-            // ボタンは条件が無くなると消えるため、先頭のチップへ戻します。
-            apply({}, 'type');
+            // ボタンは条件が無くなると消えるため、先頭のチップへフォーカスを移します。
+            triggerRefs.current.type?.focus();
+            apply({});
           }}
         >
           条件をクリア

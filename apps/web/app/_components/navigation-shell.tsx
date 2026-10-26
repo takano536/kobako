@@ -52,7 +52,6 @@ interface NavigationRequest {
   month: string | null;
   search: string;
   scroll: boolean;
-  replace: boolean;
 }
 
 /**
@@ -90,8 +89,7 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
     (request: NavigationRequest) => {
       active.current = { from: pathname, href: request.href };
       startTransition(() => {
-        if (request.replace) router.replace(request.href, { scroll: request.scroll });
-        else router.push(request.href, { scroll: request.scroll });
+        router.push(request.href, { scroll: request.scroll });
       });
     },
     [pathname, router],
@@ -115,15 +113,15 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   // Read the month off the URL after every commit instead of `useSearchParams`, which would need a
   // suspense boundary around the whole shell. The mount pass runs even inside a transition, so a tap
   // on the page that is already open is never mistaken for a month switch.
-  useEffect(() => {
+  const syncCommitted = useCallback(() => {
     setCommittedMonth(monthOfLocation());
     setCommittedSearch(window.location.search);
   }, []);
+  useEffect(syncCommitted, [syncCommitted]);
   useEffect(() => {
     if (isPending) return;
-    setCommittedMonth(monthOfLocation());
-    setCommittedSearch(window.location.search);
-  }, [isPending, pathname]);
+    syncCommitted();
+  }, [isPending, pathname, syncCommitted]);
 
   const handles = useCallback(
     (href: string) => {
@@ -139,7 +137,7 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
     [pathname],
   );
   const navigate = useCallback(
-    (href: string, { scroll, replace = false }: { scroll: boolean; replace?: boolean }) => {
+    (href: string, { scroll }: { scroll: boolean }) => {
       const url = new URL(href, window.location.href);
       const pagePath = PAGE_PATHS[url.pathname] === true;
       const sameTarget = pagePath && url.href === window.location.href;
@@ -159,7 +157,6 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
         month: monthOf(url),
         search: url.search,
         scroll,
-        replace,
       };
       latest.current = request;
       setPending({ pathname: request.pathname, month: request.month, search: url.search });
@@ -171,8 +168,26 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   );
   const pendingMonth = pending?.month ?? null;
   const value = useMemo<NavigationShellValue>(
-    () => ({ pending, pendingMonth, committedMonth, committedSearch, navigate, handles, cancel }),
-    [cancel, committedMonth, committedSearch, handles, navigate, pending, pendingMonth],
+    () => ({
+      pending,
+      pendingMonth,
+      committedMonth,
+      committedSearch,
+      navigate,
+      handles,
+      cancel,
+      syncCommitted,
+    }),
+    [
+      cancel,
+      committedMonth,
+      committedSearch,
+      handles,
+      navigate,
+      pending,
+      pendingMonth,
+      syncCommitted,
+    ],
   );
   return <NavigationShellContext value={value}>{children}</NavigationShellContext>;
 }

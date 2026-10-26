@@ -15,7 +15,7 @@ function joinClasses(...values: Array<string | false | null | undefined>) {
 
 import { formatYen, moneyTone, type MoneyTone, monthLabel } from '../../src/lib/format';
 import { EmptyLedgerMotif } from '../../src/lib/category';
-import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
+import type { FilterCategory } from '../../src/lib/transaction-query';
 
 type ActionLinkVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 
@@ -231,34 +231,17 @@ type FilterAccount = {
 
 /**
  * 取引一覧の絞り込み行。クライアントの {@link FilterChips} には、メニューに出す最小限の項目だけを渡します。
+ * 条件と反映は、一覧と共有する `FilterTransition` の中で扱います。
  */
 export function FilterBar({
-  month,
-  currentMonth,
-  type,
-  categoryId,
-  accountId,
-  origin,
   categories,
   accounts,
 }: {
-  month: string;
-  currentMonth: string;
-  type?: TransactionListType;
-  categoryId?: number;
-  accountId?: number;
-  origin?: 'api';
   categories: readonly FilterCategory[];
   accounts: readonly FilterAccount[];
 }) {
   return (
     <FilterChips
-      month={month}
-      currentMonth={currentMonth}
-      type={type}
-      categoryId={categoryId}
-      accountId={accountId}
-      origin={origin}
       categories={categories.map(({ id, name, type: categoryType }) => ({
         id,
         name,
