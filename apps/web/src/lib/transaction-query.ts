@@ -23,6 +23,8 @@ export interface TransactionListFilters {
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
+  /** `api` shows only rows an external program wrote. */
+  origin?: 'api';
 }
 
 export function firstQueryValue(value: TransactionQueryValue): string | undefined {
@@ -43,6 +45,10 @@ export function parseTransactionCategoryId(value: TransactionQueryValue): number
   return firstValue ? parseInt4Id(firstValue) : undefined;
 }
 
+export function parseTransactionOrigin(value: TransactionQueryValue): 'api' | undefined {
+  return firstQueryValue(value) === 'api' ? 'api' : undefined;
+}
+
 export function parseTransactionAccountId(value: TransactionQueryValue): number | undefined {
   const firstValue = firstQueryValue(value);
   return firstValue ? parseInt4Id(firstValue) : undefined;
@@ -58,6 +64,7 @@ export function parseTransactionListFilters(
     type,
     categoryId: type === 'transfer' ? undefined : categoryId,
     accountId,
+    origin: parseTransactionOrigin(query.origin),
   };
 }
 

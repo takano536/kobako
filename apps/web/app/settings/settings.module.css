@@ -72,6 +72,24 @@
   background: var(--danger-soft);
 }
 
+/* A device preference row: same edge, height and hover as the link rows; the switch sits at the end. */
+.switch-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-item);
+  margin-inline: calc(var(--space-item) * -1);
+  padding-inline: var(--space-item);
+  border-radius: 0.3rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.switch-row:hover {
+  background: var(--surface-hover);
+}
+
 /* Appearance: one card per theme; previews scope each theme's real tokens with `data-theme`. */
 .theme-options {
   display: grid;

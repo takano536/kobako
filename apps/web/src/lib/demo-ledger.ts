@@ -2,13 +2,23 @@ import {
   DEFAULT_HOUSEHOLD_ID,
   deleteHousehold,
   getHousehold,
+  ingestApiBatch,
   initializeDefaultLedger,
+  type ApiTransactionRow,
+  type ApiTransferRow,
   type DatabaseClient,
 } from '@kobako/db';
 
 export type DemoSeedResult =
   | { status: 'skipped'; accounts: number }
-  | { status: 'seeded'; accounts: number; transactions: number; transfers: number };
+  | {
+      status: 'seeded';
+      accounts: number;
+      transactions: number;
+      transfers: number;
+      apiTransactions: number;
+      apiTransfers: number;
+    };
 
 type DemoRow = Record<string, string | number | null>;
 
@@ -29,7 +39,9 @@ function recentMonths(count: number): Array<{ year: number; month: number }> {
 
 /**
  * Fill the demo ledger with a readable household: four accounts, three months of
- * transactions, and one transfer. `reset` truncates the ledger first so a preview always
+ * transactions, and two transfers. The newest month mixes hand-entered rows with a card
+ * statement written through the real API ingest path, so the "API" badge and the API-only
+ * filter have something to show. `reset` truncates the ledger first so a preview always
  * starts from the same state, while the default run is a no-op once accounts exist.
  */
 export async function seedDemoLedger(
@@ -44,10 +56,11 @@ export async function seedDemoLedger(
 
   if (options.reset) {
     // Categories, asset categories, and groups stay; only ledger rows are rebuilt.
+    // api_batches goes too: the API rows it recorded are gone, so it would only be an orphan.
     // The cascade notices are expected, so keep them out of the deploy log.
     await sql`set client_min_messages = warning`;
     try {
-      await sql`truncate table transfers, transactions, accounts restart identity cascade`;
+      await sql`truncate table transfers, transactions, api_batches, accounts restart identity cascade`;
     } finally {
       await sql`set client_min_messages = notice`;
     }
@@ -148,10 +161,17 @@ export async function seedDemoLedger(
   const cashAccount = accountId('現金');
   const cardAccount = accountId('クレジットカード');
 
+  // These three rows of the newest month arrive through the API ingest below instead.
+  const apiMemos: Record<string, true> = {
+    'スーパー・外食': true,
+    '書籍・サブスクリプション': true,
+    メルカリ売上: true,
+  };
+  const months = recentMonths(3);
   const transactions: DemoRow[] = [];
-  for (const { year, month } of recentMonths(3)) {
+  for (const [index, { year, month }] of months.entries()) {
     const day = (value: number): string => tokyoDate(year, month, value);
-    transactions.push(
+    const monthRows: DemoRow[] = [
       {
         household_id: householdId,
         type: 'income',
@@ -233,6 +253,9 @@ export async function seedDemoLedger(
         account_id: cardAccount,
         memo: '書籍・サブスクリプション',
       },
+    ];
+    transactions.push(
+      ...(index === 0 ? monthRows.filter((row) => !apiMemos[String(row.memo)]) : monthRows),
     );
   }
   await sql`
@@ -248,7 +271,7 @@ export async function seedDemoLedger(
     )}
   `;
 
-  const oldest = recentMonths(3).at(-1) ?? {
+  const oldest = months.at(-1) ?? {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
   };
@@ -273,11 +296,68 @@ export async function seedDemoLedger(
     )}
   `;
 
+  // The same path as POST /api/v1/transactions: names are resolved by the server, rows carry
+  // origin 'api', an api_batches row is recorded, and the income row gets a server fingerprint.
+  const newest = months[0] ?? oldest;
+  const newestDay = (value: number): string => tokyoDate(newest.year, newest.month, value);
+  const apiTransactions: ApiTransactionRow[] = [
+    {
+      type: 'expense',
+      amount: 42000,
+      occurredOn: newestDay(4),
+      category: '食費',
+      account: 'クレジットカード',
+      memo: 'スーパー・外食',
+      externalId: 'demo-card-groceries',
+    },
+    {
+      type: 'expense',
+      amount: 14500,
+      occurredOn: newestDay(21),
+      category: '娯楽',
+      account: 'クレジットカード',
+      memo: '書籍・サブスクリプション',
+      externalId: 'demo-card-subscriptions',
+    },
+    {
+      type: 'income',
+      amount: 8000,
+      occurredOn: newestDay(18),
+      category: '臨時収入',
+      account: '給与口座',
+      memo: 'メルカリ売上',
+    },
+  ];
+  const apiTransfers: ApiTransferRow[] = [
+    {
+      amount: 20000,
+      occurredOn: newestDay(10),
+      from: '給与口座',
+      to: '現金',
+      memo: 'ATMで引き出し',
+      externalId: 'demo-atm-withdrawal',
+    },
+  ];
+  const ingested = await ingestApiBatch(client.db, householdId, {
+    label: 'カード明細の取り込み（デモ）',
+    idempotencyKey: 'demo-seed-card-statement',
+    transactions: apiTransactions,
+    transfers: apiTransfers,
+  });
+  if (
+    ingested.status !== 'ok' ||
+    ingested.created !== apiTransactions.length + apiTransfers.length
+  ) {
+    throw new Error(`demo API ingest failed: ${JSON.stringify(ingested.rows)}`);
+  }
+
   return {
     status: 'seeded',
     accounts: accountRows.length,
-    transactions: transactions.length,
-    transfers: 1,
+    transactions: transactions.length + apiTransactions.length,
+    transfers: 1 + apiTransfers.length,
+    apiTransactions: apiTransactions.length,
+    apiTransfers: apiTransfers.length,
   };
 }
 

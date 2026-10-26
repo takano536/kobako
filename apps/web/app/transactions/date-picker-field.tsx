@@ -1,6 +1,7 @@
 'use client';
 
 import formsStyles from '../forms.module.css';
+import { useFilterFormApply } from '../_components/filter-form';
 import { MonthPicker } from '../_components/month-picker';
 import { handlePickerDisplayClick, handlePickerDisplayKeyDown } from '../_components/native-picker';
 
@@ -43,10 +44,20 @@ export function DatePickerField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [enhanced, setEnhanced] = useState(false);
   const [currentValue, setCurrentValue] = useState(value);
+  const pendingChange = useRef(false);
+  const applyFilter = useFilterFormApply();
 
   useEffect(() => {
     setCurrentValue(value);
   }, [value]);
+
+  // ピッカーで選んだ月は React の state にしか無く、隠し input の change は React が拾わないため、
+  // フィルタのフォームに直接「反映」を頼みます。
+  useEffect(() => {
+    if (!pendingChange.current) return;
+    pendingChange.current = false;
+    applyFilter?.();
+  }, [currentValue, applyFilter]);
 
   useEffect(() => {
     setEnhanced(true);
@@ -118,10 +129,20 @@ export function MonthPickerField({
 }) {
   const [enhanced, setEnhanced] = useState(false);
   const [currentValue, setCurrentValue] = useState(value);
+  const pendingChange = useRef(false);
+  const applyFilter = useFilterFormApply();
 
   useEffect(() => {
     setCurrentValue(value);
   }, [value]);
+
+  // ピッカーで選んだ月は React の state にしか無く、隠し input の change は React が拾わないため、
+  // フィルタのフォームに直接「反映」を頼みます。
+  useEffect(() => {
+    if (!pendingChange.current) return;
+    pendingChange.current = false;
+    applyFilter?.();
+  }, [currentValue, applyFilter]);
 
   useEffect(() => {
     setEnhanced(true);
@@ -143,7 +164,10 @@ export function MonthPickerField({
       <MonthPicker
         id={id}
         value={currentValue}
-        onSelect={setCurrentValue}
+        onSelect={(next) => {
+          pendingChange.current = true;
+          setCurrentValue(next);
+        }}
         displaySlot="month-picker-display"
         displayClassName={[
           formsStyles['date-picker-display'],

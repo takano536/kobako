@@ -84,7 +84,7 @@ test.describe('select dismiss taps', () => {
     expect((await monthPickerState(page)).open).toBe(true);
   });
 
-  test('does not submit the filter with the tap that dismisses a select dialog on Android', async ({
+  test('does not apply a filter with the tap that dismisses a select dialog on Android', async ({
     page,
     isMobile,
   }) => {
@@ -94,20 +94,22 @@ test.describe('select dismiss taps', () => {
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) navigations += 1;
     });
-    const apply = page.getByRole('button', { name: '適用', exact: true });
-    const tapApply = () => (isMobile ? apply.tap() : apply.click());
+    // 送信ボタンはないので、同じ位置にある実在の操作要素（APIのみのスイッチ）を狙います。
+    const toggle = page.locator('[data-slot="filter-form"] [role="switch"]');
+    const tapToggle = () => (isMobile ? toggle.tap() : toggle.click());
 
     await page.locator('select[name="type"]').focus();
-    await tapApply();
+    await tapToggle();
     if (isMobile) {
       await page.waitForTimeout(500);
       expect(navigations).toBe(0);
       expect(page.url()).toBe(startUrl);
       expect(await page.locator('main').innerHTML()).toBe(mainHtml);
+      await expect(toggle).toHaveAttribute('aria-checked', 'false');
       // 直後の本物のタップは通します。
-      await tapApply();
+      await tapToggle();
     }
-    await expect(page).toHaveURL(/[?&]type=(&|$)/);
+    await expect(page).toHaveURL(/[?&]origin=api/);
   });
 
   test('discards the dismiss tap even when the select never received focus (Firefox order)', async ({
@@ -147,22 +149,23 @@ test.describe('select dismiss taps', () => {
     }
     await closeMonthPicker(page);
 
-    // 「適用」。
+    // APIのみのスイッチ。
     const startUrl = page.url();
     let navigations = 0;
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) navigations += 1;
     });
-    const apply = page.getByRole('button', { name: '適用', exact: true });
-    await armWithPointerDown(apply);
-    await tapOn(apply);
+    const toggle = page.locator('[data-slot="filter-form"] [role="switch"]');
+    await armWithPointerDown(toggle);
+    await tapOn(toggle);
     if (isMobile) {
       await page.waitForTimeout(500);
       expect(navigations).toBe(0);
       expect(page.url()).toBe(startUrl);
-      await tapOn(apply);
+      await expect(toggle).toHaveAttribute('aria-checked', 'false');
+      await tapOn(toggle);
     }
-    await expect(page).toHaveURL(/[?&]type=(&|$)/);
+    await expect(page).toHaveURL(/[?&]origin=api/);
   });
 
   test('discards pointerup and click of the dismiss gesture, then lets the next tap through', async ({

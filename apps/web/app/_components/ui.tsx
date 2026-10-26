@@ -3,10 +3,12 @@ import layoutStyles from './layout.module.css';
 import monthStyles from './month-switcher.module.css';
 import uiStyles from './ui.module.css';
 import { Amount } from './amount';
-import { Button, LinkButton } from './button';
+import { LinkButton } from './button';
 import { MonthSelect } from './month-select';
 import { PageTransition } from './page-transition';
 import { PrefetchLink } from './prefetch-link';
+import { FilterForm } from './filter-form';
+import { Switch } from './switch';
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -231,6 +233,7 @@ export function FilterBar({
   type,
   categoryId,
   accountId,
+  origin,
   categories,
   accounts,
   summary,
@@ -240,6 +243,7 @@ export function FilterBar({
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
+  origin?: 'api';
   categories: readonly FilterCategory[];
   accounts?: readonly FilterAccount[];
   summary?: string;
@@ -254,7 +258,7 @@ export function FilterBar({
   const clearParams = new URLSearchParams({ month });
   if (accountId !== undefined) clearParams.set('account', String(accountId));
   const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
-  const hasAdditionalFilter = Boolean(type || categoryId);
+  const hasAdditionalFilter = Boolean(type || categoryId || origin);
   return (
     <section
       className={uiStyles['filter-bar']}
@@ -274,7 +278,7 @@ export function FilterBar({
             </span>
           ) : null}
         </summary>
-        <form data-slot="filter-form" className={uiStyles['filter-form']} method="get">
+        <FilterForm className={uiStyles['filter-form']}>
           {/* 月欄はラベルが中の操作要素（select、または月グリッドの表示ボタン）を包んで関連づけます。 */}
           <label id="filter-month-label">
             月
@@ -335,8 +339,11 @@ export function FilterBar({
               </select>
             </label>
           ) : null}
-          <Button type="submit">適用</Button>
-        </form>
+          <label className={uiStyles['filter-switch']}>
+            <Switch name="origin" value="api" defaultChecked={origin === 'api'} />
+            <span>APIのみ</span>
+          </label>
+        </FilterForm>
       </details>
       {showClearAction && hasAdditionalFilter ? (
         <ActionLink href={clearAdditionalFiltersHref} variant="quiet">
