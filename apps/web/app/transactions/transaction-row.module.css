@@ -88,7 +88,7 @@
   background: var(--import-positive-soft);
   color: var(--accent-strong);
   font-size: 0.625rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   letter-spacing: 0;
   line-height: 1;
   white-space: nowrap;
@@ -127,7 +127,7 @@
   padding-top: var(--space-within);
   color: var(--muted);
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0;
 }
 

@@ -8,7 +8,7 @@
   width: 15rem;
   max-width: calc(100vw - 16px);
   padding: var(--space-item);
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--paper);
   box-shadow: var(--shadow-popover);

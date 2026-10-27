@@ -10,7 +10,7 @@
   gap: clamp(2rem, 6vw, 5rem);
   margin-top: var(--space-group);
   padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 .overview-lead {
@@ -20,7 +20,7 @@
 .overview-lead .eyebrow {
   color: var(--ink);
   font-size: var(--text-body);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: -0.03em;
 }
 
@@ -30,7 +30,7 @@
   color: var(--ink);
   font-size: clamp(1.875rem, 2.6vw, 2.25rem);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: -0.04em;
   line-height: var(--leading-tight);
 }
@@ -63,7 +63,7 @@
   color: var(--ink);
   font-size: 1.1875rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
 }
 

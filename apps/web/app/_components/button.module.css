@@ -7,13 +7,13 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-within);
-  border: 1px solid var(--button-primary);
+  border: var(--stroke-hairline) solid var(--button-primary);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.9rem;
   background: var(--button-primary);
   color: var(--on-accent);
   font: inherit;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: 1.3;
   text-decoration: none;
   white-space: normal;
@@ -73,7 +73,7 @@
   border-color: transparent;
   background: transparent;
   color: var(--muted);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 
 .linkButtonDanger,
@@ -87,7 +87,7 @@
   border-color: transparent;
   background: transparent;
   color: var(--button-danger);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .buttonDangerQuiet:hover {

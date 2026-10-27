@@ -6,7 +6,7 @@
   align-items: center;
   gap: var(--space-item);
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 /* The chip is the bordered box; its trigger button covers the whole box (see .trigger::after). */
@@ -19,7 +19,7 @@
   align-items: center;
   gap: 6px;
   padding: 0 11px;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
@@ -55,8 +55,8 @@
 }
 
 .chip:has(> .trigger:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .trigger {
@@ -99,7 +99,7 @@
   overflow: hidden;
   color: var(--ink);
   font-size: var(--text-body);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   text-overflow: ellipsis;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .remove:focus-visible {
-  outline-offset: 0;
+  outline-offset: var(--focus-offset-flush);
 }
 
 .chevron,
@@ -170,7 +170,7 @@
 }
 
 .toggle:focus-visible {
-  outline-offset: 3px;
+  outline-offset: var(--focus-offset);
 }
 
 .check {
@@ -215,7 +215,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 6px;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--paper);
   box-shadow: var(--shadow-popover);
@@ -234,14 +234,14 @@
 .menu-section + .menu-section {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid var(--rule);
+  border-top: var(--stroke-hairline) solid var(--rule);
 }
 
 .menu-group {
   padding: 6px 8px 2px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.02em;
 }
 
@@ -273,8 +273,8 @@
 }
 
 .menu-item[aria-checked='true']:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: var(--focus-ring-tight);
+  outline-offset: var(--focus-offset-tight);
 }
 
 .menu-label {

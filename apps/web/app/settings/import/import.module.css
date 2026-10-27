@@ -36,7 +36,7 @@
   align-items: center;
   gap: 1.125rem;
   padding: 1.5rem;
-  border: 1px dashed var(--import-border);
+  border: var(--stroke-hairline) dashed var(--import-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
@@ -54,8 +54,8 @@
 }
 
 .import-dropzone:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .import-dropzone[aria-disabled='true'] {
@@ -68,7 +68,7 @@
   height: 48px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid var(--import-icon-border);
+  border: var(--stroke-hairline) solid var(--import-icon-border);
   border-radius: var(--radius-circle);
   color: var(--accent);
   font-size: 1.5rem;
@@ -128,7 +128,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--surface);
 }
@@ -147,7 +147,7 @@
   background: var(--import-soft);
   color: var(--accent);
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.04em;
 }
 .import-file-card-icon.is-invalid {
@@ -196,7 +196,7 @@
   background: transparent;
   color: var(--ink);
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .import-file-change:hover,
@@ -210,7 +210,7 @@
   gap: 5px;
   margin-top: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--error-border);
+  border: var(--stroke-hairline) solid var(--error-border);
   border-radius: var(--radius-md);
   background: var(--error-surface);
   color: var(--error-text);
@@ -233,8 +233,8 @@
 }
 .import-file-error-card:focus-visible,
 .import-file-error:focus-visible {
-  outline: 3px solid var(--money-negative);
-  outline-offset: 3px;
+  outline: var(--focus-ring-danger);
+  outline-offset: var(--focus-offset);
 }
 
 .import-fallback-submit {
@@ -259,8 +259,8 @@
 
 .import-details {
   margin-top: 24px;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  border-top: var(--stroke-hairline) solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 .import-details > summary {
@@ -272,7 +272,7 @@
   padding: 10px 0;
   cursor: pointer;
   font-size: var(--text-body);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   list-style: none;
 }
 
@@ -286,7 +286,7 @@
   color: var(--accent);
   content: '＋';
   font-size: 1.15rem;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 
 .import-details[open] > summary::after {
@@ -315,8 +315,8 @@
 
 .import-preview h2:focus-visible,
 .import-success h2:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 5px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset-loose);
 }
 
 .import-preview-section {
@@ -367,7 +367,7 @@
   gap: 1px;
   margin: 0;
   overflow: hidden;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--rule);
 }
@@ -395,7 +395,7 @@
 .import-success-counts dt small {
   color: var(--muted);
   font-size: 0.78em;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 
 .import-kind-summary dd {
@@ -403,7 +403,7 @@
   overflow-wrap: anywhere;
   font-size: 1.12rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .import-secondary-stats {
@@ -465,7 +465,7 @@
 
 .import-new-names strong {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .import-new-names > summary strong {
@@ -510,7 +510,7 @@
 
 .import-attention {
   padding: 15px;
-  border: 1px solid var(--error-border);
+  border: var(--stroke-hairline) solid var(--error-border);
   border-radius: var(--radius-md);
   background: var(--error-surface);
 }
@@ -553,7 +553,7 @@
 
 .import-row-error-item p {
   margin-top: 4px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .import-row-error-item small {
@@ -570,7 +570,7 @@
   cursor: pointer;
   color: var(--accent);
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -583,7 +583,7 @@
 
 .import-transaction-row {
   min-width: 0;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 .import-transaction-link {
@@ -603,7 +603,7 @@
   background: var(--import-badge);
   color: var(--accent);
   font-size: var(--text-small);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-align: center;
 }
 
@@ -639,7 +639,7 @@
 
 .import-transaction-main strong {
   font-size: var(--text-body);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .import-transaction-main span {
@@ -657,7 +657,7 @@
 
 .import-duplicate {
   padding: 16px;
-  border: 1px solid var(--import-duplicate-border);
+  border: var(--stroke-hairline) solid var(--import-duplicate-border);
   border-radius: var(--radius-md);
   background: var(--import-duplicate-surface);
   color: var(--ink);
@@ -706,7 +706,7 @@
 .import-success {
   margin-top: 10px;
   padding: 22px 0 12px;
-  border-top: 1px solid var(--rule);
+  border-top: var(--stroke-hairline) solid var(--rule);
 }
 
 .import-success-mark {
@@ -718,7 +718,7 @@
   background: var(--import-soft);
   color: var(--accent);
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .import-success-mark svg {
   width: 25px;
@@ -751,7 +751,7 @@
   gap: 1px;
   margin: 18px 0 0;
   overflow: hidden;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--rule);
 }
@@ -772,7 +772,7 @@
   overflow-wrap: anywhere;
   font-size: 1.02rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .import-success-created {
@@ -918,7 +918,7 @@
   width: min(27.5rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
   overflow: auto;
-  border: 1px solid var(--rule);
+  border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-lg);
   background: var(--paper);
   box-shadow: var(--shadow-raised);
@@ -937,7 +937,7 @@
   margin: 0;
   text-align: left;
   font-size: var(--text-heading);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
   letter-spacing: -0.02em;
 }
