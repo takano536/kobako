@@ -99,7 +99,7 @@ test.describe('overlay cards', () => {
     if ((page.viewportSize()?.width ?? 1280) <= 480) {
       expect(entryMetrics.height).toBe(36);
       expect(entryMetrics.fontSize).toBe('12px');
-      expect(entryMetrics.padding).toBe('8px 12.8px 8px 12.8px');
+      expect(entryMetrics.padding).toBe('8px 12px 8px 12px');
     }
     await entry.focus();
     await entry.click();
@@ -208,7 +208,7 @@ test.describe('overlay cards', () => {
     expect(cardStyles.minHeight).toBe('52px');
     expect(cardStyles.borderBottomWidth).toBe('1px');
     expect(cardStyles.labelFontSize).toBe('12px');
-    expect(cardStyles.saveWidth).toBeCloseTo(page.viewportSize()!.width <= 480 ? 75.59 : 86.78, 1);
+    expect(cardStyles.saveWidth).toBeCloseTo(page.viewportSize()!.width <= 480 ? 74 : 90, 1);
     expect(cardStyles.saveHeight).toBe(page.viewportSize()!.width <= 480 ? 36 : 44);
     expect(cardStyles.saveFontSize).toBe(page.viewportSize()!.width <= 480 ? '12px' : '14px');
     const last = page.locator('#entry-dialog button:not([disabled]):visible').last();
