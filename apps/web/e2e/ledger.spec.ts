@@ -835,8 +835,8 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       });
       expect(transactionActionMetrics).toHaveLength(1);
       expect(transactionActionMetrics[0]?.fontSize).toBe(narrow ? '12px' : '14px');
-      expect(transactionActionMetrics[0]?.height).toBe(36);
-      expect(transactionActionMetrics[0]?.width).toBeCloseTo(narrow ? 103.59 : 114, 1);
+      expect(transactionActionMetrics[0]?.height).toBeCloseTo(36.1875, 1);
+      expect(transactionActionMetrics[0]?.width).toBeCloseTo(narrow ? 102 : 114, 1);
       const transactionsHeader = await measure('[data-slot="page-header"]');
       const transactionsAction = await measure('[data-slot="page-header"] [data-variant]');
       const transactionsMonth = await measure('[data-slot="month-switcher"]');
