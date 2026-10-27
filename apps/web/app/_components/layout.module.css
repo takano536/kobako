@@ -9,7 +9,7 @@
   width: min(100%, var(--layout-wide));
   min-height: 4.125rem;
   margin: 0 auto;
-  padding: 0.9375rem max(1rem, 2.5vw) 0.5rem;
+  padding: var(--space-group) max(1rem, 2.5vw) var(--space-item);
 }
 
 .header-inner {

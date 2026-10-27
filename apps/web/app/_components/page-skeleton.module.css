@@ -44,7 +44,7 @@
   grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr);
   align-items: center;
   column-gap: var(--space-item);
-  padding: 6px 0;
+  padding: var(--space-item) 0;
 }
 
 .entry[data-amount='true'] {

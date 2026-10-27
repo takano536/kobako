@@ -5,7 +5,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-item);
-  padding-bottom: 0.75rem;
+  padding-bottom: var(--space-related);
   border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
@@ -17,15 +17,15 @@
   max-width: 100%;
   height: 36px;
   align-items: center;
-  gap: 6px;
-  padding: 0 11px;
+  gap: var(--space-item);
+  padding: 0 var(--space-related);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: var(--text-small);
-  line-height: 1;
+  line-height: var(--leading-none);
   white-space: nowrap;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -51,7 +51,7 @@
 }
 
 .chip[data-disabled='true'] {
-  opacity: 0.45;
+  opacity: var(--opacity-disabled);
 }
 
 .chip:has(> .trigger:focus-visible) {
@@ -64,13 +64,13 @@
   min-width: 0;
   height: 100%;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-item);
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
-  line-height: 1;
+  line-height: var(--leading-none);
   cursor: pointer;
 }
 
@@ -110,7 +110,7 @@
 /* Sits above the trigger's overlay; the 16px circle is drawn inside a full-height hit area. */
 .remove {
   position: relative;
-  z-index: 1;
+  z-index: var(--layer-inline);
   display: inline-flex;
   width: 24px;
   height: 100%;
@@ -123,8 +123,8 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 11px;
-  line-height: 1;
+  font-size: var(--text-micro);
+  line-height: var(--leading-none);
   cursor: pointer;
 }
 
@@ -135,7 +135,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-circle);
-  opacity: 0.7;
+  opacity: var(--opacity-subtle);
 }
 
 .remove:hover > span {
@@ -161,7 +161,7 @@
   width: 10px;
   height: 10px;
   stroke-width: 1.6;
-  opacity: 0.8;
+  opacity: var(--opacity-muted);
 }
 
 /* API only: a toggle without a menu. The check stays visible and fades when off. */
@@ -177,7 +177,7 @@
   width: 12px;
   height: 12px;
   stroke-width: 2;
-  opacity: 0.28;
+  opacity: var(--opacity-inactive);
 }
 
 .toggle[data-active='true'] .check {
@@ -205,7 +205,7 @@
 /* Popover menu: same surface, border and elevation as the month grid. */
 .menu {
   position: absolute;
-  z-index: 10;
+  z-index: var(--layer-menu);
   top: calc(100% + 6px);
   left: -1px;
   width: 15rem;
@@ -214,7 +214,7 @@
   max-height: min(60vh, 24rem);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 6px;
+  padding: var(--space-item);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--paper);
@@ -232,17 +232,17 @@
 }
 
 .menu-section + .menu-section {
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: var(--space-within);
+  padding-top: var(--space-within);
   border-top: var(--stroke-hairline) solid var(--rule);
 }
 
 .menu-group {
-  padding: 6px 8px 2px;
+  padding: var(--space-item) var(--space-item) 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   font-weight: var(--weight-medium);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .menu-item {
@@ -251,7 +251,7 @@
   min-height: 38px;
   align-items: center;
   gap: var(--space-item);
-  padding: 0 8px;
+  padding: 0 var(--space-item);
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
@@ -288,12 +288,12 @@
   flex: none;
   margin-left: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 
 .menu-item[aria-checked='true'] .menu-meta {
   color: var(--on-accent);
-  opacity: 0.8;
+  opacity: var(--opacity-muted);
 }
 
 @media (max-width: 33.999rem) {

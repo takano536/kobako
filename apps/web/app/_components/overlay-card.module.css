@@ -1,10 +1,10 @@
 .backdrop {
   position: fixed;
-  z-index: 50;
+  z-index: var(--layer-backdrop);
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: var(--space-group);
   background: var(--scrim);
   animation: overlay-fade-in var(--motion-fast) var(--ease-standard) backwards;
 }
@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   min-height: 3.75rem;
-  padding: 0.5rem 1rem;
+  padding: var(--space-item) var(--space-group);
 }
 
 .header h1 {
@@ -40,7 +40,7 @@
   font-size: var(--text-heading);
   font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .header > span {
@@ -112,7 +112,7 @@
 .body {
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: 0.75rem 1.5rem 1.5rem;
+  padding: var(--space-related) var(--space-block) var(--space-block);
   box-sizing: border-box;
 }
 
@@ -132,7 +132,7 @@
 }
 
 .body :global([class*='account-form'] [data-slot='section-heading']) {
-  margin: 8px 0;
+  margin: var(--space-item) 0;
 }
 @keyframes overlay-fade-in {
   from {

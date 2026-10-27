@@ -1,8 +1,8 @@
-/* アプリ内の月選択のポップオーバー。`<body>` 直下に fixed で置き、下部ナビゲーション（20）より上、
-   オーバーレイカード（50）より下に重ねます。 */
+/* アプリ内の月選択のポップオーバー。`<body>` 直下に fixed で置き、下部ナビゲーション（`--layer-nav`）より上、
+   オーバーレイカード（`--layer-backdrop`）より下に重ねます。 */
 .popover {
   position: fixed;
-  z-index: 30;
+  z-index: var(--layer-popover);
   top: 0;
   left: 0;
   width: 15rem;
@@ -25,7 +25,7 @@
 .year {
   text-align: center;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-wide);
 }
 
 /* ページ側のボタンの配置指定に負けないよう、クラスを2つ重ねます。 */
@@ -58,7 +58,7 @@
 .popover .yearStep:disabled {
   color: var(--muted);
   cursor: default;
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 
 .chevron {
