@@ -72,7 +72,7 @@
   font-size: var(--text-body);
   font-weight: var(--weight-regular);
   line-height: inherit;
-  letter-spacing: 0;
+  letter-spacing: var(--tracking-normal);
   white-space: nowrap;
   transform: translateY(calc((var(--text-title) - var(--text-body)) / 2));
 }

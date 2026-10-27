@@ -87,10 +87,10 @@
   border-radius: var(--radius-pill);
   background: var(--import-positive-soft);
   color: var(--accent-strong);
-  font-size: 0.625rem;
+  font-size: var(--text-micro);
   font-weight: var(--weight-bold);
-  letter-spacing: 0;
-  line-height: 1;
+  letter-spacing: var(--tracking-normal);
+  line-height: var(--leading-none);
   white-space: nowrap;
   margin-inline-start: 0.375rem;
 }
@@ -128,7 +128,7 @@
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
-  letter-spacing: 0;
+  letter-spacing: var(--tracking-normal);
 }
 
 .transaction-row + .transaction-row .transaction-group-heading {
@@ -283,7 +283,7 @@
 .transaction-list .row-affordance {
   color: var(--muted);
   font-size: var(--text-body);
-  line-height: 1;
+  line-height: var(--leading-none);
   text-align: right;
 }
 

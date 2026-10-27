@@ -64,7 +64,7 @@
   color: var(--accent);
   font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-code);
 }
 
 .empty-motif {

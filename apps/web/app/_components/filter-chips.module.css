@@ -25,7 +25,7 @@
   color: var(--muted);
   font: inherit;
   font-size: var(--text-small);
-  line-height: 1;
+  line-height: var(--leading-none);
   white-space: nowrap;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -70,7 +70,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  line-height: 1;
+  line-height: var(--leading-none);
   cursor: pointer;
 }
 
@@ -123,8 +123,8 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 11px;
-  line-height: 1;
+  font-size: var(--text-micro);
+  line-height: var(--leading-none);
   cursor: pointer;
 }
 
@@ -240,9 +240,9 @@
 .menu-group {
   padding: 6px 8px 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   font-weight: var(--weight-medium);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .menu-item {
@@ -288,7 +288,7 @@
   flex: none;
   margin-left: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 
 .menu-item[aria-checked='true'] .menu-meta {
