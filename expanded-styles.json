@@ -5,6 +5,17 @@
     "screen": "overview",
     "size": "desktop",
     "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
     "label": "month-switcher-label",
     "selector": "[data-slot=\"month-switcher-label\"]",
     "pseudo": "",
@@ -34,6 +45,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "before",
@@ -152,6 +196,28 @@
   {
     "build": "before",
     "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -184,6 +250,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "before",
@@ -301,6 +400,28 @@
   },
   {
     "build": "before",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
     "theme": "dark",
     "screen": "overview",
     "size": "desktop",
@@ -334,6 +455,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "before",
@@ -452,6 +606,28 @@
   {
     "build": "before",
     "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -484,6 +660,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "before",
@@ -600,6 +809,28 @@
     ]
   },
   {
+    "build": "before",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
     "build": "after",
     "theme": "light",
     "screen": "overview",
@@ -634,6 +865,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "after",
@@ -752,6 +1016,28 @@
   {
     "build": "after",
     "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -784,6 +1070,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "after",
@@ -901,6 +1220,28 @@
   },
   {
     "build": "after",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
     "theme": "dark",
     "screen": "overview",
     "size": "desktop",
@@ -934,6 +1275,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "after",
@@ -1052,6 +1426,28 @@
   {
     "build": "after",
     "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -1084,6 +1480,39 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "after",
@@ -1198,6 +1627,17 @@
         "lineHeight": "22.4px"
       }
     ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
   },
   {
     "build": "before",
@@ -1826,6 +2266,110 @@
   {
     "build": "before",
     "theme": "light",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
     "screen": "balances-narrow-supplement",
     "size": "supplement",
     "width": 360,
@@ -1852,6 +2396,414 @@
         "fontSize": "11px",
         "letterSpacing": "normal",
         "lineHeight": "14.3px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transaction-new",
+    "width": 1280,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "form-error-dialog",
+    "width": 1280,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "20.25px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "delete-confirmation",
+    "width": 1280,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transaction-new",
+    "width": 375,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "form-error-dialog",
+    "width": 375,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "20.25px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "delete-confirmation",
+    "width": 375,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transaction-new",
+    "width": 1280,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "form-error-dialog",
+    "width": 1280,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "20.25px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "delete-confirmation",
+    "width": 1280,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transaction-new",
+    "width": 375,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "form-error-dialog",
+    "width": 375,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "20.25px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "delete-confirmation",
+    "width": 375,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transaction-new",
+    "width": 1280,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "form-error-dialog",
+    "width": 1280,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "delete-confirmation",
+    "width": 1280,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transaction-new",
+    "width": 375,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "form-error-dialog",
+    "width": 375,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "delete-confirmation",
+    "width": 375,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transaction-new",
+    "width": 1280,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "form-error-dialog",
+    "width": 1280,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "delete-confirmation",
+    "width": 1280,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transaction-new",
+    "width": 375,
+    "label": "amount-line span",
+    "selector": "[class*=\"amount-line\"] > span",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "¥",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "form-error-dialog",
+    "width": 375,
+    "label": "form-error-dialog h2",
+    "selector": "[class*=\"form-error-dialog\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "入力内容を確認してください",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "delete-confirmation",
+    "width": 375,
+    "label": "delete dialog heading",
+    "selector": "[data-slot=\"delete-confirmation\"] h2",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "この取引を削除しますか？",
+        "fontSize": "15px",
+        "letterSpacing": "-0.3px",
+        "lineHeight": "19.5px"
       }
     ]
   }
