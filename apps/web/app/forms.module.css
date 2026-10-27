@@ -256,7 +256,7 @@
 .ledger-form .amount-field:focus-within,
 .ledger-form .entry-detail-grid .field:focus-within {
   border-bottom-color: var(--accent);
-  box-shadow: inset 0 -1px 0 var(--accent);
+  box-shadow: var(--shadow-underline-accent);
 }
 
 .ledger-form textarea {
@@ -314,8 +314,8 @@
 }
 
 .type-choice:has(input:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .field {
@@ -574,7 +574,7 @@
 .ledger-form .amount-field.has-error,
 .ledger-form .entry-detail-grid .field.has-error {
   border-bottom-color: var(--money-negative);
-  box-shadow: inset 0 -1px 0 var(--money-negative);
+  box-shadow: var(--shadow-underline-negative);
 }
 
 .optional-label {

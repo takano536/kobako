@@ -55,8 +55,8 @@
 }
 
 .chip:has(> .trigger:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .trigger {
@@ -144,7 +144,7 @@
 }
 
 .remove:focus-visible {
-  outline-offset: 0;
+  outline-offset: var(--focus-offset-flush);
 }
 
 .chevron,
@@ -170,7 +170,7 @@
 }
 
 .toggle:focus-visible {
-  outline-offset: 3px;
+  outline-offset: var(--focus-offset);
 }
 
 .check {
@@ -273,8 +273,8 @@
 }
 
 .menu-item[aria-checked='true']:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: var(--focus-ring-tight);
+  outline-offset: var(--focus-offset-tight);
 }
 
 .menu-label {

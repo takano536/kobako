@@ -54,8 +54,8 @@
 }
 
 .import-dropzone:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .import-dropzone[aria-disabled='true'] {
@@ -233,8 +233,8 @@
 }
 .import-file-error-card:focus-visible,
 .import-file-error:focus-visible {
-  outline: 3px solid var(--money-negative);
-  outline-offset: 3px;
+  outline: var(--focus-ring-danger);
+  outline-offset: var(--focus-offset);
 }
 
 .import-fallback-submit {
@@ -315,8 +315,8 @@
 
 .import-preview h2:focus-visible,
 .import-success h2:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 5px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset-loose);
 }
 
 .import-preview-section {

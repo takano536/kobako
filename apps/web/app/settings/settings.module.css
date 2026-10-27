@@ -97,7 +97,7 @@
 }
 
 .settings-list-rows a:focus-visible {
-  outline-offset: 0;
+  outline-offset: var(--focus-offset-flush);
 }
 
 /* Only the text carries the danger color; the row keeps the quiet rows' surface and weight. */
@@ -163,7 +163,7 @@
 
 .theme-option[aria-checked='true'] {
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: var(--shadow-ring-accent-inset);
 }
 
 .theme-preview {
@@ -379,7 +379,7 @@
 .settings-category-editform input:focus {
   border-color: var(--accent);
   outline: 0;
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: var(--shadow-ring-accent);
 }
 
 .settings-category-editform input[aria-invalid='true'] {
@@ -419,7 +419,7 @@
 .delete-all-form input:focus {
   border-color: var(--accent);
   outline: 0;
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: var(--shadow-ring-accent);
 }
 
 .delete-all-scope {
