@@ -1,4 +1,11 @@
 # Changelog
+## [0.18.0](https://github.com/takano536/kobako/compare/v0.17.0...v0.18.0) (2026-10-27)
+
+
+### Features
+
+* **web:** 取引のフィルタを常時表示のチップに統一し、設定に資産一覧を追加 ([#26](https://github.com/takano536/kobako/issues/26)) ([4258c91](https://github.com/takano536/kobako/commit/4258c9115399e3960400978229e07b45e1090e71))
+
 ## [0.17.0](https://github.com/takano536/kobako/compare/v0.16.4...v0.17.0) (2026-10-26)
 
 
