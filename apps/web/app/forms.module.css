@@ -555,7 +555,7 @@
   height: 52px;
   min-height: 52px;
   max-height: 52px;
-  padding: var(--space-group) 0;
+  padding: 14px 0;
   overflow-y: auto;
   overflow-x: hidden;
   line-height: var(--leading-body);
