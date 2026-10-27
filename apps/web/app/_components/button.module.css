@@ -8,7 +8,7 @@
   justify-content: center;
   gap: var(--space-within);
   border: 1px solid var(--button-primary);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-sm);
   padding: 0.55rem 0.9rem;
   background: var(--button-primary);
   color: var(--on-accent);

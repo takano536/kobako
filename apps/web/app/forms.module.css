@@ -95,7 +95,7 @@
   padding: 1.5rem;
   transform: translate(-50%, -50%);
   border: 1px solid var(--rule);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--paper);
   box-shadow: var(--shadow-raised);
   color: var(--muted);
@@ -134,7 +134,7 @@
   min-height: 2.75rem;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--rule);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-sm);
   color: var(--ink);
   text-decoration: none;
 }
@@ -153,7 +153,7 @@
 }
 .delete-action > .delete-confirm > summary {
   border: 1px solid var(--button-danger);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-sm);
   padding: 0.55rem 0.9rem;
   color: var(--button-danger);
 }
@@ -168,7 +168,7 @@
   margin: auto;
   padding: 20px;
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--paper);
   color: var(--ink);
 }
@@ -224,7 +224,7 @@
 .form-surface {
   padding: clamp(1.25rem, 3vw, 1.75rem);
   border: 1px solid var(--rule);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -511,7 +511,7 @@
   max-width: min(calc(100vw - 40px), 26rem);
   padding: 4px 8px;
   border: 1px solid var(--error-border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--paper);
   box-shadow: var(--shadow-popover);
   color: var(--money-negative);

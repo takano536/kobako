@@ -9,7 +9,7 @@
   max-width: calc(100vw - 16px);
   padding: var(--space-item);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--paper);
   box-shadow: var(--shadow-popover);
   color: var(--ink);
@@ -51,7 +51,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--accent);
 }
 
@@ -80,7 +80,7 @@
 .popover .month {
   min-height: 44px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
 }
 
