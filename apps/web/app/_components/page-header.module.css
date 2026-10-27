@@ -70,7 +70,7 @@
 .heading-count {
   color: var(--muted);
   font-size: var(--text-body);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   line-height: inherit;
   letter-spacing: 0;
   white-space: nowrap;
