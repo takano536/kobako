@@ -79,7 +79,7 @@ button.control {
   color: var(--muted);
   font: inherit;
   font-size: var(--text-body);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   letter-spacing: 0.03em;
   text-align: center;
   white-space: nowrap;

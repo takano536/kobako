@@ -49,7 +49,7 @@
 
 .panel {
   min-width: 0;
-  border-block: 1px solid var(--rule);
+  border-block: var(--stroke-hairline) solid var(--rule);
 }
 
 .not-found-state {

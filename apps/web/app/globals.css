@@ -122,6 +122,13 @@
   --focus-offset-tight: 1px;
   --focus-offset-flush: 0;
   --focus-offset-loose: 5px;
+  --stroke-hairline: 1px;
+  --stroke-medium: 1.5px;
+  --stroke-emphasis: 2px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
   --leading-tight: 1.15;
   --leading-heading: 1.3;
   --leading-body: 1.6;
@@ -229,20 +236,20 @@ h3 {
 
 h1 {
   font-size: var(--text-title);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
   letter-spacing: -0.03em;
 }
 
 h2 {
   font-size: var(--text-heading);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
 }
 
 h3 {
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-meta);
 }
 
