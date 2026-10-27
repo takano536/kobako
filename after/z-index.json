@@ -1,0 +1,514 @@
+[
+  {
+    "state": "サイトナビ",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "月ポップオーバー",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "30",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "オーバーレイカードの背景",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認の背景",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "1001",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "取込確認の背景",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップのメニュー",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "10",
+    "position": "absolute"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップの解除ボタン",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "1",
+    "position": "relative"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "残高（sticky の合計）",
+    "target": "残高の合計",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "2",
+    "position": "sticky"
+  },
+  {
+    "state": "金額欄のエラー吹き出し表示中",
+    "target": "金額欄のエラー吹き出し",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "1",
+    "position": "absolute"
+  },
+  {
+    "state": "診断ログ（?tap-debug=1）",
+    "target": "診断ログ",
+    "scheme": "light",
+    "width": 1280,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "サイトナビ",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "月ポップオーバー",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "30",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "オーバーレイカードの背景",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認の背景",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "1001",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "取込確認の背景",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップのメニュー",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "10",
+    "position": "absolute"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップの解除ボタン",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "1",
+    "position": "relative"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "サイトナビ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "残高（sticky の合計）",
+    "target": "残高の合計",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "2",
+    "position": "sticky"
+  },
+  {
+    "state": "金額欄のエラー吹き出し表示中",
+    "target": "金額欄のエラー吹き出し",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "1",
+    "position": "absolute"
+  },
+  {
+    "state": "診断ログ（?tap-debug=1）",
+    "target": "診断ログ",
+    "scheme": "light",
+    "width": 375,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "サイトナビ",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "月ポップオーバー",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "30",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "オーバーレイカードの背景",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認の背景",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "1001",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "取込確認の背景",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップのメニュー",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "10",
+    "position": "absolute"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップの解除ボタン",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "1",
+    "position": "relative"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "auto",
+    "position": "static"
+  },
+  {
+    "state": "残高（sticky の合計）",
+    "target": "残高の合計",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "2",
+    "position": "sticky"
+  },
+  {
+    "state": "金額欄のエラー吹き出し表示中",
+    "target": "金額欄のエラー吹き出し",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "1",
+    "position": "absolute"
+  },
+  {
+    "state": "診断ログ（?tap-debug=1）",
+    "target": "診断ログ",
+    "scheme": "dark",
+    "width": 1280,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "サイトナビ",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "月ポップオーバー",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "30",
+    "position": "fixed"
+  },
+  {
+    "state": "月ポップオーバー展開中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "オーバーレイカードの背景",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "オーバーレイカード表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認の背景",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "1000",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "削除確認",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "1001",
+    "position": "fixed"
+  },
+  {
+    "state": "削除確認表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "取込確認の背景",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "50",
+    "position": "fixed"
+  },
+  {
+    "state": "取込確認表示中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップのメニュー",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "10",
+    "position": "absolute"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "チップの解除ボタン",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "1",
+    "position": "relative"
+  },
+  {
+    "state": "チップのメニュー展開中",
+    "target": "サイトナビ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "20",
+    "position": "fixed"
+  },
+  {
+    "state": "残高（sticky の合計）",
+    "target": "残高の合計",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "2",
+    "position": "sticky"
+  },
+  {
+    "state": "金額欄のエラー吹き出し表示中",
+    "target": "金額欄のエラー吹き出し",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "1",
+    "position": "absolute"
+  },
+  {
+    "state": "診断ログ（?tap-debug=1）",
+    "target": "診断ログ",
+    "scheme": "dark",
+    "width": 375,
+    "zIndex": "1000",
+    "position": "fixed"
+  }
+]
