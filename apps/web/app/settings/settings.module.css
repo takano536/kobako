@@ -179,8 +179,8 @@
   flex: 1 1 0;
   min-width: 0;
   align-content: center;
-  gap: 0.3125rem;
-  padding-inline: 0.625rem;
+  gap: var(--space-within);
+  padding-inline: var(--space-related);
   background: var(--paper);
 }
 
@@ -256,7 +256,7 @@
 .settings-fixed-assets {
   display: grid;
   gap: var(--space-item);
-  padding: 1rem 1.25rem;
+  padding: var(--space-group) 1.25rem;
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -283,7 +283,7 @@
 
 .settings-notice {
   margin: var(--space-item) 0 var(--space-section);
-  padding: var(--space-item) 12px;
+  padding: var(--space-item) var(--space-related);
   border-left: var(--stroke-emphasis) solid var(--accent);
   color: var(--ink);
 }
@@ -304,7 +304,7 @@
 .settings-fixed-asset-list li {
   min-height: 44px;
   font-size: var(--text-body);
-  padding: 10px 0;
+  padding: var(--space-related) 0;
   border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
@@ -320,7 +320,7 @@
   align-items: center;
   min-width: 0;
   min-height: 52px;
-  padding: 4px 0;
+  padding: var(--space-within) 0;
   border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
@@ -344,7 +344,7 @@
 
 .settings-category-action {
   min-height: 44px;
-  padding-inline: 0.5rem;
+  padding-inline: var(--space-item);
   white-space: nowrap;
 }
 
@@ -370,7 +370,7 @@
   min-width: 0;
   min-height: 44px;
   flex: 1 1 0;
-  padding: 8px;
+  padding: var(--space-item);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -409,7 +409,7 @@
   min-width: 0;
   min-height: 44px;
   flex: 1 1 12rem;
-  padding: 8px;
+  padding: var(--space-item);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;

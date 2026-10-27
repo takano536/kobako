@@ -116,7 +116,9 @@
   --space-within: 0.25rem;
   --space-item: 0.5rem;
   --space-dot-text: 0.5rem;
+  --space-related: 12px;
   --space-group: 1rem;
+  --space-block: 24px;
   --space-section: 2rem;
   --space-page: 2.5rem;
   --radius-xs: 4px;

@@ -83,7 +83,7 @@
   display: inline-flex;
   align-items: center;
   block-size: 1.0625rem;
-  padding: 0 0.4375rem;
+  padding: 0 var(--space-item);
   border-radius: var(--radius-pill);
   background: var(--import-positive-soft);
   color: var(--accent-strong);
@@ -142,7 +142,7 @@
   column-gap: var(--space-item);
   min-width: 0;
   min-height: 56px;
-  padding: 6px 0;
+  padding: var(--space-related) 0;
   text-decoration: none;
 }
 

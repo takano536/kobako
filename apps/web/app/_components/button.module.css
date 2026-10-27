@@ -9,7 +9,7 @@
   gap: var(--space-within);
   border: var(--stroke-hairline) solid var(--button-primary);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 0.9rem;
+  padding: var(--space-item) var(--space-group);
   background: var(--button-primary);
   color: var(--on-accent);
   font: inherit;
@@ -27,7 +27,7 @@
 @media (min-width: 30.0625rem) {
   .linkButton[data-variant='primary'] {
     min-height: 2.25rem;
-    padding: 0.4rem 0.75rem;
+    padding: var(--space-item) var(--space-related);
   }
 }
 
@@ -118,7 +118,7 @@
   .button,
   .linkButton {
     min-height: 2.25rem;
-    padding: 0.5rem 0.8rem;
+    padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
   }
 }
