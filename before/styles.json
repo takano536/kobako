@@ -1,0 +1,1422 @@
+[
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"lead-amount\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "33.28px",
+        "letterSpacing": "-1.3312px",
+        "lineHeight": "38.272px",
+        "text": "186,800円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"summary-inline\"] dd",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "328,000円"
+      },
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "141,200円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"overview-lead\"] [class*=\"eyebrow\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "-0.42px",
+        "lineHeight": "18.2px",
+        "text": "この月の支出"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"origin-badge\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"transaction-group-heading\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月27日（火）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月25日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月21日（水）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月18日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月15日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月12日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月10日（土）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月8日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月5日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月4日（日）"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"row-affordance\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-value\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "616,500円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "192,900円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-net\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-group-heading-label\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "支払予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "決済予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "未決済"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "settings",
+    "selector": "h1",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "23px",
+        "letterSpacing": "-0.69px",
+        "lineHeight": "26.45px",
+        "text": "設定"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transaction-new",
+    "selector": "[class*=\"amount-line\"] > span",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px",
+        "text": "¥"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"lead-amount\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "33.28px",
+        "letterSpacing": "-1.3312px",
+        "lineHeight": "38.272px",
+        "text": "186,800円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"summary-inline\"] dd",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "328,000円"
+      },
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "141,200円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"overview-lead\"] [class*=\"eyebrow\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "-0.42px",
+        "lineHeight": "18.2px",
+        "text": "この月の支出"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"origin-badge\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"transaction-group-heading\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月27日（火）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月25日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月21日（水）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月18日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月15日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月12日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月10日（土）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月8日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月5日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月4日（日）"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"row-affordance\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-value\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "616,500円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "192,900円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-net\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "21px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-group-heading-label\"]",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "支払予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "決済予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "未決済"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "settings",
+    "selector": "h1",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "23px",
+        "letterSpacing": "-0.69px",
+        "lineHeight": "26.45px",
+        "text": "設定"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transaction-new",
+    "selector": "[class*=\"amount-line\"] > span",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px",
+        "text": "¥"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"lead-amount\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "30px",
+        "letterSpacing": "-1.2px",
+        "lineHeight": "34.5px",
+        "text": "186,800円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"summary-inline\"] dd",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "328,000円"
+      },
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "141,200円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"overview-lead\"] [class*=\"eyebrow\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "-0.42px",
+        "lineHeight": "18.2px",
+        "text": "この月の支出"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"origin-badge\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"transaction-group-heading\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月27日（火）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月25日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月21日（水）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月18日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月15日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月12日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月10日（土）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月8日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月5日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月4日（日）"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"row-affordance\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-value\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "616,500円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "192,900円"
+      },
+      {
+        "fontSize": "15px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-net\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "15px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-group-heading-label\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "支払予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "決済予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "未決済"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "settings",
+    "selector": "h1",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "21px",
+        "letterSpacing": "-0.63px",
+        "lineHeight": "24.15px",
+        "text": "設定"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transaction-new",
+    "selector": "[class*=\"amount-line\"] > span",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "light",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px",
+        "text": "¥"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"lead-amount\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "30px",
+        "letterSpacing": "-1.2px",
+        "lineHeight": "34.5px",
+        "text": "186,800円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"summary-inline\"] dd",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "328,000円"
+      },
+      {
+        "fontSize": "19px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.85px",
+        "text": "141,200円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "overview",
+    "selector": "[class*=\"overview-lead\"] [class*=\"eyebrow\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "-0.42px",
+        "lineHeight": "18.2px",
+        "text": "この月の支出"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"origin-badge\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      },
+      {
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "10px",
+        "text": "API"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"transaction-group-heading\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月27日（火）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月25日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月21日（水）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月18日（日）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月15日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月12日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月10日（土）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月8日（木）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月5日（月）"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.4px",
+        "text": "10月4日（日）"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transactions",
+    "selector": "[class*=\"row-affordance\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "14px",
+        "text": "›"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-value\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "616,500円"
+      },
+      {
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "192,900円"
+      },
+      {
+        "fontSize": "15px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-summary-net\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "15px",
+        "letterSpacing": "normal",
+        "lineHeight": "18px",
+        "text": "423,600円"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "balances",
+    "selector": "[class*=\"balance-group-heading-label\"]",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "支払予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "残高"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "決済予定"
+      },
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px",
+        "text": "未決済"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "settings",
+    "selector": "h1",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "21px",
+        "letterSpacing": "-0.63px",
+        "lineHeight": "24.15px",
+        "text": "設定"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "screen": "transaction-new",
+    "selector": "[class*=\"amount-line\"] > span",
+    "size": "mobile",
+    "width": 375,
+    "height": 844,
+    "theme": "dark",
+    "values": [
+      {
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "12px",
+        "text": "¥"
+      }
+    ]
+  }
+]
