@@ -102,7 +102,7 @@
 @media (max-width: 30rem) {
   .site-nav {
     position: fixed;
-    z-index: 20;
+    z-index: var(--layer-nav);
     right: 0;
     bottom: 0;
     left: 0;

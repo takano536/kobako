@@ -905,7 +905,7 @@
 }
 .import-confirm-backdrop {
   position: fixed;
-  z-index: 50;
+  z-index: var(--layer-backdrop);
   inset: 0;
   display: grid;
   place-items: center;

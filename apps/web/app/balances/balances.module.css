@@ -6,7 +6,7 @@
 .balance-summary {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--layer-summary);
   background: var(--paper);
 }
 

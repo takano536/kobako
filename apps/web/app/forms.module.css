@@ -64,7 +64,7 @@
 .delete-modal-backdrop {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: var(--layer-dialog-backdrop);
   inset: 0;
   width: 100vw;
   height: 100vh;
@@ -88,7 +88,7 @@
   max-height: calc(100dvh - 2rem);
   overflow: auto;
   position: fixed;
-  z-index: 1001;
+  z-index: var(--layer-dialog);
   top: 50%;
   left: 50%;
   margin: 0;
@@ -503,7 +503,7 @@
 
 .amount-input-error {
   position: absolute;
-  z-index: 1;
+  z-index: var(--layer-inline);
   top: calc(100% - 2px);
   left: 0;
   display: block;

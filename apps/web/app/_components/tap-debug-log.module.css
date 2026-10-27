@@ -1,7 +1,7 @@
 /* `?tap-debug=1` のときだけ出る一時的な診断ログ。操作の邪魔をしないよう、タップを通します。 */
 .log {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--layer-debug);
   right: 0;
   bottom: 0;
   left: 0;
