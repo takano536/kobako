@@ -166,7 +166,7 @@
   width: min(calc(100% - 32px), 30rem);
   max-width: calc(100% - 32px);
   margin: auto;
-  padding: 20px;
+  padding: var(--space-block);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--paper);
