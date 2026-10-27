@@ -12,8 +12,8 @@
   background: var(--paper);
   border-top: var(--stroke-hairline) solid var(--rule);
   color: var(--ink);
-  font-size: 10px;
-  line-height: 1.3;
+  font-size: var(--text-micro);
+  line-height: var(--leading-heading);
   white-space: pre-wrap;
   pointer-events: none;
   opacity: 0.92;

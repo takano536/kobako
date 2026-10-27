@@ -25,7 +25,7 @@
 .year {
   text-align: center;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-wide);
 }
 
 /* ページ側のボタンの配置指定に負けないよう、クラスを2つ重ねます。 */

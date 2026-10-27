@@ -115,7 +115,7 @@
 .balance-group-heading-label {
   color: var(--muted);
   font-size: var(--text-small);
-  line-height: 1.25;
+  line-height: var(--leading-heading);
   overflow-wrap: normal;
   text-align: right;
   white-space: nowrap;
@@ -201,8 +201,8 @@
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  line-height: 1.25;
+  letter-spacing: var(--tracking-normal);
+  line-height: var(--leading-heading);
 }
 
 @media (max-width: 44rem) {
@@ -281,7 +281,7 @@
     color: var(--ink);
     font-size: var(--text-body);
     font-weight: var(--weight-regular);
-    letter-spacing: normal;
+    letter-spacing: var(--tracking-normal);
     line-height: 1.125rem;
     text-align: left;
     white-space: normal;
@@ -319,6 +319,6 @@
 
 @media (max-width: 22.5rem) {
   .balance-group-heading-label {
-    font-size: 0.68rem;
+    font-size: var(--text-micro);
   }
 }
