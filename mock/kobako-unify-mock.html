@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kobako — 統一前後の比較モック</title>
+    <style>
+      :root {
+        --paper: #fcfcf8;
+        --ink: #292e2b;
+        --muted: #68736c;
+        --accent: #426d59;
+        --button-primary: #2f6b52;
+        --money-negative: #a33a36;
+        --rule: #dfe3da;
+        --surface: #f8faf5;
+        --soft-control: #f0f2eb;
+        --danger-soft: #f9efed;
+        --danger-rule: #e7cbc6;
+        --import-border: #aebcaf;
+        --import-soft: #e3eee4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 32px 28px 56px;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Hiragino Sans", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      h1 { font-size: 23px; margin: 0 0 4px; letter-spacing: -0.03em; }
+      .lead { color: var(--muted); margin: 0 0 28px; }
+      section { margin-bottom: 40px; }
+      h2 { font-size: 15px; margin: 0 0 4px; }
+      .note { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+      .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+      .panel {
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        background: #fff;
+        padding: 18px 20px;
+      }
+      .panel h3 {
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+      .panel.now h3 { color: var(--money-negative); }
+      .panel.after h3 { color: var(--button-primary); }
+      .row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+      .row:last-child { margin-bottom: 0; }
+      .tag {
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--soft-control);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      /* buttons */
+      .btn {
+        border: 0;
+        border-radius: 6px;
+        background: var(--button-primary);
+        color: #fff;
+        font: inherit;
+        padding: 8px 16px;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid var(--rule);
+      }
+      /* chips */
+      .chip {
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 5px 10px;
+        background: var(--surface);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #91a99d; }
+      /* month stepper */
+      .stepper { display: inline-flex; align-items: center; gap: 8px; }
+      .step {
+        width: 28px; height: 28px;
+        border-radius: 999px;
+        border: 1px solid var(--rule);
+        background: var(--surface);
+        display: grid; place-items: center;
+        color: var(--muted);
+      }
+      .month { font-weight: 500; letter-spacing: 0.03em; }
+      /* dropzone */
+      .drop {
+        border: 1px dashed var(--import-border);
+        border-radius: 6px;
+        background: var(--import-soft);
+        padding: 16px;
+        text-align: center;
+      }
+      /* list rows */
+      .list { border-top: 1px solid var(--rule); }
+      .list .item {
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px solid var(--rule);
+      }
+      .list .item span:last-child { font-variant-numeric: tabular-nums; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .neg { color: var(--money-negative); }
+      .danger { color: var(--money-negative); }
+      .legend {
+        display: flex; gap: 18px; flex-wrap: wrap;
+        font-size: 12px; color: var(--muted); margin-top: 10px;
+      }
+      .legend b { color: var(--ink); font-weight: 500; }
+      .hr { height: 1px; background: var(--rule); margin: 22px 0; }
+      code { font-size: 11px; background: var(--soft-control); border-radius: 4px; padding: 1px 5px; }
+    </style>
+  </head>
+  <body>
+    <h1>統一前後の比較モック</h1>
+    <p class="lead">
+      左が現在の実装、右が「トークンに寄せた後」。数値は実測値（origin main の CSS）に基づきます。
+      判断が要るのは <b>無効状態の濃さ</b> と <b>余白の密度</b> の2点です。
+    </p>
+
+    <section>
+      <h2>1. 無効状態の不透明度</h2>
+      <p class="note">現在は 0.4 / 0.45 / 0.5 / 0.55 / 0.58 の5種。同じ「押せない」状態なのに濃さが違います。</p>
+      <div class="pair">
+        <div class="panel now">
+          <h3>現在（5種）</h3>
+          <div class="row">
+            <button class="btn" style="opacity:0.55">保存する</button>
+            <span class="tag">0.55</span>
+          </div>
+          <div class="row">
+            <span class="chip" style="opacity:0.45"><span class="dot"></span>食費</span>
+            <span class="tag">0.45</span>
+          </div>
+          <div class="row">
+            <span class="stepper">
+              <span class="step" style="opacity:0.4">‹</span>
+              <span class="month">2026年10月</span>
+              <span class="step">›</span>
+            </span>
+            <span class="tag">0.4</span>
+          </div>
+          <div class="row">
+            <span class="drop" style="opacity:0.58">CSV をドロップ</span>
+            <span class="tag">0.58</span>
+          </div>
+        </div>
+        <div class="panel after">
+          <h3>統一後（0.5）</h3>
+          <div class="row">
+            <button class="btn" style="opacity:0.5">保存する</button>
+            <span class="tag">0.5</span>
+          </div>
+          <div class="row">
+            <span class="chip" style="opacity:0.5"><span class="dot"></span>食費</span>
+            <span class="tag">0.5</span>
+          </div>
+          <div class="row">
+            <span class="stepper">
+              <span class="step" style="opacity:0.5">‹</span>
+              <span class="month">2026年10月</span>
+              <span class="step">›</span>
+            </span>
+            <span class="tag">0.5</span>
+          </div>
+          <div class="row">
+            <span class="drop" style="opacity:0.5">CSV をドロップ</span>
+            <span class="tag">0.5</span>
+          </div>
+        </div>
+      </div>
+      <div class="legend">
+        <span>ボタンは <b>やや淡く</b>、月送りの矢印とドロップゾーンは <b>やや濃く</b> なります（±0.05〜0.1）。</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 余白の密度</h2>
+      <p class="note">
+        現在は 43 種の padding が混在（例: <code>0.55rem 0.9rem</code>, <code>0.5rem 0.8rem</code>, <code>9px 7px</code>,
+        <code>10px 0</code>）。右は 4 / 8 / 12 / 16 / 24 / 32 / 40px の段へ寄せたもの。
+      </p>
+      <div class="pair">
+        <div class="panel now">
+          <h3>現在（オフスケール混在）</h3>
+          <div class="row">
+            <span class="chip" style="padding:8.8px 14.4px"><span class="dot"></span>固定費</span>
+            <span class="chip" style="padding:8px 12.8px"><span class="dot"></span>食費</span>
+            <span class="tag">8.8/14.4・8/12.8</span>
+          </div>
+          <div class="row">
+            <span class="chip" style="padding:9px 7px"><span class="dot"></span>日付</span>
+            <span class="chip" style="padding:6px 10px"><span class="dot"></span>メモ</span>
+            <span class="tag">9/7・6/10</span>
+          </div>
+          <div class="hr"></div>
+          <div class="list">
+            <div class="item" style="padding:10px 0"><span>現金</span><span>¥42,000</span></div>
+            <div class="item" style="padding:9px 0"><span>生活費口座</span><span>¥128,400</span></div>
+            <div class="item" style="padding:12px 0"><span>クレジットカード</span><span class="neg">−¥18,220</span></div>
+          </div>
+          <div class="tag" style="margin-top:10px;display:inline-block">行の高さ 10 / 9 / 12px</div>
+        </div>
+        <div class="panel after">
+          <h3>統一後（4px グリッド）</h3>
+          <div class="row">
+            <span class="chip" style="padding:8px 16px"><span class="dot"></span>固定費</span>
+            <span class="chip" style="padding:8px 12px"><span class="dot"></span>食費</span>
+            <span class="tag">8/16・8/12</span>
+          </div>
+          <div class="row">
+            <span class="chip" style="padding:8px 8px"><span class="dot"></span>日付</span>
+            <span class="chip" style="padding:8px 8px"><span class="dot"></span>メモ</span>
+            <span class="tag">8/8</span>
+          </div>
+          <div class="hr"></div>
+          <div class="list">
+            <div class="item" style="padding:12px 0"><span>現金</span><span>¥42,000</span></div>
+            <div class="item" style="padding:12px 0"><span>生活費口座</span><span>¥128,400</span></div>
+            <div class="item" style="padding:12px 0"><span>クレジットカード</span><span class="neg">−¥18,220</span></div>
+          </div>
+          <div class="tag" style="margin-top:10px;display:inline-block">行の高さ 12px 均一</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><b>変わる点</b>: 一覧の行が 9〜12px → 12px で揃い、全体が <b>わずかにゆったり</b>。チップは左右が 14.4 → 16px で少し広がります。</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 文字と字間（PR #32 で進行中）</h2>
+      <p class="note">サイズは 13 種 → 8 段、字間は 9 種 → 6 段。数字の大きさが最大 +1.7px 変わります。</p>
+      <div class="pair">
+        <div class="panel now">
+          <h3>現在</h3>
+          <div class="row"><span style="font-size:16.3px;font-weight:700">12件</span><span class="tag">1.02rem</span></div>
+          <div class="row"><span style="font-size:17.9px;font-weight:700">¥128,400</span><span class="tag">1.12rem</span></div>
+          <div class="row"><span style="font-size:19px">¥42,000</span><span class="tag">1.1875rem</span></div>
+          <div class="row"><span style="font-size:18.4px;letter-spacing:-0.03em">2026年10月</span><span class="tag">1.15rem / -0.03em</span></div>
+        </div>
+        <div class="panel after">
+          <h3>統一後</h3>
+          <div class="row"><span style="font-size:18px;font-weight:700">12件</span><span class="tag">--text-lead</span></div>
+          <div class="row"><span style="font-size:18px;font-weight:700">¥128,400</span><span class="tag">--text-lead</span></div>
+          <div class="row"><span style="font-size:18px">¥42,000</span><span class="tag">--text-lead</span></div>
+          <div class="row"><span style="font-size:18px;letter-spacing:0.04em">2026年10月</span><span class="tag">lead / --tracking-wide</span></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><b>変わる点</b>: 取込結果の数字が +1.7px、概要の金額が −1px、年月ラベルの字間が 0.01em 広がる。</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>このモックで決めてほしいこと</h2>
+      <div class="panel" style="background: var(--surface)">
+        <ol style="margin:0;padding-left:20px">
+          <li>無効状態は <b>0.5 で統一</b>（ボタンは淡く、月送りは濃くなる）でよいか。0.55 に寄せる選択も可。</li>
+          <li>余白は <b>4px グリッド</b>（4/8/12/16/24/32/40）でよいか。行の高さが 12px 均一になり、一覧が少しゆったりします。</li>
+          <li>一覧の行間を詰めたい場合は <b>8px 基準</b>（行 8px）にも寄せられます。どちらが好みか。</li>
+        </ol>
+      </div>
+    </section>
+  </body>
+</html>
