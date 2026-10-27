@@ -21,17 +21,17 @@
   color: var(--ink);
   font-size: var(--text-body);
   font-weight: var(--weight-medium);
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-title);
 }
 
 .lead-amount {
   display: block;
   margin-top: var(--space-within);
   color: var(--ink);
-  font-size: clamp(1.875rem, 2.6vw, 2.25rem);
+  font-size: var(--text-hero);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.04em;
+  letter-spacing: var(--tracking-hero);
   line-height: var(--leading-tight);
 }
 
@@ -40,7 +40,7 @@
   flex-wrap: wrap;
   align-items: end;
   justify-content: flex-start;
-  gap: 2rem;
+  gap: var(--space-section);
   margin-top: 0;
   color: var(--muted);
   font-size: var(--text-body);
@@ -61,7 +61,7 @@
 .summary-inline dd {
   margin: 0;
   color: var(--ink);
-  font-size: 1.1875rem;
+  font-size: var(--text-lead);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);

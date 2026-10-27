@@ -99,10 +99,26 @@
   --text-body: 0.875rem;
   --text-small: 0.75rem;
   --text-brand: 1.375rem;
+  --text-micro: 0.6875rem;
+  --text-lead: 1.125rem;
+  --text-icon: 1.5rem;
+  --text-hero: clamp(1.875rem, 2.6vw, 2.25rem);
+  --tracking-hero: -0.04em;
+  --tracking-title: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-code: 0.08em;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+  --opacity-muted: 0.8;
+  --opacity-inactive: 0.3;
   --space-within: 0.25rem;
   --space-item: 0.5rem;
   --space-dot-text: 0.5rem;
+  --space-related: 12px;
   --space-group: 1rem;
+  --space-block: 24px;
   --space-section: 2rem;
   --space-page: 2.5rem;
   --radius-xs: 4px;
@@ -129,10 +145,20 @@
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
+  --layer-inline: 1;
+  --layer-summary: 2;
+  --layer-menu: 10;
+  --layer-nav: 20;
+  --layer-popover: 30;
+  --layer-backdrop: 50;
+  --layer-debug: 1000;
+  --layer-dialog-backdrop: 1000;
+  --layer-dialog: 1001;
   --leading-tight: 1.15;
   --leading-heading: 1.3;
   --leading-body: 1.6;
   --leading-meta: 1.45;
+  --leading-none: 1;
   --layout-wide: 65rem;
   --layout-narrow: 42rem;
   --layout-import: 44rem;
@@ -231,14 +257,14 @@ ul {
 h1,
 h2,
 h3 {
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 h1 {
   font-size: var(--text-title);
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-title);
 }
 
 h2 {

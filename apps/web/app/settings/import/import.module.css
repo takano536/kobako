@@ -34,8 +34,8 @@
   width: 100%;
   min-height: 10rem;
   align-items: center;
-  gap: 1.125rem;
-  padding: 1.5rem;
+  gap: var(--space-group);
+  padding: var(--space-block);
   border: var(--stroke-hairline) dashed var(--import-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -71,8 +71,8 @@
   border: var(--stroke-hairline) solid var(--import-icon-border);
   border-radius: var(--radius-circle);
   color: var(--accent);
-  font-size: 1.5rem;
-  line-height: 1;
+  font-size: var(--text-icon);
+  line-height: var(--leading-none);
 }
 
 .import-dropzone-copy {
@@ -81,7 +81,7 @@
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   flex: 1 1 0;
-  gap: 5px;
+  gap: var(--space-within);
 }
 
 .import-dropzone-copy strong {
@@ -109,7 +109,7 @@
 }
 
 .import-dropzone[aria-disabled='true'] .import-dropzone-copy strong {
-  opacity: 0.58;
+  opacity: var(--opacity-disabled);
 }
 
 .import-dropzone-copy span {
@@ -126,8 +126,8 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: var(--space-related);
+  padding: var(--space-group);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -148,7 +148,7 @@
   color: var(--accent);
   font-size: var(--text-small);
   font-weight: var(--weight-medium);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-wide);
 }
 .import-file-card-icon.is-invalid {
   background: var(--import-muted);
@@ -159,7 +159,7 @@
   display: grid;
   min-width: 0;
   flex: 1 1 auto;
-  gap: 3px;
+  gap: var(--space-within);
 }
 
 .import-file-name {
@@ -185,13 +185,13 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--space-item);
 }
 
 .import-file-change,
 .import-file-remove {
   min-height: 44px;
-  padding: 0.35rem 0.65rem;
+  padding: var(--space-item) var(--space-related);
   border-color: var(--rule);
   background: transparent;
   color: var(--ink);
@@ -207,9 +207,9 @@
 
 .import-file-error-card {
   display: grid;
-  gap: 5px;
-  margin-top: 12px;
-  padding: 12px 14px;
+  gap: var(--space-within);
+  margin-top: var(--space-related);
+  padding: var(--space-related) var(--space-group);
   border: var(--stroke-hairline) solid var(--error-border);
   border-radius: var(--radius-md);
   background: var(--error-surface);
@@ -221,13 +221,13 @@
 }
 
 .import-file-note {
-  margin-top: 9px;
+  margin-top: var(--space-item);
   color: var(--muted);
   font-size: var(--text-small);
 }
 
 .import-file-error {
-  margin-top: 10px;
+  margin-top: var(--space-related);
   color: var(--money-negative);
   font-size: var(--text-small);
 }
@@ -239,7 +239,7 @@
 
 .import-fallback-submit {
   min-height: 44px;
-  margin-top: 7px;
+  margin-top: var(--space-item);
   padding: 0;
   border: 0;
   background: transparent;
@@ -258,7 +258,7 @@
 }
 
 .import-details {
-  margin-top: 24px;
+  margin-top: var(--space-block);
   border-top: var(--stroke-hairline) solid var(--rule);
   border-bottom: var(--stroke-hairline) solid var(--rule);
 }
@@ -268,8 +268,8 @@
   min-height: 46px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--space-related);
+  padding: var(--space-related) 0;
   cursor: pointer;
   font-size: var(--text-body);
   font-weight: var(--weight-medium);
@@ -285,7 +285,7 @@
 .import-details > summary::after {
   color: var(--accent);
   content: '＋';
-  font-size: 1.15rem;
+  font-size: var(--text-lead);
   font-weight: var(--weight-regular);
 }
 
@@ -294,7 +294,7 @@
 }
 
 .import-details-content {
-  padding: 1px 0 17px;
+  padding: 1px 0 var(--space-group);
 }
 
 .import-details-content p {
@@ -303,8 +303,8 @@
 
 .import-details-content ul {
   display: grid;
-  gap: 5px;
-  margin-top: 12px;
+  gap: var(--space-within);
+  margin-top: var(--space-related);
   padding-left: 1.2rem;
   list-style: disc;
 }
@@ -321,7 +321,7 @@
 
 .import-preview-section {
   min-width: 0;
-  margin-top: 30px;
+  margin-top: var(--space-section);
 }
 
 .import-preview > .import-preview-section:first-of-type {
@@ -333,8 +333,8 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 6px 12px;
-  margin-bottom: 10px;
+  gap: var(--space-item) var(--space-related);
+  margin-bottom: var(--space-related);
 }
 
 .import-section-heading h2 {
@@ -350,8 +350,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 5px 12px;
-  margin: 0 0 12px;
+  gap: var(--space-within) var(--space-related);
+  margin: 0 0 var(--space-related);
   color: var(--muted);
   font-size: var(--text-small);
 }
@@ -374,7 +374,7 @@
 
 .import-kind-summary > div {
   min-width: 0;
-  padding: 13px;
+  padding: var(--space-related);
   background: var(--paper);
 }
 
@@ -399,9 +399,9 @@
 }
 
 .import-kind-summary dd {
-  margin: 5px 0 0;
+  margin: var(--space-within) 0 0;
   overflow-wrap: anywhere;
-  font-size: 1.12rem;
+  font-size: var(--text-lead);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-bold);
 }
@@ -409,14 +409,14 @@
 .import-secondary-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 11px;
+  gap: var(--space-within) var(--space-group);
+  margin-top: var(--space-related);
   color: var(--muted);
   font-size: var(--text-small);
 }
 
 .import-secondary-stats span + span::before {
-  margin-right: 14px;
+  margin-right: var(--space-group);
   color: var(--rule);
   content: '·';
 }
@@ -427,8 +427,8 @@
 
 .import-new-names-list {
   display: grid;
-  gap: 5px;
-  margin-top: 12px;
+  gap: var(--space-within);
+  margin-top: var(--space-related);
 }
 
 .import-new-names {
@@ -442,7 +442,7 @@
   grid-template-columns: max-content minmax(0, 1fr) max-content;
   min-width: 0;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-item);
   cursor: pointer;
   list-style: none;
 }
@@ -488,7 +488,7 @@
 
 .import-new-names:not(details) {
   display: flex;
-  gap: 8px;
+  gap: var(--space-item);
 }
 .import-new-names:not(details) {
   flex-wrap: wrap;
@@ -504,19 +504,19 @@
 
 .import-new-names details + p,
 .import-new-names[open] > p {
-  margin: 6px 0 0 1.2rem;
+  margin: var(--space-item) 0 0 1.2rem;
   overflow-wrap: anywhere;
 }
 
 .import-attention {
-  padding: 15px;
+  padding: var(--space-group);
   border: var(--stroke-hairline) solid var(--error-border);
   border-radius: var(--radius-md);
   background: var(--error-surface);
 }
 
 .import-attention .import-section-heading {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-item);
 }
 
 .import-attention-lead {
@@ -526,14 +526,14 @@
 
 .import-row-errors-list {
   display: grid;
-  gap: 14px;
-  margin: 14px 0 0;
-  padding-left: 1.4rem;
+  gap: var(--space-group);
+  margin: var(--space-group) 0 0;
+  padding-left: var(--space-block);
 }
 
 .import-row-error-item {
   min-width: 0;
-  padding-left: 3px;
+  padding-left: var(--space-within);
 }
 
 .import-row-error-heading {
@@ -541,7 +541,7 @@
   min-width: 0;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 9px;
+  gap: var(--space-within) var(--space-item);
 }
 
 .import-row-error-heading span {
@@ -552,18 +552,18 @@
 }
 
 .import-row-error-item p {
-  margin-top: 4px;
+  margin-top: var(--space-within);
   font-weight: var(--weight-medium);
 }
 
 .import-row-error-item small {
   display: block;
-  margin-top: 3px;
+  margin-top: var(--space-within);
   color: var(--muted);
 }
 
 .import-more-errors {
-  margin-top: 14px;
+  margin-top: var(--space-group);
 }
 
 .import-more-errors > summary {
@@ -590,15 +590,15 @@
   display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
   align-items: center;
-  column-gap: 9px;
+  column-gap: var(--space-item);
   min-width: 0;
   min-height: 58px;
-  padding: 5px 0;
+  padding: var(--space-within) 0;
 }
 
 .import-kind-badge {
   min-width: 3.1em;
-  padding: 3px 6px;
+  padding: var(--space-within) var(--space-item);
   border-radius: var(--radius-pill);
   background: var(--import-badge);
   color: var(--accent);
@@ -656,14 +656,14 @@
 }
 
 .import-duplicate {
-  padding: 16px;
+  padding: var(--space-group);
   border: var(--stroke-hairline) solid var(--import-duplicate-border);
   border-radius: var(--radius-md);
   background: var(--import-duplicate-surface);
   color: var(--ink);
 }
 .import-duplicate .import-confirm-actions {
-  margin-top: 16px;
+  margin-top: var(--space-group);
 }
 
 .import-duplicate h2 {
@@ -671,12 +671,12 @@
 }
 
 .import-duplicate p {
-  margin-top: 7px;
+  margin-top: var(--space-item);
   color: var(--muted);
 }
 
 .import-confirm {
-  margin-top: 24px;
+  margin-top: var(--space-block);
 }
 
 .import-confirm-actions,
@@ -684,7 +684,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-item);
 }
 
 .import-confirm-note {
@@ -704,8 +704,8 @@
 }
 
 .import-success {
-  margin-top: 10px;
-  padding: 22px 0 12px;
+  margin-top: var(--space-related);
+  padding: var(--space-block) 0 var(--space-related);
   border-top: var(--stroke-hairline) solid var(--rule);
 }
 
@@ -717,7 +717,7 @@
   border-radius: var(--radius-circle);
   background: var(--import-soft);
   color: var(--accent);
-  font-size: 1.6rem;
+  font-size: var(--text-icon);
   font-weight: var(--weight-bold);
 }
 .import-success-mark svg {
@@ -733,15 +733,15 @@
 .import-page:has(.import-success) .import-heading h1 {
   color: var(--muted);
   font-size: var(--text-body);
-  letter-spacing: 0;
+  letter-spacing: var(--tracking-normal);
 }
 
 .import-success h2 {
-  margin-top: 14px;
+  margin-top: var(--space-group);
 }
 
 .import-success-period {
-  margin-top: 6px;
+  margin-top: var(--space-item);
   color: var(--muted);
 }
 
@@ -749,7 +749,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
-  margin: 18px 0 0;
+  margin: var(--space-group) 0 0;
   overflow: hidden;
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-md);
@@ -758,7 +758,7 @@
 
 .import-success-counts div {
   min-width: 0;
-  padding: 11px;
+  padding: var(--space-related);
   background: var(--paper);
 }
 
@@ -768,20 +768,20 @@
 }
 
 .import-success-counts dd {
-  margin: 4px 0 0;
+  margin: var(--space-within) 0 0;
   overflow-wrap: anywhere;
-  font-size: 1.02rem;
+  font-size: var(--text-lead);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-bold);
 }
 
 .import-success-created {
-  margin-top: 13px;
+  margin-top: var(--space-related);
   color: var(--muted);
 }
 
 .import-success-actions {
-  margin-top: 17px;
+  margin-top: var(--space-group);
 }
 
 @media (max-width: 44rem) {
@@ -793,7 +793,7 @@
 @media (max-width: 30rem) {
   .import-dropzone {
     min-height: 178px;
-    padding: 23px 18px;
+    padding: var(--space-block) var(--space-group);
   }
 
   .import-dropzone-icon {
@@ -813,7 +813,7 @@
   }
 
   .import-kind-summary > div {
-    padding: 9px 7px;
+    padding: var(--space-item) var(--space-item);
   }
 
   .import-kind-summary dt {
@@ -825,22 +825,22 @@
   }
 
   .import-secondary-stats {
-    gap: 3px 9px;
+    gap: var(--space-within) var(--space-item);
     font-size: var(--text-small);
   }
 
   .import-secondary-stats span + span::before {
-    margin-right: 9px;
+    margin-right: var(--space-item);
   }
 
   .import-transaction-link {
     grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
-    column-gap: 6px;
+    column-gap: var(--space-item);
   }
 
   .import-kind-badge {
     min-width: 2.8em;
-    padding-inline: 4px;
+    padding-inline: var(--space-within);
     font-size: var(--text-small);
   }
 
@@ -872,7 +872,7 @@
   }
 
   .import-success-counts div {
-    padding: 9px 7px;
+    padding: var(--space-item) var(--space-item);
   }
 
   .import-success-counts dt {
@@ -905,11 +905,11 @@
 }
 .import-confirm-backdrop {
   position: fixed;
-  z-index: 50;
+  z-index: var(--layer-backdrop);
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: var(--space-group);
   background: var(--scrim);
   animation: import-confirm-fade-in var(--motion-fast) var(--ease-standard) backwards;
 }
@@ -929,7 +929,7 @@
   display: flex;
   align-items: center;
   min-height: 3.75rem;
-  padding: 0.5rem 1rem;
+  padding: var(--space-item) var(--space-group);
 }
 
 .dialog-head h2 {
@@ -939,7 +939,7 @@
   font-size: var(--text-heading);
   font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .dialog-head > span {
@@ -1023,11 +1023,11 @@
 }
 
 .import-confirm-summary {
-  margin: 0 1.5rem 1rem;
+  margin: 0 var(--space-block) var(--space-group);
 }
 
 .import-confirm-dialog-note {
-  margin: 1rem 1.5rem 0.5rem;
+  margin: var(--space-group) var(--space-block) var(--space-item);
   color: var(--money-negative);
   font-size: var(--text-small);
   line-height: var(--leading-body);
@@ -1036,8 +1036,8 @@
 .import-confirm-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0 1.5rem 1.5rem;
+  gap: var(--space-item);
+  padding: 0 var(--space-block) var(--space-block);
 }
 
 @media (prefers-reduced-motion: reduce) {

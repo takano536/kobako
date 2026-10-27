@@ -474,9 +474,9 @@ test('centers one-line transfer details on mobile and preserves multiline wrappi
     expect(Math.abs(oneLineGeometry.mainCenter - oneLineGeometry.rowCenter)).toBeLessThanOrEqual(1);
     expect(multilineGeometry.categoryHeight).toBeGreaterThan(oneLineGeometry.categoryHeight);
     expect(multilineGeometry.mainHeight).toBeGreaterThan(oneLineGeometry.mainHeight);
-    expect(multilineGeometry.mainTopOffset).toBeCloseTo(6, 1);
+    expect(multilineGeometry.mainTopOffset).toBeCloseTo(12, 1);
     expect(multilineGeometry.mainLeftOffset).toBeCloseTo(92.1875, 1);
-    expect(multilineGeometry.categoryTopOffset).toBeCloseTo(6, 1);
+    expect(multilineGeometry.categoryTopOffset).toBeCloseTo(12, 1);
     expect(multilineGeometry.categoryLeftOffset).toBeCloseTo(92.1875, 1);
   } finally {
     await databaseClient.sql`
