@@ -5,17 +5,6 @@
     "screen": "overview",
     "size": "desktop",
     "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "overview",
-    "size": "desktop",
-    "width": 1280,
     "label": "month-switcher-label",
     "selector": "[data-slot=\"month-switcher-label\"]",
     "pseudo": "",
@@ -45,39 +34,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "transactions",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "filter-menu-open",
-    "size": "desktop",
-    "width": 1280,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "import-initial",
-    "size": "desktop",
-    "width": 1280,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "before",
@@ -196,28 +152,6 @@
   {
     "build": "before",
     "theme": "light",
-    "screen": "tap-debug",
-    "size": "desktop",
-    "width": 1280,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "overview",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -250,39 +184,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "transactions",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "filter-menu-open",
-    "size": "mobile",
-    "width": 375,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "screen": "import-initial",
-    "size": "mobile",
-    "width": 375,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "before",
@@ -400,28 +301,6 @@
   },
   {
     "build": "before",
-    "theme": "light",
-    "screen": "tap-debug",
-    "size": "mobile",
-    "width": 375,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "overview",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
     "theme": "dark",
     "screen": "overview",
     "size": "desktop",
@@ -455,39 +334,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "transactions",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "filter-menu-open",
-    "size": "desktop",
-    "width": 1280,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "import-initial",
-    "size": "desktop",
-    "width": 1280,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "before",
@@ -606,28 +452,6 @@
   {
     "build": "before",
     "theme": "dark",
-    "screen": "tap-debug",
-    "size": "desktop",
-    "width": 1280,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "overview",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -660,39 +484,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "transactions",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "filter-menu-open",
-    "size": "mobile",
-    "width": 375,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "screen": "import-initial",
-    "size": "mobile",
-    "width": 375,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "before",
@@ -809,28 +600,6 @@
     ]
   },
   {
-    "build": "before",
-    "theme": "dark",
-    "screen": "tap-debug",
-    "size": "mobile",
-    "width": 375,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "overview",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
     "build": "after",
     "theme": "light",
     "screen": "overview",
@@ -865,39 +634,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "transactions",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "filter-menu-open",
-    "size": "desktop",
-    "width": 1280,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "import-initial",
-    "size": "desktop",
-    "width": 1280,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "after",
@@ -1016,28 +752,6 @@
   {
     "build": "after",
     "theme": "light",
-    "screen": "tap-debug",
-    "size": "desktop",
-    "width": 1280,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "overview",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -1070,39 +784,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "transactions",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "filter-menu-open",
-    "size": "mobile",
-    "width": 375,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "screen": "import-initial",
-    "size": "mobile",
-    "width": 375,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "after",
@@ -1220,28 +901,6 @@
   },
   {
     "build": "after",
-    "theme": "light",
-    "screen": "tap-debug",
-    "size": "mobile",
-    "width": 375,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "overview",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
     "theme": "dark",
     "screen": "overview",
     "size": "desktop",
@@ -1275,39 +934,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "transactions",
-    "size": "desktop",
-    "width": 1280,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "filter-menu-open",
-    "size": "desktop",
-    "width": 1280,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "import-initial",
-    "size": "desktop",
-    "width": 1280,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "after",
@@ -1426,28 +1052,6 @@
   {
     "build": "after",
     "theme": "dark",
-    "screen": "tap-debug",
-    "size": "desktop",
-    "width": 1280,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "overview",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
     "screen": "overview",
     "size": "mobile",
     "width": 375,
@@ -1480,39 +1084,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "transactions",
-    "size": "mobile",
-    "width": 375,
-    "label": "month-switcher-control",
-    "selector": "[data-slot=\"month-switcher\"] button.control",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "filter-menu-open",
-    "size": "mobile",
-    "width": 375,
-    "label": "filter-menu-group",
-    "selector": "[data-slot=\"filter-menu-group\"]",
-    "pseudo": "",
-    "values": []
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "import-initial",
-    "size": "mobile",
-    "width": 375,
-    "label": "import-file-card-icon",
-    "selector": "[data-slot=\"import-file-card-icon\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "after",
@@ -1627,17 +1198,6 @@
         "lineHeight": "22.4px"
       }
     ]
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "screen": "tap-debug",
-    "size": "mobile",
-    "width": 375,
-    "label": "tap-debug-log",
-    "selector": "[data-slot=\"tap-debug-log\"]",
-    "pseudo": "",
-    "values": []
   },
   {
     "build": "before",
@@ -2260,110 +1820,6 @@
         "fontSize": "11px",
         "letterSpacing": "normal",
         "lineHeight": "14.3px"
-      }
-    ]
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "width": 1280,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15px"
-      }
-    ]
-  },
-  {
-    "build": "before",
-    "theme": "light",
-    "width": 375,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15px"
-      }
-    ]
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "width": 1280,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15px"
-      }
-    ]
-  },
-  {
-    "build": "before",
-    "theme": "dark",
-    "width": 375,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15px"
-      }
-    ]
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "width": 1280,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15.6px"
-      }
-    ]
-  },
-  {
-    "build": "after",
-    "theme": "light",
-    "width": 375,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15.6px"
-      }
-    ]
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "width": 1280,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15.6px"
-      }
-    ]
-  },
-  {
-    "build": "after",
-    "theme": "dark",
-    "width": 375,
-    "vals": [
-      {
-        "text": "残高",
-        "fontSize": "12px",
-        "letterSpacing": "normal",
-        "lineHeight": "15.6px"
       }
     ]
   },
