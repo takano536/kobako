@@ -8,13 +8,6 @@
   margin-top: var(--space-section);
 }
 
-.filter {
-  display: flex;
-  min-height: 2.75rem;
-  align-items: center;
-  font-size: var(--text-small);
-}
-
 .list {
   display: grid;
   margin: 0;

@@ -20,6 +20,47 @@
 
 .settings-list-rows {
   display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Asset rows keep the one-line height of the other rows: the name truncates, and the asset
+   category sits at the right end before the arrow. Grid items must be allowed to shrink for that. */
+.settings-list-rows > li {
+  min-width: 0;
+}
+
+.settings-list-rows a:has(.settings-account-copy) > span {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-account-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-item);
+  margin-right: var(--space-item);
+}
+
+.settings-account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-account-category {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.settings-list-rows > li > p {
+  margin: 0;
 }
 
 /* Row text sits on the heading's left edge; the hit area and focus ring extend 8px beyond it. */

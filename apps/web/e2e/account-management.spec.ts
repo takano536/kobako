@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   DEFAULT_HOUSEHOLD_ID,
   assertSafeTestDatabaseTarget,
@@ -39,6 +39,14 @@ let listMonth = '';
 function database(): DatabaseClient {
   if (!databaseClient) throw new Error('asset-management E2E database is not initialized');
   return databaseClient;
+}
+
+async function openAssetEditFromSettings(page: Page, accountId: number) {
+  await page.goto('/settings');
+  const editLink = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`);
+  await expect(editLink).toBeVisible();
+  await editLink.click();
+  await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();
 }
 
 async function cleanupReviewFixtures(): Promise<void> {
@@ -121,17 +129,18 @@ test('registers an asset, filters transactions, and opens unified settings', asy
   await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: '銀行' });
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
-  await expect(page.getByRole('heading', { name: assetName, exact: true })).toBeVisible();
-  const settings = page.getByRole('link', { name: '資産を編集', exact: true });
-  await expect(settings).toBeVisible();
-  await settings.click();
-  await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();
+  const accountId = Number(new URL(page.url()).searchParams.get('account'));
+  await expect(page.locator('[data-slot="filter-chip"][data-filter="account"]')).toContainText(
+    assetName,
+  );
+  await openAssetEditFromSettings(page, accountId);
   await expect(page.getByLabel('名前', { exact: true })).toHaveValue(assetName);
   const renamedAssetName = `${assetName}変更後`;
   await page.getByLabel('名前', { exact: true }).fill(renamedAssetName);
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all&saved=1$/);
-  await expect(page.getByRole('heading', { name: renamedAssetName, exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
+  await expect(page.getByRole('status')).toContainText('保存しました');
+  await expect(page.getByRole('link', { name: new RegExp(renamedAssetName) })).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: window.innerWidth,
@@ -378,15 +387,15 @@ test('shows complete large month and all-time account lists and preserves settin
   expect(editPrefetchRequests).toEqual([]);
   page.off('request', editPrefetchListener);
 
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '資産設定' })).toBeVisible();
+  await openAssetEditFromSettings(page, accountId);
   const renamedTarget = `${targetName}-renamed`;
   await page.getByLabel('名前', { exact: true }).fill(renamedTarget);
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
+  await page.goto(`/transactions?account=${accountId}&month=all`);
+  await expect(page.locator('[data-slot="filter-chip"][data-filter="account"]')).toContainText(
+    renamedTarget,
   );
-  await expect(page.getByRole('heading', { name: renamedTarget, exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('取引61件');
   await expect(page.locator('[data-slot="transaction-link"]')).toHaveCount(61);
 });
@@ -438,16 +447,14 @@ test('shows card current conditions in the same asset settings form', async ({ p
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+  await openAssetEditFromSettings(page, accountId);
   await expect(page.getByLabel('締め日')).toHaveValue('last');
   await expect(page.getByLabel('支払日')).toHaveValue('10');
   await expect(page.getByLabel('支払月')).toHaveValue('next_month');
   await page.getByLabel('支払日').selectOption('');
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
-  );
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
+  await openAssetEditFromSettings(page, accountId);
   await expect(page.getByLabel('締め日')).toHaveValue('last');
   await expect(page.getByLabel('支払日')).toHaveValue('');
   await expect(page.getByLabel('支払月')).toHaveValue('next_month');
@@ -589,7 +596,7 @@ test('edit: submit with empty name, fix and save succeeds', async ({ page }) => 
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+  await openAssetEditFromSettings(page, accountId);
   await page.getByLabel('名前', { exact: true }).fill('');
   await page.getByRole('button', { name: '保存する' }).click();
   const nameErrorId = 'account-name-error';
@@ -599,9 +606,7 @@ test('edit: submit with empty name, fix and save succeeds', async ({ page }) => 
   await nameInput.fill(fixedName);
   await expect(nameInput).toHaveValue(fixedName);
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
-  );
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
   const accountRow = await database().sql<{ name: string }[]>`
     select name from accounts where id = ${accountId}
   `;
@@ -618,7 +623,7 @@ test('kind change: saves credit_card and card fields with one click', async ({
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+  await openAssetEditFromSettings(page, accountId);
   await page
     .getByLabel('資産カテゴリ', { exact: true })
     .selectOption({ label: 'クレジットカード' });
@@ -631,9 +636,7 @@ test('kind change: saves credit_card and card fields with one click', async ({
     contentType: 'image/png',
   });
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
-  );
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
   const accountRow = await database().sql<{ kind: string }[]>`
     select kind from accounts where id = ${accountId}
   `;
@@ -654,7 +657,7 @@ test('kind change with field error: fix name and save without another confirmati
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
   const accountId = Number(new URL(page.url()).searchParams.get('account'));
-  await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+  await openAssetEditFromSettings(page, accountId);
   const nameInput = page.getByLabel('名前', { exact: true });
   await nameInput.fill('');
   await page
@@ -671,9 +674,7 @@ test('kind change with field error: fix name and save without another confirmati
   await paymentDay.selectOption('10');
   await expect(paymentDay).toHaveValue('10');
   await page.getByRole('button', { name: '保存する' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/transactions\\?account=${accountId}&month=all&saved=1$`),
-  );
+  await expect(page).toHaveURL(/\/settings\?saved=1$/);
   const accountRow = await database().sql<{ name: string; kind: string }[]>`
     select name, kind from accounts where id = ${accountId}
   `;

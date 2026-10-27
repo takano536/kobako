@@ -1,4 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import {
+  DEFAULT_HOUSEHOLD_ID,
+  assertSafeTestDatabaseTarget,
+  createDatabaseClient,
+  initializeDefaultLedger,
+  verifySafeTestDatabaseConnection,
+} from '@kobako/db';
 
 const runSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -258,28 +265,52 @@ test.describe('設定画面', () => {
     await expect(categoryRow(page, renamed)).toHaveCount(0);
   });
 
-  test('資産カテゴリを資産の追加と編集で選択できる', async ({ page }) => {
+  test('資産カテゴリを資産の追加と設定画面の資産編集で選択できる', async ({ page }) => {
     const customName = `E2E資産選択-${runSuffix}`;
     const assetName = `E2Eカスタム資産-${runSuffix}`;
     await page.goto('/settings/categories/asset');
     await page.getByLabel('新しいカテゴリ').fill(customName);
     await page.getByRole('button', { name: '追加' }).click();
     await expect(categoryRow(page, customName)).toHaveCount(1);
+    let accountId = '';
     try {
       await page.goto('/accounts/new');
       await page.getByLabel('名前', { exact: true }).fill(assetName);
       await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
       await page.getByRole('button', { name: '登録する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
-      await page.getByRole('link', { name: '資産を編集', exact: true }).click();
+      accountId = new URL(page.url()).searchParams.get('account') ?? '';
+      await page.goto('/settings');
+      const assetRow = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`);
+      await expect(assetRow).toContainText(assetName);
+      await expect(assetRow).toContainText(customName);
+      await expect(assetRow).toHaveAttribute(
+        'href',
+        `/accounts/${accountId}/edit?return=%2Fsettings`,
+      );
+      await assetRow.click();
+      await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
+      await page
+        .locator('#entry-dialog')
+        .getByRole('button', { name: '資産設定 — 戻る', exact: true })
+        .click();
+      await expect(page.locator('#entry-dialog')).toHaveCount(0);
+      await expect(page).toHaveURL('/settings');
+      await assetRow.click();
+      await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
       await expect(page.getByLabel('資産カテゴリ', { exact: true })).toHaveValue(/\d+/);
       await page.getByRole('button', { name: '保存する' }).click();
-      await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all&saved=1$/);
+      await expect(page).toHaveURL('/settings?saved=1');
+      await expect(page.getByRole('status')).toHaveText('保存しました');
     } finally {
-      if (await page.getByRole('link', { name: '資産を編集', exact: true }).count()) {
-        await page.getByRole('link', { name: '資産を編集', exact: true }).click();
-        await page.locator('[data-slot="delete-confirm"] > summary').click();
-        await page.getByRole('button', { name: '削除を確定' }).click();
+      if (accountId) {
+        await page.goto('/settings');
+        const assetRow = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`);
+        if (await assetRow.count()) {
+          await assetRow.click();
+          await page.locator('[data-slot="delete-confirm"] > summary').click();
+          await page.getByRole('button', { name: '削除を確定' }).click();
+        }
       }
       await page.goto('/settings/categories/asset');
       await removeCategory(page, customName);
@@ -437,5 +468,59 @@ test.describe('設定画面', () => {
     const row = categoryRow(page, '食費');
     const box = await row.boundingBox();
     expect(box?.height).toBeLessThanOrEqual(60);
+  });
+
+  test('資産の行は分類名の有無や名前の長さによらず、カテゴリ管理の行と同じ1行の高さにそろう', async ({
+    page,
+  }) => {
+    const safeTestDatabase = assertSafeTestDatabaseTarget();
+    const client = createDatabaseClient(safeTestDatabase.url);
+    let ids: number[] = [];
+    try {
+      await verifySafeTestDatabaseConnection(
+        client.sql,
+        safeTestDatabase.target,
+        process.env.DATABASE_URL,
+      );
+      await initializeDefaultLedger(client.db);
+      // 分類名を出す行（銀行）、出さない行（名前が分類名と同じ現金）、省略される長い名前の行。
+      const rows = await client.sql<{ id: number }[]>`
+        insert into accounts (household_id, name, kind, asset_category_id, sort_order)
+        select ${DEFAULT_HOUSEHOLD_ID}, fixture.name, fixture.kind::account_kind, category.id, 0
+        from (values
+          ('現金', 'cash', 'cash'),
+          (${`資産行-${runSuffix}`}, 'bank', 'bank'),
+          (${`とても長い名前の資産行がそのまま一行に収まらない場合-${runSuffix}`}, 'bank', 'bank')
+        ) as fixture(name, kind, system_key)
+        join asset_categories category
+          on category.household_id = ${DEFAULT_HOUSEHOLD_ID}
+         and category.system_key = fixture.system_key
+        returning id
+      `;
+      ids = rows.map((row) => Number(row.id));
+      for (const width of [375, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto('/settings');
+        const assetRows = page.getByRole('list', { name: '資産一覧' }).getByRole('link');
+        await expect(assetRows.filter({ hasText: `資産行-${runSuffix}` })).toContainText('銀行');
+        const cashRow = assetRows.filter({ hasText: /^現金$/ }).first();
+        await expect(cashRow).toHaveText('現金');
+        const heights = await assetRows.evaluateAll((links) =>
+          links.map((link) => link.getBoundingClientRect().height),
+        );
+        const categoryHeight = await page
+          .getByRole('link', { name: '支出カテゴリ' })
+          .evaluate((link) => link.getBoundingClientRect().height);
+        expect(heights.length).toBeGreaterThanOrEqual(3);
+        for (const height of heights) expect(height).toBeCloseTo(categoryHeight, 0);
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(overflow).toBeLessThanOrEqual(0);
+      }
+    } finally {
+      if (ids.length > 0) await client.sql`delete from accounts where id in ${client.sql(ids)}`;
+      await client.close();
+    }
   });
 });

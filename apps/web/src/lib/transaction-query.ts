@@ -98,6 +98,14 @@ export function validatedTransactionReturn(
   return `/transactions?${params.toString()}`;
 }
 
+export function validatedAccountReturn(
+  value: string | undefined,
+  accountId: number,
+): string | undefined {
+  if (value === '/settings') return value;
+  return validatedTransactionReturn(value, accountId);
+}
+
 export function transactionReturnWithSaved(path: string): string {
   const url = new URL(path, 'http://kobako.local');
   url.searchParams.set('saved', '1');

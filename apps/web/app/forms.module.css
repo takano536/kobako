@@ -12,9 +12,6 @@
   min-width: 0;
 }
 
-.month-picker-display {
-  min-width: 0;
-}
 .edit-form-layout {
   display: grid;
   gap: var(--space-section);
@@ -254,12 +251,6 @@
 .ledger-form textarea:focus-visible {
   outline: none;
   box-shadow: none;
-}
-
-.filter-form input:focus-visible,
-.filter-form select:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
 }
 
 .ledger-form .amount-field:focus-within,

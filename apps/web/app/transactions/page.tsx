@@ -14,7 +14,6 @@ import {
   shiftMonth,
   type ListedLedgerEntry,
 } from '@kobako/db';
-import { PrefetchLink } from '../_components/prefetch-link';
 import { notFound } from 'next/navigation';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import {
@@ -23,6 +22,7 @@ import {
   groupTransactionsByDate,
 } from '../../src/lib/format';
 import { PageHeader } from '../_components/page-header';
+import { FilterClearLink, FilterResults, FilterTransition } from '../_components/filter-transition';
 import {
   ActionLink,
   EmptyState,
@@ -64,15 +64,6 @@ function listHref(
   return `/transactions?${params.toString()}`;
 }
 
-function PencilIcon() {
-  return (
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="m4 20 4.2-.9L19.3 8a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z" />
-      <path d="m13.5 6.5 4 4" />
-    </svg>
-  );
-}
-
 export default async function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = await searchParams;
   const saved = firstQueryValue(query.saved) === '1';
@@ -103,78 +94,27 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   ]);
 
   const hasFilter = Boolean(type || categoryId || accountId || origin);
-  const categoryName = categoryId
-    ? categories.find((category) => category.id === categoryId)?.name
-    : undefined;
-  const filterSummary = [
-    type === 'expense'
-      ? '支出'
-      : type === 'income'
-        ? '収入'
-        : type === 'transfer'
-          ? '振替'
-          : undefined,
-    categoryName,
-    origin === 'api' ? 'APIのみ' : undefined,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join('・');
   const groupedRows = groupTransactionsByDate<ListedLedgerEntry>(rows);
-  const currentPath = listHref(month, type, categoryId, accountId, origin);
-  const clearAssetFilterHref = listHref(
-    month === 'all' ? currentTokyoMonth() : month,
-    type,
-    categoryId,
-    undefined,
-    origin,
-  );
+  const currentMonth = currentTokyoMonth();
+  const listMonth = month === 'all' ? currentMonth : month;
 
   return (
     <PageShell transition>
       <PageHeader
         title="取引"
         count={`${rows.length}件`}
-        actions={
-          <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
-        }
+        actions={<RegisterTransactionAction month={listMonth} />}
       />
       {saved ? (
         <p className={pageStyles['form-message']} role="status">
           保存しました
         </p>
       ) : null}
-      {account ? (
-        <section
-          className={pageStyles['asset-transaction-header']}
-          aria-labelledby="asset-filter-title"
-        >
-          <div className={pageStyles['asset-transaction-heading']}>
-            {account.deletedAt === null ? (
-              <PrefetchLink
-                className={pageStyles['asset-settings-link']}
-                href={`/accounts/${account.id}/edit?return=${encodeURIComponent(currentPath)}`}
-                scroll={false}
-                aria-label="資産を編集"
-                title="資産を編集"
-              >
-                <PencilIcon />
-              </PrefetchLink>
-            ) : null}
-            <h2 id="asset-filter-title">{account.name}</h2>
-            <span className={pageStyles['asset-transaction-category']}>
-              {account.assetCategoryName}
-            </span>
-          </div>
-          <ActionLink href={clearAssetFilterHref} variant="quiet">
-            資産の絞り込みを解除
-          </ActionLink>
-        </section>
-      ) : null}
       {month === 'all' ? (
         <div className={monthStyles.all} aria-label="表示期間">
           <span className={monthStyles.label}>全期間</span>
           <ActionLink
-            href={listHref(currentTokyoMonth(), type, categoryId, accountId, origin)}
+            href={listHref(currentMonth, type, categoryId, accountId, origin)}
             variant="quiet"
           >
             月で絞り込む
@@ -195,95 +135,95 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           }
           selectPathname="/transactions"
           selectQuery={{ type, category: categoryId, account: accountId, origin }}
+          allowAll={accountId !== undefined}
         />
       )}
-      <FilterBar
+      <FilterTransition
         month={month}
+        currentMonth={currentMonth}
         type={type}
         categoryId={categoryId}
         accountId={accountId}
         origin={origin}
-        categories={categories}
-        accounts={accounts}
-        summary={filterSummary}
-        showClearAction={rows.length > 0}
-      />
+      >
+        <FilterBar categories={categories} accounts={accounts} />
 
-      <section className={transactionStyles['transaction-groups']} aria-label="取引一覧">
-        {rows.length === 0 ? (
-          <EmptyState
-            size="page"
-            title={hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}
-            description={
-              hasFilter ? (
-                <>
-                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
-                    条件を変えるか、
-                  </span>
-                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
-                    条件をクリアしてください。
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
-                    最初の取引を記録すると、
-                  </span>
-                  <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
-                    ここに並びます。
-                  </span>
-                </>
-              )
-            }
-            action={
-              hasFilter ? (
-                <ActionLink href={`/transactions?month=${month}`} variant="quiet">
-                  条件をクリアする
-                </ActionLink>
-              ) : (
-                <RegisterTransactionAction month={month === 'all' ? currentTokyoMonth() : month} />
-              )
-            }
-          />
-        ) : (
-          <ul className={transactionStyles['transaction-list']} aria-label="取引">
-            {groupedRows.flatMap((group) =>
-              group.transactions.map((transaction, index) =>
-                transaction.type === 'transfer' ? (
-                  <TransferRow
-                    key={`transfer-${transaction.id}`}
-                    transfer={transaction}
-                    selectedMonth={rawMonth}
-                    showMemo
-                    dateHeading={
-                      index === 0
-                        ? (month === 'all' ? formatJapaneseDateWithYear : formatJapaneseDate)(
-                            group.occurredOn,
-                          )
-                        : undefined
-                    }
-                  />
+        <FilterResults className={transactionStyles['transaction-groups']} label="取引一覧">
+          {rows.length === 0 ? (
+            <EmptyState
+              size="page"
+              title={hasFilter ? '条件に合う記録がありません' : 'この月はまだ空です'}
+              description={
+                hasFilter ? (
+                  <>
+                    <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                      条件を変えるか、
+                    </span>
+                    <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                      条件をクリアしてください。
+                    </span>
+                  </>
                 ) : (
-                  <TransactionRow
-                    key={`transaction-${transaction.id}`}
-                    transaction={transaction}
-                    selectedMonth={rawMonth}
-                    showMemo
-                    showDate={false}
-                    dateHeading={
-                      index === 0
-                        ? (month === 'all' ? formatJapaneseDateWithYear : formatJapaneseDate)(
-                            group.occurredOn,
-                          )
-                        : undefined
-                    }
-                  />
+                  <>
+                    <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                      最初の取引を記録すると、
+                    </span>
+                    <span data-slot="phrase-wrap" className={uiStyles['phrase-wrap']}>
+                      ここに並びます。
+                    </span>
+                  </>
+                )
+              }
+              action={
+                hasFilter ? (
+                  <FilterClearLink href={`/transactions?month=${listMonth}`}>
+                    条件をクリア
+                  </FilterClearLink>
+                ) : (
+                  <RegisterTransactionAction month={listMonth} />
+                )
+              }
+            />
+          ) : (
+            <ul className={transactionStyles['transaction-list']} aria-label="取引">
+              {groupedRows.flatMap((group) =>
+                group.transactions.map((transaction, index) =>
+                  transaction.type === 'transfer' ? (
+                    <TransferRow
+                      key={`transfer-${transaction.id}`}
+                      transfer={transaction}
+                      selectedMonth={rawMonth}
+                      showMemo
+                      dateHeading={
+                        index === 0
+                          ? (month === 'all' ? formatJapaneseDateWithYear : formatJapaneseDate)(
+                              group.occurredOn,
+                            )
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <TransactionRow
+                      key={`transaction-${transaction.id}`}
+                      transaction={transaction}
+                      selectedMonth={rawMonth}
+                      showMemo
+                      showDate={false}
+                      dateHeading={
+                        index === 0
+                          ? (month === 'all' ? formatJapaneseDateWithYear : formatJapaneseDate)(
+                              group.occurredOn,
+                            )
+                          : undefined
+                      }
+                    />
+                  ),
                 ),
-              ),
-            )}
-          </ul>
-        )}
-      </section>
+              )}
+            </ul>
+          )}
+        </FilterResults>
+      </FilterTransition>
     </PageShell>
   );
 }

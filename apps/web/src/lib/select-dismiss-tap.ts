@@ -1,7 +1,7 @@
 /**
  * Android のブラウザは、ネイティブの選択ダイアログ（`<select>`）を外側のタップで閉じたとき、
- * そのタップをページ側の要素にも届けます。閉じるタップが月欄や日付欄、適用ボタンの上に落ちると、
- * 利用者が意図していないピッカーの起動や送信が起きるため、そのタップを `pointerdown` と `click`
+ * そのタップをページ側の要素にも届けます。閉じるタップが月欄や日付欄の上に落ちると、
+ * 利用者が意図していないピッカーの起動が起きるため、そのタップを `pointerdown` と `click`
  * の両方で捨てます。ブラウザごとに `focusin` の有無やフォーカスの移る時点が違うため、
  * 判定は `document.activeElement` に頼らず、`<select>` への操作を見たかどうかだけで決めます。
  */
@@ -15,13 +15,11 @@ export interface GuardElement {
 
 /**
  * 選択ダイアログを閉じるタップが落ちたときに捨てる対象。月グリッドのポップオーバーは `<body>` 直下に
- * 出るため、フィルタや月スイッチャーの中にはありません。閉じるタップで月が選ばれないよう明示します。
+ * 出るため、月スイッチャーや日付/月ピッカーの中にはありません。閉じるタップで月が選ばれないよう明示します。
  */
 const GUARDED_SCOPE_SELECTOR = [
-  '[data-slot="filter-form"]',
   '[data-slot="month-switcher"]',
   '[data-slot="date-picker-display"]',
-  '[data-slot="month-picker-display"]',
   '[data-slot="month-picker-popover"]',
 ].join(', ');
 
@@ -45,7 +43,7 @@ function isInsideSelect(target: unknown): boolean {
   return Boolean(asElement(target)?.closest('select'));
 }
 
-/** フィルタのフォーム・月スイッチャー・日付/月ピッカー（ラベル経由の起動を含む）なら真。 */
+/** 月スイッチャー・日付/月ピッカー（ラベル経由の起動を含む）なら真。 */
 export function isGuardedTapTarget(value: unknown): boolean {
   const element = asElement(value);
   if (!element) return false;

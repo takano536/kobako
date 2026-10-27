@@ -8,8 +8,8 @@ import {
 } from '../../src/lib/select-dismiss-tap';
 
 /**
- * Android のタッチ端末でだけ、ネイティブの選択ダイアログを閉じるタップが下の月欄・日付欄・
- * フィルタの適用ボタンへ届くのを止めます。iOS とデスクトップでは何も取り付けません。
+ * Android のタッチ端末でだけ、ネイティブの選択ダイアログを閉じるタップが下の月の切り替え・
+ * 日付欄・月グリッドへ届くのを止めます。iOS とデスクトップでは何も取り付けません。
  */
 export function SelectDismissTapGuard() {
   useEffect(() => {

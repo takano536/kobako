@@ -238,7 +238,7 @@ test('marks each child screen with its parent navigation section', async ({ page
     },
     {
       path: `/accounts/${accountId}/edit?return=${encodeURIComponent('/settings')}`,
-      section: '取引',
+      section: '設定',
     },
     { path: `/settings/import?month=${month}`, section: '設定' },
   ] as const;
@@ -295,7 +295,8 @@ test('rejects unsafe or mismatched asset return targets', async ({ page }) => {
     'https://example.com/transactions?account=1&month=2026-01',
     `/transactions?account=${secondAccountId}&month=${month}`,
     `/transactions?month=${month}`,
-    '/settings',
+    // 設定は一覧（`/settings`）だけを戻り先として受け付けます。
+    '/settings/delete',
   ]) {
     await page.goto(`/accounts/${accountId}/edit?return=${encodeURIComponent(returnTarget)}`);
     await expect(page.locator('[data-slot="page-header-title-link"]')).toHaveAttribute(

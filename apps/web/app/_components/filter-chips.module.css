@@ -1,0 +1,308 @@
+/* Transaction filters: one always-visible row of chips under the month switcher. */
+.row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-item);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* The chip is the bordered box; its trigger button covers the whole box (see .trigger::after). */
+.chip {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-small);
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.chip:hover:not([data-disabled='true']) {
+  border-color: color-mix(in srgb, var(--muted) 45%, var(--rule));
+  color: var(--ink);
+}
+
+.chip[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--rule));
+  background: var(--import-positive-soft);
+  color: var(--accent-strong);
+}
+
+.chip[data-open='true'],
+.chip[data-open='true']:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.chip[data-disabled='true'] {
+  opacity: 0.45;
+}
+
+.chip:has(> .trigger:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.trigger {
+  display: inline-flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Taps anywhere on the chip (padding, chevron) open the menu. */
+.trigger::after {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  content: '';
+}
+
+.trigger:focus-visible {
+  outline: none;
+}
+
+.trigger:disabled {
+  cursor: default;
+}
+
+.label {
+  flex: none;
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.chip[data-active='true'] .value {
+  color: var(--accent-strong);
+}
+
+/* Sits above the trigger's overlay; the 16px circle is drawn inside a full-height hit area. */
+.remove {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: 24px;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: 0 -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove > span {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+.remove:hover > span {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+.remove:focus-visible {
+  outline-offset: 0;
+}
+
+.chevron,
+.check {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.chevron {
+  width: 10px;
+  height: 10px;
+  stroke-width: 1.6;
+  opacity: 0.8;
+}
+
+/* API only: a toggle without a menu. The check stays visible and fades when off. */
+.toggle {
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline-offset: 3px;
+}
+
+.check {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+  opacity: 0.28;
+}
+
+.toggle[data-active='true'] .check {
+  opacity: 1;
+}
+
+.clear {
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* Popover menu: same surface, border and elevation as the month grid. */
+.menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: -1px;
+  width: 15rem;
+  max-width: calc(100vw - 2rem);
+  /* Long lists scroll inside the menu; the script lowers this further to the space left on screen. */
+  max-height: min(60vh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  white-space: normal;
+}
+
+/* Not enough room below the chip: open above it instead. */
+.menu[data-placement='top'] {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.menu-section + .menu-section {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--rule);
+}
+
+.menu-group {
+  padding: 6px 8px 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: var(--space-item);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.menu-item[aria-checked='true'] {
+  background: var(--button-primary);
+  color: var(--on-accent);
+}
+
+.menu-item[aria-checked='true']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-meta {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.menu-item[aria-checked='true'] .menu-meta {
+  color: var(--on-accent);
+  opacity: 0.8;
+}
+
+@media (max-width: 33.999rem) {
+  /* 長い資産名などは省略し、条件をすべて付けてもチップを2行に収めます。 */
+  .value {
+    max-width: 7rem;
+  }
+
+  .clear {
+    margin-left: 0;
+  }
+}

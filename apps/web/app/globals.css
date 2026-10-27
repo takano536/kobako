@@ -116,7 +116,6 @@
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
   --motion-fast: 160ms;
   --motion-enter: 240ms;
-  --motion-filter: 220ms;
   --motion-bars: 420ms;
   font-family: var(--font-ui);
   background: var(--paper);
@@ -279,9 +278,12 @@ html[data-overlay-open]::view-transition-new(page-content) {
   animation: none;
 }
 
-/* The navigation frame already replaced the body, so the committed page appears in place. */
+/* The navigation frame already replaced the body, so the committed page appears in place. A filter
+   change keeps the page on screen and only swaps the list, so it does not fade either. */
 html[data-nav-frame]::view-transition-old(page-content),
-html[data-nav-frame]::view-transition-new(page-content) {
+html[data-nav-frame]::view-transition-new(page-content),
+html[data-filter-transition]::view-transition-old(page-content),
+html[data-filter-transition]::view-transition-new(page-content) {
   animation: none;
 }
 

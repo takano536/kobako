@@ -8,7 +8,7 @@ import {
 } from '@kobako/db';
 import { notFound } from 'next/navigation';
 
-import { validatedTransactionReturn } from '../../../../src/lib/transaction-query';
+import { validatedAccountReturn } from '../../../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { parseInt4Id } from '../../../../src/lib/ids';
 import { Card } from '../../../_components/card';
@@ -40,7 +40,7 @@ export async function AccountEditContent({ params, searchParams }: AccountEditPr
   if (id === undefined) notFound();
   const query = await searchParams;
   const returnTo =
-    validatedTransactionReturn(firstQueryValue(query.return), id) ??
+    validatedAccountReturn(firstQueryValue(query.return), id) ??
     `/transactions?account=${id}&month=all`;
   const db = getLedgerDatabase();
   const householdId = await getCurrentHouseholdId();
@@ -88,7 +88,7 @@ export default async function EditAccountPage({ params, searchParams }: AccountE
   if (id === undefined) notFound();
   const query = await searchParams;
   const returnTo =
-    validatedTransactionReturn(firstQueryValue(query.return), id) ??
+    validatedAccountReturn(firstQueryValue(query.return), id) ??
     `/transactions?account=${id}&month=all`;
   const account = await getActiveManagedAccount(
     getLedgerDatabase(),
@@ -101,7 +101,10 @@ export default async function EditAccountPage({ params, searchParams }: AccountE
       <PageHeader
         title="資産設定"
         titleAriaLabel="資産設定"
-        backLink={{ href: returnTo, label: '取引一覧へ戻る' }}
+        backLink={{
+          href: returnTo,
+          label: returnTo === '/settings' ? '設定へ戻る' : '取引一覧へ戻る',
+        }}
       />
       <Card as="section" aria-label="資産設定">
         <AccountEditContent params={params} searchParams={searchParams} />

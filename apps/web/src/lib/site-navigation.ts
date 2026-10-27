@@ -33,7 +33,8 @@ export function siteNavigationSection(
     const returnSection = sectionForKnownPath(pathnameFromReturnPath(accountReturnPath) ?? '');
     return returnSection === 'overview' ||
       returnSection === 'transactions' ||
-      returnSection === 'balances'
+      returnSection === 'balances' ||
+      returnSection === 'settings'
       ? returnSection
       : 'transactions';
   }

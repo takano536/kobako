@@ -4,6 +4,7 @@ import {
   firstQueryValue,
   parseTransactionListFilters,
   parseTransactionType,
+  validatedAccountReturn,
   validatedTransactionReturn,
 } from './transaction-query.js';
 
@@ -71,5 +72,10 @@ describe('transaction list query parsing', () => {
     expect(validatedTransactionReturn('/transactions?month=all&account=25', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/transactions?month=bad&account=24', 24)).toBeUndefined();
     expect(validatedTransactionReturn('/accounts/24/edit', 24)).toBeUndefined();
+  });
+
+  it('accepts the settings page as an account return path', () => {
+    expect(validatedAccountReturn('/settings', 24)).toBe('/settings');
+    expect(validatedAccountReturn('/settings?anything=ignored', 24)).toBeUndefined();
   });
 });

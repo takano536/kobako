@@ -28,7 +28,7 @@
   letter-spacing: 0.03em;
 }
 
-/* `.filter-form button` などの配置指定に負けないよう、クラスを2つ重ねます。 */
+/* ページ側のボタンの配置指定に負けないよう、クラスを2つ重ねます。 */
 .popover .yearStep,
 .popover .month {
   justify-self: stretch;
@@ -92,6 +92,13 @@
 .popover .month[aria-pressed='true'] {
   background: var(--button-primary);
   color: var(--on-accent);
+}
+
+/* 全期間: 年の切り替えより上に、月のボタンと同じ見た目で1行に置きます。 */
+.popover .all {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-within);
 }
 
 @media (prefers-reduced-motion: reduce) {

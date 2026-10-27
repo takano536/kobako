@@ -1206,9 +1206,11 @@ test('opens the account-filtered transactions by clicking its name from balances
   await expect(row).toBeVisible();
   await row.getByText(accountName, { exact: true }).click();
   await expect(page).toHaveURL(`/transactions?account=${account.id}&month=all`);
-  await expect(page.getByRole('heading', { name: accountName, exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: '資産の絞り込みを解除', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '資産の絞り込みを解除', exact: true }).click();
+  await expect(page.locator('[data-slot="filter-chip"][data-filter="account"]')).toContainText(
+    accountName,
+  );
+  await expect(page.getByRole('button', { name: '資産の条件を外す', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '資産の条件を外す', exact: true }).click();
   await expect(page).toHaveURL(/\/transactions\?month=\d{4}-\d{2}$/);
   await database().sql`
     delete from transactions
@@ -1345,29 +1347,27 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
       fullPage: true,
     });
 
-    const transactionPath = `/transactions?month=all&account=${accountIdFor(paymentFixtureNames.primaryCard)}`;
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(
-      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
+    await page.goto('/settings');
+    const assetEdit = page.locator(
+      `a[href="/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=%2Fsettings"]`,
     );
-    const pencilLink = page.getByRole('link', { name: '資産を編集', exact: true });
-    await expect(pencilLink).toHaveAttribute('title', '資産を編集');
-    await expect(pencilLink).toHaveAttribute(
-      'href',
-      `/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=${encodeURIComponent(transactionPath)}`,
-    );
+    await expect(assetEdit).toBeVisible();
+    await expect(assetEdit).toContainText(paymentFixtureNames.primaryCard);
     await page.screenshot({
-      path: `${screenshotDirectory}/transactions-asset-edit-desktop.png`,
+      path: `${screenshotDirectory}/settings-asset-edit-desktop.png`,
       fullPage: true,
     });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(
-      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
-    );
-    await expect(page.getByRole('link', { name: '資産を編集', exact: true })).toBeVisible();
+    await page.goto('/settings');
+    await expect(
+      page.locator(
+        `a[href="/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=%2Fsettings"]`,
+      ),
+    ).toBeVisible();
     await page.screenshot({
-      path: `${screenshotDirectory}/transactions-asset-edit-mobile.png`,
+      path: `${screenshotDirectory}/settings-asset-edit-mobile.png`,
       fullPage: true,
     });
 
