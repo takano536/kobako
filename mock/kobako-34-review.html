@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>PR #34 差分レビューシート</title>
+<style>
+body{margin:0;padding:28px;background:#fcfcf8;color:#292e2b;font-family:"Noto Sans JP","Hiragino Sans",system-ui,sans-serif;font-size:14px;line-height:1.6}
+h1{font-size:22px;margin:0 0 4px}
+.lead{color:#68736c;margin:0 0 24px}
+h2{font-size:16px;margin:36px 0 2px;border-top:1px solid #dfe3da;padding-top:18px}
+.point{color:#68736c;font-size:12px;margin:0 0 12px}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th{font-size:11px;color:#68736c;font-weight:500;text-align:left;padding:4px 6px;letter-spacing:.04em}
+td{padding:6px;vertical-align:top;border-top:1px solid #eee}
+td img{width:100%;display:block;border:1px solid #dfe3da;border-radius:6px;background:#fff}
+td.now{background:#fdf7f6}
+td.after{background:#f4f8f3}
+.cap{font-size:11px;color:#68736c;margin:2px 0 0}
+.warn{background:#f8faf5;border:1px solid #dfe3da;border-radius:8px;padding:12px 16px;margin:20px 0 0}
+code{font-size:11px;background:#f0f2eb;border-radius:4px;padding:1px 5px}
+</style></head><body>
+<h1>PR #34 差分レビューシート</h1>
+<p class="lead">実際のビルドの before / after（48枚）。左が変更前、右が変更後。幅375は画像が縦長なので縮小表示しています。</p>
+<h2>概要</h2>
+<p class="point">見るポイント: 一覧行の12px化と、カテゴリ内訳のドット間隔。ヘッダーは上15→16px・下8px。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-overview-1280-light.png" alt="before 概要 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-overview-1280-light.png" alt="after 概要 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-overview-1280-dark.png" alt="before 概要 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-overview-1280-dark.png" alt="after 概要 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-overview-375-light.png" alt="before 概要 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-overview-375-light.png" alt="after 概要 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-overview-375-dark.png" alt="before 概要 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-overview-375-dark.png" alt="after 概要 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<h2>取引</h2>
+<p class="point">見るポイント: 行の上下が12pxに統一。フィルタのチップは左右14.4→16px・上下8px、狭い画面は12px。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transactions-1280-light.png" alt="before 取引 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transactions-1280-light.png" alt="after 取引 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transactions-1280-dark.png" alt="before 取引 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transactions-1280-dark.png" alt="after 取引 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transactions-375-light.png" alt="before 取引 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transactions-375-light.png" alt="after 取引 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transactions-375-dark.png" alt="before 取引 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transactions-375-dark.png" alt="after 取引 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<h2>残高</h2>
+<p class="point">見るポイント: 資産行の上下12px。グループ見出しとの間隔。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-balances-1280-light.png" alt="before 残高 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-balances-1280-light.png" alt="after 残高 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-balances-1280-dark.png" alt="before 残高 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-balances-1280-dark.png" alt="after 残高 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-balances-375-light.png" alt="before 残高 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-balances-375-light.png" alt="after 残高 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-balances-375-dark.png" alt="before 残高 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-balances-375-dark.png" alt="after 残高 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<h2>設定</h2>
+<p class="point">見るポイント: 行の上下12px、セクション間32px。危険セクションの位置。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-settings-1280-light.png" alt="before 設定 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-settings-1280-light.png" alt="after 設定 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-settings-1280-dark.png" alt="before 設定 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-settings-1280-dark.png" alt="after 設定 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-settings-375-light.png" alt="before 設定 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-settings-375-light.png" alt="after 設定 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-settings-375-dark.png" alt="before 設定 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-settings-375-dark.png" alt="after 設定 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<h2>取込</h2>
+<p class="point">見るポイント: 変更が最も多い画面（150行）。ドロップゾーンとプレビュー表の密度を重点的に。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-import-1280-light.png" alt="before 取込 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-import-1280-light.png" alt="after 取込 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-import-1280-dark.png" alt="before 取込 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-import-1280-dark.png" alt="after 取込 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-import-375-light.png" alt="before 取込 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-import-375-light.png" alt="after 取込 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-import-375-dark.png" alt="before 取込 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-import-375-dark.png" alt="after 取込 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<h2>取引登録</h2>
+<p class="point">見るポイント: ダイアログ内側が20→24px。メモ欄は固定高を保つよう個別修正。保存ボタン幅 86.78→90。</p>
+<table><colgroup><col style="width:9%"><col><col></colgroup>
+<tr><th></th><th>変更前</th><th>変更後</th></tr>
+<tr><th>1280 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transaction-new-1280-light.png" alt="before 取引登録 1280 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transaction-new-1280-light.png" alt="after 取引登録 1280 light"><p class="cap">after</p></td></tr>
+<tr><th>1280 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transaction-new-1280-dark.png" alt="before 取引登録 1280 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transaction-new-1280-dark.png" alt="after 取引登録 1280 dark"><p class="cap">after</p></td></tr>
+<tr><th>375 light</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transaction-new-375-light.png" alt="before 取引登録 375 light"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transaction-new-375-light.png" alt="after 取引登録 375 light"><p class="cap">after</p></td></tr>
+<tr><th>375 dark</th><td class="now"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/before/before-transaction-new-375-dark.png" alt="before 取引登録 375 dark"><p class="cap">before</p></td><td class="after"><img src="https://raw.githubusercontent.com/takano536/kobako/assets/design-space-grid/space-grid/after/after-transaction-new-375-dark.png" alt="after 取引登録 375 dark"><p class="cap">after</p></td></tr>
+</table>
+<div class="warn">
+<p><b>モックに入っていない確認事項</b></p>
+<ul style="margin:6px 0 0;padding-left:20px">
+<li>取込画面の密度（<code>import.module.css</code> 150行。モックでは扱っていない）</li>
+<li>ダイアログ内側 20→24px（<code>forms.module.css</code>）と、固定高メモ欄の余白維持の個別修正</li>
+<li>フィルタチップの狭幅の左右 12.8→12px（デスクトップは広がるが、狭幅は1px詰まる）</li>
+<li>e2e の期待値更新5箇所（画像では分からないので PR 本文の一覧を参照）</li>
+</ul>
+<p style="margin:8px 0 0">残した直値は罫線用の <code>1px</code>/<code>2px</code> のみ。</p>
+</div></body></html>
