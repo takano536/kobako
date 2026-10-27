@@ -58,7 +58,7 @@
 .popover .yearStep:disabled {
   color: var(--muted);
   cursor: default;
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
 }
 
 .chevron {

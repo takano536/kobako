@@ -45,6 +45,6 @@
   .text,
   .ghost[aria-hidden='true'] {
     animation: none;
-    opacity: 0.7;
+    opacity: var(--opacity-subtle);
   }
 }

@@ -109,7 +109,7 @@
 }
 
 .import-dropzone[aria-disabled='true'] .import-dropzone-copy strong {
-  opacity: 0.58;
+  opacity: var(--opacity-disabled);
 }
 
 .import-dropzone-copy span {

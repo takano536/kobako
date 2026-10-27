@@ -367,7 +367,7 @@
 
 .amount-line input::placeholder {
   color: var(--muted);
-  opacity: 0.65;
+  opacity: var(--opacity-subtle);
   font-size: var(--text-body);
   font-weight: var(--weight-regular);
 }

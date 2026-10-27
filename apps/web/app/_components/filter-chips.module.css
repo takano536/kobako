@@ -51,7 +51,7 @@
 }
 
 .chip[data-disabled='true'] {
-  opacity: 0.45;
+  opacity: var(--opacity-disabled);
 }
 
 .chip:has(> .trigger:focus-visible) {
@@ -135,7 +135,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-circle);
-  opacity: 0.7;
+  opacity: var(--opacity-subtle);
 }
 
 .remove:hover > span {
@@ -161,7 +161,7 @@
   width: 10px;
   height: 10px;
   stroke-width: 1.6;
-  opacity: 0.8;
+  opacity: var(--opacity-muted);
 }
 
 /* API only: a toggle without a menu. The check stays visible and fades when off. */
@@ -177,7 +177,7 @@
   width: 12px;
   height: 12px;
   stroke-width: 2;
-  opacity: 0.28;
+  opacity: var(--opacity-inactive);
 }
 
 .toggle[data-active='true'] .check {
@@ -293,7 +293,7 @@
 
 .menu-item[aria-checked='true'] .menu-meta {
   color: var(--on-accent);
-  opacity: 0.8;
+  opacity: var(--opacity-muted);
 }
 
 @media (max-width: 33.999rem) {

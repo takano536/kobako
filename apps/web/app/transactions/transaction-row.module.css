@@ -107,7 +107,7 @@
 /* A filter is being applied: keep the previous list in place and fade it slightly. The short delay
    keeps fast responses from flickering. Position and height do not change. */
 .transaction-groups[aria-busy='true'] {
-  opacity: 0.55;
+  opacity: var(--opacity-disabled);
   transition-delay: 120ms;
 }
 

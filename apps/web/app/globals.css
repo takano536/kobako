@@ -109,6 +109,10 @@
   --tracking-normal: 0;
   --tracking-wide: 0.04em;
   --tracking-code: 0.08em;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+  --opacity-muted: 0.8;
+  --opacity-inactive: 0.3;
   --space-within: 0.25rem;
   --space-item: 0.5rem;
   --space-dot-text: 0.5rem;

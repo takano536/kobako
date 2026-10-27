@@ -349,7 +349,7 @@
 }
 
 .settings-category-action:disabled {
-  opacity: 0.5;
+  opacity: var(--opacity-disabled);
 }
 
 .settings-category-row > .settings-inline-error {
