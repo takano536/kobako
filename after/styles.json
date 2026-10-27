@@ -1,0 +1,218 @@
+{
+  "light|金額（入力中・通常）": {
+    "boxShadow": "rgb(66, 109, 89) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(41, 46, 43)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "light|カテゴリ（詳細グリッド・入力中）": {
+    "boxShadow": "rgb(66, 109, 89) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(41, 46, 43)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "light|金額（入力中・エラー）": {
+    "boxShadow": "rgb(163, 58, 54) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(41, 46, 43)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "light|取引種別（キーボードフォーカス）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|外観 .theme-option[aria-checked='true']（Tab）": {
+    "boxShadow": "rgb(66, 109, 89) 0px 0px 0px 1px inset",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|設定行リンク（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "light|.chip:has(> .trigger:focus-visible)": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|チップの解除ボタン .remove:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "light|APIのみ .toggle:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|.menu-item[aria-checked='true']:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 2px rgb(66, 109, 89)",
+    "outlineOffset": "1px",
+    "focusVisible": true
+  },
+  "light|取込ドロップゾーン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|取込ファイルエラー（キーボード操作後のフォーカス移動）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(163, 58, 54)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|カテゴリ追加入力（Tab）": {
+    "boxShadow": "rgb(66, 109, 89) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(0, 0, 0)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|カテゴリ編集入力（Tab）": {
+    "boxShadow": "rgb(66, 109, 89) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(0, 0, 0)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|全削除の確認入力（Tab）": {
+    "boxShadow": "rgb(66, 109, 89) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(0, 0, 0)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|オーバーレイカードの戻るボタン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|オーバーレイカード（設定の資産行から開く）の戻るボタン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "light|オーバーレイカードを閉じた後の設定行（資産）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(66, 109, 89)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|金額（入力中・通常）": {
+    "boxShadow": "rgb(140, 196, 166) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(228, 231, 224)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|カテゴリ（詳細グリッド・入力中）": {
+    "boxShadow": "rgb(140, 196, 166) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(228, 231, 224)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|金額（入力中・エラー）": {
+    "boxShadow": "rgb(242, 151, 142) 0px -1px 0px 0px inset",
+    "outline": "none 3px rgb(228, 231, 224)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|取引種別（キーボードフォーカス）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|外観 .theme-option[aria-checked='true']（Tab）": {
+    "boxShadow": "rgb(140, 196, 166) 0px 0px 0px 1px inset",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|設定行リンク（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|.chip:has(> .trigger:focus-visible)": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|チップの解除ボタン .remove:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  },
+  "dark|APIのみ .toggle:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|.menu-item[aria-checked='true']:focus-visible": {
+    "boxShadow": "none",
+    "outline": "solid 2px rgb(140, 196, 166)",
+    "outlineOffset": "1px",
+    "focusVisible": true
+  },
+  "dark|取込ドロップゾーン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|取込ファイルエラー（キーボード操作後のフォーカス移動）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(242, 151, 142)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|カテゴリ追加入力（Tab）": {
+    "boxShadow": "rgb(140, 196, 166) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(255, 255, 255)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|カテゴリ編集入力（Tab）": {
+    "boxShadow": "rgb(140, 196, 166) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(255, 255, 255)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|全削除の確認入力（Tab）": {
+    "boxShadow": "rgb(140, 196, 166) 0px 0px 0px 1px",
+    "outline": "none 0px rgb(255, 255, 255)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|オーバーレイカードの戻るボタン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|オーバーレイカード（設定の資産行から開く）の戻るボタン（Tab）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "3px",
+    "focusVisible": true
+  },
+  "dark|オーバーレイカードを閉じた後の設定行（資産）": {
+    "boxShadow": "none",
+    "outline": "solid 3px rgb(140, 196, 166)",
+    "outlineOffset": "0px",
+    "focusVisible": true
+  }
+}
