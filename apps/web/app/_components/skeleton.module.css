@@ -2,7 +2,7 @@
 
 .bone {
   display: block;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--soft-control);
   animation: skeleton-pulse 1.4s var(--ease-standard) infinite alternate;
 }
@@ -11,7 +11,7 @@
 .text {
   display: inline-block;
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--soft-control);
   color: transparent;
   line-height: inherit;
