@@ -1,0 +1,182 @@
+[
+  {
+    "name": "カード（取引入力）",
+    "scheme": "light",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "入力欄（取引入力・金額）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 1px solid / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "入力欄（取引入力・メモ）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 1px solid / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取引種別（選択中）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 2px solid / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "セクション見出し（概要）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "セクション見出し h2（概要）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "概要の主要な金額",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "600"
+  },
+  {
+    "name": "ナビゲーション（現在地）",
+    "scheme": "light",
+    "border": "0px none / 0px none / 2px solid / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "取引行",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取引行の日付見出し",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "取引行の由来バッジ",
+    "scheme": "light",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "700"
+  },
+  {
+    "name": "設定行",
+    "scheme": "light",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "外観の選択肢インジケーター",
+    "scheme": "light",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "スイッチ",
+    "scheme": "light",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取込ドロップゾーン",
+    "scheme": "light",
+    "border": "1px dashed / 1px dashed / 1px dashed / 1px dashed",
+    "fontWeight": "400"
+  },
+  {
+    "name": "カード（取引入力）",
+    "scheme": "dark",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "入力欄（取引入力・金額）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 1px solid / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "入力欄（取引入力・メモ）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 1px solid / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取引種別（選択中）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 2px solid / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "セクション見出し（概要）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "セクション見出し h2（概要）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "概要の主要な金額",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "600"
+  },
+  {
+    "name": "ナビゲーション（現在地）",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 2px solid / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "取引行",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取引行の日付見出し",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "500"
+  },
+  {
+    "name": "取引行の由来バッジ",
+    "scheme": "dark",
+    "border": "0px none / 0px none / 0px none / 0px none",
+    "fontWeight": "700"
+  },
+  {
+    "name": "設定行",
+    "scheme": "dark",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "外観の選択肢インジケーター",
+    "scheme": "dark",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "スイッチ",
+    "scheme": "dark",
+    "border": "1px solid / 1px solid / 1px solid / 1px solid",
+    "fontWeight": "400"
+  },
+  {
+    "name": "取込ドロップゾーン",
+    "scheme": "dark",
+    "border": "1px dashed / 1px dashed / 1px dashed / 1px dashed",
+    "fontWeight": "400"
+  }
+]
