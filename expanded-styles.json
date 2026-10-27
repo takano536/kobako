@@ -1,0 +1,2402 @@
+[
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "month-picker-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "25.6px",
+        "letterSpacing": "normal",
+        "lineHeight": "40.96px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "month-picker-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "25.6px",
+        "letterSpacing": "normal",
+        "lineHeight": "40.96px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "month-picker-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "17.92px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.672px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "25.6px",
+        "letterSpacing": "normal",
+        "lineHeight": "40.96px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "16.32px",
+        "letterSpacing": "normal",
+        "lineHeight": "26.112px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "month-picker-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.42px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "25.6px",
+        "letterSpacing": "normal",
+        "lineHeight": "40.96px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "month-picker-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "38.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "month-picker-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "38.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "month-picker-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "desktop",
+    "width": 1280,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "38.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "overview",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-label",
+    "selector": "[data-slot=\"month-switcher-label\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年10月",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "month-picker-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-picker-year",
+    "selector": "[data-slot=\"month-picker-year\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "2026年",
+        "fontSize": "14px",
+        "letterSpacing": "0.56px",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "transactions",
+    "size": "mobile",
+    "width": 375,
+    "label": "month-switcher-control",
+    "selector": "[data-slot=\"month-switcher\"] button.control",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[data-slot=\"filter-menu-group\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-kind-summary-dd",
+    "selector": "[class*=\"import-kind-summary\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-preview",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-file-card-icon",
+    "selector": "[data-slot=\"import-file-card-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "XLSX",
+        "fontSize": "12px",
+        "letterSpacing": "0.48px",
+        "lineHeight": "19.2px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-mark",
+    "selector": "[class*=\"import-success-mark\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "38.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-success",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-success-counts-dd",
+    "selector": "[data-slot=\"import-success-counts\"] dd",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "−720円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      },
+      {
+        "text": "0円",
+        "fontSize": "14px",
+        "letterSpacing": "normal",
+        "lineHeight": "22.4px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug-log\"]",
+    "pseudo": "",
+    "values": []
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "29.44px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "680 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n667 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n667 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n667 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n672 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n667 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "13px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "29.44px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "700 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n690 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n690 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n690 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n694 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n690 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "13px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "29.44px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "739 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n727 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n727 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n727 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n733 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n727 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "13px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.22px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "29.44px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "608 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n599 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n599 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n599 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n602 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n599 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "10px",
+        "letterSpacing": "normal",
+        "lineHeight": "13px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "623 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n617 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n617 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n617 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n619 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n617 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "11px",
+        "letterSpacing": "normal",
+        "lineHeight": "14.3px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "637 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n628 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n628 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n628 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n632 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n628 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "11px",
+        "letterSpacing": "normal",
+        "lineHeight": "14.3px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "desktop",
+    "width": 1280,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "desktop",
+    "width": 1280,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "desktop",
+    "width": 1280,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "642 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n632 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n632 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n632 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n638 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n632 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "11px",
+        "letterSpacing": "normal",
+        "lineHeight": "14.3px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "filter-menu-open",
+    "size": "mobile",
+    "width": 375,
+    "label": "filter-menu-group",
+    "selector": "[class*=\"menu-group\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "支出",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      },
+      {
+        "text": "収入",
+        "fontSize": "11px",
+        "letterSpacing": "0.44px",
+        "lineHeight": "17.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-details-after-pseudo",
+    "selector": "[class*=\"import-details\"] > summary::after",
+    "pseudo": "::after",
+    "values": [
+      {
+        "text": "取り込まれる内容を確認",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "import-initial",
+    "size": "mobile",
+    "width": 375,
+    "label": "import-dropzone-icon",
+    "selector": "[class*=\"import-dropzone-icon\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "↑",
+        "fontSize": "24px",
+        "letterSpacing": "normal",
+        "lineHeight": "24px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "screen": "tap-debug",
+    "size": "mobile",
+    "width": 375,
+    "label": "tap-debug-log",
+    "selector": "[data-slot=\"tap-debug\"]",
+    "pseudo": "",
+    "values": [
+      {
+        "text": "644 focusin button[month-picker-month].month-picker-module__g_4oZa__month dp=false active=button[month-picker-month].month-picker-module__g_4oZa__month\n635 click button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n635 mouseup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n635 pointerup button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n639 focusin button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=button[month-switcher-label].month-switcher-module__I_rBFG__label\n634 pointerdown button[month-switcher-label].month-switcher-module__I_rBFG__label dp=false active=body",
+        "fontSize": "11px",
+        "letterSpacing": "normal",
+        "lineHeight": "14.3px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "dark",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "width": 1280,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "dark",
+    "width": 375,
+    "vals": [
+      {
+        "text": "残高",
+        "fontSize": "12px",
+        "letterSpacing": "normal",
+        "lineHeight": "15.6px"
+      }
+    ]
+  },
+  {
+    "build": "before",
+    "theme": "light",
+    "screen": "balances-narrow-supplement",
+    "size": "supplement",
+    "width": 360,
+    "label": "balance-group-heading-label",
+    "selector": "[data-slot=balance-group-heading-label]",
+    "values": [
+      {
+        "fontSize": "10.88px",
+        "letterSpacing": "normal",
+        "lineHeight": "13.6px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "theme": "light",
+    "screen": "balances-narrow-supplement",
+    "size": "supplement",
+    "width": 360,
+    "label": "balance-group-heading-label",
+    "selector": "[data-slot=balance-group-heading-label]",
+    "values": [
+      {
+        "fontSize": "11px",
+        "letterSpacing": "normal",
+        "lineHeight": "14.3px"
+      }
+    ]
+  }
+]
