@@ -1418,5 +1418,56 @@
         "text": "¥"
       }
     ]
+  },
+  {
+    "build": "after",
+    "screen": "import-success",
+    "selector": "[data-slot=import-success-counts] dd",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "text": "＋150,000円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "screen": "import-success",
+    "selector": "[data-slot=import-success-counts] dd",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "text": "−720円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
+  },
+  {
+    "build": "after",
+    "screen": "import-success",
+    "selector": "[data-slot=import-success-counts] dd",
+    "size": "desktop",
+    "width": 1280,
+    "height": 900,
+    "theme": "light",
+    "values": [
+      {
+        "text": "0円",
+        "fontSize": "18px",
+        "letterSpacing": "normal",
+        "lineHeight": "28.8px"
+      }
+    ]
   }
 ]
