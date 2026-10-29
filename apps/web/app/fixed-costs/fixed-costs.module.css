@@ -27,7 +27,7 @@
 }
 .summary dl div + div dd {
   font-size: 1rem;
-  color: var(--ink-muted);
+  color: var(--money-negative);
 }
 .filters {
   display: flex;
@@ -48,12 +48,22 @@
   color: inherit;
   font: inherit;
 }
+.chip {
+  display: inline-flex;
+  gap: 0.45rem;
+}
 .chipActive {
   background: var(--ink);
   color: var(--surface);
 }
-.chipActive span {
-  margin-left: 0.4rem;
+.remove {
+  border: 0;
+  margin-left: -0.5rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }
 .clear {
   border: 0;

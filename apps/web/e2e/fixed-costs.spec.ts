@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('固定費', () => {
   test('一覧に代表的な固定費と集計を表示する', async ({ page }) => {
     await page.goto('/fixed-costs');
-    await expect(page.getByRole('heading', { name: /^固定費\d+件$/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
     await expect(page.getByText('月あたり')).toBeVisible();
     await expect(page.getByText('112,460円')).toBeVisible();
     await expect(page.getByText('年間')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('固定費', () => {
   test('モバイル幅で横 overflow を発生させない', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/fixed-costs');
-    await expect(page.getByRole('heading', { name: /^固定費\d+件$/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);

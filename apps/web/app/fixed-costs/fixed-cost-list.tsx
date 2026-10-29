@@ -51,7 +51,7 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
   }
   const categories = [...new Set(rows.map((row) => row.categoryName))];
   const accounts = [...new Set(rows.map((row) => row.accountName))];
-  const frequencies = [...new Set(rows.map(frequencyValue))];
+  const frequencies = [...new Set([...rows.map(frequencyValue), 'month-1', 'year-1'])];
   const filtered = useMemo(
     () =>
       rows.filter(
@@ -80,7 +80,17 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
   if (rows.length === 0) return <Empty message="まだ固定費がありません" />;
   return (
     <>
-      <div className={styles.filters} aria-label="固定費の絞り込み">
+      <div className={styles.filters} aria-label="固定費の表示条件">
+        <FilterChip
+          label="グループ"
+          value={filters.group}
+          options={groupOptions.map(([key]) => key)}
+          optionLabels={groupOptions.map(([, label]) => label)}
+          open={open === 'group'}
+          onToggle={() => setOpen(open === 'group' ? null : 'group')}
+          onChoose={(value) => choose('group', value)}
+          removable={false}
+        />
         <FilterChip
           label="カテゴリ"
           value={filters.category}
@@ -108,15 +118,6 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
           open={open === 'account'}
           onToggle={() => setOpen(open === 'account' ? null : 'account')}
           onChoose={(value) => choose('account', value)}
-        />
-        <FilterChip
-          label="グループ"
-          value={filters.group}
-          options={groupOptions.map(([key]) => key)}
-          optionLabels={groupOptions.map(([, label]) => label)}
-          open={open === 'group'}
-          onToggle={() => setOpen(open === 'group' ? null : 'group')}
-          onChoose={(value) => choose('group', value)}
         />
         {active.length > 0 ? (
           <button
@@ -172,6 +173,7 @@ function FilterChip({
   open,
   onToggle,
   onChoose,
+  removable = true,
 }: {
   label: string;
   value: string;
@@ -180,6 +182,7 @@ function FilterChip({
   open: boolean;
   onToggle: () => void;
   onChoose: (value: string) => void;
+  removable?: boolean;
 }) {
   const selectedLabel = value ? (optionLabels?.[options.indexOf(value)] ?? value) : '';
   return (
@@ -188,22 +191,40 @@ function FilterChip({
         type="button"
         className={`${styles.chip} ${value ? styles.chipActive : ''}`}
         aria-expanded={open}
+        aria-haspopup="menu"
         onClick={onToggle}
       >
-        {value ? `${label}: ${selectedLabel}` : label}
-        {value ? <span aria-hidden="true">×</span> : null}
+        <span>{label}</span>
+        {value ? <span>{selectedLabel}</span> : null}
       </button>
+      {removable && value ? (
+        <button
+          type="button"
+          className={styles.remove}
+          aria-label={`${label}の絞り込みを外す`}
+          onClick={() => onChoose('')}
+        >
+          ×
+        </button>
+      ) : null}
       {open ? (
-        <div className={styles.menu} role="menu">
-          {!value || label === 'グループ' ? null : (
-            <button role="menuitemradio" aria-checked="false" onClick={() => onChoose('')}>
+        <div className={styles.menu} role="menu" aria-label={label}>
+          {removable && value ? (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked="false"
+              onClick={() => onChoose('')}
+            >
               すべて
             </button>
-          )}
+          ) : null}
           {options.map((option, index) => (
             <button
+              type="button"
               role="menuitemradio"
               aria-checked={option === value}
+              data-filter-value={option}
               key={option}
               onClick={() => onChoose(option)}
             >
