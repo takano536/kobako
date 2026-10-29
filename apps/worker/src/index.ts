@@ -27,7 +27,10 @@ async function runWorker(): Promise<void> {
     const tick = (): void => {
       if (tickRunning || !client) return;
       tickRunning = true;
-      tickPromise = Promise.all([processDueCardPayments(client.db), processDueFixedCosts(client.db)])
+      tickPromise = Promise.all([
+        processDueCardPayments(client.db),
+        processDueFixedCosts(client.db),
+      ])
         .then(([billing, fixedCosts]) => {
           if (
             billing.completed + billing.settled + billing.blocked + billing.errors > 0 ||

@@ -69,7 +69,7 @@ export function FixedCostForm({
     frequency === 'yearly'
       ? `毎年、${Number(month)}月${values.day}日に支出として記録します。`
       : frequency === 'custom'
-        ? `${values.intervalCount}${values.intervalUnit === 'year' ? '年' : 'か月'}ごと、${values.day}日に支出として記録します。`
+        ? `${Number(month)}月${values.day}日から${values.intervalCount}${values.intervalUnit === 'year' ? '年' : 'か月'}ごとに記録します。`
         : `毎月、${values.day}日に支出として記録します。`;
   const currentMonth = `${year || new Date().getFullYear()}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`;
   return (

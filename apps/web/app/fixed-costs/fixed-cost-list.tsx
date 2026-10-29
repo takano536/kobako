@@ -22,13 +22,15 @@ function frequencyValue(row: Pick<ListedFixedCost, 'intervalCount' | 'intervalUn
 function frequencyLabel(
   row: Pick<ListedFixedCost, 'intervalCount' | 'intervalUnit' | 'day' | 'startMonth'>,
 ): string {
-  const interval =
-    row.intervalUnit === 'year'
-      ? `${row.intervalCount === 1 ? '毎年' : `${row.intervalCount}年ごと`}`
-      : `${row.intervalCount === 1 ? '毎月' : `${row.intervalCount}か月ごと`}`;
-  return row.intervalUnit === 'year'
-    ? `${interval}${new Date(row.startMonth).getUTCMonth() + 1}月${row.day}日`
-    : `${interval}${row.day}日`;
+  const month = new Date(row.startMonth).getUTCMonth() + 1;
+  if (row.intervalUnit === 'month' && row.intervalCount === 1) {
+    return `毎月${row.day}日`;
+  }
+  if (row.intervalUnit === 'year' && row.intervalCount === 1) {
+    return `毎年${month}月${row.day}日`;
+  }
+  const unit = row.intervalUnit === 'year' ? '年' : 'か月';
+  return `${row.intervalCount}${unit}ごと・${month}月${row.day}日`;
 }
 
 export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {

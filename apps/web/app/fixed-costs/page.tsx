@@ -29,12 +29,12 @@ export default async function FixedCostsPage() {
       />
       <section className={styles.summary} aria-labelledby="fixed-cost-summary">
         <h2 id="fixed-cost-summary">固定費の集計</h2>
-        <dl>
-          <div>
+        <dl className={styles.summaryList}>
+          <div className={styles.summaryItem}>
             <dt>月あたり</dt>
             <dd>{summary.monthly.toLocaleString('ja-JP')}円</dd>
           </div>
-          <div>
+          <div className={styles.summaryItem}>
             <dt>年間</dt>
             <dd>{summary.annual.toLocaleString('ja-JP')}円</dd>
           </div>

@@ -39,7 +39,12 @@ function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
   }
   if (section === 'fixed-costs') {
     return (
-      <svg className={navStyles['site-nav-icon']} viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <svg
+        className={navStyles['site-nav-icon']}
+        viewBox="0 0 24 24"
+        focusable="false"
+        aria-hidden="true"
+      >
         <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
       </svg>
     );

@@ -1,9 +1,5 @@
 export type SiteNavigationSection =
-  | 'overview'
-  | 'transactions'
-  | 'balances'
-  | 'fixed-costs'
-  | 'settings';
+  'overview' | 'transactions' | 'balances' | 'fixed-costs' | 'settings';
 
 function isPathOrDescendant(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);

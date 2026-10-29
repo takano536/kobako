@@ -1,33 +1,42 @@
 .summary {
   margin-block: 1.5rem;
 }
+
 .summary h2 {
   margin: 0 0 0.65rem;
   font-size: var(--text-heading);
 }
-.summary dl {
+
+.summaryList {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(12rem, 24rem) minmax(0, 1fr);
+  align-items: end;
   gap: 1rem;
   margin: 0;
 }
-.summary dl div {
+
+.summaryItem {
   display: grid;
+  min-width: 0;
   gap: 0.25rem;
 }
-.summary dt {
+
+.summaryItem dt {
   color: var(--ink-muted);
   font-size: var(--text-small);
 }
-.summary dd {
+
+.summaryItem dd {
   margin: 0;
   color: var(--money-negative);
   font-size: 1.55rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
-.summary dl div + div dd {
+
+.summaryItem + .summaryItem dd {
   font-size: 1rem;
-  color: var(--money-negative);
+  font-weight: 400;
 }
 .filters {
   display: flex;
@@ -159,10 +168,16 @@
   color: inherit;
 }
 @media (max-width: 40rem) {
-  .summary dl {
-    gap: 0.5rem;
+  .summaryList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
   }
-  .summary dd {
+  .summaryItem {
+    flex: 1 1 8rem;
+  }
+  .summaryItem dd,
+  .summaryItem + .summaryItem dd {
     font-size: 1.25rem;
   }
   .row {

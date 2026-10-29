@@ -436,8 +436,10 @@ export const fixedCostInputSchema = z.object({
       .number({ error: '金額を入力してください。' })
       .int()
       .positive({ error: '金額は1円以上で入力してください。' })
-      .max(AMOUNT_LIMIT, { error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。` }),
-    ),
+      .max(AMOUNT_LIMIT, {
+        error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。`,
+      }),
+  ),
   categoryId: categoryIdSchema,
   accountId: requiredAccountIdSchema,
   intervalCount: fixedCostIntervalCountSchema,
