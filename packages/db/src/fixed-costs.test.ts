@@ -11,6 +11,16 @@ describe('fixed cost schedules', () => {
     };
     expect(fixedCostOccurrenceOn(fixedCost, '2024-02')).toBe('2024-02-29');
     expect(fixedCostOccurrenceOn(fixedCost, '2023-02')).toBe('2023-02-28');
+    expect(fixedCostOccurrenceOn(fixedCost, '2023-04')).toBe('2023-04-30');
+  });
+
+  it('does not create an occurrence before the start month', () => {
+    expect(
+      isFixedCostDueOn(
+        { startMonth: '2026-05-01', day: 10, intervalCount: 1, intervalUnit: 'month' },
+        '2026-04-10',
+      ),
+    ).toBe(false);
   });
 
   it('handles N-month and N-year intervals without backfilling', () => {
