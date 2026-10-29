@@ -140,30 +140,52 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
             setFilters((current) => ({ ...current, category: '', frequency: '', account: '' }))
           }
         />
+      ) : filters.group === 'none' ? (
+        <ul className={styles.flatList}>
+          {filtered.map((row) => (
+            <FixedCostRow row={row} key={row.id} />
+          ))}
+        </ul>
       ) : (
-        [...groups.entries()].map(([name, items]) => (
-          <section className={styles.group} key={name}>
-            <h2>
-              <span>{name}</span>
-              <span className={styles.groupLabel}>金額</span>
-            </h2>
-            <ul>
-              {items.map((row) => (
-                <li key={row.id} className={styles.row}>
-                  <PrefetchLink href={`/fixed-costs/${row.id}/edit`} scroll={false}>
-                    <span className={styles.name}>{row.name}</span>
-                    <span className={styles.meta}>
-                      {frequencyLabel(row)}・{row.accountName}
-                    </span>
-                  </PrefetchLink>
-                  <strong>{formatYen(row.amount)}</strong>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
+        <div className={styles.groups}>
+          {[...groups.entries()].map(([name, items], index) => (
+            <section
+              className={styles.group}
+              key={name}
+              aria-labelledby={`fixed-cost-group-${index}`}
+            >
+              <div className={styles.groupHeading}>
+                <h3 id={`fixed-cost-group-${index}`}>{name}</h3>
+                <div className={styles.groupHeadingColumns}>
+                  <span className={styles.groupLabel}>金額</span>
+                </div>
+              </div>
+              <ul className={styles.list} aria-labelledby={`fixed-cost-group-${index}`}>
+                {items.map((row) => (
+                  <FixedCostRow row={row} key={row.id} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </>
+  );
+}
+
+function FixedCostRow({ row }: { row: ListedFixedCost }) {
+  return (
+    <li className={styles.row}>
+      <PrefetchLink className={styles.rowLink} href={`/fixed-costs/${row.id}/edit`} scroll={false}>
+        <span className={styles.nameCell}>
+          <span className={styles.name}>{row.name}</span>
+          <span className={styles.meta}>
+            {frequencyLabel(row)}・{row.accountName}
+          </span>
+        </span>
+        <strong className={styles.amount}>{formatYen(row.amount)}</strong>
+      </PrefetchLink>
+    </li>
   );
 }
 
@@ -187,28 +209,42 @@ function FilterChip({
   removable?: boolean;
 }) {
   const selectedLabel = value ? (optionLabels?.[options.indexOf(value)] ?? value) : '';
+  const active = removable && Boolean(value);
   return (
-    <div className={styles.chipWrap}>
-      <button
-        type="button"
-        className={`${styles.chip} ${value ? styles.chipActive : ''}`}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={onToggle}
+    <div
+      className={styles.chipWrap}
+      data-active={active ? 'true' : 'false'}
+      data-open={open ? 'true' : 'false'}
+    >
+      <div
+        className={styles.chip}
+        data-active={active ? 'true' : 'false'}
+        data-open={open ? 'true' : 'false'}
       >
-        <span>{label}</span>
-        {value ? <span>{selectedLabel}</span> : null}
-      </button>
-      {removable && value ? (
         <button
           type="button"
-          className={styles.remove}
-          aria-label={`${label}の絞り込みを外す`}
-          onClick={() => onChoose('')}
+          className={styles.trigger}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={onToggle}
         >
-          ×
+          <span className={styles.label}>{label}</span>
+          {value ? <span className={styles.value}>{selectedLabel}</span> : null}
+          <svg className={styles.arrow} viewBox="0 0 10 10" aria-hidden="true">
+            <path d="m2 3.5 3 3 3-3" />
+          </svg>
         </button>
-      ) : null}
+        {removable && value ? (
+          <button
+            type="button"
+            className={styles.remove}
+            aria-label="絞り込みを外す"
+            onClick={() => onChoose('')}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        ) : null}
+      </div>
       {open ? (
         <div className={styles.menu} role="menu" aria-label={label}>
           {removable && value ? (
@@ -219,6 +255,9 @@ function FilterChip({
               onClick={() => onChoose('')}
             >
               すべて
+              <span className={styles.menuCheck} aria-hidden="true">
+                ✓
+              </span>
             </button>
           ) : null}
           {options.map((option, index) => (
@@ -231,6 +270,9 @@ function FilterChip({
               onClick={() => onChoose(option)}
             >
               {optionLabels?.[index] ?? option}
+              <span className={styles.menuCheck} aria-hidden="true">
+                ✓
+              </span>
             </button>
           ))}
         </div>

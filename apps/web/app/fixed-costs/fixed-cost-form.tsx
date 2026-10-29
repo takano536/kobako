@@ -6,6 +6,7 @@ import { useFormStatus } from 'react-dom';
 
 import formsStyles from '../forms.module.css';
 import { Button } from '../_components/button';
+import styles from './fixed-costs.module.css';
 import { Field, Input, Select } from '../_components/field';
 import type { FixedCostFormState } from './actions';
 
@@ -74,7 +75,11 @@ export function FixedCostForm({
   const currentMonth = `${year || new Date().getFullYear()}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`;
   return (
     <>
-      <form action={formAction} className={formsStyles['ledger-form']} noValidate>
+      <form
+        action={formAction}
+        className={`${formsStyles['ledger-form']} ${styles.form}`}
+        noValidate
+      >
         <input type="hidden" name="startMonth" value={currentMonth} />
         <div className={formsStyles['entry-detail-grid']}>
           <Field className={formsStyles['amount-field']}>

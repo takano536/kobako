@@ -32,11 +32,11 @@ export default async function FixedCostsPage() {
         <dl className={styles.summaryList}>
           <div className={styles.summaryItem}>
             <dt>月あたり</dt>
-            <dd>{summary.monthly.toLocaleString('ja-JP')}円</dd>
+            <dd className={styles.summaryValue}>{summary.monthly.toLocaleString('ja-JP')}円</dd>
           </div>
           <div className={styles.summaryItem}>
             <dt>年間</dt>
-            <dd>{summary.annual.toLocaleString('ja-JP')}円</dd>
+            <dd className={styles.summaryValue}>{summary.annual.toLocaleString('ja-JP')}円</dd>
           </div>
         </dl>
       </section>
