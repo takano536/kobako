@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import formsStyles from '../forms.module.css';
 import { Button } from '../_components/button';
@@ -22,13 +22,19 @@ export interface FixedCostFormValues {
   day: string;
 }
 
+function frequencyFor(values: FixedCostFormValues): 'monthly' | 'yearly' | 'custom' {
+  if (values.intervalCount === '1' && values.intervalUnit === 'year') return 'yearly';
+  if (values.intervalCount === '1' && values.intervalUnit === 'month') return 'monthly';
+  return 'custom';
+}
+
 export function FixedCostForm({
   action,
   initialValues,
   categories,
   accounts,
   submitLabel,
-  showCancel,
+  showCancel = false,
 }: {
   action: (state: FixedCostFormState, formData: FormData) => Promise<FixedCostFormState>;
   initialValues: FixedCostFormValues;
@@ -38,29 +44,69 @@ export function FixedCostForm({
   showCancel?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
-  const values = { ...initialValues, ...state.values };
-  const errors = state.fieldErrors ?? {};
+  const [values, setValues] = useState(initialValues);
+  const frequency = frequencyFor(values);
+  useEffect(() => {
+    if (state.values) setValues({ ...initialValues, ...state.values });
+  }, [state.values, initialValues]);
+  function update<K extends keyof FixedCostFormValues>(key: K, value: FixedCostFormValues[K]) {
+    setValues((current) => ({ ...current, [key]: value }));
+  }
+  function updateFrequency(next: string) {
+    update(
+      'intervalCount',
+      next === 'custom' ? (values.intervalCount === '1' ? '2' : values.intervalCount) : '1',
+    );
+    update('intervalUnit', next === 'yearly' ? 'year' : 'month');
+  }
+  const [year, month] = values.startMonth.slice(0, 7).split('-');
+  const note =
+    frequency === 'yearly'
+      ? `毎年、${Number(month)}月${values.day}日に支出として記録します。`
+      : frequency === 'custom'
+        ? `${values.intervalCount}${values.intervalUnit === 'year' ? '年' : 'か月'}ごと、${values.day}日に支出として記録します。`
+        : `毎月、${values.day}日に支出として記録します。`;
   return (
     <form action={formAction} className={formsStyles['ledger-form']} noValidate>
+      <input
+        type="hidden"
+        name="startMonth"
+        value={`${year || new Date().getFullYear()}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`}
+      />
       <Field className={formsStyles.field}>
         <label htmlFor="fixed-cost-name">名称</label>
-        <Input id="fixed-cost-name" name="name" value={values.name} maxLength={120} required />
-        <Error messages={errors.name} />
-      </Field>
-      <Field className={formsStyles.field}>
-        <label htmlFor="fixed-cost-amount">金額（円）</label>
         <Input
-          id="fixed-cost-amount"
-          name="amount"
-          inputMode="numeric"
-          value={values.amount}
+          id="fixed-cost-name"
+          name="name"
+          value={values.name}
+          onChange={(event) => update('name', event.currentTarget.value)}
+          maxLength={120}
           required
         />
-        <Error messages={errors.amount} />
+      </Field>
+      <Field className={formsStyles.field}>
+        <label htmlFor="fixed-cost-amount">金額</label>
+        <div className={formsStyles['amount-line']}>
+          <span aria-hidden="true">¥</span>
+          <Input
+            id="fixed-cost-amount"
+            name="amount"
+            inputMode="numeric"
+            value={values.amount}
+            onChange={(event) => update('amount', event.currentTarget.value)}
+            required
+          />
+        </div>
       </Field>
       <Field className={formsStyles.field}>
         <label htmlFor="fixed-cost-category">カテゴリ</label>
-        <Select id="fixed-cost-category" name="categoryId" value={values.categoryId} required>
+        <Select
+          id="fixed-cost-category"
+          name="categoryId"
+          value={values.categoryId}
+          onChange={(event) => update('categoryId', event.currentTarget.value)}
+          required
+        >
           <option value="">選択してください</option>
           {categories.map((category) => (
             <option value={category.id} key={category.id}>
@@ -68,11 +114,16 @@ export function FixedCostForm({
             </option>
           ))}
         </Select>
-        <Error messages={errors.categoryId} />
       </Field>
       <Field className={formsStyles.field}>
         <label htmlFor="fixed-cost-account">資産</label>
-        <Select id="fixed-cost-account" name="accountId" value={values.accountId} required>
+        <Select
+          id="fixed-cost-account"
+          name="accountId"
+          value={values.accountId}
+          onChange={(event) => update('accountId', event.currentTarget.value)}
+          required
+        >
           <option value="">選択してください</option>
           {accounts.map((account) => (
             <option value={account.id} key={account.id}>
@@ -80,16 +131,26 @@ export function FixedCostForm({
             </option>
           ))}
         </Select>
-        <Error messages={errors.accountId} />
       </Field>
-      <div className={formsStyles['entry-detail-grid']}>
-        <Field className={formsStyles.field}>
-          <label htmlFor="fixed-cost-interval-unit">頻度</label>
-          <Select id="fixed-cost-interval-unit" name="intervalUnit" value={values.intervalUnit}>
-            <option value="month">毎月</option>
-            <option value="year">毎年</option>
-          </Select>
-        </Field>
+      <Field className={formsStyles.field}>
+        <label htmlFor="fixed-cost-frequency">頻度</label>
+        <Select
+          id="fixed-cost-frequency"
+          value={frequency}
+          onChange={(event) => updateFrequency(event.currentTarget.value)}
+        >
+          <option value="monthly">毎月</option>
+          <option value="yearly">毎年</option>
+          <option value="custom">間隔を指定</option>
+        </Select>
+        {frequency === 'custom' ? null : (
+          <>
+            <input type="hidden" name="intervalCount" value={values.intervalCount} />
+            <input type="hidden" name="intervalUnit" value={values.intervalUnit} />
+          </>
+        )}
+      </Field>
+      {frequency === 'custom' ? (
         <Field className={formsStyles.field}>
           <label htmlFor="fixed-cost-interval-count">間隔</label>
           <div>
@@ -100,53 +161,57 @@ export function FixedCostForm({
               min={1}
               max={120}
               value={values.intervalCount}
-              required
+              onChange={(event) => update('intervalCount', event.currentTarget.value)}
             />
-            <span> {values.intervalUnit === 'year' ? '年ごと' : 'か月ごと'}</span>
+            <Select
+              name="intervalUnit"
+              aria-label="間隔の単位"
+              value={values.intervalUnit}
+              onChange={(event) => update('intervalUnit', event.currentTarget.value)}
+            >
+              <option value="month">か月ごと</option>
+              <option value="year">年ごと</option>
+            </Select>
           </div>
-          <Error messages={errors.intervalCount} />
         </Field>
-      </div>
-      <div className={formsStyles['entry-detail-grid']}>
-        <Field className={formsStyles.field}>
-          <label htmlFor="fixed-cost-start-month">開始月</label>
-          <Input
-            id="fixed-cost-start-month"
-            name="startMonth"
-            type="month"
-            value={values.startMonth}
-            required
-          />
-          <Error messages={errors.startMonth} />
-        </Field>
-        <Field className={formsStyles.field}>
-          <label htmlFor="fixed-cost-day">発生日</label>
-          <Input
-            id="fixed-cost-day"
-            name="day"
-            type="number"
-            min={1}
-            max={31}
-            value={values.day}
-            required
-          />
-          <Error messages={errors.day} />
-        </Field>
-      </div>
-      <p className={formsStyles['form-note']}>毎月、{values.day}日に支出として記録します。</p>
+      ) : null}
+      <Field className={formsStyles.field}>
+        <label htmlFor="fixed-cost-month">月</label>
+        <Select
+          id="fixed-cost-month"
+          aria-label="月"
+          value={month}
+          onChange={(event) => update('startMonth', `${year}-${event.currentTarget.value}`)}
+        >
+          {Array.from({ length: 12 }, (_, index) => (
+            <option value={String(index + 1).padStart(2, '0')} key={index + 1}>
+              {index + 1}月
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field className={formsStyles.field}>
+        <label htmlFor="fixed-cost-day">日付</label>
+        <Select
+          id="fixed-cost-day"
+          name="day"
+          value={values.day}
+          onChange={(event) => update('day', event.currentTarget.value)}
+        >
+          {Array.from({ length: 31 }, (_, index) => (
+            <option value={String(index + 1)} key={index + 1}>
+              {index + 1}日
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <p className={formsStyles['form-note']}>{note}</p>
       {state.message ? <p role="alert">{state.message}</p> : null}
+      {state.fieldErrors ? <p role="alert">入力内容を確認してください。</p> : null}
       {showCancel ? <a href="/fixed-costs">キャンセル</a> : null}
       <Submit label={submitLabel} />
     </form>
   );
-}
-
-function Error({ messages }: { messages?: readonly string[] }) {
-  return messages?.[0] ? (
-    <span className={formsStyles['field-error']} role="alert">
-      {messages[0]}
-    </span>
-  ) : null;
 }
 
 function Submit({ label }: { label: string }) {
