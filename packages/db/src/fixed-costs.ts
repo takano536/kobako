@@ -30,7 +30,9 @@ export type FixedCostMutationResult =
   | { status: 'error' };
 
 function monthNumber(month: string): number {
-  const [year, value] = month.split('-').map(Number);
+  const [yearText, valueText] = month.split('-');
+  const year = Number(yearText);
+  const value = Number(valueText);
   return year * 12 + value - 1;
 }
 
@@ -44,7 +46,9 @@ export function fixedCostOccurrenceOn(fixedCost: Pick<FixedCost, 'startMonth' | 
   const distance = monthNumber(month) - monthNumber(start);
   const interval = fixedCost.intervalUnit === 'year' ? fixedCost.intervalCount * 12 : fixedCost.intervalCount;
   if (distance < 0 || distance % interval !== 0) return null;
-  const [year, monthNumberValue] = month.split('-').map(Number);
+  const [yearText, monthText] = month.split('-');
+  const year = Number(yearText);
+  const monthNumberValue = Number(monthText);
   const day = Math.min(fixedCost.day, monthLength(year, monthNumberValue));
   return `${month}-${String(day).padStart(2, '0')}`;
 }

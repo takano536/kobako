@@ -466,6 +466,7 @@ export const fixedCosts = pgTable(
       .references(() => households.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
     amount: integer('amount').notNull(),
+    categoryId: integer('category_id').notNull(),
     categoryType: transactionType('category_type').notNull().default('expense'),
     accountId: integer('account_id').notNull(),
     intervalCount: integer('interval_count').notNull().default(1),

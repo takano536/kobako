@@ -3,7 +3,7 @@ import { fixedCostOccurrenceOn, isFixedCostDueOn, summarizeFixedCosts } from './
 
 describe('fixed cost schedules', () => {
   it('clamps day 31 to the end of shorter months', () => {
-    const fixedCost = { startMonth: '2024-01-01', day: 31, intervalCount: 1, intervalUnit: 'month' as const };
+    const fixedCost = { startMonth: '2023-01-01', day: 31, intervalCount: 1, intervalUnit: 'month' as const };
     expect(fixedCostOccurrenceOn(fixedCost, '2024-02')).toBe('2024-02-29');
     expect(fixedCostOccurrenceOn(fixedCost, '2023-02')).toBe('2023-02-28');
   });
