@@ -455,6 +455,67 @@ export const transactions = pgTable(
   ],
 );
 
+export const fixedCostIntervalUnit = pgEnum('fixed_cost_interval_unit', ['month', 'year']);
+
+export const fixedCosts = pgTable(
+  'fixed_costs',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    amount: integer('amount').notNull(),
+    categoryType: transactionType('category_type').notNull().default('expense'),
+    accountId: integer('account_id').notNull(),
+    intervalCount: integer('interval_count').notNull().default(1),
+    intervalUnit: fixedCostIntervalUnit('interval_unit').notNull().default('month'),
+    startMonth: date('start_month', { mode: 'string' }).notNull(),
+    day: integer('day').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'fixed_costs_category_household_type_fk',
+      columns: [table.categoryId, table.householdId, table.categoryType],
+      foreignColumns: [categories.id, categories.householdId, categories.type],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'fixed_costs_account_household_fk',
+      columns: [table.accountId, table.householdId],
+      foreignColumns: [accounts.id, accounts.householdId],
+    }).onDelete('restrict'),
+    check('fixed_costs_amount_positive_check', sql`${table.amount} > 0`),
+    check('fixed_costs_interval_count_check', sql`${table.intervalCount} > 0`),
+    check('fixed_costs_day_check', sql`${table.day} between 1 and 31`),
+    index('fixed_costs_household_idx').on(table.householdId),
+  ],
+);
+
+export const fixedCostOccurrences = pgTable(
+  'fixed_cost_occurrences',
+  {
+    id: serial('id').primaryKey(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    fixedCostId: integer('fixed_cost_id')
+      .notNull()
+      .references(() => fixedCosts.id, { onDelete: 'cascade' }),
+    transactionId: integer('transaction_id').references(() => transactions.id, {
+      onDelete: 'set null',
+    }),
+    occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('fixed_cost_occurrences_cost_date_unique').on(table.fixedCostId, table.occurredOn),
+    unique('fixed_cost_occurrences_transaction_unique').on(table.transactionId),
+    index('fixed_cost_occurrences_household_date_idx').on(table.householdId, table.occurredOn),
+  ],
+);
+
 export const transfers = pgTable(
   'transfers',
   {
@@ -555,3 +616,9 @@ export type Transfer = typeof transfers.$inferSelect;
 export type NewTransfer = typeof transfers.$inferInsert;
 export type CardAutoPaymentRun = typeof cardAutoPaymentRuns.$inferSelect;
 export type NewCardAutoPaymentRun = typeof cardAutoPaymentRuns.$inferInsert;
+
+export type FixedCostIntervalUnit = (typeof fixedCostIntervalUnit.enumValues)[number];
+export type FixedCost = typeof fixedCosts.$inferSelect;
+export type NewFixedCost = typeof fixedCosts.$inferInsert;
+export type FixedCostOccurrence = typeof fixedCostOccurrences.$inferSelect;
+export type NewFixedCostOccurrence = typeof fixedCostOccurrences.$inferInsert;

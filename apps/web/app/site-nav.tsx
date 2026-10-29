@@ -37,6 +37,13 @@ function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
       </svg>
     );
   }
+  if (section === 'fixed-costs') {
+    return (
+      <svg className={navStyles['site-nav-icon']} viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+        <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
+      </svg>
+    );
+  }
   return (
     <svg className={navStyles['site-nav-icon']} focusable="false" aria-hidden="true">
       <path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4" />
@@ -47,6 +54,7 @@ function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
 const navigationLinks = [
   { section: 'overview', label: '概要', href: '/' },
   { section: 'transactions', label: '取引', href: '/transactions' },
+  { section: 'fixed-costs', label: '固定費', href: '/fixed-costs' },
   { section: 'balances', label: '残高', href: '/balances' },
 ] as const satisfies ReadonlyArray<{
   section: Exclude<SiteNavigationSection, 'settings'>;

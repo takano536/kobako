@@ -1,4 +1,9 @@
-export type SiteNavigationSection = 'overview' | 'transactions' | 'balances' | 'settings';
+export type SiteNavigationSection =
+  | 'overview'
+  | 'transactions'
+  | 'balances'
+  | 'fixed-costs'
+  | 'settings';
 
 function isPathOrDescendant(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
@@ -8,6 +13,7 @@ function sectionForKnownPath(pathname: string): SiteNavigationSection | undefine
   if (pathname === '/') return 'overview';
   if (isPathOrDescendant(pathname, '/transactions')) return 'transactions';
   if (isPathOrDescendant(pathname, '/balances')) return 'balances';
+  if (isPathOrDescendant(pathname, '/fixed-costs')) return 'fixed-costs';
   if (isPathOrDescendant(pathname, '/settings')) return 'settings';
   return undefined;
 }
@@ -34,6 +40,7 @@ export function siteNavigationSection(
     return returnSection === 'overview' ||
       returnSection === 'transactions' ||
       returnSection === 'balances' ||
+      returnSection === 'fixed-costs' ||
       returnSection === 'settings'
       ? returnSection
       : 'transactions';

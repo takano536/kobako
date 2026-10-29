@@ -161,7 +161,34 @@ export async function seedDemoLedger(
   const cashAccount = accountId('現金');
   const cardAccount = accountId('クレジットカード');
 
-  // These three rows of the newest month arrive through the API ingest below instead.
+  const fixedCostStartMonth = (() => {
+    const current = recentMonths(1)[0] ?? { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+    return tokyoDate(current.year, current.month, 1);
+  })();
+  const fixedCostRows: DemoRow[] = [
+    ['家賃', 85000, '住居', livingAccount, 1, 'month', 27],
+    ['水道', 3240, '水道・光熱', livingAccount, 2, 'month', 25],
+    ['インターネット回線', 7800, '通信', cardAccount, 1, 'month', 5],
+    ['スマートフォン', 3278, '通信', cardAccount, 1, 'month', 10],
+    ['医療保険', 12000, '医療', livingAccount, 3, 'month', 10],
+    ['Netflix', 1490, '娯楽', cardAccount, 1, 'month', 8],
+    ['Spotify Premium', 1080, '娯楽', cardAccount, 1, 'month', 8],
+    ['ジム', 7700, '娯楽', livingAccount, 1, 'month', 15],
+    ['Amazon Prime', 5900, '娯楽', cardAccount, 1, 'year', 15],
+  ].map(([name, amount, category, account, intervalCount, intervalUnit, day]) => ({
+    household_id: householdId,
+    name,
+    amount,
+    category_id: categoryId('expense', String(category)),
+    category_type: 'expense',
+    account_id: account,
+    interval_count: intervalCount,
+    interval_unit: intervalUnit,
+    start_month: fixedCostStartMonth,
+    day,
+  }));
+  await sql`insert into fixed_costs ${sql(fixedCostRows, 'household_id', 'name', 'amount', 'category_id', 'category_type', 'account_id', 'interval_count', 'interval_unit', 'start_month', 'day')}`;
+
   const apiMemos: Record<string, true> = {
     'スーパー・外食': true,
     '書籍・サブスクリプション': true,

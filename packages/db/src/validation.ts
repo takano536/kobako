@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
+import { isValidMonth, MAX_SUPPORTED_YEAR, MIN_SUPPORTED_YEAR } from './month.js';
 import { AMOUNT_LIMIT, AMOUNT_LIMIT_TEXT, AMOUNT_TEXT_PATTERN } from './amount.js';
 import type { TransactionType } from './schema.js';
 
@@ -403,3 +403,63 @@ export function transactionInputFromFormData(formData: FormData): Record<string,
   };
 }
 export const flattenTransactionError = z.flattenError;
+
+const fixedCostNameSchema = z
+  .string({ error: '固定費名を入力してください。' })
+  .trim()
+  .min(1, { error: '固定費名を入力してください。' })
+  .max(120, { error: '固定費名は120文字以内で入力してください。' });
+
+const fixedCostDaySchema = z.preprocess(
+  (value) => (typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value),
+  z
+    .number({ error: '発生日を選択してください。' })
+    .int()
+    .min(1, { error: '発生日は1日から31日の範囲で入力してください。' })
+    .max(31, { error: '発生日は1日から31日の範囲で入力してください。' }),
+);
+
+const fixedCostIntervalCountSchema = z.preprocess(
+  (value) => (typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value),
+  z
+    .number({ error: '間隔を入力してください。' })
+    .int()
+    .min(1, { error: '間隔は1以上で入力してください。' })
+    .max(120, { error: '間隔は120以下で入力してください。' }),
+);
+
+export const fixedCostInputSchema = z.object({
+  name: fixedCostNameSchema,
+  amount: z.preprocess(
+    preprocessAmount,
+    z
+      .number({ error: '金額を入力してください。' })
+      .int()
+      .positive({ error: '金額は1円以上で入力してください。' })
+      .max(AMOUNT_LIMIT, { error: `金額は${AMOUNT_LIMIT.toLocaleString('ja-JP')}円以下で入力してください。` }),
+    ),
+  categoryId: categoryIdSchema,
+  accountId: requiredAccountIdSchema,
+  intervalCount: fixedCostIntervalCountSchema,
+  intervalUnit: z.enum(['month', 'year'], { error: '頻度を選択してください。' }),
+  startMonth: z
+    .string({ error: '開始月を入力してください。' })
+    .regex(/^\d{4}-(?:0[1-9]|1[0-2])$/, { error: '開始月を入力してください。' })
+    .refine((value) => isValidMonth(value), { error: '開始月を入力してください。' }),
+  day: fixedCostDaySchema,
+});
+
+export type FixedCostInput = z.infer<typeof fixedCostInputSchema>;
+
+export function fixedCostInputFromFormData(formData: FormData): Record<string, unknown> {
+  return {
+    name: formData.get('name'),
+    amount: formData.get('amount'),
+    categoryId: formData.get('categoryId'),
+    accountId: formData.get('accountId'),
+    intervalCount: formData.get('intervalCount') ?? '1',
+    intervalUnit: formData.get('intervalUnit') ?? 'month',
+    startMonth: formData.get('startMonth'),
+    day: formData.get('day'),
+  };
+}
