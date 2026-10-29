@@ -20,7 +20,9 @@ export interface FixedCostFormState {
 
 function valuesFromFormData(formData: FormData): Record<string, string> {
   const input = fixedCostInputFromFormData(formData);
-  return Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value ?? '')]));
+  return Object.fromEntries(
+    Object.entries(input).map(([key, value]) => [key, String(value ?? '')]),
+  );
 }
 
 function invalidState(formData: FormData): FixedCostFormState {
@@ -41,8 +43,16 @@ export async function createFixedCostAction(
 ): Promise<FixedCostFormState> {
   const invalid = invalidState(formData);
   if (invalid.fieldErrors) return invalid;
-  const result = await createFixedCost(await getLedgerDatabase(), await getCurrentHouseholdId(), fixedCostInputSchema.parse(fixedCostInputFromFormData(formData)));
-  if (result.status !== 'ok') return { ...invalid, message: 'message' in result ? result.message : '固定費を登録できませんでした。' };
+  const result = await createFixedCost(
+    await getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    fixedCostInputSchema.parse(fixedCostInputFromFormData(formData)),
+  );
+  if (result.status !== 'ok')
+    return {
+      ...invalid,
+      message: 'message' in result ? result.message : '固定費を登録できませんでした。',
+    };
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
@@ -54,8 +64,17 @@ export async function updateFixedCostAction(
 ): Promise<FixedCostFormState> {
   const invalid = invalidState(formData);
   if (invalid.fieldErrors) return invalid;
-  const result = await updateFixedCost(await getLedgerDatabase(), await getCurrentHouseholdId(), id, fixedCostInputSchema.parse(fixedCostInputFromFormData(formData)));
-  if (result.status !== 'ok') return { ...invalid, message: 'message' in result ? result.message : '固定費を更新できませんでした。' };
+  const result = await updateFixedCost(
+    await getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    id,
+    fixedCostInputSchema.parse(fixedCostInputFromFormData(formData)),
+  );
+  if (result.status !== 'ok')
+    return {
+      ...invalid,
+      message: 'message' in result ? result.message : '固定費を更新できませんでした。',
+    };
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }

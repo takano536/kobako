@@ -38,8 +38,13 @@ test.describe('固定費', () => {
     await page.getByRole('button', { name: '条件をクリア' }).click();
     await page.getByRole('button', { name: 'グループ', exact: true }).click();
     await page.getByRole('menuitemradio', { name: '頻度別' }).click();
-    await expect(page.getByRole('button', { name: /グループ: 頻度別/ })).toHaveAttribute('aria-expanded', 'false');
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('kobako-fixed-cost-group'))).toBe('frequency');
+    await expect(page.getByRole('button', { name: /グループ: 頻度別/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('kobako-fixed-cost-group')))
+      .toBe('frequency');
     await page.reload();
     await expect(page.getByRole('button', { name: /グループ: 頻度別/ })).toBeVisible();
 
@@ -59,6 +64,8 @@ test.describe('固定費', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/fixed-costs');
     await expect(page.getByRole('heading', { name: /^固定費\d+件$/ })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 });

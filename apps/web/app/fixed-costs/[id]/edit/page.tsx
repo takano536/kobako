@@ -11,7 +11,13 @@ export const metadata = { title: '固定費を編集' };
 
 type Params = Promise<{ id: string }>;
 
-export default async function EditFixedCostPage({ params }: { params: Params }) {
+export async function EditFixedCostContent({
+  params,
+  showCancel = false,
+}: {
+  params: Params;
+  showCancel?: boolean;
+}) {
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) notFound();
@@ -19,8 +25,39 @@ export default async function EditFixedCostPage({ params }: { params: Params }) 
   if (!fixedCost) notFound();
   const householdId = await getCurrentHouseholdId();
   const db = await getLedgerDatabase();
-  const [categories, accounts] = await Promise.all([listCategories(db, householdId, 'expense'), listActiveManagedAccounts(db, householdId)]);
+  const [categories, accounts] = await Promise.all([
+    listCategories(db, householdId, 'expense'),
+    listActiveManagedAccounts(db, householdId),
+  ]);
   const update = updateFixedCostAction.bind(null, id);
   const remove = deleteFixedCostAction.bind(null, id);
-  return <PageShell width="narrow"><PageHeader title="固定費を編集" /><FixedCostForm action={update} categories={categories} accounts={accounts} submitLabel="保存する" initialValues={{ name: fixedCost.name, amount: String(fixedCost.amount), categoryId: String(fixedCost.categoryId), accountId: String(fixedCost.accountId), intervalCount: String(fixedCost.intervalCount), intervalUnit: fixedCost.intervalUnit, startMonth: fixedCost.startMonth.slice(0, 7), day: String(fixedCost.day) }} /><form action={remove}><button type="submit">削除</button></form></PageShell>;
+  return (
+    <PageShell width="narrow">
+      <PageHeader title="固定費を編集" />
+      <FixedCostForm
+        action={update}
+        categories={categories}
+        accounts={accounts}
+        submitLabel="保存する"
+        showCancel={showCancel}
+        initialValues={{
+          name: fixedCost.name,
+          amount: String(fixedCost.amount),
+          categoryId: String(fixedCost.categoryId),
+          accountId: String(fixedCost.accountId),
+          intervalCount: String(fixedCost.intervalCount),
+          intervalUnit: fixedCost.intervalUnit,
+          startMonth: fixedCost.startMonth.slice(0, 7),
+          day: String(fixedCost.day),
+        }}
+      />
+      <form action={remove}>
+        <button type="submit">削除</button>
+      </form>
+    </PageShell>
+  );
+}
+
+export default function EditFixedCostPage({ params }: { params: Params }) {
+  return <EditFixedCostContent params={params} />;
 }

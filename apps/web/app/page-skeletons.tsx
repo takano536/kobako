@@ -122,6 +122,28 @@ export function pageSkeletonFor(pathname: string, month?: string | null): ReactN
           ]}
         />
       );
+    case '/fixed-costs':
+      return (
+        <PageSkeleton
+          label="固定費を読み込み中"
+          title="固定費"
+          count
+          action={{ label: '固定費を登録' }}
+          blocks={[
+            {
+              kind: 'summary',
+              content: (
+                <div>
+                  <SectionHeading title="固定費の集計" />
+                  <SkeletonText>¥000,000</SkeletonText>
+                </div>
+              ),
+            },
+            { kind: 'filter' },
+            { kind: 'list', rows: 8, amount: true },
+          ]}
+        />
+      );
     case '/settings':
       return (
         <PageSkeleton
