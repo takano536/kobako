@@ -1,4 +1,5 @@
 import { listCategories, listActiveManagedAccounts } from '@kobako/db';
+import { OverlayCard } from '../../_components/overlay-card';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
 import { PageHeader } from '../../_components/page-header';
 import { PageShell } from '../../_components/ui';
@@ -36,11 +37,25 @@ export async function NewFixedCostContent({ showCancel = false }: { showCancel?:
   );
 }
 
-export default function NewFixedCostPage() {
+export default async function NewFixedCostPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = (await searchParams) ?? {};
+  const modal = query.modal === '1';
+  const content = <NewFixedCostContent showCancel={modal} />;
+  if (modal) {
+    return (
+      <OverlayCard title="固定費を登録" kind="transaction" autoFocusSelector="#fixed-cost-name">
+        {content}
+      </OverlayCard>
+    );
+  }
   return (
     <PageShell width="narrow">
       <PageHeader title="固定費を登録" />
-      <NewFixedCostContent />
+      {content}
     </PageShell>
   );
 }

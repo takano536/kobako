@@ -148,7 +148,7 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
             <ul>
               {items.map((row) => (
                 <li key={row.id} className={styles.row}>
-                  <Link href={`/fixed-costs/${row.id}/edit`}>
+                  <Link href={`/fixed-costs/${row.id}/edit?modal=1`}>
                     <span className={styles.name}>{row.name}</span>
                     <span className={styles.meta}>
                       {frequencyLabel(row)}・{row.accountName}
