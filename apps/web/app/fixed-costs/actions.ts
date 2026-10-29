@@ -40,6 +40,7 @@ export async function createFixedCostAction(
   formData: FormData,
 ): Promise<FixedCostFormState> {
   const invalid = invalidState(formData);
+  if (invalid.fieldErrors) return invalid;
   const result = await createFixedCost(await getLedgerDatabase(), await getCurrentHouseholdId(), fixedCostInputSchema.parse(fixedCostInputFromFormData(formData)));
   if (result.status !== 'ok') return { ...invalid, message: 'message' in result ? result.message : '固定費を登録できませんでした。' };
   revalidatePath('/fixed-costs');

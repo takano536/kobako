@@ -15,10 +15,13 @@ export default async function FixedCostsPage() {
   const [rows, summary] = await Promise.all([listFixedCosts(db, householdId), getFixedCostSummary(db, householdId)]);
   return <PageShell width="wide">
     <PageHeader title="固定費" count={`${rows.length}件`} actions={<ActionLink href="/fixed-costs/new" variant="primary">固定費を登録</ActionLink>} />
-    <div className={styles.summary} aria-label="固定費の集計">
-      <div className={styles.summaryCard}><span>月あたり</span><strong>{summary.monthly.toLocaleString('ja-JP')}円</strong></div>
-      <div className={styles.summaryCard}><span>年間</span><strong>{summary.annual.toLocaleString('ja-JP')}円</strong></div>
-    </div>
+    <section className={styles.summary} aria-labelledby="fixed-cost-summary">
+      <h2 id="fixed-cost-summary">固定費の集計</h2>
+      <dl>
+        <div><dt>月あたり</dt><dd>{summary.monthly.toLocaleString('ja-JP')}円</dd></div>
+        <div><dt>年間</dt><dd>{summary.annual.toLocaleString('ja-JP')}円</dd></div>
+      </dl>
+    </section>
     <FixedCostList rows={rows} />
   </PageShell>;
 }

@@ -1,4 +1,4 @@
-import { and, asc, eq, getTableColumns, isNull } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, gte, isNull } from 'drizzle-orm';
 
 import type { Database } from './client.js';
 import { currentTokyoDate, isValidMonth } from './month.js';
@@ -149,7 +149,13 @@ export async function getFixedCostSummary(db: Database, householdId: string): Pr
 export interface FixedCostProcessingResult { checked: number; created: number; skipped: number; }
 
 export async function processDueFixedCosts(db: Database, date = currentTokyoDate()): Promise<FixedCostProcessingResult> {
-  const rows = await db.select().from(fixedCosts);
+  const [yearText, monthText, dayText] = date.split('-');
+  const currentDay = Number(dayText);
+  const monthEnd = currentDay === new Date(Date.UTC(Number(yearText), Number(monthText), 0)).getUTCDate();
+  const rows = await db
+    .select()
+    .from(fixedCosts)
+    .where(monthEnd ? gte(fixedCosts.day, currentDay) : eq(fixedCosts.day, currentDay));
   let created = 0;
   let skipped = 0;
   for (const fixedCost of rows) {
