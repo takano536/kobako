@@ -22,7 +22,7 @@ export default async function FixedCostsPage() {
         title="固定費"
         count={`${rows.length}件`}
         actions={
-          <ActionLink href="/fixed-costs/new?modal=1" variant="primary">
+          <ActionLink href="/fixed-costs/new" variant="primary" scroll={false}>
             固定費を登録
           </ActionLink>
         }

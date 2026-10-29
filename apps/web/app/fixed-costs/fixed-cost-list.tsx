@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '../_components/prefetch-link';
 import { useEffect, useMemo, useState } from 'react';
 import type { ListedFixedCost } from '@kobako/db';
 import { formatYen } from '../../src/lib/format';
@@ -148,12 +148,12 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
             <ul>
               {items.map((row) => (
                 <li key={row.id} className={styles.row}>
-                  <Link href={`/fixed-costs/${row.id}/edit?modal=1`}>
+                  <PrefetchLink href={`/fixed-costs/${row.id}/edit`} scroll={false}>
                     <span className={styles.name}>{row.name}</span>
                     <span className={styles.meta}>
                       {frequencyLabel(row)}・{row.accountName}
                     </span>
-                  </Link>
+                  </PrefetchLink>
                   <strong>{formatYen(row.amount)}</strong>
                 </li>
               ))}

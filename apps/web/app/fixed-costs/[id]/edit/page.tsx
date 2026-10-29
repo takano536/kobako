@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { OverlayCard } from '../../../_components/overlay-card';
 import { listCategories, listActiveManagedAccounts } from '@kobako/db';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../../src/lib/ledger-data';
 import { PageHeader } from '../../../_components/page-header';
@@ -56,27 +55,11 @@ export async function EditFixedCostContent({
   );
 }
 
-export default async function EditFixedCostPage({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const query = (await searchParams) ?? {};
-  const modal = query.modal === '1';
-  const content = <EditFixedCostContent params={params} showCancel={modal} />;
-  if (modal) {
-    return (
-      <OverlayCard title="固定費を編集" kind="transaction" autoFocusSelector="#fixed-cost-name">
-        {content}
-      </OverlayCard>
-    );
-  }
+export default function EditFixedCostPage({ params }: { params: Params }) {
   return (
     <PageShell width="narrow">
       <PageHeader title="固定費を編集" />
-      {content}
+      <EditFixedCostContent params={params} />
     </PageShell>
   );
 }

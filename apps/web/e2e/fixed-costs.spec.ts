@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('固定費', () => {
+  test('一覧から登録・編集を開くとdialog、直接URLはページを表示する', async ({ page }) => {
+    await page.goto('/fixed-costs');
+    await page.getByRole('link', { name: '固定費を登録' }).click();
+    await expect(page.locator('#entry-dialog[data-card-pattern="overlay-card"]')).toBeVisible();
+    await page.getByRole('button', { name: '固定費を登録 — 戻る' }).click();
+    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await page.getByRole('link', { name: /家賃/ }).click();
+    await expect(page.locator('#entry-dialog[data-card-pattern="overlay-card"]')).toBeVisible();
+    await page.getByRole('button', { name: '固定費を編集 — 戻る' }).click();
+    await page.goto('/fixed-costs/new');
+    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+  });
+
   test('一覧に代表的な固定費と集計を表示する', async ({ page }) => {
     await page.goto('/fixed-costs');
     await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
