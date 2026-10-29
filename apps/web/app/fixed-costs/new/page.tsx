@@ -16,29 +16,31 @@ export async function NewFixedCostContent({ showCancel = false }: { showCancel?:
     listActiveManagedAccounts(db, householdId),
   ]);
   return (
-    <PageShell width="narrow">
-      <PageHeader title="固定費を登録" />
-      <FixedCostForm
-        action={createFixedCostAction}
-        categories={categories}
-        accounts={accounts}
-        submitLabel="登録する"
-        showCancel={showCancel}
-        initialValues={{
-          name: '',
-          amount: '',
-          categoryId: categories[0] ? String(categories[0].id) : '',
-          accountId: accounts[0] ? String(accounts[0].id) : '',
-          intervalCount: '1',
-          intervalUnit: 'month',
-          startMonth: new Date().toISOString().slice(0, 7),
-          day: '1',
-        }}
-      />
-    </PageShell>
+    <FixedCostForm
+      action={createFixedCostAction}
+      categories={categories}
+      accounts={accounts}
+      submitLabel="登録する"
+      showCancel={showCancel}
+      initialValues={{
+        name: '',
+        amount: '',
+        categoryId: categories[0] ? String(categories[0].id) : '',
+        accountId: accounts[0] ? String(accounts[0].id) : '',
+        intervalCount: '1',
+        intervalUnit: 'month',
+        startMonth: new Date().toISOString().slice(0, 7),
+        day: '1',
+      }}
+    />
   );
 }
 
 export default function NewFixedCostPage() {
-  return <NewFixedCostContent />;
+  return (
+    <PageShell width="narrow">
+      <PageHeader title="固定費を登録" />
+      <NewFixedCostContent />
+    </PageShell>
+  );
 }

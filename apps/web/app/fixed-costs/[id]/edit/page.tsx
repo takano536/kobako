@@ -32,14 +32,14 @@ export async function EditFixedCostContent({
   const update = updateFixedCostAction.bind(null, id);
   const remove = deleteFixedCostAction.bind(null, id);
   return (
-    <PageShell width="narrow">
-      <PageHeader title="固定費を編集" />
+    <>
       <FixedCostForm
         action={update}
         categories={categories}
         accounts={accounts}
         submitLabel="保存する"
         showCancel={showCancel}
+        deleteAction={remove}
         initialValues={{
           name: fixedCost.name,
           amount: String(fixedCost.amount),
@@ -51,13 +51,15 @@ export async function EditFixedCostContent({
           day: String(fixedCost.day),
         }}
       />
-      <form action={remove}>
-        <button type="submit">削除</button>
-      </form>
-    </PageShell>
+    </>
   );
 }
 
 export default function EditFixedCostPage({ params }: { params: Params }) {
-  return <EditFixedCostContent params={params} />;
+  return (
+    <PageShell width="narrow">
+      <PageHeader title="固定費を編集" />
+      <EditFixedCostContent params={params} />
+    </PageShell>
+  );
 }

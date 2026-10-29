@@ -54,7 +54,8 @@ test.describe('固定費', () => {
     await page.getByRole('button', { name: /カテゴリ.*娯楽/ }).click();
     await page.getByRole('menuitemradio', { name: 'すべて' }).click();
     await page.getByRole('link', { name: /E2E固定費/ }).click();
-    await page.getByRole('button', { name: '削除' }).click();
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: '固定費を削除' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(page.getByText('E2E固定費')).not.toBeVisible();
   });
