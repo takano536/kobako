@@ -91,6 +91,7 @@ export function SelectField({
   }
 
   function choose(nextValue: string): void {
+    setRequiredInvalid(false);
     close(true);
     if (nextValue !== value) onValueChange(nextValue);
   }

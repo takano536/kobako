@@ -595,13 +595,6 @@
   line-height: var(--leading-meta);
 }
 
-.account-field .field-value > select {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .inline-form,
 .form-actions {
   display: flex;
