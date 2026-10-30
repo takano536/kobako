@@ -1,6 +1,17 @@
 export type SiteNavigationSection =
   'overview' | 'transactions' | 'balances' | 'fixed-costs' | 'settings';
 
+export const SITE_NAVIGATION_LINKS = [
+  { section: 'overview', label: '概要', href: '/' },
+  { section: 'transactions', label: '取引', href: '/transactions' },
+  { section: 'fixed-costs', label: '固定費', href: '/fixed-costs' },
+  { section: 'balances', label: '残高', href: '/balances' },
+] as const satisfies ReadonlyArray<{
+  section: Exclude<SiteNavigationSection, 'settings'>;
+  label: string;
+  href: string;
+}>;
+
 function isPathOrDescendant(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }

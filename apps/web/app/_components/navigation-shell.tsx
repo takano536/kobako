@@ -12,6 +12,7 @@ import {
 } from 'react';
 
 import { pageSkeletonFor } from '../page-skeletons';
+import { hasPageSkeleton } from '../../src/lib/page-skeleton-paths';
 import {
   useNavigationShell,
   NavigationShellContext,
@@ -22,18 +23,7 @@ import { installRscNavigationRetry } from './rsc-navigation-retry';
 
 installRscNavigationRetry();
 
-// Full-page destinations only. Other search-only updates and intercepted cards stay with Link.
-const PAGE_PATHS: Record<string, true | undefined> = {
-  '/': true,
-  '/transactions': true,
-  '/balances': true,
-  '/settings': true,
-  '/settings/categories/asset': true,
-  '/settings/categories/expense': true,
-  '/settings/categories/income': true,
-  '/settings/delete': true,
-  '/settings/import': true,
-};
+// Full-page destinations with a server skeleton. Search-only updates and intercepted cards stay with Link.
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -126,7 +116,7 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const handles = useCallback(
     (href: string) => {
       const url = new URL(href, window.location.href);
-      if (url.origin !== window.location.origin || PAGE_PATHS[url.pathname] !== true) return false;
+      if (url.origin !== window.location.origin || !hasPageSkeleton(url.pathname)) return false;
       if (url.pathname !== pathname) return true;
       // The same page on another month or with another filter is a real navigation too: the page
       // renders on the server, so it gets the destination frame like a month switch.
@@ -139,7 +129,7 @@ export function NavigationShellProvider({ children }: { children: ReactNode }) {
   const navigate = useCallback(
     (href: string, { scroll }: { scroll: boolean }) => {
       const url = new URL(href, window.location.href);
-      const pagePath = PAGE_PATHS[url.pathname] === true;
+      const pagePath = hasPageSkeleton(url.pathname);
       const sameTarget = pagePath && url.href === window.location.href;
       if (!handles(href) && !sameTarget) {
         cancel();

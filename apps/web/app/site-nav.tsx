@@ -7,7 +7,11 @@ import { PrefetchLink } from './_components/prefetch-link';
 
 import { KobakoMark } from '../src/lib/category';
 import { withSelectedMonth } from '../src/lib/month-navigation';
-import { siteNavigationSection, type SiteNavigationSection } from '../src/lib/site-navigation';
+import {
+  SITE_NAVIGATION_LINKS,
+  siteNavigationSection,
+  type SiteNavigationSection,
+} from '../src/lib/site-navigation';
 import { SettingsIcon } from './_components/ui';
 import navStyles from './site-nav.module.css';
 
@@ -55,18 +59,6 @@ function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
     </svg>
   );
 }
-
-const navigationLinks = [
-  { section: 'overview', label: '概要', href: '/' },
-  { section: 'transactions', label: '取引', href: '/transactions' },
-  { section: 'fixed-costs', label: '固定費', href: '/fixed-costs' },
-  { section: 'balances', label: '残高', href: '/balances' },
-] as const satisfies ReadonlyArray<{
-  section: Exclude<SiteNavigationSection, 'settings'>;
-  label: string;
-  href: string;
-}>;
-
 export function SiteBrand() {
   const searchParams = useSearchParams();
   return (
@@ -101,7 +93,7 @@ export function SiteNav() {
   const pendingTo = useNavigationShell()?.pending?.pathname ?? null;
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
-      {navigationLinks.map(({ section, label, href }) => (
+      {SITE_NAVIGATION_LINKS.map(({ section, label, href }) => (
         <PrefetchLink
           key={section}
           href={withSelectedMonth(href, month)}
@@ -120,7 +112,7 @@ export function SiteNav() {
 export function SiteNavFallback() {
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
-      {navigationLinks.map(({ section, label, href }) => (
+      {SITE_NAVIGATION_LINKS.map(({ section, label, href }) => (
         <PrefetchLink key={section} href={href}>
           <SiteNavIcon section={section} />
           <span>{label}</span>
