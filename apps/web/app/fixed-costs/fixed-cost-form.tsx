@@ -253,29 +253,33 @@ export function FixedCostForm({
           </p>
         ) : null}
         <div
-          className={`${formsStyles['form-actions']} ${formsStyles['form-actions-with-cancel']}`}
+          className={[
+            formsStyles['save-button-options'],
+            showCancel && formsStyles['save-button-options-with-cancel'],
+            styles.actions,
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           {showCancel ? (
             <Button variant="secondary" type="button" onClick={() => router.back()}>
               キャンセル
             </Button>
-          ) : (
-            <span />
-          )}
+          ) : null}
           <Submit label={submitLabel} />
         </div>
       </form>
       {deleteAction ? (
         <form
           action={deleteAction}
-          className={formsStyles['delete-action']}
+          className={styles.deleteBlock}
           onSubmit={(event) => {
             if (!window.confirm('この固定費を削除しますか？')) event.preventDefault();
           }}
         >
-          <Button variant="danger" type="submit">
+          <button type="submit" className={styles.deleteButton}>
             固定費を削除
-          </Button>
+          </button>
         </form>
       ) : null}
     </>
