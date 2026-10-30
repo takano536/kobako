@@ -277,9 +277,12 @@ test.describe('固定費', () => {
           appearance: getComputedStyle(select).appearance,
           wrapper: wrapper?.className ?? '',
           pseudoContent: pseudo?.content ?? 'none',
-          pseudoColor: pseudo?.backgroundColor ?? '',
+          pseudoBorderColor: pseudo?.borderInlineEndColor ?? '',
           pseudoWidth: pseudo?.width ?? '',
           pseudoHeight: pseudo?.height ?? '',
+          strokeToken: wrapper
+            ? getComputedStyle(wrapper).getPropertyValue('--stroke-medium').trim()
+            : '',
         };
       }),
     );
@@ -288,9 +291,10 @@ test.describe('固定費', () => {
       expect(select.appearance).toBe('none');
       expect(select.wrapper).toContain('selectChevronWrap');
       expect(select.pseudoContent).not.toBe('none');
-      expect(select.pseudoColor).not.toBe('');
-      expect(select.pseudoWidth).toBe('6px');
-      expect(select.pseudoHeight).toBe('1.5px');
+      expect(select.pseudoBorderColor).not.toBe('');
+      expect(select.pseudoWidth).toBe('7px');
+      expect(select.pseudoHeight).toBe('7px');
+      expect(select.strokeToken).toBe('1.5px');
     }
 
     await page.goto('/fixed-costs');
