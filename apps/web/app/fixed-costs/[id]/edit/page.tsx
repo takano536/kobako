@@ -11,13 +11,7 @@ export const metadata = { title: '固定費を編集' };
 
 type Params = Promise<{ id: string }>;
 
-export async function EditFixedCostContent({
-  params,
-  showCancel = false,
-}: {
-  params: Params;
-  showCancel?: boolean;
-}) {
+export async function EditFixedCostContent({ params }: { params: Params }) {
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) notFound();
@@ -38,7 +32,6 @@ export async function EditFixedCostContent({
         categories={categories}
         accounts={accounts}
         submitLabel="保存する"
-        showCancel={showCancel}
         deleteAction={remove}
         initialValues={{
           name: fixedCost.name,

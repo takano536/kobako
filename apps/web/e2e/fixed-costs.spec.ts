@@ -117,11 +117,20 @@ test.describe('固定費', () => {
     await page.goto('/fixed-costs');
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await expect(page.locator('#entry-dialog[data-card-pattern="overlay-card"]')).toBeVisible();
+    await expect(
+      page.locator('#entry-dialog').getByRole('button', { name: 'キャンセル', exact: true }),
+    ).toHaveCount(0);
     await page.getByRole('button', { name: '固定費を登録 — 戻る' }).click();
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/fixed-costs$/);
     await page.getByRole('link', { name: /家賃/ }).click();
     await expect(page.locator('#entry-dialog[data-card-pattern="overlay-card"]')).toBeVisible();
+    await expect(
+      page.locator('#entry-dialog').getByRole('button', { name: 'キャンセル', exact: true }),
+    ).toHaveCount(0);
     await page.getByRole('button', { name: '固定費を編集 — 戻る' }).click();
+    await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/fixed-costs$/);
     await page.goto('/fixed-costs/new');
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
   });

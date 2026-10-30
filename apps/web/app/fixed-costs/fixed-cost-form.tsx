@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 
 import formsStyles from '../forms.module.css';
@@ -37,7 +36,6 @@ export function FixedCostForm({
   categories,
   accounts,
   submitLabel,
-  showCancel = false,
   deleteAction,
 }: {
   action: (state: FixedCostFormState, formData: FormData) => Promise<FixedCostFormState>;
@@ -45,10 +43,8 @@ export function FixedCostForm({
   categories: readonly Option[];
   accounts: readonly Option[];
   submitLabel: string;
-  showCancel?: boolean;
   deleteAction?: () => Promise<void>;
 }) {
-  const router = useRouter();
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
   const frequency = frequencyFor(values);
@@ -252,20 +248,7 @@ export function FixedCostForm({
             入力内容を確認してください。
           </p>
         ) : null}
-        <div
-          className={[
-            formsStyles['save-button-options'],
-            showCancel && formsStyles['save-button-options-with-cancel'],
-            styles.actions,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {showCancel ? (
-            <Button variant="secondary" type="button" onClick={() => router.back()}>
-              キャンセル
-            </Button>
-          ) : null}
+        <div className={`${formsStyles['save-button-options']} ${styles.actions}`}>
           <Submit label={submitLabel} />
         </div>
       </form>
