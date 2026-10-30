@@ -386,7 +386,9 @@ test.describe('overlay cards', () => {
     await page.goto(`/transactions/new?month=${month}`);
     await page.getByLabel('金額').fill('1234');
     await page.locator('input[name="occurredOn"]').fill(`${month}-15`);
-    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), { index: 1 });
+    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), {
+      index: 1,
+    });
     await selectFieldOption(page.getByLabel('資産'), { index: 1 });
     await page.getByLabel('メモ（任意）').fill(marker);
     await page.getByRole('button', { name: '登録する', exact: true }).click();
@@ -494,7 +496,9 @@ test.describe('overlay cards', () => {
     await page.goto(`/transactions/new?month=${entryMonth}`);
     await page.getByLabel('金額').fill('1234');
     await page.locator('input[name="occurredOn"]').fill(`${entryMonth}-15`);
-    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), { index: 1 });
+    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), {
+      index: 1,
+    });
     await selectFieldOption(page.getByLabel('資産'), { label: fromAccount });
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${entryMonth}$`));

@@ -131,7 +131,11 @@ test.describe('select dismiss taps', () => {
         click: click.defaultPrevented,
       };
     });
-    expect(prevented).toEqual({ pointerdown: false, pointerup: false, click: isMobile ? false : true });
+    expect(prevented).toEqual({
+      pointerdown: false,
+      pointerup: false,
+      click: isMobile ? false : true,
+    });
     const beforeTap = await openedPickers(page);
     await tap(isMobile, dateDisplay);
     expect(await openedPickers(page)).toBe(beforeTap + 1);

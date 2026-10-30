@@ -1333,7 +1333,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await page.goto(`/transactions/new?month=${nextMonth}`);
   await page.getByLabel('金額').fill('700');
   await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-05`);
-    await selectFieldOption(page.locator('#transaction-category-expense'), { label: '日用品' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
   await page.getByRole('button', { name: '登録する' }).click();
 

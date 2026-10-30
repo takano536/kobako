@@ -83,7 +83,10 @@ export function SelectField({
       if (!trigger || !menu) return;
       if (event?.target instanceof Node && menu.contains(event.target)) return;
       const rect = trigger.getBoundingClientRect();
-      const width = Math.min(Math.max(rect.width, MENU_WIDTH), window.innerWidth - VIEWPORT_MARGIN * 2);
+      const width = Math.min(
+        Math.max(rect.width, MENU_WIDTH),
+        window.innerWidth - VIEWPORT_MARGIN * 2,
+      );
       const left = Math.min(
         Math.max(VIEWPORT_MARGIN, rect.left),
         window.innerWidth - VIEWPORT_MARGIN - width,
@@ -169,37 +172,38 @@ export function SelectField({
     items[next]?.focus();
   }
 
-  const menu = enhanced && open ? (
-    <div
-      ref={menuRef}
-      id={menuId}
-      role="menu"
-      aria-label={name}
-      data-slot="select-field-menu"
-      className={styles.menu}
-      onKeyDown={handleMenuKeyDown}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      {options.map((option) => {
-        const checked = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="menuitemradio"
-            aria-checked={checked}
-            tabIndex={-1}
-            data-value={option.value}
-            className={styles['menu-item']}
-            onClick={() => choose(option.value)}
-          >
-            <span className={styles['menu-label']}>{optionLabel(option)}</span>
-            {option.meta ? <span className={styles['menu-meta']}>{option.meta}</span> : null}
-          </button>
-        );
-      })}
-    </div>
-  ) : null;
+  const menu =
+    enhanced && open ? (
+      <div
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={name}
+        data-slot="select-field-menu"
+        className={styles.menu}
+        onKeyDown={handleMenuKeyDown}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        {options.map((option) => {
+          const checked = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={checked}
+              tabIndex={-1}
+              data-value={option.value}
+              className={styles['menu-item']}
+              onClick={() => choose(option.value)}
+            >
+              <span className={styles['menu-label']}>{optionLabel(option)}</span>
+              {option.meta ? <span className={styles['menu-meta']}>{option.meta}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
 
   if (!enhanced) {
     return (
@@ -212,7 +216,9 @@ export function SelectField({
         disabled={disabled}
         aria-invalid={ariaInvalid || undefined}
         aria-describedby={ariaDescribedBy}
-        onChange={(event: ChangeEvent<HTMLSelectElement>) => onValueChange(event.currentTarget.value)}
+        onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+          onValueChange(event.currentTarget.value)
+        }
       >
         {options.map((option) => (
           <option value={option.value} key={option.value}>

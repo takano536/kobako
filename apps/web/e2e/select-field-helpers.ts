@@ -1,8 +1,6 @@
 import { expect, type Locator } from '@playwright/test';
 
-export type SelectFieldChoice =
-  | string
-  | { label?: string; value?: string; index?: number };
+export type SelectFieldChoice = string | { label?: string; value?: string; index?: number };
 
 /** Open an in-app select field and choose one of its menu items. */
 export async function selectFieldOption(

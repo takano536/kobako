@@ -533,7 +533,6 @@
   grid-row: 1;
 }
 
-
 .memo-field .field-value[data-memo-multiline='true'] {
   padding-block: var(--space-item);
 }

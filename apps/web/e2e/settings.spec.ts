@@ -277,7 +277,9 @@ test.describe('設定画面', () => {
     try {
       await page.goto('/accounts/new');
       await page.getByLabel('名前', { exact: true }).fill(assetName);
-      await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), { label: customName });
+      await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), {
+        label: customName,
+      });
       await page.getByRole('button', { name: '登録する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
       accountId = new URL(page.url()).searchParams.get('account') ?? '';
@@ -327,7 +329,9 @@ test.describe('設定画面', () => {
     await expect(categoryRow(page, customName)).toHaveCount(1);
     await page.goto('/accounts/new');
     await page.getByLabel('名前', { exact: true }).fill(assetName);
-    await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), { label: customName });
+    await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), {
+      label: customName,
+    });
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
     const accountId = new URL(page.url()).searchParams.get('account');
