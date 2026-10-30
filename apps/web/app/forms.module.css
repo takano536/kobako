@@ -533,19 +533,6 @@
   grid-row: 1;
 }
 
-.entry-detail-grid .field-value > .field-select {
-  appearance: none;
-  overflow: hidden;
-  padding: var(--space-within) var(--space-block) var(--space-within) 0;
-  font: inherit;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background-image: var(--select-chevron);
-  background-position: right center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-}
-
 .memo-field .field-value[data-memo-multiline='true'] {
   padding-block: var(--space-item);
 }
