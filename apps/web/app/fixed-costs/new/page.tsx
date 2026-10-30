@@ -1,5 +1,6 @@
 import { currentTokyoMonth, listCategories, listActiveManagedAccounts } from '@kobako/db';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../../src/lib/ledger-data';
+import { Card } from '../../_components/card';
 import { PageHeader } from '../../_components/page-header';
 import { PageShell } from '../../_components/ui';
 import { FixedCostForm } from '../fixed-cost-form';
@@ -39,7 +40,9 @@ export default function NewFixedCostPage() {
   return (
     <PageShell width="narrow">
       <PageHeader title="固定費を登録" />
-      <NewFixedCostContent />
+      <Card as="section" aria-label="固定費を登録">
+        <NewFixedCostContent />
+      </Card>
     </PageShell>
   );
 }
