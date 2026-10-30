@@ -13,7 +13,9 @@
 
 .summaryList {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: max-content max-content;
+  justify-content: start;
+  gap: 2rem;
   border-block: 1px solid var(--rule);
 }
 
@@ -21,24 +23,14 @@
   display: grid;
   min-width: 0;
   gap: var(--space-within);
-  justify-items: end;
+  justify-items: start;
   padding-block: var(--space-group);
   padding-inline: var(--space-group);
-  text-align: right;
+  text-align: left;
 }
 
 .summaryItem + .summaryItem {
   border-inline-start: 1px solid var(--rule);
-}
-
-.summaryItem:first-child {
-  justify-items: start;
-  padding-inline-start: 0;
-  text-align: left;
-}
-
-.summaryItem:last-child {
-  padding-inline-end: 0;
 }
 
 .summaryItem dt {
@@ -54,20 +46,11 @@
 .summaryValue {
   min-width: 0;
   color: var(--money-negative);
+  font-size: var(--text-heading);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   line-height: 1.3125rem;
   white-space: nowrap;
-}
-
-.summaryItem:first-child .summaryValue {
-  font-size: 1.125rem;
-  font-weight: var(--weight-semibold);
-}
-
-.summaryItem:last-child .summaryValue {
-  font-size: var(--text-small);
-  font-weight: var(--weight-regular);
 }
 
 .filters {
@@ -440,6 +423,42 @@
   margin-top: var(--space-group);
 }
 
+.intervalLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-item);
+  width: max-content;
+  max-width: 100%;
+  min-height: 52px;
+}
+
+.form .intervalCount {
+  width: 4.5ch;
+  flex: 0 0 4.5ch;
+  padding-inline: 0;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+
+.form .intervalCount::-webkit-outer-spin-button,
+.form .intervalCount::-webkit-inner-spin-button {
+  display: none;
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.intervalLine .selectChevronWrap {
+  width: max-content;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.intervalLine .intervalUnit {
+  width: max-content;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 40rem) {
   .summary {
     margin-block: 1.5rem 0;
@@ -495,23 +514,13 @@
     width: 100%;
     max-width: 100%;
     margin: 0;
-    font-size: var(--text-body);
-    font-weight: var(--weight-regular);
+    font-size: var(--text-heading);
+    font-weight: var(--weight-semibold);
     letter-spacing: var(--tracking-normal);
     line-height: 1.125rem;
     text-align: left;
     white-space: normal;
     overflow-wrap: anywhere;
-  }
-
-  .summaryItem:first-child .summaryValue {
-    font-size: 1.125rem;
-    font-weight: var(--weight-semibold);
-  }
-
-  .summaryItem:last-child .summaryValue {
-    font-size: var(--text-small);
-    font-weight: var(--weight-regular);
   }
 
   .value {

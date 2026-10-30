@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import formsStyles from '../forms.module.css';
+import fieldStyles from '../_components/field.module.css';
 import { Button } from '../_components/button';
 import styles from './fixed-costs.module.css';
 import { Field, Input, Select } from '../_components/field';
@@ -102,56 +103,62 @@ export function FixedCostForm({
           <Field className={formsStyles.field}>
             <label htmlFor="fixed-cost-category">カテゴリ</label>
             <div className={formsStyles['field-value']}>
-              <Select
-                className={formsStyles['field-select']}
-                id="fixed-cost-category"
-                name="categoryId"
-                value={values.categoryId}
-                onChange={(event) => update('categoryId', event.currentTarget.value)}
-                required
-              >
-                <option value="">選択してください</option>
-                {categories.map((category) => (
-                  <option value={category.id} key={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
+              <div className={fieldStyles.selectChevronWrap}>
+                <Select
+                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  id="fixed-cost-category"
+                  name="categoryId"
+                  value={values.categoryId}
+                  onChange={(event) => update('categoryId', event.currentTarget.value)}
+                  required
+                >
+                  <option value="">選択してください</option>
+                  {categories.map((category) => (
+                    <option value={category.id} key={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </Field>
           <Field className={formsStyles.field}>
             <label htmlFor="fixed-cost-account">資産</label>
             <div className={formsStyles['field-value']}>
-              <Select
-                className={formsStyles['field-select']}
-                id="fixed-cost-account"
-                name="accountId"
-                value={values.accountId}
-                onChange={(event) => update('accountId', event.currentTarget.value)}
-                required
-              >
-                <option value="">選択してください</option>
-                {accounts.map((account) => (
-                  <option value={account.id} key={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </Select>
+              <div className={fieldStyles.selectChevronWrap}>
+                <Select
+                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  id="fixed-cost-account"
+                  name="accountId"
+                  value={values.accountId}
+                  onChange={(event) => update('accountId', event.currentTarget.value)}
+                  required
+                >
+                  <option value="">選択してください</option>
+                  {accounts.map((account) => (
+                    <option value={account.id} key={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </Field>
           <Field className={formsStyles.field}>
             <label htmlFor="fixed-cost-frequency">頻度</label>
             <div className={formsStyles['field-value']}>
-              <Select
-                className={formsStyles['field-select']}
-                id="fixed-cost-frequency"
-                value={frequency}
-                onChange={(event) => updateFrequency(event.currentTarget.value)}
-              >
-                <option value="monthly">毎月</option>
-                <option value="yearly">毎年</option>
-                <option value="custom">間隔を指定</option>
-              </Select>
+              <div className={fieldStyles.selectChevronWrap}>
+                <Select
+                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  id="fixed-cost-frequency"
+                  value={frequency}
+                  onChange={(event) => updateFrequency(event.currentTarget.value)}
+                >
+                  <option value="monthly">毎月</option>
+                  <option value="yearly">毎年</option>
+                  <option value="custom">間隔を指定</option>
+                </Select>
+              </div>
               {frequency === 'custom' ? (
                 <>
                   <input type="hidden" name="intervalCount" value={values.intervalCount} />
@@ -169,8 +176,9 @@ export function FixedCostForm({
             <Field className={formsStyles.field}>
               <label htmlFor="fixed-cost-interval-count">間隔</label>
               <div className={formsStyles['field-value']}>
-                <div className={formsStyles['amount-line']}>
+                <div className={styles.intervalLine}>
                   <Input
+                    className={styles.intervalCount}
                     id="fixed-cost-interval-count"
                     type="number"
                     min={1}
@@ -178,14 +186,17 @@ export function FixedCostForm({
                     value={values.intervalCount}
                     onChange={(event) => update('intervalCount', event.currentTarget.value)}
                   />
-                  <Select
-                    aria-label="間隔の単位"
-                    value={values.intervalUnit}
-                    onChange={(event) => update('intervalUnit', event.currentTarget.value)}
-                  >
-                    <option value="month">か月ごと</option>
-                    <option value="year">年ごと</option>
-                  </Select>
+                  <div className={fieldStyles.selectChevronWrap}>
+                    <Select
+                      className={`${styles.intervalUnit} ${fieldStyles.selectChevron}`}
+                      aria-label="間隔の単位"
+                      value={values.intervalUnit}
+                      onChange={(event) => update('intervalUnit', event.currentTarget.value)}
+                    >
+                      <option value="month">か月ごと</option>
+                      <option value="year">年ごと</option>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </Field>
@@ -194,38 +205,44 @@ export function FixedCostForm({
             <Field className={formsStyles.field}>
               <label htmlFor="fixed-cost-month">月</label>
               <div className={formsStyles['field-value']}>
-                <Select
-                  className={formsStyles['field-select']}
-                  id="fixed-cost-month"
-                  aria-label="月"
-                  value={month}
-                  onChange={(event) => update('startMonth', `${year}-${event.currentTarget.value}`)}
-                >
-                  {Array.from({ length: 12 }, (_, index) => (
-                    <option value={String(index + 1).padStart(2, '0')} key={index + 1}>
-                      {index + 1}月
-                    </option>
-                  ))}
-                </Select>
+                <div className={fieldStyles.selectChevronWrap}>
+                  <Select
+                    className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                    id="fixed-cost-month"
+                    aria-label="月"
+                    value={month}
+                    onChange={(event) =>
+                      update('startMonth', `${year}-${event.currentTarget.value}`)
+                    }
+                  >
+                    {Array.from({ length: 12 }, (_, index) => (
+                      <option value={String(index + 1).padStart(2, '0')} key={index + 1}>
+                        {index + 1}月
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             </Field>
           ) : null}
           <Field className={formsStyles.field}>
             <label htmlFor="fixed-cost-day">日付</label>
             <div className={formsStyles['field-value']}>
-              <Select
-                className={formsStyles['field-select']}
-                id="fixed-cost-day"
-                name="day"
-                value={values.day}
-                onChange={(event) => update('day', event.currentTarget.value)}
-              >
-                {Array.from({ length: 31 }, (_, index) => (
-                  <option value={String(index + 1)} key={index + 1}>
-                    {index + 1}日
-                  </option>
-                ))}
-              </Select>
+              <div className={fieldStyles.selectChevronWrap}>
+                <Select
+                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  id="fixed-cost-day"
+                  name="day"
+                  value={values.day}
+                  onChange={(event) => update('day', event.currentTarget.value)}
+                >
+                  {Array.from({ length: 31 }, (_, index) => (
+                    <option value={String(index + 1)} key={index + 1}>
+                      {index + 1}日
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </Field>
         </div>

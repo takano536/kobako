@@ -236,6 +236,84 @@ test.describe('固定費', () => {
     await expect(page.getByText('Amazon Prime')).toBeVisible();
   });
 
+  test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
+    await page.goto('/fixed-costs/new');
+    await page.getByLabel('頻度').selectOption('custom');
+
+    const intervalCount = page.getByLabel('間隔', { exact: true });
+    const intervalLine = intervalCount.locator('xpath=..');
+    const nameValue = page.getByLabel('名称').locator('xpath=..');
+    const intervalBox = await intervalLine.boundingBox();
+    const nameValueBox = await nameValue.boundingBox();
+    if (!intervalBox || !nameValueBox) throw new Error('interval row is not measurable');
+    expect(Math.abs(intervalBox.x - nameValueBox.x)).toBeLessThanOrEqual(1);
+
+    const spinStyles = await intervalCount.evaluate((element) => {
+      const input = element as HTMLInputElement;
+      const spinRules = [...document.styleSheets].flatMap((sheet) => {
+        try {
+          return [...sheet.cssRules]
+            .map((rule) => rule.cssText)
+            .filter((text) => text.includes('::-webkit-') && text.includes('spin-button'));
+        } catch {
+          return [];
+        }
+      });
+      return {
+        appearance: getComputedStyle(input).appearance,
+        outerSpin: getComputedStyle(input, '::-webkit-outer-spin-button').display,
+        innerSpin: getComputedStyle(input, '::-webkit-inner-spin-button').display,
+        spinRules,
+      };
+    });
+    expect(spinStyles.appearance).toBe('textfield');
+    expect(spinStyles.spinRules.some((rule) => rule.includes('display: none'))).toBe(true);
+
+    const selectStyles = await page.locator('form select').evaluateAll((selects) =>
+      selects.map((select) => {
+        const wrapper = select.parentElement;
+        const pseudo = wrapper ? getComputedStyle(wrapper, '::after') : null;
+        return {
+          appearance: getComputedStyle(select).appearance,
+          wrapper: wrapper?.className ?? '',
+          pseudoContent: pseudo?.content ?? 'none',
+          pseudoColor: pseudo?.backgroundColor ?? '',
+          pseudoWidth: pseudo?.width ?? '',
+          pseudoHeight: pseudo?.height ?? '',
+        };
+      }),
+    );
+    expect(selectStyles.length).toBe(6);
+    for (const select of selectStyles) {
+      expect(select.appearance).toBe('none');
+      expect(select.wrapper).toContain('selectChevronWrap');
+      expect(select.pseudoContent).not.toBe('none');
+      expect(select.pseudoColor).not.toBe('');
+      expect(select.pseudoWidth).toBe('6px');
+      expect(select.pseudoHeight).toBe('1.5px');
+    }
+
+    await page.goto('/fixed-costs');
+    const summaryValues = page.locator('dl dd');
+    await expect(summaryValues).toHaveCount(2);
+    const summaryStyles = await summaryValues.evaluateAll((elements) =>
+      elements.map((element) => {
+        const style = getComputedStyle(element);
+        return {
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          x: element.getBoundingClientRect().x,
+        };
+      }),
+    );
+    expect(
+      summaryStyles.every(
+        ({ fontSize, fontWeight }) => fontSize === '15px' && fontWeight === '600',
+      ),
+    ).toBe(true);
+    expect(summaryStyles[1]!.x).toBeGreaterThan(summaryStyles[0]!.x);
+  });
+
   test('登録・編集・削除、絞り込み、グルーピングを保持する', async ({ page }, testInfo) => {
     await page.goto('/fixed-costs');
     const e2eFixedCostName = `E2E固定費-${testInfo.project.name}-${Date.now()}`;
