@@ -8,6 +8,19 @@ import {
 } from '@kobako/db';
 import { seedDemoLedger } from '../src/lib/demo-ledger';
 
+declare global {
+  interface Window {
+    __fixedCostSkeletonObservation?: {
+      state: {
+        clickAt: number;
+        appearedAt: number | null;
+        removedAt: number | null;
+      };
+      observer: MutationObserver;
+    };
+  }
+}
+
 let databaseClient: DatabaseClient | undefined;
 
 async function ensureRepresentativeFixedCosts(): Promise<void> {
@@ -115,12 +128,80 @@ test.afterAll(async () => {
 test.describe('固定費', () => {
   test('ナビの固定費遷移は100ms以内にスケルトンを表示して一覧へ置き換える', async ({ page }) => {
     await page.goto('/transactions');
+    await page.evaluate(() => {
+      const state: {
+        clickAt: number;
+        appearedAt: number | null;
+        removedAt: number | null;
+      } = {
+        clickAt: performance.now(),
+        appearedAt: null,
+        removedAt: null,
+      };
+      const selector = '[data-slot="page-skeleton"]';
+      const record = () => {
+        const present = document.querySelector(selector) !== null;
+        if (present && state.appearedAt === null) state.appearedAt = performance.now();
+        if (!present && state.appearedAt !== null && state.removedAt === null) {
+          state.removedAt = performance.now();
+        }
+      };
+      const observer = new MutationObserver(record);
+      observer.observe(document.body, { childList: true, subtree: true });
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest('a[href="/fixed-costs"]')) {
+            state.clickAt = performance.now();
+          }
+        },
+        true,
+      );
+      window.__fixedCostSkeletonObservation = { state, observer };
+    });
+    let delayedNavigation = false;
+    await page.route('**/fixed-costs*', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const isRscNavigation = request.headers().rsc !== undefined || url.searchParams.has('_rsc');
+      const isPrefetch = request.headers()['next-router-prefetch'] === '1';
+      if (!isRscNavigation || isPrefetch || delayedNavigation) {
+        await route.continue();
+        return;
+      }
+      delayedNavigation = true;
+      await page.waitForTimeout(400);
+      await route.continue();
+    });
 
-    await page.getByRole('link', { name: '固定費' }).click();
-    const skeleton = page.locator('[data-slot="page-skeleton"]');
-    await expect(skeleton).toBeVisible({ timeout: 100 });
-    await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
-    await expect(skeleton).toHaveCount(0);
+    try {
+      await page.getByRole('link', { name: '固定費' }).click();
+      const skeleton = page.locator('[data-slot="page-skeleton"]');
+      await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
+      await expect
+        .poll(() => page.evaluate(() => window.__fixedCostSkeletonObservation?.state.removedAt))
+        .not.toBeNull();
+      const observation = await page.evaluate(() => {
+        const state = window.__fixedCostSkeletonObservation?.state;
+        return state
+          ? {
+              appearedAfterClickMs:
+                state.appearedAt === null ? null : state.appearedAt - state.clickAt,
+              heldMs:
+                state.appearedAt === null || state.removedAt === null
+                  ? null
+                  : state.removedAt - state.appearedAt,
+            }
+          : null;
+      });
+      expect(observation?.appearedAfterClickMs).not.toBeNull();
+      expect(observation?.appearedAfterClickMs).toBeLessThanOrEqual(100);
+      expect(observation?.heldMs).not.toBeNull();
+      await expect(skeleton).toHaveCount(0);
+    } finally {
+      await page.unroute('**/fixed-costs*');
+    }
   });
   test('一覧から登録・編集を開くとdialog、直接URLはページを表示する', async ({ page }) => {
     await page.goto('/fixed-costs');
