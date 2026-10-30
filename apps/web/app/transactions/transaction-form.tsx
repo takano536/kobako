@@ -41,6 +41,7 @@ import {
   type TransactionFormValues,
 } from '../../src/lib/transaction-form';
 import { Button } from '../_components/button';
+import { SelectField } from '../_components/select-field';
 import { prefersTouchInput } from '../_components/overlay-card';
 import { DatePickerField } from './date-picker-field';
 import { deleteTransactionAction } from './actions';
@@ -546,25 +547,24 @@ export function TransactionForm({
                     .filter(Boolean)
                     .join(' ')}
                 >
-                  <select
-                    className={formsStyles['field-select']}
+                  <SelectField
                     id={`transaction-category-${categoryType}`}
                     name="categoryId"
                     value={formValues.categoryId}
-                    onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
+                    options={[
+                      { value: '', label: '選択してください' },
+                      ...categories
+                        .filter((category) => category.type === categoryType)
+                        .map((category) => ({
+                          value: String(category.id),
+                          label: category.name,
+                        })),
+                    ]}
+                    onValueChange={(value) => updateValue('categoryId', value)}
+                    required
                     aria-invalid={categoryError ? true : undefined}
                     aria-describedby={categoryError ? categoryErrorId : undefined}
-                    required
-                  >
-                    <option value="">選択してください</option>
-                    {categories
-                      .filter((category) => category.type === categoryType)
-                      .map((category) => (
-                        <option value={category.id} key={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                   {categoryError ? (
                     <FieldError id={categoryErrorId} message={categoryError} />
                   ) : null}
@@ -598,23 +598,22 @@ export function TransactionForm({
                 .filter(Boolean)
                 .join(' ')}
             >
-              <select
-                className={formsStyles['field-select']}
+              <SelectField
                 id="transaction-from-account"
                 name="fromAccountId"
                 value={formValues.fromAccountId}
-                onChange={(event) => updateValue('fromAccountId', event.currentTarget.value)}
+                options={[
+                  { value: '', label: '選択してください' },
+                  ...transferAccounts.map((account) => ({
+                    value: String(account.id),
+                    label: account.name,
+                  })),
+                ]}
+                onValueChange={(value) => updateValue('fromAccountId', value)}
+                required
                 aria-invalid={fromAccountError ? true : undefined}
                 aria-describedby={fromAccountError ? 'transaction-from-account-error' : undefined}
-                required
-              >
-                <option value="">選択してください</option>
-                {transferAccounts.map((account) => (
-                  <option value={account.id} key={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
+              />
               {fromAccountError ? (
                 <FieldError id="transaction-from-account-error" message={fromAccountError} />
               ) : null}
@@ -635,23 +634,22 @@ export function TransactionForm({
                 .filter(Boolean)
                 .join(' ')}
             >
-              <select
-                className={formsStyles['field-select']}
+              <SelectField
                 id="transaction-to-account"
                 name="toAccountId"
                 value={formValues.toAccountId}
-                onChange={(event) => updateValue('toAccountId', event.currentTarget.value)}
+                options={[
+                  { value: '', label: '選択してください' },
+                  ...transferAccounts.map((account) => ({
+                    value: String(account.id),
+                    label: account.name,
+                  })),
+                ]}
+                onValueChange={(value) => updateValue('toAccountId', value)}
+                required
                 aria-invalid={toAccountError ? true : undefined}
                 aria-describedby={toAccountError ? 'transaction-to-account-error' : undefined}
-                required
-              >
-                <option value="">選択してください</option>
-                {transferAccounts.map((account) => (
-                  <option value={account.id} key={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
+              />
               {toAccountError ? (
                 <FieldError id="transaction-to-account-error" message={toAccountError} />
               ) : null}
@@ -680,22 +678,21 @@ export function TransactionForm({
                 .filter(Boolean)
                 .join(' ')}
             >
-              <select
-                className={formsStyles['field-select']}
+              <SelectField
                 id="transaction-account"
                 name="accountId"
                 value={formValues.accountId}
-                onChange={(event) => updateValue('accountId', event.currentTarget.value)}
+                options={[
+                  { value: '', label: '選択してください' },
+                  ...normalAccounts.map((account) => ({
+                    value: String(account.id),
+                    label: account.name,
+                  })),
+                ]}
+                onValueChange={(value) => updateValue('accountId', value)}
                 aria-invalid={accountError ? true : undefined}
                 aria-describedby={accountError ? 'transaction-account-error' : undefined}
-              >
-                <option value="">選択してください</option>
-                {normalAccounts.map((account) => (
-                  <option value={account.id} key={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
+              />
               {accountError ? (
                 <FieldError id="transaction-account-error" message={accountError} />
               ) : null}

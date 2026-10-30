@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { currentTokyoMonth } from '@kobako/db';
+import { selectFieldOption } from './select-field-helpers';
 
 declare global {
   interface Window {
@@ -53,20 +54,12 @@ test.describe('select dismiss taps', () => {
     await accountSelect.focus();
     const beforeDisplay = await openedPickers(page);
     await tap(isMobile, dateDisplay);
-    expect(await openedPickers(page)).toBe(beforeDisplay + (isMobile ? 0 : 1));
-    if (isMobile) {
-      await tap(isMobile, dateDisplay);
-      expect(await openedPickers(page)).toBe(beforeDisplay + 1);
-    }
+    expect(await openedPickers(page)).toBe(beforeDisplay + 1);
 
     await accountSelect.focus();
     const beforeLabel = await openedPickers(page);
     await tap(isMobile, dateLabel, { x: 8, y: 8 });
-    expect(await openedPickers(page)).toBe(beforeLabel + (isMobile ? 0 : 1));
-    if (isMobile) {
-      await tap(isMobile, dateLabel, { x: 8, y: 8 });
-      expect(await openedPickers(page)).toBe(beforeLabel + 1);
-    }
+    expect(await openedPickers(page)).toBe(beforeLabel + 1);
   });
 
   test('does not change the page with the tap that dismisses a select dialog', async ({
@@ -74,7 +67,6 @@ test.describe('select dismiss taps', () => {
     isMobile,
   }) => {
     const startUrl = page.url();
-    const mainHtml = await page.locator('main').innerHTML();
     let navigations = 0;
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) navigations += 1;
@@ -84,12 +76,7 @@ test.describe('select dismiss taps', () => {
     await tap(isMobile, dateDisplay);
     expect(navigations).toBe(0);
     expect(page.url()).toBe(startUrl);
-    expect(await page.locator('main').innerHTML()).toBe(mainHtml);
-    if (isMobile) {
-      expect(await openedPickers(page)).toBe(0);
-      await tap(isMobile, dateDisplay);
-      expect(await openedPickers(page)).toBe(1);
-    }
+    expect(await openedPickers(page)).toBe(1);
   });
 
   test('discards the dismiss tap after a select change, then lets the next tap through', async ({
@@ -98,7 +85,7 @@ test.describe('select dismiss taps', () => {
   }) => {
     const categorySelect = page.locator('#transaction-category-expense');
     const dateDisplay = page.locator('[data-slot="date-picker-display"]');
-    await categorySelect.selectOption({ index: 1 });
+    await selectFieldOption(categorySelect, { index: 1 });
     const before = await openedPickers(page);
     await tap(isMobile, dateDisplay);
     expect(await openedPickers(page)).toBe(before + 1);
@@ -120,19 +107,11 @@ test.describe('select dismiss taps', () => {
       await armWithPointerDown();
       const before = await openedPickers(page);
       await tap(isMobile, target, { x: 8, y: 8 });
-      expect(await openedPickers(page)).toBe(before + (isMobile ? 0 : 1));
-      if (isMobile) {
-        await tap(isMobile, target, { x: 8, y: 8 });
-        expect(await openedPickers(page)).toBe(before + 1);
-      }
+      expect(await openedPickers(page)).toBe(before + 1);
     }
   });
 
-  test('discards pointerup and click of the dismiss gesture, then lets the next tap through', async ({
-    page,
-    isMobile,
-  }) => {
-    test.skip(!isMobile, 'The guard is installed only on Android touch devices.');
+  test('keeps pointer gestures available for the in-app select', async ({ page, isMobile }) => {
     const dateDisplay = page.locator('[data-slot="date-picker-display"]');
     await page.locator('#transaction-account').dispatchEvent('pointerdown', {
       bubbles: true,
@@ -152,9 +131,10 @@ test.describe('select dismiss taps', () => {
         click: click.defaultPrevented,
       };
     });
-    expect(prevented).toEqual({ pointerdown: true, pointerup: true, click: true });
-    await dateDisplay.tap();
-    expect(await openedPickers(page)).toBe(1);
+    expect(prevented).toEqual({ pointerdown: false, pointerup: false, click: isMobile ? false : true });
+    const beforeTap = await openedPickers(page);
+    await tap(isMobile, dateDisplay);
+    expect(await openedPickers(page)).toBe(beforeTap + 1);
   });
 });
 
