@@ -188,10 +188,32 @@ test.describe('固定費', () => {
     await page.getByRole('button', { name: /カテゴリ.*娯楽/ }).click();
     await page.getByRole('menuitemradio', { name: 'すべて' }).click();
     await page.getByRole('link', { name: /E2E固定費/ }).click();
-    page.on('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: '固定費を削除' }).click();
+    await page.locator('[data-slot="delete-confirm"] > summary').click();
+    await page.getByRole('button', { name: '削除を確定' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(page.getByText('E2E固定費')).not.toBeVisible();
+  });
+
+  test('編集カードの削除と保存は同じ行にあり、金額の値列は他行に揃う', async ({ page }) => {
+    await page.goto('/fixed-costs');
+    await page.getByRole('link', { name: /家賃/ }).click();
+    const dialog = page.locator('#entry-dialog');
+    const deleteSummary = dialog.locator('[data-slot="delete-confirm"] > summary');
+    const save = dialog.getByRole('button', { name: '保存する' });
+    await expect(deleteSummary).toBeVisible();
+    const deleteBox = await deleteSummary.boundingBox();
+    const saveBox = await save.boundingBox();
+    if (!deleteBox || !saveBox) throw new Error('action buttons are not measurable');
+    expect(Math.abs(deleteBox.y - saveBox.y)).toBeLessThanOrEqual(1);
+    expect(deleteBox.x).toBeLessThan(saveBox.x);
+    const nameBox = await page.locator('#fixed-cost-name').boundingBox();
+    const amountLineBox = await page
+      .locator('#fixed-cost-amount')
+      .locator('xpath=../..')
+      .boundingBox();
+    if (!nameBox || !amountLineBox) throw new Error('amount row is not measurable');
+    expect(Math.abs(amountLineBox.x - nameBox.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(amountLineBox.width - nameBox.width)).toBeLessThanOrEqual(1);
   });
 
   test('入力エラーを表示する', async ({ page }) => {

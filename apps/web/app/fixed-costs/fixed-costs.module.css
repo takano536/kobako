@@ -440,32 +440,6 @@
   margin-top: var(--space-group);
 }
 
-.deleteBlock {
-  margin-top: var(--space-block);
-  padding-top: var(--space-group);
-  border-top: 1px solid var(--rule);
-}
-
-.deleteButton {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--button-danger);
-  font: inherit;
-  font-size: var(--text-body);
-  font-weight: var(--weight-medium);
-  line-height: 22px;
-  cursor: pointer;
-}
-
-.deleteButton:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
 @media (max-width: 40rem) {
   .summary {
     margin-block: 1.5rem 0;

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import {
   createFixedCost,
   deleteFixedCost,
@@ -10,6 +10,8 @@ import {
   getFixedCost,
   updateFixedCost,
 } from '@kobako/db';
+import { parseInt4Id } from '../../src/lib/ids';
+import type { DeleteFormState } from '../../src/lib/transaction-form';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 
 export interface FixedCostFormState {
@@ -79,8 +81,22 @@ export async function updateFixedCostAction(
   redirect('/fixed-costs');
 }
 
-export async function deleteFixedCostAction(id: number): Promise<void> {
-  await deleteFixedCost(await getLedgerDatabase(), await getCurrentHouseholdId(), id);
+export async function deleteFixedCostAction(
+  previousState: DeleteFormState,
+  formData: FormData,
+): Promise<DeleteFormState> {
+  void previousState;
+  const id = parseInt4Id(String(formData.get('id') ?? ''));
+  if (id === undefined) notFound();
+  if (formData.get('confirm') !== 'delete') {
+    return { message: '削除する場合は確認操作を完了してください。' };
+  }
+  const result = await deleteFixedCost(
+    await getLedgerDatabase(),
+    await getCurrentHouseholdId(),
+    id,
+  );
+  if (result === 'not_found') return { message: '固定費を削除できませんでした。' };
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }

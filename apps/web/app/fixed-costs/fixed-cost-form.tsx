@@ -36,14 +36,12 @@ export function FixedCostForm({
   categories,
   accounts,
   submitLabel,
-  deleteAction,
 }: {
   action: (state: FixedCostFormState, formData: FormData) => Promise<FixedCostFormState>;
   initialValues: FixedCostFormValues;
   categories: readonly Option[];
   accounts: readonly Option[];
   submitLabel: string;
-  deleteAction?: () => Promise<void>;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
@@ -62,12 +60,6 @@ export function FixedCostForm({
     update('intervalUnit', next === 'yearly' ? 'year' : 'month');
   }
   const [year, month] = values.startMonth.slice(0, 7).split('-');
-  const note =
-    frequency === 'yearly'
-      ? `毎年、${Number(month)}月${values.day}日に支出として記録します。`
-      : frequency === 'custom'
-        ? `${Number(month)}月${values.day}日から${values.intervalCount}${values.intervalUnit === 'year' ? '年' : 'か月'}ごとに記録します。`
-        : `毎月、${values.day}日に支出として記録します。`;
   const currentMonth = `${year || new Date().getFullYear()}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`;
   return (
     <>
@@ -91,11 +83,11 @@ export function FixedCostForm({
               />
             </div>
           </Field>
-          <Field className={formsStyles['amount-field']}>
+          <Field className={`${formsStyles.field} ${formsStyles['amount-field']}`}>
             <label htmlFor="fixed-cost-amount">金額</label>
-            <div className={formsStyles['field-value']}>
-              <div className={formsStyles['amount-line']}>
-                <span aria-hidden="true">¥</span>
+            <div className={formsStyles['amount-line']}>
+              <span aria-hidden="true">¥</span>
+              <div className={formsStyles['field-value']}>
                 <Input
                   id="fixed-cost-amount"
                   name="amount"
@@ -237,7 +229,6 @@ export function FixedCostForm({
             </div>
           </Field>
         </div>
-        <p className={formsStyles['form-note']}>{note}</p>
         {state.message ? (
           <p className={formsStyles['form-message']} role="alert">
             {state.message}
@@ -252,19 +243,6 @@ export function FixedCostForm({
           <Submit label={submitLabel} />
         </div>
       </form>
-      {deleteAction ? (
-        <form
-          action={deleteAction}
-          className={styles.deleteBlock}
-          onSubmit={(event) => {
-            if (!window.confirm('この固定費を削除しますか？')) event.preventDefault();
-          }}
-        >
-          <button type="submit" className={styles.deleteButton}>
-            固定費を削除
-          </button>
-        </form>
-      ) : null}
     </>
   );
 }
