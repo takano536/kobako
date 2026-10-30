@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasPageSkeleton, PAGE_SKELETON_PATHS } from './page-skeleton-paths';
+import { hasPageSkeleton } from './page-skeleton-paths';
 import { SITE_NAVIGATION_LINKS } from './site-navigation';
 
 describe('page skeleton navigation destinations', () => {
@@ -8,24 +8,19 @@ describe('page skeleton navigation destinations', () => {
     expect(SITE_NAVIGATION_LINKS.every(({ href }) => hasPageSkeleton(href))).toBe(true);
   });
 
-  it('keeps the existing full-page paths and excludes intercepted card paths', () => {
-    expect(PAGE_SKELETON_PATHS).toEqual([
-      '/',
-      '/transactions',
-      '/balances',
-      '/fixed-costs',
-      '/settings',
-      '/settings/categories/asset',
-      '/settings/categories/expense',
-      '/settings/categories/income',
-      '/settings/delete',
-      '/settings/import',
-    ]);
-
+  it('rejects intercepted, search-only, and non-canonical paths', () => {
     expect(
-      ['/transactions/new', '/fixed-costs/new', '/accounts/1/edit'].every(
-        (pathname) => !hasPageSkeleton(pathname),
-      ),
+      [
+        '/transactions/new',
+        '/fixed-costs/new',
+        '/accounts/1/edit',
+        '/transactions/1/edit',
+        '/fixed-costs/1/edit',
+        '/transactions?month=2024-01',
+        '/fixed-costs?category=food',
+        '/transactions/',
+        '/fixed-costs/',
+      ].every((pathname) => !hasPageSkeleton(pathname)),
     ).toBe(true);
   });
 });
