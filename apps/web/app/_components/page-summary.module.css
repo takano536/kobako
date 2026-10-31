@@ -85,7 +85,7 @@
 
 @media (max-width: 30rem) {
   .hero.inline {
-    padding-block-end: var(--space-section);
+    padding-block-end: var(--space-block);
   }
   .stack .list {
     flex-wrap: wrap;
@@ -124,18 +124,18 @@
     flex: 0 1 auto;
   }
 
-  .inline .primary dd {
-    font-size: calc(var(--text-lead) + var(--space-item));
-  }
-
   .inline .metric dt {
     font-size: var(--text-micro);
     line-height: 1.4;
   }
 
   .inline .metric dd {
-    font-size: 1rem;
+    font-size: min(1rem, 4.102564vw);
     line-height: 1.2;
+  }
+
+  .inline .primary dd {
+    font-size: min(calc(var(--text-lead) + var(--space-item)), 6.666667vw);
   }
 }
 
