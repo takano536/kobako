@@ -20,8 +20,6 @@ type SelectState = {
   originalAriaHidden: string | null;
   originalTabIndex: string | null;
   originalStyle: string;
-  parentWasPositioned: boolean;
-  parentClassAdded: boolean;
   open: boolean;
   cleanups: (() => void)[];
 };
@@ -175,16 +173,9 @@ function enhance(select: HTMLSelectElement): SelectState {
     originalAriaHidden: select.getAttribute('aria-hidden'),
     originalTabIndex: select.getAttribute('tabindex'),
     originalStyle,
-    parentWasPositioned: parent.style.position !== '',
-    parentClassAdded: false,
     open: false,
     cleanups: [],
   };
-  if (!state.parentWasPositioned) parent.style.position = 'relative';
-  if (parent.classList.contains('selectChevronWrap')) {
-    parent.classList.add('select-enhanced');
-    state.parentClassAdded = true;
-  }
   parent.insertBefore(trigger, select);
   select.removeAttribute('id');
   select.setAttribute(ENHANCED_ATTR, '');
@@ -275,8 +266,6 @@ function restore(state: SelectState): void {
   else state.select.setAttribute('tabindex', state.originalTabIndex);
   if (state.originalStyle) state.select.setAttribute('style', state.originalStyle);
   else state.select.removeAttribute('style');
-  if (state.parentClassAdded) state.parent.classList.remove('select-enhanced');
-  if (!state.parentWasPositioned) state.parent.style.removeProperty('position');
 }
 
 function installValueObserver(): () => void {
