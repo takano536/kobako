@@ -1,79 +1,101 @@
 /*
- * 固定費・残高の集計。見出しを持たず、主役の数字を1つだけ大きく出し、
- * 残りは右端へ寄せます。数字の色は SignedYen 側の既存ルールに従います。
+ * 3画面共通の集計。主指標を左、副指標を右端の組へ置きます。
+ * 数字の色は SignedYen 側の既存ルールに従います。
  */
 .summary {
+  --summary-primary-size: max(var(--text-hero), 2.25rem);
+  --summary-secondary-size: var(--text-lead);
+  --summary-primary-label-size: var(--text-body);
+  --summary-secondary-label-size: var(--text-small);
+  --summary-secondary-gap: var(--space-section);
+  --summary-primary-gap: 4rem;
+  --summary-padding: var(--space-block);
+
   position: sticky;
   top: 0;
   z-index: var(--layer-summary);
   margin-block: var(--space-group) 0;
-  padding-block-end: var(--space-group);
+  padding-block-end: var(--summary-padding);
   border-block-end: var(--stroke-hairline) solid var(--rule);
   background: var(--paper);
 }
 
+.static {
+  position: static;
+}
+
 .list {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-section);
+  gap: var(--summary-primary-gap);
   margin: 0;
 }
 
 .metric {
   display: grid;
   min-width: 0;
-  gap: 0.125rem;
+  gap: var(--space-within);
+  justify-items: start;
+  text-align: left;
+}
+
+.primary {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.secondary-list {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--summary-secondary-gap);
 }
 
 .metric dt {
   color: var(--muted);
-  font-size: var(--text-small);
+  font-size: var(--summary-secondary-label-size);
   line-height: var(--leading-meta);
+}
+
+.primary dt {
+  color: var(--ink);
+  font-size: var(--summary-primary-label-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-title);
 }
 
 .metric dd {
   min-width: 0;
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  font-size: var(--summary-secondary-size);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+  white-space: nowrap;
 }
 
 .primary dd {
-  font-size: 1.5rem;
+  font-size: var(--summary-primary-size);
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.group {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-section);
-}
-
-.group .metric {
-  justify-items: end;
-  text-align: right;
-}
-
-.group dd {
-  font-size: 0.9375rem;
-  font-weight: var(--weight-medium);
-  line-height: 1.3;
+  letter-spacing: var(--tracking-hero);
+  line-height: var(--leading-tight);
 }
 
 @media (max-width: 30rem) {
-  .list {
-    flex-wrap: wrap;
-    gap: 0.75rem var(--space-group);
-  }
-
-  .primary dd {
-    font-size: 1.375rem;
-  }
-
-  .group {
-    margin-inline-start: auto;
-    gap: var(--space-group);
+  .summary {
+    --summary-primary-size: min(1.625rem, 7.3vw);
+    --summary-secondary-size: min(1rem, 4.6vw);
+    --summary-primary-label-size: var(--text-body);
+    --summary-secondary-label-size: var(--text-micro);
+    --summary-secondary-gap: var(--space-related);
+    --summary-primary-gap: 0.75rem;
+    --summary-padding: var(--space-related);
   }
 }

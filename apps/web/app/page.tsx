@@ -15,6 +15,7 @@ import {
 import { getCurrentHouseholdId, getLedgerDatabase } from '../src/lib/ledger-data';
 import { monthLabel } from '../src/lib/format';
 import { PageHeader } from './_components/page-header';
+import { PageSummary } from './_components/page-summary';
 import { RegisterFab } from './_components/register-fab';
 import {
   ActionLink,
@@ -68,38 +69,34 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           selectPathname="/"
         />
 
-        <section
-          className={overviewStyles['overview-summary']}
+        <PageSummary
+          label="この月の支出"
+          primarySlot="lead-amount"
           role="group"
-          aria-labelledby="expense-label"
-        >
-          <div className={overviewStyles['overview-lead']}>
-            <h2 id="expense-label" className={overviewStyles.eyebrow}>
-              この月の支出
-            </h2>
-            <p data-slot="lead-amount" className={overviewStyles['lead-amount']}>
-              <SignedYen value={totals.expense} tone="negative" />
-            </p>
-          </div>
-
-          <dl
-            className={overviewStyles['summary-inline']}
-            aria-label={`${monthLabel(month)}の収入と差額`}
-          >
-            <div role="group" aria-labelledby="income-total-label">
-              <dt id="income-total-label">収入</dt>
-              <dd>
-                <SignedYen value={totals.income} tone="positive" />
-              </dd>
-            </div>
-            <div role="group" aria-labelledby="difference-total-label">
-              <dt id="difference-total-label">収支差額</dt>
-              <dd>
-                <SignedYen value={totals.difference} />
-              </dd>
-            </div>
-          </dl>
-        </section>
+          sticky={false}
+          listLabel={`${monthLabel(month)}の収入と差額`}
+          secondaryRole
+          primary={{
+            label: 'この月の支出',
+            value: <SignedYen value={totals.expense} tone="negative" forceTone />,
+          }}
+          secondary={[
+            {
+              label: '収入',
+              value: <SignedYen value={totals.income} tone="positive" forceTone />,
+            },
+            {
+              label: '収支差額',
+              value: (
+                <SignedYen
+                  value={totals.difference}
+                  tone={totals.difference.startsWith('-') ? 'negative' : 'positive'}
+                  forceTone
+                />
+              ),
+            },
+          ]}
+        />
 
         <section className={overviewStyles.section} aria-labelledby="breakdown-title">
           <SectionHeading

@@ -813,10 +813,12 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const overviewShell = await measure('[data-slot="page-shell"]');
       const overviewMonth = await measure('[data-slot="month-switcher"]');
       const overviewChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
-      const overviewSummary = page.locator('[role="group"][aria-labelledby="expense-label"]');
+      const overviewSummary = page.locator(
+        '[data-slot="page-summary"][role="group"][aria-label="この月の支出"]',
+      );
       await expect(overviewSummary).toHaveCount(1);
       await expect(overviewSummary.locator('[data-slot="lead-amount"]')).toHaveCount(1);
-      await expect(overviewSummary.locator('dl[aria-label] > div')).toHaveCount(2);
+      await expect(overviewSummary.locator('dl[aria-label] [role="group"]')).toHaveCount(2);
       await assertNoHorizontalOverflow();
 
       await page.goto(`/transactions?month=${month}`);

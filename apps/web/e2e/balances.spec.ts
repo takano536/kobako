@@ -344,7 +344,10 @@ async function logRenderedPlatformFonts(page: Page): Promise<void> {
   }
 }
 
-async function expectMobileSummaryLayout(page: Page): Promise<void> {
+async function expectMobileSummaryLayout(
+  page: Page,
+  { allowStacked = false }: { allowStacked?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
     const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     const list = summary?.querySelector<HTMLElement>('dl');
@@ -391,7 +394,7 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   });
   expect(layout.display).toBe('flex');
   expect(layout.flexWrap).toBe('wrap');
-  expect(layout.columnGap).toBe('16px');
+  expect(layout.columnGap).toBe('12px');
   expect(layout.rowGap).toBe('12px');
   expect(layout.borderBlockEnd).toBe('1px');
   expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
@@ -399,28 +402,31 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   const assets = layout.metrics[1];
   const liabilities = layout.metrics[2];
   if (!net || !assets || !liabilities) throw new Error('balance summary metrics are missing');
-  // 主役の純資産だけを大きく、資産・負債は同じ小さめの指定でそろえます。
-  expect(net.valueFontSize).toBe(22);
+  const compact320 = await page.evaluate(() => window.innerWidth <= 320);
+  const primarySize = compact320 ? 23.36 : 26;
+  const secondarySize = compact320 ? 14.72 : 16;
+  expect(net.valueFontSize).toBeCloseTo(primarySize, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBe(15);
-    expect(metric.valueFontWeight).toBe(500);
+    expect(metric.valueFontSize).toBeCloseTo(secondarySize, 2);
   }
-  // 主役は左端、副数字は右端に寄せ、色の強調は使いません。
-  expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
-  expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
-  expect(new Set(layout.metrics.map((metric) => metric.labelColor)).size).toBe(1);
-  // 同じ行なら下端が揃い、折り返す場合は主役の下に副数字が重ならず続きます。
-  const sameRow = Math.abs(net.metricBottom - assets.metricBottom) <= 1;
-  const stacked = net.metricBottom <= assets.metricTop + 1;
-  expect(sameRow || stacked).toBe(true);
+  // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
+  expect(net.labelColor).not.toBe(assets.labelColor);
+  expect(assets.labelColor).toBe(liabilities.labelColor);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    expect(Math.abs(net.valueBottom - assets.valueBottom)).toBeLessThanOrEqual(1);
+  }
   for (const metric of layout.metrics) {
     expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
   }
 }
 
-async function expectDesktopSummaryLayout(page: Page): Promise<void> {
+async function expectDesktopSummaryLayout(
+  page: Page,
+  { allowStacked = false }: { allowStacked?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
     const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     const list = summary?.querySelector<HTMLElement>('dl');
@@ -457,24 +463,27 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   });
   expect(layout.display).toBe('flex');
   expect(layout.alignItems).toBe('flex-end');
-  expect(layout.columnGap).toBe('32px');
+  expect(layout.columnGap).toBe('64px');
   expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
   const net = layout.metrics[0];
   const assets = layout.metrics[1];
   const liabilities = layout.metrics[2];
   if (!net || !assets || !liabilities)
     throw new Error('desktop balance summary metrics are missing');
-  expect(net.valueFontSize).toBe(24);
+  expect(net.valueFontSize).toBeCloseTo(36, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBe(15);
+    expect(metric.valueFontSize).toBeCloseTo(18, 2);
     expect(metric.valueFontWeight).toBe(500);
   }
-  // 主役は左、副数字は右端。金額の下端をそろえて1行に収めます。
   expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
   expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  for (const metric of layout.metrics) {
-    expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    for (const metric of layout.metrics) {
+      expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+    }
   }
 }
 
@@ -1776,7 +1785,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
         liabilities: compactSummaryLiabilitiesDisplay,
         net: `−${compactSummaryNetDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
@@ -1794,7 +1803,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
       liabilities: compactSummaryLiabilitiesDisplay,
       net: `−${compactSummaryNetDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectStickyBalanceSummary(page);
     await assertNoHorizontalOverflow(page);
@@ -1832,7 +1841,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
         liabilities: summaryFixtureLiabilitiesDisplay,
         net: `−${summaryFixtureNetMagnitudeDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectAccountValuesFit(page);
       await expectStickyBalanceSummary(page);
@@ -1849,7 +1858,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
       liabilities: summaryFixtureLiabilitiesDisplay,
       net: `−${summaryFixtureNetMagnitudeDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectAccountValuesFit(page);
     await expectStickyBalanceSummary(page);

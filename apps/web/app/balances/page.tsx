@@ -104,10 +104,25 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
         <PageHeader title="残高" />
         <PageSummary
           label="残高の集計"
-          primary={{ label: '純資産', value: <SignedYen value={summary.net} /> }}
+          primary={{
+            label: '純資産',
+            value: (
+              <SignedYen
+                value={summary.net}
+                tone={summary.net.startsWith('-') ? 'negative' : 'positive'}
+                forceTone
+              />
+            ),
+          }}
           secondary={[
-            { label: '資産', value: <SignedYen value={summary.assets} tone="positive" /> },
-            { label: '負債', value: <SignedYen value={summary.liabilities} tone="negative" /> },
+            {
+              label: '資産',
+              value: <SignedYen value={summary.assets} tone="positive" forceTone />,
+            },
+            {
+              label: '負債',
+              value: <SignedYen value={summary.liabilities} tone="negative" forceTone />,
+            },
           ]}
         />
         <Section className={balanceStyles['balances-list-section']} aria-label="残高一覧">
