@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-theme="dark">
+<html lang="ja" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -95,16 +95,19 @@ figcaption .tick { width:14px; height:1px; background:currentColor; opacity:.6; 
 .sum-now dt { color:var(--muted); font-size:var(--text-small); }
 .sum-now dd { margin:0; font-size:var(--text-lead); font-weight:500; line-height:1.15; }
 
-/* ---------- 案：指標ストリップ（等幅セル・左揃え・主指標だけ一段大きい） ---------- */
-.strip { display:grid; grid-template-columns:repeat(var(--cells,3), minmax(0,1fr));
-  margin-top:20px; padding-bottom:24px; border-bottom:1px solid var(--rule); }
-.strip .stat { display:grid; grid-template-rows:auto 1fr; gap:6px;
-  min-width:0; padding-left:24px; border-left:1px solid var(--rule); }
-.strip .stat:first-child { padding-left:0; border-left:0; }
-.strip .label { color:var(--muted); font-size:var(--text-small); font-weight:500; line-height:var(--leading-meta); letter-spacing:var(--tracking-wide); }
-.strip .value { align-self:end; font-size:1.5rem; font-weight:600; letter-spacing:-.02em; line-height:1.25; font-variant-numeric:tabular-nums; }
-.sheet.m .strip .stat:not(:first-child) { padding-left:16px; }
-.sheet.m .strip .value { font-size:1.125rem; }
+/* ---------- 案：固定費と同じ形（主指標は左、副指標は右端／見出しは数字の左端） ---------- */
+.sumline { display:flex; align-items:flex-end; justify-content:space-between; gap:64px;
+  margin-top:16px; padding-bottom:28px; border-bottom:1px solid var(--rule); }
+.sumline .lead { display:grid; gap:4px; min-width:0; }
+.sumline .lead .eyebrow { margin:0; color:var(--ink); font-size:var(--text-body); font-weight:500; letter-spacing:var(--tracking-title); }
+.sumline .lead .lead-amount { margin:0; font-size:var(--lead,2.25rem); font-weight:600; letter-spacing:-.04em; line-height:1.15; font-variant-numeric:tabular-nums; }
+.sumline dl { display:flex; align-items:flex-end; gap:32px; margin:0; }
+.sumline dl > div { display:grid; gap:4px; justify-items:start; text-align:left; white-space:nowrap; }
+.sumline dt { color:var(--muted); font-size:var(--text-small); line-height:1.45; }
+.sumline dd { margin:0; font-size:var(--text-lead); font-weight:500; line-height:1.15; font-variant-numeric:tabular-nums; }
+.sheet.m .sumline { flex-wrap:wrap; gap:12px 16px; }
+.sheet.m .sumline .lead .lead-amount { font-size:1.875rem; }
+.sheet.m .sumline dl { display:grid; grid-template-columns:repeat(var(--cols,2), minmax(0,1fr)); width:100%; gap:16px; }
 
 /* ---------- セクション見出し ---------- */
 .sec { margin-top:32px; }
@@ -177,13 +180,13 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
     <div>
       <h1>概要サマリーの再設計</h1>
       <p class="sub">
-        左に寄せただけでは右半分が空いて釣り合わないため、サマリーを幅いっぱいの「指標ストリップ」に組み直しました。
-        内容列を等分したセルに区切り線を入れ、各セルの中は左揃え。金額は同じサイズで下端を揃え、強弱は色だけで付けます。
+        固定費のサマリー（主指標は左、副指標は右端）を基準にして、概要も同じ形に揃えました。
+        右に回した見出し（収入・収支差額・年間）は右揃えではなく、数字の左端に合わせます。金額はすべて意味色で、無彩色の金額は作りません。
       </p>
     </div>
     <div class="seg" role="group" aria-label="テーマ">
-      <button type="button" data-theme-btn="dark" aria-pressed="true">ダーク</button>
-      <button type="button" data-theme-btn="light" aria-pressed="false">ライト</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">ダーク</button>
+      <button type="button" data-theme-btn="light" aria-pressed="true">ライト</button>
     </div>
   </div>
 
@@ -243,10 +246,15 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             <span class="label">2026年10月</span>
             <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
           </div>
-          <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
-            <div class="stat"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
-            <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
-            <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
+          <section class="sumline" aria-label="2026年10月の収支">
+            <div class="lead">
+              <h2 class="eyebrow">この月の支出</h2>
+              <p class="lead-amount neg tnum">186,800円</p>
+            </div>
+            <dl>
+              <div><dt>収入</dt><dd class="pos tnum">328,000円</dd></div>
+              <div><dt>収支差額</dt><dd class="pos tnum">141,200円</dd></div>
+            </dl>
           </section>
           <section class="sec">
             <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
@@ -269,7 +277,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             </ul>
           </section>
         </div>
-        <p class="note">976px を三等分（325px × 3）。金額は 24px で下端のベースラインを揃え、各セルは左揃え。強弱は色だけ、区切りは 1px 罫線のみ。</p>
+        <p class="note">副指標を右端の組に寄せ、見出しは数字の左端。収入 +773 ／ 収支差額 +890（右端 976）。高さ 92.6px。</p>
       </figure>
     </div>
   </section>
@@ -318,10 +326,15 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             <span class="label">2026年10月</span>
             <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
           </div>
-          <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
-            <div class="stat"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
-            <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
-            <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
+          <section class="sumline" aria-label="2026年10月の収支">
+            <div class="lead">
+              <h2 class="eyebrow">この月の支出</h2>
+              <p class="lead-amount neg tnum">186,800円</p>
+            </div>
+            <dl>
+              <div><dt>収入</dt><dd class="pos tnum">328,000円</dd></div>
+              <div><dt>収支差額</dt><dd class="pos tnum">141,200円</dd></div>
+            </dl>
           </section>
           <section class="sec">
             <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
@@ -332,14 +345,14 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             </ul>
           </section>
         </div>
-        <p class="note">同じ構造のまま、字を 18px に詰める（119px × 3・区切り線は維持）。</p>
+        <p class="note">副指標は2列に割り、見出しと数字を各列の左端に（0 と 187）。右端が階段状にならない。高さ 139.8px。</p>
       </figure>
     </div>
   </section>
 
   <!-- ============================ 固定費・残高 ============================ -->
   <section class="case">
-    <div class="case-head"><h2>固定費・残高（共通サマリー）</h2><p>同じストリップに揃える ／ 内容列 976px</p></div>
+    <div class="case-head"><h2>固定費・残高（共通サマリー）</h2><p>同じ形のまま、見出しだけ数字の左端へ ／ 内容列 976px</p></div>
     <div class="frames">
       <figure class="frame-now">
         <figcaption><span class="tick"></span>現状</figcaption>
@@ -352,7 +365,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
           </div>
           <div class="band-wrap">
             <dl class="ps-list">
-              <div class="ps-metric ps-primary"><dt>純資産</dt><dd>423,600円</dd></div>
+              <div class="ps-metric ps-primary"><dt>純資産</dt><dd class="pos">423,600円</dd></div>
               <div class="ps-group">
                 <div class="ps-metric"><dt>資産</dt><dd class="pos">616,500円</dd></div>
                 <div class="ps-metric"><dt>負債</dt><dd class="neg">192,900円</dd></div>
@@ -367,20 +380,22 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
         <figcaption><span class="tick"></span>案</figcaption>
         <div class="sheet" style="padding-bottom:0">
           <div class="band-wrap">
-            <div class="strip" style="--cells:2;margin-top:0;border-bottom:0;padding-bottom:0">
-              <div class="stat"><span class="label">月あたり</span><span class="value neg tnum">112,460円</span></div>
-              <div class="stat"><span class="label">年間</span><span class="value neg tnum">1,349,516円</span></div>
+            <div class="sumline" style="margin-top:0;padding-bottom:0;border-bottom:0">
+              <div class="lead" style="--lead:1.5rem"><h2 class="eyebrow">月あたり</h2><p class="lead-amount neg tnum">112,460円</p></div>
+              <dl><div><dt>年間</dt><dd class="neg tnum">1,349,516円</dd></div></dl>
             </div>
           </div>
           <div class="band-wrap">
-            <div class="strip" style="--cells:3;margin-top:0;border-bottom:0;padding-bottom:0">
-              <div class="stat"><span class="label">純資産</span><span class="value tnum">423,600円</span></div>
-              <div class="stat"><span class="label">資産</span><span class="value pos tnum">616,500円</span></div>
-              <div class="stat"><span class="label">負債</span><span class="value neg tnum">192,900円</span></div>
+            <div class="sumline" style="margin-top:0;padding-bottom:0;border-bottom:0">
+              <div class="lead" style="--lead:1.5rem"><h2 class="eyebrow">純資産</h2><p class="lead-amount pos tnum">423,600円</p></div>
+              <dl>
+                <div><dt>資産</dt><dd class="pos tnum">616,500円</dd></div>
+                <div><dt>負債</dt><dd class="neg tnum">192,900円</dd></div>
+              </dl>
             </div>
           </div>
         </div>
-        <p class="note">固定費は2セル（488px × 2）、残高は3セル（325px × 3）。セル数だけが変わる。</p>
+        <p class="note">固定費は1組、残高は2組。見出しは数字の左端。資産＝青／負債＝赤で、黒い金額をなくす。高さ 49.8px。</p>
       </figure>
     </div>
   </section>
@@ -390,20 +405,20 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
     <h2>設計メモ</h2>
     <div class="principles">
       <div class="principle">
-        <h3>幅を等分して使い切る</h3>
-        <p>内容列を等分したセルと1pxの区切りで組むと、余白ではなくグリッドとして読める。左揃えのまま右半分が埋まり、片側だけ空く状態が消える。</p>
+        <h3>形は固定費に合わせる</h3>
+        <p>主指標を左に大きく、副指標を右端の組に。3画面が同じ骨格になり、画面を移動しても視線の出発点が変わらない。</p>
       </div>
       <div class="principle">
-        <h3>大きさは揃え、強弱は色に</h3>
-        <p>セルごとに字サイズを変えると、揃えたはずの列が階段に見える。金額は同じサイズで下端を揃え、支出＝赤・収入＝青の2色だけで順位を付ける。</p>
+        <h3>見出しは数字の左端</h3>
+        <p>右揃えだと見出しの位置が数字の桁数で動く。見出しを数字の左端に合わせると、行が変わっても頭の位置が固定される。</p>
       </div>
       <div class="principle">
-        <h3>3画面を1つの部品に</h3>
-        <p>概要・固定費・残高のサマリーを同じストリップにする。セル数が 2〜3 で変わるだけで、余白・罫線・字の階層は共通。</p>
+        <h3>金額は必ず意味色</h3>
+        <p>支出＝赤、収入・資産＝青、負債＝赤。無彩色の金額を作らないので、黒い数字が画面に残らない。</p>
       </div>
       <div class="principle">
-        <h3>装飾を足さない</h3>
-        <p>影・枠・背景は使わず、区切りは 1px 罫線のみ。金額は等幅数字で桁を揃え、色は支出と収入の2色に限定する。</p>
+        <h3>罫線は1本</h3>
+        <p>影・枠・背景は足さず、区切りは下の 1px 罫線だけ。金額は等幅数字で桁を揃える。</p>
       </div>
     </div>
   </section>
@@ -415,18 +430,19 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
       <thead><tr><th>要素</th><th>現状</th><th>案</th></tr></thead>
       <tbody>
         <tr><td>「この月の支出」の左端</td><td class="num">0</td><td class="num">0</td></tr>
-        <tr><td>「収入」の左端</td><td class="num">+461（中途半端な位置）</td><td class="num">+325（第2セル）</td></tr>
-        <tr><td>「収支差額」の左端</td><td class="num">+578</td><td class="num">+650（第3セル）</td></tr>
-        <tr><td>固定費「年間」の左端</td><td class="num">+952（右寄せ）</td><td class="num">+488（第2セル）</td></tr>
-        <tr><td>残高「資産」の左端</td><td class="num">+802（右寄せ）</td><td class="num">+325（第2セル）</td></tr>
-        <tr><td>サマリーの高さ（デスクトップ）</td><td class="num">89.5px</td><td class="num">78.4px</td></tr>
-        <tr><td>サマリーの高さ（モバイル 358px）</td><td class="num">149.6px</td><td class="num">70.9px</td></tr>
+        <tr><td>「収入」の見出し左端</td><td class="num">+461（中途半端な位置）</td><td class="num">+773（数字の左端）</td></tr>
+        <tr><td>「収入」の数字左端</td><td class="num">+461</td><td class="num">+773</td></tr>
+        <tr><td>「収支差額」の数字左端</td><td class="num">+578</td><td class="num">+890（右端 976）</td></tr>
+        <tr><td>固定費「年間」の見出し左端</td><td class="num">+952（右揃え）</td><td class="num">+874（数字の左端）</td></tr>
+        <tr><td>残高「資産」の見出し左端</td><td class="num">+802（右揃え）</td><td class="num">+773（数字の左端）</td></tr>
+        <tr><td>サマリーの高さ（デスクトップ）</td><td class="num">89.5px</td><td class="num">92.6px</td></tr>
+        <tr><td>サマリーの高さ（モバイル 358px）</td><td class="num">149.6px</td><td class="num">139.8px</td></tr>
       </tbody>
     </table>
     <ul class="notes">
-      <li>対象：概要のサマリー、固定費・残高の共通サマリー（<code>page-summary</code>）。3画面を同じストリップに置き換える。</li>
+      <li>対象：概要のサマリー、固定費・残高の共通サマリー（<code>page-summary</code>）。3画面とも「主指標＋右端の組」に揃える。</li>
       <li>変えない：カテゴリ行・取引行の金額と % の右寄せ数値列（取引画面と同じ）、セクション見出し右のリンク。</li>
-      <li>未確認：固定費・残高のサマリーは上部に貼り付く（<code>sticky</code>）。縦の増分を実機で確認する。</li>
+      <li>未確認：固定費・残高のサマリーは上部に貼り付く（<code>sticky</code>）。右端の組のラベル位置を実機で確認する。</li>
     </ul>
   </section>
 </div>
