@@ -361,13 +361,16 @@ test.describe('固定費', () => {
         };
       }),
     );
-    // 月あたりを主役に大きく、年間は右端に小さく置きます。
+    // 月あたりを主役に大きく、副指標は右端に18pxで置きます。
     const compact = await page.evaluate(() => window.matchMedia('(max-width: 30rem)').matches);
     expect(summaryStyles[0]).toMatchObject({
       fontSize: compact ? '22px' : '24px',
       fontWeight: '600',
     });
-    expect(summaryStyles[1]).toMatchObject({ fontSize: '15px', fontWeight: '500' });
+    expect(summaryStyles[1]).toMatchObject({
+      fontSize: '18px',
+      fontWeight: '500',
+    });
     expect(summaryStyles[1]!.x).toBeGreaterThan(summaryStyles[0]!.x);
     const listAmountRight = await page
       .locator('li a strong')

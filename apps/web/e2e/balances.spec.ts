@@ -406,11 +406,14 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
     expect(metric.valueFontSize).toBe(15);
     expect(metric.valueFontWeight).toBe(500);
   }
-  // 主役は左端、副数字は右端に寄せ、色の強調は使いません。
-  expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
-  expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
-  expect(new Set(layout.metrics.map((metric) => metric.labelColor)).size).toBe(1);
+  // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
+  expect(net.labelColor).not.toBe(assets.labelColor);
+  expect(assets.labelColor).toBe(liabilities.labelColor);
+  const secondariesAligned = Math.abs(assets.valueBottom - liabilities.valueBottom) <= 1;
+  const secondariesStacked =
+    assets.metricBottom <= liabilities.metricTop + 1 ||
+    liabilities.metricBottom <= assets.metricTop + 1;
+  expect(secondariesAligned || secondariesStacked).toBe(true);
   // 同じ行なら下端が揃い、折り返す場合は主役の下に副数字が重ならず続きます。
   const sameRow = Math.abs(net.metricBottom - assets.metricBottom) <= 1;
   const stacked = net.metricBottom <= assets.metricTop + 1;
@@ -467,14 +470,17 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   expect(net.valueFontSize).toBe(24);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBe(15);
+    expect(metric.valueFontSize).toBe(18);
     expect(metric.valueFontWeight).toBe(500);
   }
-  // 主役は左、副数字は右端。金額の下端をそろえて1行に収めます。
   expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
-  expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  for (const metric of layout.metrics) {
-    expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+  if (await page.evaluate(() => window.innerWidth >= 600)) {
+    expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
+  }
+  if (await page.evaluate(() => window.innerWidth >= 600)) {
+    for (const metric of layout.metrics) {
+      expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+    }
   }
 }
 

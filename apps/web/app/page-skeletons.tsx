@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
 import fixedCostStyles from './fixed-costs/fixed-costs.module.css';
-import overviewStyles from './overview.module.css';
 import { PageSkeleton, SkeletonText } from './_components/page-skeleton';
 import { PageSummary } from './_components/page-summary';
 import { hasPageSkeleton, type PageSkeletonPath } from '../src/lib/page-skeleton-paths';
@@ -109,24 +108,19 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
         {
           kind: 'summary',
           content: (
-            <div className={overviewStyles['overview-summary']}>
-              <div className={overviewStyles['overview-lead']}>
-                <h2 className={overviewStyles.eyebrow}>この月の支出</h2>
-                <p className={overviewStyles['lead-amount']}>
-                  <SkeletonText>¥000,000</SkeletonText>
-                </p>
-              </div>
-              <dl className={overviewStyles['summary-inline']}>
-                {['収入', '収支差額'].map((label) => (
-                  <div key={label}>
-                    <dt>{label}</dt>
-                    <dd>
-                      <SkeletonText>¥000,000</SkeletonText>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+            <PageSummary
+              label="この月の支出"
+              role="group"
+              primaryScale="hero"
+              mobileLayout="inline"
+              sticky={false}
+              secondaryRole
+              primary={{ label: 'この月の支出', value: <SkeletonText>¥000,000</SkeletonText> }}
+              secondary={['収入', '収支差額'].map((label) => ({
+                label,
+                value: <SkeletonText>¥000,000</SkeletonText>,
+              }))}
+            />
           ),
         },
         {

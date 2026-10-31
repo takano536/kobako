@@ -12,26 +12,55 @@ interface PageSummaryProps {
   label: string;
   primary: PageSummaryMetric;
   secondary?: readonly PageSummaryMetric[];
+  /** 概要だけは主指標と副指標を狭い画面でも1行に保ちます。 */
+  mobileLayout?: 'stack' | 'inline';
+  /** 概要の主指標は、固定費・残高より大きく表示します。 */
+  primaryScale?: 'default' | 'hero';
+  /** 概要の既存の読み上げ構造を維持します。 */
+  role?: 'group';
+  listLabel?: string;
+  secondaryRole?: boolean;
+  sticky?: boolean;
 }
 
-export function PageSummary({ label, primary, secondary = [] }: PageSummaryProps) {
+export function PageSummary({
+  label,
+  primary,
+  secondary = [],
+  mobileLayout = 'stack',
+  primaryScale = 'default',
+  role,
+  listLabel,
+  secondaryRole = false,
+  sticky = true,
+}: PageSummaryProps) {
+  const summaryClasses = [
+    styles.summary,
+    styles[mobileLayout],
+    styles[primaryScale],
+    sticky ? null : styles.static,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <section className={styles.summary} data-slot="page-summary" aria-label={label}>
-      <dl className={styles.list}>
+    <section className={summaryClasses} data-slot="page-summary" aria-label={label} role={role}>
+      <dl className={styles.list} aria-label={listLabel}>
         <div className={[styles.metric, styles.primary].join(' ')}>
           <dt>{primary.label}</dt>
-          <dd>{primary.value}</dd>
+          <dd data-slot={primaryScale === 'hero' ? 'lead-amount' : undefined}>{primary.value}</dd>
         </div>
-        {secondary.length > 0 ? (
-          <div className={styles.group}>
-            {secondary.map((metric) => (
-              <div className={styles.metric} key={metric.label}>
-                <dt>{metric.label}</dt>
-                <dd>{metric.value}</dd>
-              </div>
-            ))}
+        {secondary.map((metric) => (
+          <div
+            className={[styles.metric, styles.secondary].join(' ')}
+            key={metric.label}
+            role={secondaryRole ? 'group' : undefined}
+            aria-label={secondaryRole ? metric.label : undefined}
+          >
+            <dt>{metric.label}</dt>
+            <dd>{metric.value}</dd>
           </div>
-        ) : null}
+        ))}
       </dl>
     </section>
   );

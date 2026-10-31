@@ -34,10 +34,23 @@ export function ActionLink({ href, children, variant = 'quiet', icon, scroll }: 
   );
 }
 
-export function SignedYen({ value, tone }: { value: string | number; tone?: MoneyTone }) {
+export function SignedYen({
+  value,
+  tone,
+  forceTone = false,
+}: {
+  value: string | number;
+  tone?: MoneyTone;
+  forceTone?: boolean;
+}) {
   const source =
     typeof value === 'number' ? Math.trunc(value).toString() : value.trim().replace(/^−/, '-');
-  const resolvedTone = tone === 'neutral' ? 'neutral' : moneyTone(value, tone);
+  const resolvedTone =
+    forceTone && tone && tone !== 'neutral'
+      ? tone
+      : tone === 'neutral'
+        ? 'neutral'
+        : moneyTone(value, tone);
   const negative = source.startsWith('-');
   const absoluteValue = negative ? source.slice(1) : source;
   const toneClass = {

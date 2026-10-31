@@ -25,10 +25,13 @@ export default async function FixedCostsPage() {
           label="固定費の集計"
           primary={{
             label: '月あたり',
-            value: <SignedYen value={summary.monthly} tone="negative" />,
+            value: <SignedYen value={summary.monthly} tone="negative" forceTone />,
           }}
           secondary={[
-            { label: '年間', value: <SignedYen value={summary.annual} tone="negative" /> },
+            {
+              label: '年間',
+              value: <SignedYen value={summary.annual} tone="negative" forceTone />,
+            },
           ]}
         />
         <FixedCostList rows={rows} />
