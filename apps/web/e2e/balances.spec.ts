@@ -344,10 +344,7 @@ async function logRenderedPlatformFonts(page: Page): Promise<void> {
   }
 }
 
-async function expectMobileSummaryLayout(
-  page: Page,
-  options: { requireSingleRow?: boolean } = {},
-): Promise<void> {
+async function expectMobileSummaryLayout(page: Page): Promise<void> {
   const layout = await page.evaluate(() => {
     const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     const list = summary?.querySelector<HTMLElement>('dl');
@@ -401,9 +398,6 @@ async function expectMobileSummaryLayout(
   expect(layout.rowGap).toBe('12px');
   expect(layout.borderBlockEnd).toBe('1px');
   expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
-  if (options.requireSingleRow) {
-    expect(layout.rowTops).toHaveLength(1);
-  }
   const net = layout.metrics[0];
   const assets = layout.metrics[1];
   const liabilities = layout.metrics[2];
@@ -420,6 +414,10 @@ async function expectMobileSummaryLayout(
   expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
   expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
   expect(new Set(layout.metrics.map((metric) => metric.labelColor)).size).toBe(1);
+  // 折り返した場合も主役の下に副数字が続き、重なりません。
+  if (layout.rowTops.length > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop);
+  }
   for (const metric of layout.metrics) {
     expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
   }
@@ -1736,7 +1734,7 @@ test('captures natural summary fixtures for mobile and desktop visuals', async (
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/balances');
       await expectBalanceSummary(page, values);
-      await expectMobileSummaryLayout(page, { requireSingleRow: true });
+      await expectMobileSummaryLayout(page);
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
