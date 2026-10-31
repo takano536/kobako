@@ -178,7 +178,9 @@ test.describe('固定費', () => {
     try {
       await page.getByRole('link', { name: '固定費' }).click();
       const skeleton = page.locator('[data-slot="page-skeleton"]');
-      await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
+      await expect(skeleton).toContainText('固定費の集計');
+      await expect(skeleton).not.toContainText('種別');
+      await expect(skeleton).not.toContainText('APIのみ');
       await expect
         .poll(() => page.evaluate(() => window.__fixedCostSkeletonObservation?.state.removedAt))
         .not.toBeNull();

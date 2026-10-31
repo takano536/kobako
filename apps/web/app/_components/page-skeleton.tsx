@@ -21,7 +21,7 @@ export type PageSkeletonBlock = { before?: 'group' | 'section' } & (
       kind: 'summary';
       content: ReactNode;
     }
-  | { kind: 'filter' }
+  | { kind: 'filter'; content?: ReactNode }
   | {
       kind: 'list';
       title?: string;
@@ -29,6 +29,7 @@ export type PageSkeletonBlock = { before?: 'group' | 'section' } & (
       rows: number;
       row?: 'entry' | 'line';
       amount?: boolean;
+      content?: ReactNode;
       /** 取引一覧のように、この行数ごとに日付の見出しを置きます。 */
       datedEvery?: number;
     }
@@ -152,6 +153,7 @@ function SkeletonBlockView({ block }: { block: PageSkeletonBlock }) {
     case 'summary':
       return block.content;
     case 'filter':
+      if (block.content !== undefined) return block.content;
       // 絞り込みのチップ行と同じ寸法で、条件なしの状態を出します。
       return (
         <div className={chipStyles.row}>
@@ -172,6 +174,7 @@ function SkeletonBlockView({ block }: { block: PageSkeletonBlock }) {
         </div>
       );
     case 'list':
+      if (block.content !== undefined) return block.content;
       return (
         <div>
           {block.title ? (
@@ -256,7 +259,12 @@ export function PageSkeleton({
           {blocks.map((block, index) => (
             <div
               className={styles.block}
-              data-before={block.before ?? (index === 0 ? undefined : 'section')}
+              data-before={
+                block.before ??
+                (index === 0 || ('content' in block && block.content !== undefined)
+                  ? undefined
+                  : 'section')
+              }
               key={index}
             >
               <SkeletonBlockView block={block} />

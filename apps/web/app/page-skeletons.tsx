@@ -1,12 +1,84 @@
 import type { ReactNode } from 'react';
 
 import balanceStyles from './balances/balances.module.css';
+import fixedCostStyles from './fixed-costs/fixed-costs.module.css';
 import overviewStyles from './overview.module.css';
 import { PageSkeleton, SkeletonText } from './_components/page-skeleton';
 import { SectionHeading } from './_components/ui';
 import { hasPageSkeleton, type PageSkeletonPath } from '../src/lib/page-skeleton-paths';
 
 const REGISTER_TRANSACTION = { label: '取引を登録', icon: '＋' };
+
+function FixedCostFilterSkeleton() {
+  const filters: readonly { label: string; value?: string; arrow: boolean }[] = [
+    { label: 'グループ', value: 'カテゴリ別', arrow: false },
+    { label: 'カテゴリ', arrow: true },
+    { label: '頻度', arrow: true },
+    { label: '資産', arrow: true },
+  ];
+  return (
+    <div className={fixedCostStyles.filters}>
+      {filters.map(({ label, value, arrow }) => (
+        <div className={fixedCostStyles.chipWrap} data-active="false" key={label}>
+          <div className={fixedCostStyles.chip} data-active="false" data-open="false">
+            <span className={fixedCostStyles.trigger}>
+              <span className={fixedCostStyles.label}>{label}</span>
+              {value ? <span className={fixedCostStyles.value}>{value}</span> : null}
+              {arrow ? (
+                <svg className={fixedCostStyles.arrow} viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="m2 3.5 3 3 3-3" />
+                </svg>
+              ) : null}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FixedCostListSkeleton() {
+  const groups = [
+    ['住居', ['家賃', '駐車場']],
+    ['通信', ['携帯電話', 'インターネット']],
+    ['サブスクリプション', ['動画配信', '音楽配信', 'クラウドストレージ']],
+  ] as const;
+  return (
+    <div className={fixedCostStyles.groups}>
+      {groups.map(([groupName, names]) => (
+        <section className={fixedCostStyles.group} key={groupName}>
+          <div className={fixedCostStyles.groupHeading}>
+            <h3>
+              <SkeletonText>{groupName}</SkeletonText>
+            </h3>
+            <div className={fixedCostStyles.groupHeadingColumns}>
+              <span className={fixedCostStyles.groupLabel}>金額</span>
+            </div>
+          </div>
+          <ul className={fixedCostStyles.list}>
+            {names.map((name) => (
+              <li className={fixedCostStyles.row} key={name}>
+                <span className={fixedCostStyles.rowLink}>
+                  <span className={fixedCostStyles.nameCell}>
+                    <span className={fixedCostStyles.name}>
+                      <SkeletonText>{name}</SkeletonText>
+                    </span>
+                    <span className={fixedCostStyles.meta}>
+                      <SkeletonText>毎月1日・普通預金</SkeletonText>
+                    </span>
+                  </span>
+                  <strong className={fixedCostStyles.amount}>
+                    <SkeletonText>12,345円</SkeletonText>
+                  </strong>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 function CategorySettingsSkeleton({ title }: { title: string }) {
   return (
@@ -129,14 +201,27 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
         {
           kind: 'summary',
           content: (
-            <div>
-              <SectionHeading title="固定費の集計" />
-              <SkeletonText>¥000,000</SkeletonText>
-            </div>
+            <section className={fixedCostStyles.summary} aria-labelledby="fixed-cost-summary">
+              <h2 id="fixed-cost-summary">固定費の集計</h2>
+              <dl className={fixedCostStyles.summaryList}>
+                <div className={fixedCostStyles.summaryItem}>
+                  <dt>月あたり</dt>
+                  <dd className={fixedCostStyles.summaryValue}>
+                    <SkeletonText>000,000円</SkeletonText>
+                  </dd>
+                </div>
+                <div className={fixedCostStyles.summaryItem}>
+                  <dt>年間</dt>
+                  <dd className={fixedCostStyles.summaryValue}>
+                    <SkeletonText>0,000,000円</SkeletonText>
+                  </dd>
+                </div>
+              </dl>
+            </section>
           ),
         },
-        { kind: 'filter' },
-        { kind: 'list', rows: 8, amount: true },
+        { kind: 'filter', content: <FixedCostFilterSkeleton /> },
+        { kind: 'list', rows: 0, content: <FixedCostListSkeleton /> },
       ]}
     />
   ),
