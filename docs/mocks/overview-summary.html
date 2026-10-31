@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kobako — 概要サマリーの再設計</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ================= app tokens (apps/web/app/globals.css) ================= */
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --paper:#fcfcf8; --ink:#292e2b; --muted:#68736c; --accent:#426d59;
+  --money-negative:#a33a36; --money-positive:#245c9c;
+  --category-dot:#91a99d; --category-bar:#8da597;
+  --rule:#dfe3da; --bar:#e5e9e1; --surface:#f8faf5; --soft-control:#f0f2eb;
+  --accent-strong:#315944; --import-positive-soft:#e9f2e9;
+  --poster:#eeece5; --poster-ink:#22261f; --poster-muted:#6d7268; --poster-line:#d9d6cc;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:#1a1f1c; --ink:#e4e7e0; --muted:#a2ada5; --accent:#8cc4a6;
+  --money-negative:#f2978e; --money-positive:#8db9ef;
+  --category-dot:#91a99d; --category-bar:#6f8a7c;
+  --rule:#343d37; --bar:#2b332e; --surface:#1f2521; --soft-control:#262d28;
+  --accent-strong:#a8d6bd; --import-positive-soft:#203227;
+  --poster:#0d100e; --poster-ink:#e9ece5; --poster-muted:#8a958d; --poster-line:#232a26;
+}
+:root {
+  --font-ui:'Noto Sans JP Variable','Noto Sans JP','Hiragino Sans','Hiragino Kaku Gothic ProN',system-ui,sans-serif;
+  --text-title:1.4375rem; --text-heading:.9375rem; --text-body:.875rem; --text-small:.75rem;
+  --text-lead:1.125rem; --text-hero:1.75rem; --text-micro:.6875rem;
+  --tracking-hero:-.03em; --tracking-title:-.03em; --tracking-wide:.04em;
+  --space-within:.25rem; --space-item:.5rem; --space-dot-text:.5rem; --space-related:12px;
+  --space-group:1rem; --space-section:2rem;
+  --weight-regular:400; --weight-medium:500; --weight-semibold:600;
+  --leading-tight:1.15; --leading-heading:1.3; --leading-body:1.6; --leading-meta:1.45;
+  --radius-sm:6px; --radius-pill:999px; --radius-circle:50%;
+}
+
+/* ================= 台紙（アプリUIではない） ================= */
+* { box-sizing:border-box; }
+body { margin:0; padding:0 0 96px; background:var(--poster); color:var(--poster-ink); font-family:var(--font-ui); -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1180px; margin:0 auto; padding:56px 32px 0; }
+.masthead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+.masthead h1 { margin:0; font-size:1.5rem; font-weight:600; letter-spacing:-.02em; }
+.masthead .sub { margin:10px 0 0; font-size:.8125rem; line-height:1.75; color:var(--poster-muted); max-width:62ch; }
+.seg { display:inline-flex; padding:3px; border:1px solid var(--poster-line); border-radius:999px; }
+.seg button { appearance:none; border:0; background:none; cursor:pointer; font:inherit; font-size:.75rem; padding:6px 14px; border-radius:999px; color:var(--poster-muted); }
+.seg button[aria-pressed="true"] { background:var(--poster-ink); color:var(--poster); }
+
+.case { margin:56px 0 0; }
+.case-head { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; padding-bottom:12px; border-bottom:1px solid var(--poster-line); }
+.case-head h2 { margin:0; font-size:.875rem; font-weight:600; letter-spacing:.02em; }
+.case-head p { margin:0; font-size:.75rem; color:var(--poster-muted); font-variant-numeric:tabular-nums; }
+.frames { display:flex; flex-wrap:wrap; gap:32px; margin-top:24px; align-items:flex-start; }
+figure { margin:0; }
+figcaption { display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:.6875rem; letter-spacing:.1em; color:var(--poster-muted); }
+figcaption .tick { width:14px; height:1px; background:currentColor; opacity:.6; }
+.frame-now figcaption { color:#c79a72; }
+.frame-next figcaption { color:#89c2a0; }
+.note { margin:10px 0 0; font-size:.6875rem; line-height:1.6; color:var(--poster-muted); max-width:1040px; }
+
+/* ================= アプリ画面 ================= */
+.sheet {
+  width:1040px; padding:0 32px 44px;
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:var(--text-body); line-height:var(--leading-body);
+  border:1px solid var(--rule);
+}
+.sheet.m { width:390px; padding:0 16px 32px; }
+.sheet h1 { margin:16px 0; padding-top:4px; font-size:var(--text-title); font-weight:500; line-height:1.15; letter-spacing:var(--tracking-title); }
+.sheet.m h1 { font-size:1.3125rem; }
+.sheet h2 { margin:0; font-size:var(--text-heading); font-weight:500; line-height:1.3; letter-spacing:-.02em; }
+.neg { color:var(--money-negative); }
+.pos { color:var(--money-positive); }
+.tnum { font-variant-numeric:tabular-nums; }
+
+.month { display:grid; width:max-content; grid-template-columns:44px max-content 44px; align-items:center; margin:0 0 12px -16px; }
+.month .chev { display:flex; width:44px; height:44px; align-items:center; justify-content:center; color:var(--accent); }
+.month .chev svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.month .label { display:flex; min-height:44px; align-items:center; justify-content:center; color:var(--muted); font-size:var(--text-body); letter-spacing:var(--tracking-wide); white-space:nowrap; }
+
+/* ---------- 現状 ---------- */
+.sum-now { display:grid; grid-template-columns:minmax(12rem,24rem) minmax(0,1fr); align-items:end; gap:76.8px;
+  margin-top:16px; padding-bottom:28px; border-bottom:1px solid var(--rule); }
+.sheet.m .sum-now { grid-template-columns:minmax(0,1fr); gap:16px; padding-bottom:32px; }
+.sum-now .eyebrow { margin:0; color:var(--ink); font-size:var(--text-body); font-weight:500; letter-spacing:var(--tracking-title); }
+.sum-now .lead-amount { margin:4px 0 0; font-size:2.25rem; font-weight:600; letter-spacing:-.04em; line-height:1.15; }
+.sheet.m .sum-now .lead-amount { font-size:1.875rem; }
+.sum-now dl { display:flex; flex-wrap:wrap; align-items:end; gap:32px; margin:0; }
+.sheet.m .sum-now dl { gap:16px; }
+.sum-now dl > div { display:grid; gap:4px; justify-items:start; white-space:nowrap; }
+.sum-now dt { color:var(--muted); font-size:var(--text-small); }
+.sum-now dd { margin:0; font-size:var(--text-lead); font-weight:500; line-height:1.15; }
+
+/* ---------- 案：指標ストリップ（等幅セル・左揃え・主指標だけ一段大きい） ---------- */
+.strip { display:grid; grid-template-columns:repeat(var(--cells,3), minmax(0,1fr));
+  margin-top:20px; padding-bottom:24px; border-bottom:1px solid var(--rule); }
+.strip .stat { display:grid; grid-template-rows:auto 1fr; gap:6px;
+  min-width:0; padding-left:24px; border-left:1px solid var(--rule); }
+.strip .stat:first-child { padding-left:0; border-left:0; }
+.strip .label { color:var(--muted); font-size:var(--text-small); font-weight:500; line-height:var(--leading-meta); letter-spacing:var(--tracking-wide); }
+.strip .value { align-self:end; font-size:1.25rem; font-weight:500; letter-spacing:-.02em; line-height:1.25; font-variant-numeric:tabular-nums; }
+.strip .stat.lead .value { font-size:var(--text-hero); font-weight:600; letter-spacing:var(--tracking-hero); line-height:1.15; }
+.sheet.m .strip .stat:not(:first-child) { padding-left:16px; }
+.sheet.m .strip .value { font-size:1.0625rem; }
+.sheet.m .strip .stat.lead .value { font-size:1.375rem; }
+
+/* ---------- セクション見出し ---------- */
+.sec { margin-top:32px; }
+.sec-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:4px; }
+.sec-head h2 { flex:1 1 auto; min-width:0; }
+.sec-head a { flex:0 1 auto; margin-inline-end:-.9rem; display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:8px 16px; color:var(--muted); text-decoration:none; font-size:var(--text-body); }
+.sheet.m .sec-head a { min-height:36px; }
+
+/* ---------- カテゴリ別 ---------- */
+.cats { display:grid; grid-template-columns:fit-content(40%) minmax(0,1fr) max-content 3.2em; gap:0 8px; margin:0; padding:0; list-style:none; }
+.cat { display:grid; grid-column:1/-1; grid-template-columns:subgrid; grid-template-rows:minmax(2.75rem,auto); align-items:center; min-width:0; }
+.cat .name-cell { display:grid; grid-column:1; grid-row:1; grid-template-columns:.375rem minmax(0,1fr); gap:0 var(--space-dot-text); align-items:start; }
+.dot { width:.375rem; height:.375rem; border-radius:50%; background:var(--category-dot); margin-top:calc((1lh - .375rem)/2); }
+.cat .name { font-size:var(--text-body); }
+.bar { grid-column:2; grid-row:1; height:2px; background:var(--bar); overflow:hidden; }
+.bar > span { display:block; height:100%; background:var(--category-bar); }
+.cat .amount { grid-column:3; grid-row:1; font-size:var(--text-body); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cat .share { grid-column:4; grid-row:1; color:var(--muted); font-size:var(--text-small); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.sheet.m .cats { grid-template-columns:minmax(0,1fr) max-content; }
+.sheet.m .cat { grid-template-rows:minmax(2rem,auto) minmax(1.75rem,auto); }
+.sheet.m .cat .name-cell { grid-column:1; grid-row:1; }
+.sheet.m .bar { grid-column:1; grid-row:2; }
+.sheet.m .cat .amount { grid-column:2; grid-row:1; white-space:normal; }
+.sheet.m .cat .share { grid-column:2; grid-row:2; }
+
+/* ---------- 最近の取引 ---------- */
+.recent { margin:0; padding:0; list-style:none; }
+.recent li + li { margin-top:20px; }
+.recent .date { display:block; color:var(--muted); font-size:var(--text-small); line-height:var(--leading-meta); }
+.txn { display:grid; grid-template-columns:6px 112px minmax(0,1fr) max-content; align-items:center; column-gap:8px; min-height:56px; padding:12px 0; }
+.sheet.m .txn { grid-template-columns:6px 70.2px minmax(0,1fr) max-content; }
+.txn .main { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.txn .cat-name, .txn .acct, .txn .memo { font-size:var(--text-body); }
+.txn .memo { display:flex; align-items:center; color:var(--muted); }
+.txn .amt { font-size:var(--text-body); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.badge { display:inline-flex; align-items:center; height:1.0625rem; padding:0 8px; border-radius:999px; background:var(--import-positive-soft); color:var(--accent-strong); font-size:var(--text-micro); font-weight:700; line-height:1; margin-inline-start:6px; }
+
+/* ---------- 固定費・残高の現状 ---------- */
+.ps-list { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin:0; }
+.ps-metric { display:grid; min-width:0; gap:2px; }
+.ps-metric dt { color:var(--muted); font-size:var(--text-small); line-height:var(--leading-meta); }
+.ps-metric dd { margin:0; min-width:0; }
+.ps-primary dd { font-size:1.5rem; font-weight:600; letter-spacing:-.02em; line-height:1.2; font-variant-numeric:tabular-nums; }
+.ps-group { display:flex; align-items:flex-end; gap:32px; }
+.ps-group .ps-metric { justify-items:end; text-align:right; }
+.ps-group dd { font-size:.9375rem; font-weight:500; line-height:1.3; font-variant-numeric:tabular-nums; }
+.sheet.m .ps-list { flex-wrap:wrap; gap:12px 16px; }
+.sheet.m .ps-primary dd { font-size:1.375rem; }
+.sheet.m .ps-group { margin-inline-start:auto; gap:16px; }
+.band-wrap { padding:16px 0 28px; border-bottom:1px solid var(--rule); }
+
+/* ================= 設計メモ・実測 ================= */
+.doc-sec { margin:64px 0 0; }
+.doc-sec h2 { font-size:.875rem; font-weight:600; letter-spacing:.02em; margin:0 0 16px; }
+.principles { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+.principle h3 { margin:0 0 6px; font-size:.8125rem; font-weight:600; }
+.principle p { margin:0; font-size:.75rem; line-height:1.8; color:var(--poster-muted); }
+table { width:100%; border-collapse:collapse; font-size:.75rem; }
+th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--poster-line); vertical-align:top; }
+th { color:var(--poster-muted); font-weight:500; white-space:nowrap; }
+td.num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+ul.notes { margin:16px 0 0; padding-left:18px; font-size:.75rem; line-height:1.9; color:var(--poster-muted); }
+ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="masthead">
+    <div>
+      <h1>概要サマリーの再設計</h1>
+      <p class="sub">
+        左に寄せただけでは右半分が空いて釣り合わないため、サマリーを幅いっぱいの「指標ストリップ」に組み直しました。
+        内容列を等分したセルに区切り線を入れ、各セルの中は左揃え。主指標（支出）だけ一段大きいサイズで置きます。
+      </p>
+    </div>
+    <div class="seg" role="group" aria-label="テーマ">
+      <button type="button" data-theme-btn="dark" aria-pressed="true">ダーク</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">ライト</button>
+    </div>
+  </div>
+
+  <!-- ============================ デスクトップ ============================ -->
+  <section class="case">
+    <div class="case-head"><h2>デスクトップ</h2><p>内容列 976px ／ 1280px ウィンドウ相当</p></div>
+    <div class="frames">
+      <figure class="frame-now">
+        <figcaption><span class="tick"></span>現状</figcaption>
+        <div class="sheet">
+          <h1>概要</h1>
+          <div class="month">
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M7.5 2 3.5 6l4 4"/></svg></span>
+            <span class="label">2026年10月</span>
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
+          </div>
+          <section class="sum-now">
+            <div>
+              <h2 class="eyebrow">この月の支出</h2>
+              <p class="lead-amount neg tnum">186,800円</p>
+            </div>
+            <dl>
+              <div><dt>収入</dt><dd class="pos tnum">328,000円</dd></div>
+              <div><dt>収支差額</dt><dd class="pos tnum">141,200円</dd></div>
+            </dl>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
+            <ul class="cats">
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">住居</span></span><span class="bar"><span style="width:45.5%"></span></span><span class="amount neg">85,000円</span><small class="share">46%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">食費</span></span><span class="bar"><span style="width:22.5%"></span></span><span class="amount neg">42,000円</span><small class="share">22%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">日用品</span></span><span class="bar"><span style="width:8.6%"></span></span><span class="amount neg">16,000円</span><small class="share">9%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">娯楽</span></span><span class="bar"><span style="width:7.8%"></span></span><span class="amount neg">14,500円</span><small class="share">8%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">水道・光熱</span></span><span class="bar"><span style="width:6.4%"></span></span><span class="amount neg">12,000円</span><small class="share">6%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">交通</span></span><span class="bar"><span style="width:5.1%"></span></span><span class="amount neg">9,500円</span><small class="share">5%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">通信</span></span><span class="bar"><span style="width:4.2%"></span></span><span class="amount neg">7,800円</span><small class="share">4%</small></li>
+            </ul>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>最近の取引</h2><a href="#">取引一覧を見る</a></div>
+            <ul class="recent">
+              <li><span class="date">10月27日（火）</span><div class="txn"><span class="dot"></span><span class="cat-name">住居</span><span class="main"><span class="acct">生活費口座</span><span class="memo">家賃</span></span><span class="amt neg">−85,000円</span></div></li>
+              <li><span class="date">10月25日（日）</span><div class="txn"><span class="dot"></span><span class="cat-name">給与</span><span class="main"><span class="acct">給与口座</span><span class="memo">給与</span></span><span class="amt pos">＋320,000円</span></div></li>
+              <li><span class="date">10月21日（水）</span><div class="txn"><span class="dot"></span><span class="cat-name">娯楽</span><span class="main"><span class="acct">クレジットカード</span><span class="memo">書籍・サブスクリプション<span class="badge">API</span></span></span><span class="amt neg">−14,500円</span></div></li>
+            </ul>
+          </section>
+        </div>
+        <p class="note">収入・収支差額が左端から +461px の位置に浮き、右半分が空く。</p>
+      </figure>
+
+      <figure class="frame-next">
+        <figcaption><span class="tick"></span>案</figcaption>
+        <div class="sheet">
+          <h1>概要</h1>
+          <div class="month">
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M7.5 2 3.5 6l4 4"/></svg></span>
+            <span class="label">2026年10月</span>
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
+          </div>
+          <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
+            <div class="stat lead"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
+            <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
+            <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
+            <ul class="cats">
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">住居</span></span><span class="bar"><span style="width:45.5%"></span></span><span class="amount neg">85,000円</span><small class="share">46%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">食費</span></span><span class="bar"><span style="width:22.5%"></span></span><span class="amount neg">42,000円</span><small class="share">22%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">日用品</span></span><span class="bar"><span style="width:8.6%"></span></span><span class="amount neg">16,000円</span><small class="share">9%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">娯楽</span></span><span class="bar"><span style="width:7.8%"></span></span><span class="amount neg">14,500円</span><small class="share">8%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">水道・光熱</span></span><span class="bar"><span style="width:6.4%"></span></span><span class="amount neg">12,000円</span><small class="share">6%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">交通</span></span><span class="bar"><span style="width:5.1%"></span></span><span class="amount neg">9,500円</span><small class="share">5%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">通信</span></span><span class="bar"><span style="width:4.2%"></span></span><span class="amount neg">7,800円</span><small class="share">4%</small></li>
+            </ul>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>最近の取引</h2><a href="#">取引一覧を見る</a></div>
+            <ul class="recent">
+              <li><span class="date">10月27日（火）</span><div class="txn"><span class="dot"></span><span class="cat-name">住居</span><span class="main"><span class="acct">生活費口座</span><span class="memo">家賃</span></span><span class="amt neg">−85,000円</span></div></li>
+              <li><span class="date">10月25日（日）</span><div class="txn"><span class="dot"></span><span class="cat-name">給与</span><span class="main"><span class="acct">給与口座</span><span class="memo">給与</span></span><span class="amt pos">＋320,000円</span></div></li>
+              <li><span class="date">10月21日（水）</span><div class="txn"><span class="dot"></span><span class="cat-name">娯楽</span><span class="main"><span class="acct">クレジットカード</span><span class="memo">書籍・サブスクリプション<span class="badge">API</span></span></span><span class="amt neg">−14,500円</span></div></li>
+            </ul>
+          </section>
+        </div>
+        <p class="note">976px を三等分（325px × 3）。支出は 28px、収入・差額は 20px で下端のベースラインを揃える。各セルは左揃え、セル境界に 1px の罫線。</p>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============================ モバイル ============================ -->
+  <section class="case">
+    <div class="case-head"><h2>モバイル</h2><p>内容列 358px ／ 390px 幅</p></div>
+    <div class="frames">
+      <figure class="frame-now">
+        <figcaption><span class="tick"></span>現状</figcaption>
+        <div class="sheet m">
+          <h1>概要</h1>
+          <div class="month">
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M7.5 2 3.5 6l4 4"/></svg></span>
+            <span class="label">2026年10月</span>
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
+          </div>
+          <section class="sum-now">
+            <div>
+              <h2 class="eyebrow">この月の支出</h2>
+              <p class="lead-amount neg tnum">186,800円</p>
+            </div>
+            <dl>
+              <div><dt>収入</dt><dd class="pos tnum">328,000円</dd></div>
+              <div><dt>収支差額</dt><dd class="pos tnum">141,200円</dd></div>
+            </dl>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
+            <ul class="cats">
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">住居</span></span><span class="bar"><span style="width:45.5%"></span></span><span class="amount neg">85,000円</span><small class="share">46%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">食費</span></span><span class="bar"><span style="width:22.5%"></span></span><span class="amount neg">42,000円</span><small class="share">22%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">日用品</span></span><span class="bar"><span style="width:8.6%"></span></span><span class="amount neg">16,000円</span><small class="share">9%</small></li>
+            </ul>
+          </section>
+        </div>
+        <p class="note">2つの金額の幅が揃わず、右端が階段状になる。</p>
+      </figure>
+
+      <figure class="frame-next">
+        <figcaption><span class="tick"></span>案</figcaption>
+        <div class="sheet m">
+          <h1>概要</h1>
+          <div class="month">
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M7.5 2 3.5 6l4 4"/></svg></span>
+            <span class="label">2026年10月</span>
+            <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
+          </div>
+          <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
+            <div class="stat lead"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
+            <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
+            <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
+          </section>
+          <section class="sec">
+            <div class="sec-head"><h2>支出カテゴリ別の支出</h2><a href="#">支出をすべて見る</a></div>
+            <ul class="cats">
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">住居</span></span><span class="bar"><span style="width:45.5%"></span></span><span class="amount neg">85,000円</span><small class="share">46%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">食費</span></span><span class="bar"><span style="width:22.5%"></span></span><span class="amount neg">42,000円</span><small class="share">22%</small></li>
+              <li class="cat"><span class="name-cell"><span class="dot"></span><span class="name">日用品</span></span><span class="bar"><span style="width:8.6%"></span></span><span class="amount neg">16,000円</span><small class="share">9%</small></li>
+            </ul>
+          </section>
+        </div>
+        <p class="note">同じ構造のまま、セル幅と字を詰める（119px × 3・区切り線は維持）。</p>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============================ 固定費・残高 ============================ -->
+  <section class="case">
+    <div class="case-head"><h2>固定費・残高（共通サマリー）</h2><p>同じストリップに揃える ／ 内容列 976px</p></div>
+    <div class="frames">
+      <figure class="frame-now">
+        <figcaption><span class="tick"></span>現状</figcaption>
+        <div class="sheet" style="padding-bottom:0">
+          <div class="band-wrap">
+            <dl class="ps-list">
+              <div class="ps-metric ps-primary"><dt>月あたり</dt><dd class="neg">112,460円</dd></div>
+              <div class="ps-group"><div class="ps-metric"><dt>年間</dt><dd class="neg">1,349,516円</dd></div></div>
+            </dl>
+          </div>
+          <div class="band-wrap">
+            <dl class="ps-list">
+              <div class="ps-metric ps-primary"><dt>純資産</dt><dd>423,600円</dd></div>
+              <div class="ps-group">
+                <div class="ps-metric"><dt>資産</dt><dd class="pos">616,500円</dd></div>
+                <div class="ps-metric"><dt>負債</dt><dd class="neg">192,900円</dd></div>
+              </div>
+            </dl>
+          </div>
+        </div>
+        <p class="note">固定費は 月あたり x=144 ／ 年間 は右端 1120。残高は資産・負債が右端 1128。左右に引き裂かれている。</p>
+      </figure>
+
+      <figure class="frame-next">
+        <figcaption><span class="tick"></span>案</figcaption>
+        <div class="sheet" style="padding-bottom:0">
+          <div class="band-wrap">
+            <div class="strip" style="--cells:2;margin-top:0;border-bottom:0;padding-bottom:0">
+              <div class="stat lead"><span class="label">月あたり</span><span class="value neg tnum">112,460円</span></div>
+              <div class="stat"><span class="label">年間</span><span class="value neg tnum">1,349,516円</span></div>
+            </div>
+          </div>
+          <div class="band-wrap">
+            <div class="strip" style="--cells:3;margin-top:0;border-bottom:0;padding-bottom:0">
+              <div class="stat lead"><span class="label">純資産</span><span class="value tnum">423,600円</span></div>
+              <div class="stat"><span class="label">資産</span><span class="value pos tnum">616,500円</span></div>
+              <div class="stat"><span class="label">負債</span><span class="value neg tnum">192,900円</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="note">固定費は2セル（488px × 2）、残高は3セル（325px × 3）。セル数だけが変わる。</p>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============================ 設計メモ ============================ -->
+  <section class="doc-sec">
+    <h2>設計メモ</h2>
+    <div class="principles">
+      <div class="principle">
+        <h3>幅を等分して使い切る</h3>
+        <p>内容列を等分したセルと1pxの区切りで組むと、余白ではなくグリッドとして読める。左揃えのまま右半分が埋まり、片側だけ空く状態が消える。</p>
+      </div>
+      <div class="principle">
+        <h3>主指標だけ一段大きく</h3>
+        <p>3つを同じ大きさで並べると主役が決まらない。支出だけ 28px、他は 20px にして下端のベースラインで揃えると、順位が付いたまま横一列で収まる。</p>
+      </div>
+      <div class="principle">
+        <h3>3画面を1つの部品に</h3>
+        <p>概要・固定費・残高のサマリーを同じストリップにする。セル数が 2〜3 で変わるだけで、余白・罫線・字の階層は共通。</p>
+      </div>
+      <div class="principle">
+        <h3>装飾を足さない</h3>
+        <p>影・枠・背景は使わず、区切りは 1px 罫線のみ。金額は等幅数字で桁を揃え、色は支出と収入の2色に限定する。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 実測 ============================ -->
+  <section class="doc-sec">
+    <h2>実測値（1280px ウィンドウ・内容列の左端を 0 とした位置）</h2>
+    <table>
+      <thead><tr><th>要素</th><th>現状</th><th>案</th></tr></thead>
+      <tbody>
+        <tr><td>「この月の支出」の左端</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td>「収入」の左端</td><td class="num">+461（中途半端な位置）</td><td class="num">+325（第2セル）</td></tr>
+        <tr><td>「収支差額」の左端</td><td class="num">+578</td><td class="num">+650（第3セル）</td></tr>
+        <tr><td>固定費「年間」の左端</td><td class="num">+952（右寄せ）</td><td class="num">+488（第2セル）</td></tr>
+        <tr><td>残高「資産」の左端</td><td class="num">+802（右寄せ）</td><td class="num">+325（第2セル）</td></tr>
+        <tr><td>サマリーの高さ（デスクトップ）</td><td class="num">89.5px</td><td class="num">MEASURE_H</td></tr>
+        <tr><td>サマリーの高さ（モバイル 358px）</td><td class="num">149.6px</td><td class="num">MEASURE_HM</td></tr>
+      </tbody>
+    </table>
+    <ul class="notes">
+      <li>対象：概要のサマリー、固定費・残高の共通サマリー（<code>page-summary</code>）。3画面を同じストリップに置き換える。</li>
+      <li>変えない：カテゴリ行・取引行の金額と % の右寄せ数値列（取引画面と同じ）、セクション見出し右のリンク。</li>
+      <li>未確認：固定費・残高のサマリーは上部に貼り付く（<code>sticky</code>）。縦の増分を実機で確認する。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  document.querySelectorAll('[data-theme-btn]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.documentElement.dataset.theme = b.dataset.themeBtn;
+      document.querySelectorAll('[data-theme-btn]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    });
+  });
+</script>
+</body>
+</html>
