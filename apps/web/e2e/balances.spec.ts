@@ -355,11 +355,15 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
           const labelStyle = getComputedStyle(label);
           const valueStyle = getComputedStyle(value);
           const box = value.getBoundingClientRect();
+          const metricBox = label.parentElement?.getBoundingClientRect();
+          if (!metricBox) throw new Error('balance summary metric box is missing');
           return {
             label: label.textContent,
             labelColor: labelStyle.color,
             valueFontSize: Number.parseFloat(valueStyle.fontSize),
             valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
+            metricTop: metricBox.top,
+            metricBottom: metricBox.bottom,
             valueTop: box.top,
             valueBottom: box.bottom,
             valueLeft: box.left,
@@ -374,12 +378,6 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
     }
     const listBox = list.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
-    const rowTops: number[] = [];
-    for (const metric of metrics) {
-      if (!rowTops.some((top) => Math.abs(top - metric.valueTop) <= 1)) {
-        rowTops.push(metric.valueTop);
-      }
-    }
     return {
       display: listStyle.display,
       flexWrap: listStyle.flexWrap,
@@ -388,7 +386,6 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
       borderBlockEnd: getComputedStyle(summary).borderBlockEndWidth,
       listLeft: listBox.left,
       listRight: listBox.right,
-      rowTops,
       metrics,
     };
   });
@@ -414,10 +411,10 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
   expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
   expect(new Set(layout.metrics.map((metric) => metric.labelColor)).size).toBe(1);
-  // 折り返した場合も主役の下に副数字が続き、重なりません。
-  if (layout.rowTops.length > 1) {
-    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop);
-  }
+  // 同じ行なら下端が揃い、折り返す場合は主役の下に副数字が重ならず続きます。
+  const sameRow = Math.abs(net.metricBottom - assets.metricBottom) <= 1;
+  const stacked = net.metricBottom <= assets.metricTop + 1;
+  expect(sameRow || stacked).toBe(true);
   for (const metric of layout.metrics) {
     expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
   }
