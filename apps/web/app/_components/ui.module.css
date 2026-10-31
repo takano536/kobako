@@ -81,7 +81,7 @@
   min-width: 0;
   max-width: 100%;
   flex: 0 1 auto;
-  margin-inline-end: 0;
+  margin-inline-end: -0.9rem;
 }
 
 .section-heading {
@@ -104,7 +104,7 @@
    * the section's text edge while retaining the full hit area.
    */
   .section-heading-action {
-    margin-inline-start: 0;
+    margin-inline-start: -0.9rem;
   }
 }
 
