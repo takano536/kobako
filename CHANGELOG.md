@@ -1,4 +1,16 @@
 # Changelog
+## [0.20.0](https://github.com/takano536/kobako/compare/v0.19.0...v0.20.0) (2026-10-31)
+
+
+### Features
+
+* **web:** 固定費と残高の集計を PageSummary に統一 ([#46](https://github.com/takano536/kobako/issues/46)) ([fce7ca2](https://github.com/takano536/kobako/commit/fce7ca2e72de2c8d6dfa1932e4cc10a6e46832a5))
+
+
+### Bug Fixes
+
+* **web:** remove stale fixed-cost select class ([#45](https://github.com/takano536/kobako/issues/45)) ([d43996d](https://github.com/takano536/kobako/commit/d43996dad59785047af17c8a4a5d577cbfdc1be3))
+
 ## [0.19.0](https://github.com/takano536/kobako/compare/v0.18.0...v0.19.0) (2026-10-31)
 
 
