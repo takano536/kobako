@@ -14,6 +14,7 @@ import {
 } from '@kobako/db';
 
 import { E2E_MARKER_PREFIX, assertCleanupMarker } from './e2e-safety';
+import { selectFieldOption } from './select-field-helpers';
 
 const runId = randomUUID();
 const markerPrefix = `${E2E_MARKER_PREFIX}${runId}:balances:`;
@@ -1107,8 +1108,10 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
 
   await page.goto(`/transactions/new?month=${month}&type=transfer`);
   await page.locator('#transaction-amount').fill('300');
-  await page.locator('#transaction-from-account').selectOption({ label: longAccountName });
-  await page.locator('#transaction-to-account').selectOption({ label: destinationAccountName });
+  await selectFieldOption(page.locator('#transaction-from-account'), { label: longAccountName });
+  await selectFieldOption(page.locator('#transaction-to-account'), {
+    label: destinationAccountName,
+  });
   await page.locator('#transaction-memo').fill(`${markerPrefix}transfer-create`);
   await page.getByRole('button', { name: '登録する', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));

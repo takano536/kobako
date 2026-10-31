@@ -43,6 +43,12 @@ households (1) ──< accounts ──< transactions
 
 取引・振替・資産・カード設定・取り込み確定・自動決済 worker の書き込みも同じ家計行ロックを transaction の先頭で取得するため、初期化と競合して削除後にデータが復活したり、参照が dangling になったりしません。失敗時は transaction 全体を rollback します。
 
+## 固定費と自動記録
+
+固定費は `fixed_costs` に支払頻度（毎月・毎年・間隔）、開始月、日付、カテゴリ、資産を保存します。`apps/worker` の既存 tick（60秒間隔）が東京日付で発生日を判定し、該当する固定費だけを処理します。日付一致候補は SQL の日付条件で先に絞り、月末は 31 日など短い月の日付も候補に含めて暦末へ丸めます。
+
+実行記録は `fixed_cost_occurrences` に固定費と発生日ごとに保存します。`(fixed_cost_id, occurred_on)` の一意制約と transaction 内の `ON CONFLICT DO NOTHING` で並行実行・再実行を一度にし、取引には `fixed-cost:<id>:<date>` の決定的な `external_id` を付けます。origin は既存の手動取引と同じ `manual` を使います。これは固定費が API 由来ではなく、既存 UI の API バッジ／API フィルターに誤って表示しないためです。
+
 `migrate.ts` は Drizzle migrator に `drizzle` フォルダを渡し、migration を順番に適用します。
 
 ## データベース

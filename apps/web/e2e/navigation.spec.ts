@@ -12,7 +12,7 @@ async function expectNavigationLayout(page: Page, width: number): Promise<void> 
   const nav = page.locator('[data-slot="site-nav"]');
   await expect(nav).toHaveCount(1);
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole('link')).toHaveCount(3);
+  await expect(nav.getByRole('link')).toHaveCount(4);
   await expect(nav.locator('[data-variant="primary"]')).toHaveCount(0);
   expect((await nav.textContent()) ?? '').not.toContain('＋');
 
