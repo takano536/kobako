@@ -1,16 +1,5 @@
-:global(.ledger-form) .fallback {
-  width: 100%;
-  min-height: 2.75rem;
-  padding: var(--space-within) var(--space-block) var(--space-within) 0;
-  border: 0;
-  border-radius: 0;
-  appearance: none;
-  background: transparent var(--select-chevron) right center / 16px 16px no-repeat;
-  color: var(--ink);
-  font: inherit;
-  line-height: var(--leading-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+:global(.native-select-trigger)::after {
+  display: none;
 }
 
 .trigger {

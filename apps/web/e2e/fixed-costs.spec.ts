@@ -238,6 +238,20 @@ test.describe('固定費', () => {
     await expect(page.getByText('Amazon Prime')).toBeVisible();
   });
 
+  test('固定費の素のselectを共通メニューへ自動変換する', async ({ page }) => {
+    await page.goto('/fixed-costs/new');
+    const native = page.locator('select#fixed-cost-category');
+    await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
+    await expect(native).toHaveAttribute('aria-hidden', 'true');
+    const trigger = page.getByRole('button', { name: 'カテゴリ' });
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    await expect(trigger).toHaveAttribute('aria-controls', /-menu$/);
+    await trigger.click();
+    await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByLabel('頻度').selectOption('custom');
+    await expect(page.getByRole('button', { name: '頻度' })).toHaveText('間隔を指定');
+  });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
     await page.getByLabel('頻度').selectOption('custom');
