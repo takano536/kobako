@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 
-import balanceStyles from './balances/balances.module.css';
 import fixedCostStyles from './fixed-costs/fixed-costs.module.css';
 import overviewStyles from './overview.module.css';
 import { PageSkeleton, SkeletonText } from './_components/page-skeleton';
-import { SectionHeading } from './_components/ui';
+import { PageSummary } from './_components/page-summary';
 import { hasPageSkeleton, type PageSkeletonPath } from '../src/lib/page-skeleton-paths';
 
 const REGISTER_TRANSACTION = { label: '取引を登録', icon: '＋' };
@@ -172,19 +171,14 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
         {
           kind: 'summary',
           content: (
-            <div className={balanceStyles['balance-summary']}>
-              <SectionHeading title="残高の集計" />
-              <dl className={balanceStyles['balance-summary-list']}>
-                {['資産', '負債', '純資産'].map((label) => (
-                  <div className={balanceStyles['balance-summary-item']} key={label}>
-                    <dt className={balanceStyles['balance-summary-label']}>{label}</dt>
-                    <dd className={balanceStyles['balance-summary-value']}>
-                      <SkeletonText>¥000,000</SkeletonText>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+            <PageSummary
+              label="残高の集計"
+              primary={{ label: '純資産', value: <SkeletonText>¥000,000</SkeletonText> }}
+              secondary={[
+                { label: '資産', value: <SkeletonText>¥000,000</SkeletonText> },
+                { label: '負債', value: <SkeletonText>¥000,000</SkeletonText> },
+              ]}
+            />
           ),
         },
         { kind: 'list', rows: 4, row: 'line', amount: true },
@@ -201,23 +195,11 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
         {
           kind: 'summary',
           content: (
-            <section className={fixedCostStyles.summary} aria-labelledby="fixed-cost-summary">
-              <h2 id="fixed-cost-summary">固定費の集計</h2>
-              <dl className={fixedCostStyles.summaryList}>
-                <div className={fixedCostStyles.summaryItem}>
-                  <dt>月あたり</dt>
-                  <dd className={fixedCostStyles.summaryValue}>
-                    <SkeletonText>000,000円</SkeletonText>
-                  </dd>
-                </div>
-                <div className={fixedCostStyles.summaryItem}>
-                  <dt>年間</dt>
-                  <dd className={fixedCostStyles.summaryValue}>
-                    <SkeletonText>0,000,000円</SkeletonText>
-                  </dd>
-                </div>
-              </dl>
-            </section>
+            <PageSummary
+              label="固定費の集計"
+              primary={{ label: '月あたり', value: <SkeletonText>000,000円</SkeletonText> }}
+              secondary={[{ label: '年間', value: <SkeletonText>0,000,000円</SkeletonText> }]}
+            />
           ),
         },
         { kind: 'filter', content: <FixedCostFilterSkeleton /> },

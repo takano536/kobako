@@ -13,7 +13,8 @@ import { withSelectedMonth } from '../../src/lib/month-navigation';
 import { firstQueryValue } from '../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { PageHeader } from '../_components/page-header';
-import { ActionLink, EmptyState, PageShell, SectionHeading, SignedYen } from '../_components/ui';
+import { PageSummary } from '../_components/page-summary';
+import { ActionLink, EmptyState, PageShell, SignedYen } from '../_components/ui';
 import { Section } from '../_components/section';
 
 export const dynamic = 'force-dynamic';
@@ -106,34 +107,14 @@ export default async function BalancesPage({ searchParams }: { searchParams: Sea
           </ActionLink>
         }
       />
-      <section className={balanceStyles['balance-summary']} aria-labelledby="balance-summary-title">
-        <SectionHeading id="balance-summary-title" title="残高の集計" />
-        <dl className={balanceStyles['balance-summary-list']}>
-          <div className={balanceStyles['balance-summary-item']}>
-            <dt className={balanceStyles['balance-summary-label']}>資産</dt>
-            <dd className={balanceStyles['balance-summary-value']}>
-              <SignedYen value={summary.assets} tone="positive" />
-            </dd>
-          </div>
-          <div className={balanceStyles['balance-summary-item']}>
-            <dt className={balanceStyles['balance-summary-label']}>負債</dt>
-            <dd className={balanceStyles['balance-summary-value']}>
-              <SignedYen value={summary.liabilities} tone="negative" />
-            </dd>
-          </div>
-          <div className={balanceStyles['balance-summary-item']}>
-            <dt className={balanceStyles['balance-summary-label']}>純資産</dt>
-            <dd
-              className={[
-                balanceStyles['balance-summary-value'],
-                balanceStyles['balance-summary-net'],
-              ].join(' ')}
-            >
-              <SignedYen value={summary.net} />
-            </dd>
-          </div>
-        </dl>
-      </section>
+      <PageSummary
+        label="残高の集計"
+        primary={{ label: '純資産', value: <SignedYen value={summary.net} /> }}
+        secondary={[
+          { label: '資産', value: <SignedYen value={summary.assets} tone="positive" /> },
+          { label: '負債', value: <SignedYen value={summary.liabilities} tone="negative" /> },
+        ]}
+      />
       <Section className={balanceStyles['balances-list-section']} aria-label="残高一覧">
         {balances.length === 0 ? (
           <EmptyState

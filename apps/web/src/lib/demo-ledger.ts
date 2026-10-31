@@ -376,19 +376,22 @@ export async function seedDemoLedger(
     transactions: apiTransactions,
     transfers: apiTransfers,
   });
-  if (
-    ingested.status !== 'ok' ||
-    ingested.created !== apiTransactions.length + apiTransfers.length
-  ) {
+  // 口座だけが消えて api_batches が残っている再シードでは、同じ取り込みが
+  // 'replayed' として返ります。作り直さずにそのまま進みます。
+  const replayed = ingested.status === 'replayed';
+  const ingestedAll =
+    ingested.status === 'ok' && ingested.created === apiTransactions.length + apiTransfers.length;
+  if (!replayed && !ingestedAll) {
     throw new Error(`demo API ingest failed: ${JSON.stringify(ingested.rows)}`);
   }
+  const apiRowCount = replayed ? 0 : apiTransactions.length;
 
   return {
     status: 'seeded',
     accounts: accountRows.length,
-    transactions: transactions.length + apiTransactions.length,
+    transactions: transactions.length + apiRowCount,
     transfers: 1 + apiTransfers.length,
-    apiTransactions: apiTransactions.length,
+    apiTransactions: apiRowCount,
     apiTransfers: apiTransfers.length,
   };
 }
