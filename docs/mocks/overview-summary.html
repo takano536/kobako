@@ -102,11 +102,9 @@ figcaption .tick { width:14px; height:1px; background:currentColor; opacity:.6; 
   min-width:0; padding-left:24px; border-left:1px solid var(--rule); }
 .strip .stat:first-child { padding-left:0; border-left:0; }
 .strip .label { color:var(--muted); font-size:var(--text-small); font-weight:500; line-height:var(--leading-meta); letter-spacing:var(--tracking-wide); }
-.strip .value { align-self:end; font-size:1.25rem; font-weight:500; letter-spacing:-.02em; line-height:1.25; font-variant-numeric:tabular-nums; }
-.strip .stat.lead .value { font-size:var(--text-hero); font-weight:600; letter-spacing:var(--tracking-hero); line-height:1.15; }
+.strip .value { align-self:end; font-size:1.5rem; font-weight:600; letter-spacing:-.02em; line-height:1.25; font-variant-numeric:tabular-nums; }
 .sheet.m .strip .stat:not(:first-child) { padding-left:16px; }
-.sheet.m .strip .value { font-size:1.0625rem; }
-.sheet.m .strip .stat.lead .value { font-size:1.375rem; }
+.sheet.m .strip .value { font-size:1.125rem; }
 
 /* ---------- セクション見出し ---------- */
 .sec { margin-top:32px; }
@@ -180,7 +178,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
       <h1>概要サマリーの再設計</h1>
       <p class="sub">
         左に寄せただけでは右半分が空いて釣り合わないため、サマリーを幅いっぱいの「指標ストリップ」に組み直しました。
-        内容列を等分したセルに区切り線を入れ、各セルの中は左揃え。主指標（支出）だけ一段大きいサイズで置きます。
+        内容列を等分したセルに区切り線を入れ、各セルの中は左揃え。金額は同じサイズで下端を揃え、強弱は色だけで付けます。
       </p>
     </div>
     <div class="seg" role="group" aria-label="テーマ">
@@ -246,7 +244,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
           </div>
           <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
-            <div class="stat lead"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
+            <div class="stat"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
             <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
             <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
           </section>
@@ -271,7 +269,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             </ul>
           </section>
         </div>
-        <p class="note">976px を三等分（325px × 3）。支出は 28px、収入・差額は 20px で下端のベースラインを揃える。各セルは左揃え、セル境界に 1px の罫線。</p>
+        <p class="note">976px を三等分（325px × 3）。金額は 24px で下端のベースラインを揃え、各セルは左揃え。強弱は色だけ、区切りは 1px 罫線のみ。</p>
       </figure>
     </div>
   </section>
@@ -321,7 +319,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             <span class="chev"><svg viewBox="0 0 12 12"><path d="M4.5 2 8.5 6l-4 4"/></svg></span>
           </div>
           <section class="strip" style="--cells:3" aria-label="2026年10月の収支">
-            <div class="stat lead"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
+            <div class="stat"><span class="label">この月の支出</span><span class="value neg tnum">186,800円</span></div>
             <div class="stat"><span class="label">収入</span><span class="value pos tnum">328,000円</span></div>
             <div class="stat"><span class="label">収支差額</span><span class="value pos tnum">141,200円</span></div>
           </section>
@@ -334,7 +332,7 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
             </ul>
           </section>
         </div>
-        <p class="note">同じ構造のまま、セル幅と字を詰める（119px × 3・区切り線は維持）。</p>
+        <p class="note">同じ構造のまま、字を 18px に詰める（119px × 3・区切り線は維持）。</p>
       </figure>
     </div>
   </section>
@@ -370,13 +368,13 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
         <div class="sheet" style="padding-bottom:0">
           <div class="band-wrap">
             <div class="strip" style="--cells:2;margin-top:0;border-bottom:0;padding-bottom:0">
-              <div class="stat lead"><span class="label">月あたり</span><span class="value neg tnum">112,460円</span></div>
+              <div class="stat"><span class="label">月あたり</span><span class="value neg tnum">112,460円</span></div>
               <div class="stat"><span class="label">年間</span><span class="value neg tnum">1,349,516円</span></div>
             </div>
           </div>
           <div class="band-wrap">
             <div class="strip" style="--cells:3;margin-top:0;border-bottom:0;padding-bottom:0">
-              <div class="stat lead"><span class="label">純資産</span><span class="value tnum">423,600円</span></div>
+              <div class="stat"><span class="label">純資産</span><span class="value tnum">423,600円</span></div>
               <div class="stat"><span class="label">資産</span><span class="value pos tnum">616,500円</span></div>
               <div class="stat"><span class="label">負債</span><span class="value neg tnum">192,900円</span></div>
             </div>
@@ -396,8 +394,8 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
         <p>内容列を等分したセルと1pxの区切りで組むと、余白ではなくグリッドとして読める。左揃えのまま右半分が埋まり、片側だけ空く状態が消える。</p>
       </div>
       <div class="principle">
-        <h3>主指標だけ一段大きく</h3>
-        <p>3つを同じ大きさで並べると主役が決まらない。支出だけ 28px、他は 20px にして下端のベースラインで揃えると、順位が付いたまま横一列で収まる。</p>
+        <h3>大きさは揃え、強弱は色に</h3>
+        <p>セルごとに字サイズを変えると、揃えたはずの列が階段に見える。金額は同じサイズで下端を揃え、支出＝赤・収入＝青の2色だけで順位を付ける。</p>
       </div>
       <div class="principle">
         <h3>3画面を1つの部品に</h3>
@@ -421,8 +419,8 @@ ul.notes code { font-family:ui-monospace,Menlo,monospace; font-size:.6875rem; }
         <tr><td>「収支差額」の左端</td><td class="num">+578</td><td class="num">+650（第3セル）</td></tr>
         <tr><td>固定費「年間」の左端</td><td class="num">+952（右寄せ）</td><td class="num">+488（第2セル）</td></tr>
         <tr><td>残高「資産」の左端</td><td class="num">+802（右寄せ）</td><td class="num">+325（第2セル）</td></tr>
-        <tr><td>サマリーの高さ（デスクトップ）</td><td class="num">89.5px</td><td class="num">80.6px</td></tr>
-        <tr><td>サマリーの高さ（モバイル 358px）</td><td class="num">149.6px</td><td class="num">73.7px</td></tr>
+        <tr><td>サマリーの高さ（デスクトップ）</td><td class="num">89.5px</td><td class="num">78.4px</td></tr>
+        <tr><td>サマリーの高さ（モバイル 358px）</td><td class="num">149.6px</td><td class="num">70.9px</td></tr>
       </tbody>
     </table>
     <ul class="notes">
