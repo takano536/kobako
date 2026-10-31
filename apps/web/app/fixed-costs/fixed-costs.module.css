@@ -361,10 +361,6 @@
   font-weight: var(--weight-regular);
 }
 
-.actions {
-  margin-top: var(--space-group);
-}
-
 .intervalLine {
   display: flex;
   align-items: center;

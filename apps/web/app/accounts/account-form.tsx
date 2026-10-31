@@ -1,9 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-
 import formsStyles from '../forms.module.css';
 import { Button } from '../_components/button';
+import { FormActions } from '../_components/form-actions';
 import { Field, Input } from '../_components/field';
 import { Section } from '../_components/section';
 
@@ -64,12 +63,7 @@ const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button
-      className={formsStyles['save-button']}
-      type="submit"
-      disabled={pending}
-      aria-busy={pending}
-    >
+    <Button type="submit" disabled={pending} aria-busy={pending}>
       {pending ? '保存中…' : label}
     </Button>
   );
@@ -102,7 +96,6 @@ export function AccountForm({
   accountId,
   showCancel = false,
 }: AccountFormProps) {
-  const router = useRouter();
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -299,26 +292,9 @@ export function AccountForm({
           {state.message}
         </p>
       ) : null}
-      <div
-        className={[
-          formsStyles['form-actions'],
-          showCancel && formsStyles['form-actions-with-cancel'],
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {showCancel ? (
-          <Button
-            variant="secondary"
-            className={formsStyles['save-button-cancel']}
-            type="button"
-            onClick={() => router.back()}
-          >
-            キャンセル
-          </Button>
-        ) : null}
+      <FormActions showCancel={showCancel}>
         <SubmitButton label={submitLabel} />
-      </div>
+      </FormActions>
     </form>
   );
 }

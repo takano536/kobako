@@ -405,15 +405,6 @@
   display: grid;
 }
 
-.save-button-options {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.save-button-options-with-cancel {
-  justify-content: space-between;
-}
-
 .save-button-ordinary {
   display: contents;
 }
@@ -570,15 +561,6 @@
   font-weight: var(--weight-regular);
 }
 
-.save-button {
-  justify-self: end;
-  margin-top: var(--space-group);
-}
-
-.save-button-cancel {
-  margin-top: var(--space-group);
-}
-
 .account-form {
   min-width: 0;
 }
@@ -595,20 +577,11 @@
   line-height: var(--leading-meta);
 }
 
-.inline-form,
-.form-actions {
+.inline-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-item);
-}
-
-.account-form .form-actions {
-  justify-content: flex-end;
-}
-
-.account-form .form-actions-with-cancel {
-  justify-content: space-between;
 }
 
 .account-form input[type='checkbox'] {
