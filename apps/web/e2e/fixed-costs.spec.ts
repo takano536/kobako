@@ -7,6 +7,7 @@ import {
   type DatabaseClient,
 } from '@kobako/db';
 import { seedDemoLedger } from '../src/lib/demo-ledger';
+import { selectFieldOption } from './select-field-helpers';
 
 declare global {
   interface Window {
@@ -285,7 +286,7 @@ test.describe('固定費', () => {
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    await page.getByLabel('頻度').selectOption('custom');
+    await selectFieldOption(page.locator('#fixed-cost-frequency'), 'custom');
 
     const intervalCount = page.getByLabel('間隔', { exact: true });
     const intervalLine = intervalCount.locator('xpath=..');
