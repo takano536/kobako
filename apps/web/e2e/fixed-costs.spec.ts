@@ -279,7 +279,8 @@ test.describe('固定費', () => {
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.locator('select[name="frequency"]').selectOption('custom');
+    await page.locator('button#fixed-cost-frequency').click();
+    await page.getByRole('menuitemradio', { name: '間隔を指定' }).click();
     await expect(page.locator('button#fixed-cost-frequency')).toHaveText('間隔を指定');
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
