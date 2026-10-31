@@ -17,12 +17,12 @@ type SelectState = {
   trigger: HTMLButtonElement;
   menu: HTMLDivElement;
   originalId: string;
+  labels: Array<{ element: HTMLLabelElement; htmlFor: string }>;
   originalAriaHidden: string | null;
   originalTabIndex: string | null;
   originalStyle: string;
   open: boolean;
   cleanups: (() => void)[];
-};
 
 function optionLabel(option: HTMLOptionElement): string {
   return option.textContent?.trim() ?? '';
@@ -141,29 +141,28 @@ function enhance(select: HTMLSelectElement): SelectState {
   const originalStyle = select.getAttribute('style') ?? '';
   const trigger = document.createElement('button');
   trigger.type = 'button';
-  const triggerId = originalId
-    ? `${originalId}-trigger`
-    : `select-${Math.random().toString(36).slice(2)}`;
+  const triggerId = originalId || `select-${Math.random().toString(36).slice(2)}`;
   const menuId = `${triggerId}-menu`;
   trigger.id = triggerId;
   trigger.className = [styles.trigger!, select.className].filter(Boolean).join(' ');
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-controls', menuId);
+  const labels = originalId
+    ? Array.from(document.querySelectorAll<HTMLLabelElement>('label')).filter(
+        (label) => label.htmlFor === originalId,
+      )
+    : [];
+  labels.forEach((label) => {
+    label.htmlFor = triggerId;
+  });
   if (select.hasAttribute('aria-label')) {
     trigger.setAttribute('aria-label', select.getAttribute('aria-label')!);
-  } else if (originalId) {
-    const label = Array.from(document.querySelectorAll('label')).find(
-      (candidate) => candidate.htmlFor === originalId,
-    );
-    if (label) {
-      if (!label.id) label.id = `${triggerId}-label`;
-      trigger.setAttribute('aria-label', label.textContent?.trim() ?? '');
-    }
   }
   const value = document.createElement('span');
   value.className = styles.value!;
   value.dataset.selectValue = '';
+  value.setAttribute('aria-hidden', 'true');
   trigger.append(value);
   const menu = document.createElement('div');
   menu.id = menuId;
@@ -181,6 +180,7 @@ function enhance(select: HTMLSelectElement): SelectState {
     trigger,
     menu,
     originalId,
+    labels: labels.map((element) => ({ element, htmlFor: originalId })),
     originalAriaHidden: select.getAttribute('aria-hidden'),
     originalTabIndex: select.getAttribute('tabindex'),
     originalStyle,
@@ -188,6 +188,7 @@ function enhance(select: HTMLSelectElement): SelectState {
     cleanups: [],
   };
   parent.insertBefore(trigger, select);
+  select.removeAttribute('id');
   select.setAttribute(ENHANCED_ATTR, '');
   select.setAttribute('aria-hidden', 'true');
   select.tabIndex = -1;
@@ -268,6 +269,9 @@ function restore(state: SelectState): void {
   state.cleanups.forEach((cleanup) => cleanup());
   state.menu.remove();
   state.trigger.remove();
+  state.labels.forEach(({ element, htmlFor }) => {
+    element.htmlFor = htmlFor;
+  });
   state.select.removeAttribute(ENHANCED_ATTR);
   if (state.originalId) state.select.id = state.originalId;
   if (state.originalAriaHidden === null) state.select.removeAttribute('aria-hidden');
@@ -362,6 +366,7 @@ export function SelectFieldEnhancer(): null {
         if (record.type === 'attributes' && record.target instanceof HTMLSelectElement) {
           const state = states.get(record.target);
           if (state) {
+            if (record.attributeName === 'id') record.target.removeAttribute('id');
             syncState(state);
           }
         }

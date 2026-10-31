@@ -240,15 +240,15 @@ test.describe('固定費', () => {
 
   test('固定費の素のselectを共通メニューへ自動変換する', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    const native = page.locator('select#fixed-cost-category');
+    const native = page.locator('select[name="categoryId"]');
     await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
     await expect(native).toHaveAttribute('aria-hidden', 'true');
-    const trigger = page.locator('button#fixed-cost-category-trigger');
+    const trigger = page.locator('button#fixed-cost-category');
     const measured = await page.evaluate(() => {
-      const select = document.getElementById('fixed-cost-category');
+      const select = document.querySelector('select[name="categoryId"]');
       const label = document.querySelector('label[for="fixed-cost-category"]');
-      const trigger = document.getElementById('fixed-cost-category-trigger');
-      const menu = document.getElementById('fixed-cost-category-trigger-menu');
+      const trigger = document.getElementById('fixed-cost-category');
+      const menu = document.getElementById('fixed-cost-category-menu');
       return {
         selectTag: select?.tagName,
         selectId: select?.id,
@@ -261,24 +261,25 @@ test.describe('固定費', () => {
     });
     expect(measured).toEqual({
       selectTag: 'SELECT',
-      selectId: 'fixed-cost-category',
-      labelControl: 'SELECT',
+      selectId: '',
+      labelControl: 'BUTTON',
       triggerTag: 'BUTTON',
-      triggerId: 'fixed-cost-category-trigger',
-      menuId: 'fixed-cost-category-trigger-menu',
-      menuLabelledBy: 'fixed-cost-category-trigger',
+      triggerId: 'fixed-cost-category',
+      menuId: 'fixed-cost-category-menu',
+      menuLabelledBy: 'fixed-cost-category',
     });
     const labelled = page.getByLabel('カテゴリ');
     await expect(labelled).toHaveCount(1);
-    await labelled.selectOption({ label: '娯楽' });
-    await expect(page.getByRole('button', { name: 'カテゴリ' })).toBeVisible();
+    await expect(labelled).toBeVisible();
+    await expect(page.getByRole('button', { name: 'カテゴリ' })).toHaveCount(1);
+    await expect(native).toHaveValue('');
     await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    await expect(trigger).toHaveAttribute('aria-controls', 'fixed-cost-category-trigger-menu');
+    await expect(trigger).toHaveAttribute('aria-controls', 'fixed-cost-category-menu');
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.getByLabel('頻度').selectOption('custom');
-    await expect(page.locator('button#fixed-cost-frequency-trigger')).toHaveText('間隔を指定');
+    await page.locator('select[name="frequency"]').selectOption('custom');
+    await expect(page.locator('button#fixed-cost-frequency')).toHaveText('間隔を指定');
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
