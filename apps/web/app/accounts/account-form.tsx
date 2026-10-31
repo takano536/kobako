@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 
 import formsStyles from '../forms.module.css';
 import { Button } from '../_components/button';
-import { Field, Input, Select } from '../_components/field';
+import { SelectField } from '../_components/select-field';
+import { Field, Input } from '../_components/field';
 import { Section } from '../_components/section';
 
 import { useActionState, useEffect, useState } from 'react';
@@ -165,22 +166,19 @@ export function AccountForm({
         <Field className={formsStyles.field}>
           <label htmlFor="asset-category">資産カテゴリ</label>
           <div className={formsStyles['field-value']}>
-            <Select
-              className={formsStyles['field-select']}
+            <SelectField
               id="asset-category"
               name="assetCategoryId"
               required
               value={current.assetCategoryId}
-              onChange={(event) => updateValue('assetCategoryId', event.currentTarget.value)}
+              options={assetCategories.map((category) => ({
+                value: String(category.id),
+                label: category.name,
+              }))}
+              onValueChange={(value) => updateValue('assetCategoryId', value)}
               aria-invalid={assetCategoryError?.length ? true : undefined}
               aria-describedby={assetCategoryError?.length ? 'asset-category-error' : undefined}
-            >
-              {assetCategories.map((category) => (
-                <option value={category.id} key={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
+            />
             <FieldError id="asset-category-error" messages={assetCategoryError} />
           </div>
         </Field>
@@ -193,100 +191,90 @@ export function AccountForm({
             <div className={formsStyles.field}>
               <label htmlFor="closing-day">締め日</label>
               <div className={formsStyles['field-value']}>
-                <select
-                  className={formsStyles['field-select']}
+                <SelectField
                   id="closing-day"
                   name="closingDay"
                   value={card.closingDay}
-                  onChange={(event) => setCardValue('closingDay', event.currentTarget.value)}
+                  options={[
+                    { value: '', label: '未設定' },
+                    ...dayOptions.map((day) => ({ value: day, label: `${day}日` })),
+                    { value: 'last', label: '月末' },
+                  ]}
+                  onValueChange={(value) => setCardValue('closingDay', value)}
                   aria-invalid={closingDayError?.length ? true : undefined}
                   aria-describedby={closingDayError?.length ? 'closing-day-error' : undefined}
-                >
-                  <option value="">未設定</option>
-                  {dayOptions.map((day) => (
-                    <option value={day} key={day}>
-                      {day}日
-                    </option>
-                  ))}
-                  <option value="last">月末</option>
-                </select>
+                />
                 <FieldError id="closing-day-error" messages={closingDayError} />
               </div>
             </div>
             <div className={formsStyles.field}>
               <label htmlFor="payment-day">支払日</label>
               <div className={formsStyles['field-value']}>
-                <select
-                  className={formsStyles['field-select']}
+                <SelectField
                   id="payment-day"
                   name="paymentDay"
                   value={card.paymentDay}
-                  onChange={(event) => setCardValue('paymentDay', event.currentTarget.value)}
+                  options={[
+                    { value: '', label: '未設定' },
+                    ...dayOptions.map((day) => ({ value: day, label: `${day}日` })),
+                    { value: 'last', label: '月末' },
+                  ]}
+                  onValueChange={(value) => setCardValue('paymentDay', value)}
                   aria-invalid={paymentDayError?.length ? true : undefined}
                   aria-describedby={paymentDayError?.length ? 'payment-day-error' : undefined}
-                >
-                  <option value="">未設定</option>
-                  {dayOptions.map((day) => (
-                    <option value={day} key={day}>
-                      {day}日
-                    </option>
-                  ))}
-                  <option value="last">月末</option>
-                </select>
+                />
                 <FieldError id="payment-day-error" messages={paymentDayError} />
               </div>
             </div>
             <div className={formsStyles.field}>
               <label htmlFor="payment-month-offset">支払月</label>
               <div className={formsStyles['field-value']}>
-                <select
-                  className={formsStyles['field-select']}
+                <SelectField
                   id="payment-month-offset"
                   name="paymentMonthOffset"
                   value={card.paymentMonthOffset}
-                  onChange={(event) =>
-                    setCardValue('paymentMonthOffset', event.currentTarget.value)
-                  }
+                  options={[
+                    { value: '', label: '未設定' },
+                    { value: 'same_month', label: '当月' },
+                    { value: 'next_month', label: '翌月' },
+                    { value: 'two_months_later', label: '翌々月' },
+                  ]}
+                  onValueChange={(value) => setCardValue('paymentMonthOffset', value)}
                   aria-invalid={paymentMonthOffsetError?.length ? true : undefined}
                   aria-describedby={
                     paymentMonthOffsetError?.length ? 'payment-month-offset-error' : undefined
                   }
-                >
-                  <option value="">未設定</option>
-                  <option value="same_month">当月</option>
-                  <option value="next_month">翌月</option>
-                  <option value="two_months_later">翌々月</option>
-                </select>
+                />
                 <FieldError id="payment-month-offset-error" messages={paymentMonthOffsetError} />
               </div>
             </div>
             <div className={formsStyles.field}>
               <label htmlFor="debit-account">引落口座</label>
               <div className={formsStyles['field-value']}>
-                <select
-                  className={formsStyles['field-select']}
+                <SelectField
                   id="debit-account"
                   name="debitAccountId"
                   value={card.debitAccountId}
-                  onChange={(event) => setCardValue('debitAccountId', event.currentTarget.value)}
+                  options={[
+                    { value: '', label: '未設定' },
+                    ...accounts
+                      .filter(
+                        (account) =>
+                          (account.deletedAt === null ||
+                            account.id === Number(card.debitAccountId)) &&
+                          account.id !== accountId &&
+                          account.kind === 'bank',
+                      )
+                      .map((account) => ({
+                        value: String(account.id),
+                        label: account.name,
+                        meta: account.assetCategoryName,
+                      })),
+                  ]}
+                  onValueChange={(value) => setCardValue('debitAccountId', value)}
                   aria-invalid={debitAccountError?.length ? true : undefined}
                   aria-describedby={debitAccountError?.length ? 'debit-account-error' : undefined}
-                >
-                  <option value="">未設定</option>
-                  {accounts
-                    .filter(
-                      (account) =>
-                        (account.deletedAt === null ||
-                          account.id === Number(card.debitAccountId)) &&
-                        account.id !== accountId &&
-                        account.kind === 'bank',
-                    )
-                    .map((account) => (
-                      <option value={account.id} key={account.id}>
-                        {account.name}（{account.assetCategoryName}）
-                      </option>
-                    ))}
-                </select>
+                />
                 <FieldError id="debit-account-error" messages={debitAccountError} />
               </div>
             </div>

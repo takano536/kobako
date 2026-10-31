@@ -16,6 +16,7 @@ import {
   assertCleanupMarker,
   chooseEmptyMonthPair,
 } from './e2e-safety';
+import { selectFieldOption } from './select-field-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -90,14 +91,14 @@ test('allows ordinary registration and validates transfers with fewer than two a
 
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('100');
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(`${marker}:shortage-expense`);
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
 
   await page.goto(`/transactions/new?type=income&month=${month}`);
   await page.getByLabel('金額').fill('200');
-  await page.locator('#transaction-category-income').selectOption({ label: '給与' });
+  await selectFieldOption(page.locator('#transaction-category-income'), { label: '給与' });
   await page.getByLabel('メモ（任意）').fill(`${marker}:shortage-income`);
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
