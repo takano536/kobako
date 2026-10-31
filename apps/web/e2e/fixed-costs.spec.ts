@@ -243,14 +243,14 @@ test.describe('固定費', () => {
     const native = page.locator('select#fixed-cost-category');
     await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
     await expect(native).toHaveAttribute('aria-hidden', 'true');
-    const trigger = page.getByRole('button', { name: 'カテゴリ' });
+    const trigger = page.locator('button#fixed-cost-category');
     await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
     await expect(trigger).toHaveAttribute('aria-controls', /-menu$/);
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
     await page.locator('#fixed-cost-frequency').selectOption('custom');
-    await expect(page.getByRole('button', { name: '頻度' })).toHaveText('間隔を指定');
+    await expect(page.locator('button#fixed-cost-frequency')).toHaveText('間隔を指定');
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
