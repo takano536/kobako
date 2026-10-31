@@ -110,6 +110,7 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
           content: (
             <PageSummary
               label="この月の支出"
+              primarySlot="lead-amount"
               role="group"
               sticky={false}
               secondaryRole

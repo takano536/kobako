@@ -3,13 +3,13 @@
  * 数字の色は SignedYen 側の既存ルールに従います。
  */
 .summary {
-  --summary-primary-size: 36px;
-  --summary-secondary-size: 18px;
-  --summary-primary-label-size: 14px;
-  --summary-secondary-label-size: 12px;
-  --summary-secondary-gap: 32px;
-  --summary-primary-gap: 64px;
-  --summary-padding: 24px;
+  --summary-primary-size: max(var(--text-hero), 2.25rem);
+  --summary-secondary-size: var(--text-lead);
+  --summary-primary-label-size: var(--text-body);
+  --summary-secondary-label-size: var(--text-small);
+  --summary-secondary-gap: var(--space-section);
+  --summary-primary-gap: 4rem;
+  --summary-padding: var(--space-block);
 
   position: sticky;
   top: 0;
@@ -46,6 +46,10 @@
   min-width: 0;
 }
 
+.secondary {
+  justify-items: end;
+}
+
 .secondary-list {
   display: flex;
   min-width: 0;
@@ -78,28 +82,26 @@
   white-space: nowrap;
 }
 
+.metric dd > [data-slot='money-amount'] {
+  display: inline-block;
+  font-size: calc(1em * var(--amount-scale, 1));
+}
+
 .primary dd {
   font-size: var(--summary-primary-size);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-hero);
   line-height: var(--leading-tight);
 }
-.summary .primary dd:has([data-summary-long]) {
-  font-size: calc(var(--summary-primary-size) * 0.5);
-}
-
-.summary .secondary-list dd:has([data-summary-long]) {
-  font-size: calc(var(--summary-secondary-size) * 0.5);
-}
 
 @media (max-width: 30rem) {
   .summary {
-    --summary-primary-size: min(26px, 7.3vw);
-    --summary-secondary-size: min(16px, 4.6vw);
-    --summary-primary-label-size: 14px;
-    --summary-secondary-label-size: 11px;
-    --summary-secondary-gap: 12px;
-    --summary-primary-gap: 12px;
-    --summary-padding: 12px;
+    --summary-primary-size: min(1.625rem, 7.3vw);
+    --summary-secondary-size: min(1rem, 4.6vw);
+    --summary-primary-label-size: var(--text-body);
+    --summary-secondary-label-size: var(--text-micro);
+    --summary-secondary-gap: var(--space-related);
+    --summary-primary-gap: 0.75rem;
+    --summary-padding: var(--space-related);
   }
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import layoutStyles from './layout.module.css';
 import monthStyles from './month-switcher.module.css';
 import uiStyles from './ui.module.css';
@@ -58,11 +58,16 @@ export function SignedYen({
     positive: joinClasses(uiStyles['money-amount'], uiStyles['money-positive']),
     negative: joinClasses(uiStyles['money-amount'], uiStyles['money-negative']),
   }[resolvedTone];
+  const formattedValue = formatYen(absoluteValue);
+  const amountScale = Math.min(1, 10 / (formattedValue.length + (negative ? 1 : 0)));
   return (
-    <Amount className={toneClass} summaryLong={absoluteValue.length >= 9}>
+    <Amount
+      className={toneClass}
+      style={amountScale < 1 ? ({ '--amount-scale': amountScale } as CSSProperties) : undefined}
+    >
       {negative ? <span className="sr-only">マイナス</span> : null}
       <span aria-hidden="true">{negative ? '−' : ''}</span>
-      {formatYen(absoluteValue)}
+      {formattedValue}
     </Amount>
   );
 }

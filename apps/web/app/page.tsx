@@ -71,6 +71,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
 
         <PageSummary
           label="この月の支出"
+          primarySlot="lead-amount"
           role="group"
           sticky={false}
           listLabel={`${monthLabel(month)}の収入と差額`}

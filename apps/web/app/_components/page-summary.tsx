@@ -12,6 +12,8 @@ interface PageSummaryProps {
   label: string;
   primary: PageSummaryMetric;
   secondary?: readonly PageSummaryMetric[];
+  /** 概要の既存の data-slot を維持するため、呼び出し側から明示します。 */
+  primarySlot?: 'lead-amount';
   /** 概要の既存の読み上げ構造を維持します。 */
   role?: 'group';
   listLabel?: string;
@@ -23,6 +25,7 @@ export function PageSummary({
   label,
   primary,
   secondary = [],
+  primarySlot,
   role,
   listLabel,
   secondaryRole = false,
@@ -35,7 +38,7 @@ export function PageSummary({
       <dl className={styles.list} aria-label={listLabel}>
         <div className={[styles.metric, styles.primary].join(' ')}>
           <dt>{primary.label}</dt>
-          <dd data-slot={label === 'この月の支出' ? 'lead-amount' : undefined}>{primary.value}</dd>
+          <dd data-slot={primarySlot}>{primary.value}</dd>
         </div>
         {secondary.length > 0 ? (
           <div className={styles['secondary-list']}>

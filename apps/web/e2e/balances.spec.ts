@@ -358,7 +358,6 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
           const metricBox = label.parentElement?.getBoundingClientRect();
           if (!metricBox) throw new Error('balance summary metric box is missing');
           return {
-            longValue: value.querySelector('[data-summary-long]') !== null,
             label: label.textContent,
             labelColor: labelStyle.color,
             valueFontSize: Number.parseFloat(valueStyle.fontSize),
@@ -403,13 +402,10 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   const compact320 = await page.evaluate(() => window.innerWidth <= 320);
   const primarySize = compact320 ? 23.36 : 26;
   const secondarySize = compact320 ? 14.72 : 16;
-  expect(net.valueFontSize).toBeCloseTo(net.longValue ? primarySize * 0.5 : primarySize, 2);
+  expect(net.valueFontSize).toBeCloseTo(primarySize, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBeCloseTo(
-      metric.longValue ? secondarySize * 0.5 : secondarySize,
-      2,
-    );
+    expect(metric.valueFontSize).toBeCloseTo(secondarySize, 2);
   }
   // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
   expect(net.labelColor).not.toBe(assets.labelColor);
@@ -432,7 +428,6 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
           const valueStyle = getComputedStyle(value);
           const box = value.getBoundingClientRect();
           return {
-            longValue: value.querySelector('[data-summary-long]') !== null,
             label: label.textContent,
             valueFontSize: Number.parseFloat(valueStyle.fontSize),
             valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
@@ -466,10 +461,10 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   const liabilities = layout.metrics[2];
   if (!net || !assets || !liabilities)
     throw new Error('desktop balance summary metrics are missing');
-  expect(net.valueFontSize).toBeCloseTo(net.longValue ? 36 * 0.5 : 36, 2);
+  expect(net.valueFontSize).toBeCloseTo(36, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBeCloseTo(metric.longValue ? 18 * 0.5 : 18, 2);
+    expect(metric.valueFontSize).toBeCloseTo(18, 2);
     expect(metric.valueFontWeight).toBe(500);
   }
   expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);

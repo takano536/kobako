@@ -104,7 +104,7 @@
    * the section's text edge while retaining the full hit area.
    */
   .section-heading-action {
-    margin-inline-start: -0.9rem;
+    margin-inline-start: 0;
   }
 }
 

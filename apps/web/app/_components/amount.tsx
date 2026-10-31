@@ -1,21 +1,21 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import styles from './amount.module.css';
 
 export function Amount({
   children,
   className,
-  summaryLong,
+  style,
 }: {
   children: ReactNode;
   className?: string;
-  summaryLong?: boolean;
+  style?: CSSProperties;
 }) {
   return (
     <span
       data-slot="money-amount"
-      data-summary-long={summaryLong ? '' : undefined}
       className={[styles.amount, className].filter(Boolean).join(' ')}
+      style={style}
     >
       {children}
     </span>
