@@ -1,4 +1,11 @@
 # Changelog
+## [0.21.0](https://github.com/takano536/kobako/compare/v0.20.0...v0.21.0) (2026-10-31)
+
+
+### Features
+
+* **web:** 登録 FAB を共通化 ([#48](https://github.com/takano536/kobako/issues/48)) ([988bc98](https://github.com/takano536/kobako/commit/988bc98c65c4e3f7047ee3d4a4b5e3b8919dc68f))
+
 ## [0.20.0](https://github.com/takano536/kobako/compare/v0.19.0...v0.20.0) (2026-10-31)
 
 
