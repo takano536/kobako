@@ -13,7 +13,7 @@
 }
 
 .hero {
-  padding-block-end: var(--space-block);
+  padding-block-end: calc(var(--space-block) + var(--space-within));
 }
 
 .static {
