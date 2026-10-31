@@ -23,6 +23,7 @@ type SelectState = {
   originalStyle: string;
   open: boolean;
   cleanups: (() => void)[];
+};
 
 function optionLabel(option: HTMLOptionElement): string {
   return option.textContent?.trim() ?? '';
