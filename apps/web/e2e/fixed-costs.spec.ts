@@ -244,8 +244,36 @@ test.describe('固定費', () => {
     await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
     await expect(native).toHaveAttribute('aria-hidden', 'true');
     const trigger = page.locator('button#fixed-cost-category-trigger');
+    const measured = await page.evaluate(() => {
+      const select = document.getElementById('fixed-cost-category');
+      const label = document.querySelector('label[for="fixed-cost-category"]');
+      const trigger = document.getElementById('fixed-cost-category-trigger');
+      const menu = document.getElementById('fixed-cost-category-trigger-menu');
+      return {
+        selectTag: select?.tagName,
+        selectId: select?.id,
+        labelControl: label instanceof HTMLLabelElement ? label.control?.tagName : undefined,
+        triggerTag: trigger?.tagName,
+        triggerId: trigger?.id,
+        menuId: menu?.id,
+        menuLabelledBy: menu?.getAttribute('aria-labelledby'),
+      };
+    });
+    expect(measured).toEqual({
+      selectTag: 'SELECT',
+      selectId: 'fixed-cost-category',
+      labelControl: 'SELECT',
+      triggerTag: 'BUTTON',
+      triggerId: 'fixed-cost-category-trigger',
+      menuId: 'fixed-cost-category-trigger-menu',
+      menuLabelledBy: 'fixed-cost-category-trigger',
+    });
+    const labelled = page.getByLabel('カテゴリ');
+    await expect(labelled).toHaveCount(1);
+    await labelled.selectOption({ label: '娯楽' });
+    await expect(page.getByRole('button', { name: 'カテゴリ' })).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    await expect(trigger).toHaveAttribute('aria-controls', /-menu$/);
+    await expect(trigger).toHaveAttribute('aria-controls', 'fixed-cost-category-trigger-menu');
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
