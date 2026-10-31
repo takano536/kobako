@@ -8,7 +8,7 @@
   width: 100%;
   min-height: 2.75rem;
   align-items: center;
-  padding: var(--space-within) var(--space-block) var(--space-within) 0;
+  padding: var(--space-within) 1.25rem var(--space-within) 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -25,11 +25,11 @@
 .trigger::after {
   position: absolute;
   top: 50%;
-  right: 3px;
-  width: 10px;
-  height: 10px;
-  border-right: var(--stroke-emphasis) solid currentColor;
-  border-bottom: var(--stroke-emphasis) solid currentColor;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-right: var(--stroke-medium) solid var(--muted);
+  border-bottom: var(--stroke-medium) solid var(--muted);
   content: '';
   transform: translateY(-65%) rotate(45deg);
 }

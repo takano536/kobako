@@ -36,7 +36,6 @@ function syncState(state: SelectState): void {
   trigger.querySelector('[data-select-value]')!.textContent = label;
   trigger.className = [
     styles.trigger!,
-    select.className,
     state.parent.classList.contains('selectChevronWrap') && 'native-select-trigger',
   ]
     .filter(Boolean)
@@ -145,7 +144,7 @@ function enhance(select: HTMLSelectElement): SelectState {
   const triggerId = originalId || `select-${Math.random().toString(36).slice(2)}`;
   const menuId = `${triggerId}-menu`;
   trigger.id = triggerId;
-  trigger.className = [styles.trigger!, select.className].filter(Boolean).join(' ');
+  trigger.className = styles.trigger!;
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-controls', menuId);
