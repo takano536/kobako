@@ -1,58 +1,3 @@
-.summary {
-  position: sticky;
-  top: 0;
-  z-index: var(--layer-summary);
-  margin-block: 1.5rem 0;
-  background: var(--paper);
-}
-
-.summary h2 {
-  margin: 0 0 var(--space-within);
-  font-size: var(--text-heading);
-}
-
-.summaryList {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  justify-content: start;
-  gap: 2rem;
-  border-block: 1px solid var(--rule);
-}
-
-.summaryItem {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-within);
-  justify-items: start;
-  padding-block: var(--space-group);
-  padding-inline: var(--space-group);
-  text-align: left;
-}
-
-.summaryItem + .summaryItem {
-  border-inline-start: 1px solid var(--rule);
-}
-
-.summaryItem dt {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: var(--leading-meta);
-}
-
-.summaryItem dd {
-  margin: 0;
-}
-
-.summaryValue {
-  min-width: 0;
-  color: var(--money-negative);
-  font-size: var(--text-heading);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-semibold);
-  line-height: 1.3125rem;
-  white-space: nowrap;
-}
-
 .filters {
   display: flex;
   min-width: 0;
@@ -327,7 +272,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--rule);
 }
 
 .row {
@@ -460,69 +404,6 @@
 }
 
 @media (max-width: 40rem) {
-  .summary {
-    margin-block: 1.5rem 0;
-  }
-
-  .summary h2 {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    border: 0;
-    white-space: nowrap;
-  }
-
-  .summaryList {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-group);
-    border-block: 0;
-  }
-
-  .summaryItem {
-    position: static;
-    display: grid;
-    flex: 1 1 0;
-    min-width: max-content;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    align-items: start;
-    justify-items: start;
-    gap: var(--space-within);
-    padding-block: var(--space-item);
-    padding-inline: 0;
-    text-align: left;
-  }
-
-  .summaryItem + .summaryItem {
-    border-inline-start: 0;
-    border-block-start: 0;
-  }
-
-  .summaryItem dt {
-    justify-self: start;
-    text-align: left;
-  }
-
-  .summaryValue {
-    align-self: end;
-    justify-self: start;
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    font-size: var(--text-heading);
-    font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-normal);
-    line-height: 1.125rem;
-    text-align: left;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
   .value {
     max-width: 7rem;
   }

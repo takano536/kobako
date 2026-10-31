@@ -179,7 +179,7 @@ test.describe('固定費', () => {
     try {
       await page.getByRole('link', { name: '固定費' }).click();
       const skeleton = page.locator('[data-slot="page-skeleton"]');
-      await expect(skeleton).toContainText('固定費の集計');
+      await expect(skeleton).toContainText('月あたり');
       await expect(skeleton).not.toContainText('種別');
       await expect(skeleton).not.toContainText('APIのみ');
       await expect
@@ -346,7 +346,9 @@ test.describe('固定費', () => {
     }
 
     await page.goto('/fixed-costs');
-    const summaryValues = page.locator('dl dd');
+    const summary = page.locator('[data-slot="page-summary"]');
+    await expect(summary.getByRole('heading')).toHaveCount(0);
+    const summaryValues = summary.locator('dl dd');
     await expect(summaryValues).toHaveCount(2);
     const summaryStyles = await summaryValues.evaluateAll((elements) =>
       elements.map((element) => {
@@ -355,15 +357,23 @@ test.describe('固定費', () => {
           fontSize: style.fontSize,
           fontWeight: style.fontWeight,
           x: element.getBoundingClientRect().x,
+          right: element.getBoundingClientRect().right,
         };
       }),
     );
-    expect(
-      summaryStyles.every(
-        ({ fontSize, fontWeight }) => fontSize === '15px' && fontWeight === '600',
-      ),
-    ).toBe(true);
+    // 月あたりを主役に大きく、年間は右端に小さく置きます。
+    const compact = await page.evaluate(() => window.matchMedia('(max-width: 30rem)').matches);
+    expect(summaryStyles[0]).toMatchObject({
+      fontSize: compact ? '22px' : '24px',
+      fontWeight: '600',
+    });
+    expect(summaryStyles[1]).toMatchObject({ fontSize: '15px', fontWeight: '500' });
     expect(summaryStyles[1]!.x).toBeGreaterThan(summaryStyles[0]!.x);
+    const listAmountRight = await page
+      .locator('li a strong')
+      .first()
+      .evaluate((element) => element.getBoundingClientRect().right);
+    expect(Math.abs(summaryStyles[1]!.right - listAmountRight)).toBeLessThanOrEqual(1);
   });
 
   test('登録・編集・削除、絞り込み、グルーピングを保持する', async ({ page }, testInfo) => {
