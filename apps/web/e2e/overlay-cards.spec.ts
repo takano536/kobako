@@ -86,22 +86,6 @@ test.describe('overlay cards', () => {
     });
     const beforeHtml = await stableMainHtml(page);
     const entry = page.getByRole('link', { name: '取引を登録', exact: true }).first();
-    await expect(entry).toHaveAttribute('data-variant', 'primary');
-    const entryMetrics = await entry.evaluate((element) => {
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        width: rect.width,
-        height: rect.height,
-        fontSize: style.fontSize,
-        padding: `${style.paddingTop} ${style.paddingRight} ${style.paddingBottom} ${style.paddingLeft}`,
-      };
-    });
-    if ((page.viewportSize()?.width ?? 1280) <= 480) {
-      expect(entryMetrics.height).toBe(36);
-      expect(entryMetrics.fontSize).toBe('12px');
-      expect(entryMetrics.padding).toBe('8px 12px 8px 12px');
-    }
     await entry.focus();
     await entry.click();
     await expect(page).toHaveURL(new RegExp(`/transactions/new\\?month=${month}$`));

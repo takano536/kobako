@@ -894,13 +894,8 @@
     align-items: flex-start;
   }
 
-  .import-heading h1,
-  .import-heading > [data-slot='page-header-actions'] {
+  .import-heading h1 {
     flex: 1 1 100%;
-  }
-
-  .import-heading > [data-slot='page-header-actions'] {
-    justify-content: flex-start;
   }
 }
 .import-confirm-backdrop {

@@ -822,7 +822,6 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       await page.goto(`/transactions?month=${month}`);
       await expect(page.getByRole('heading', { name: /取引/ })).toBeVisible();
       const transactionShell = await measure('[data-slot="page-shell"]');
-      const transactionsHeading = await measure('[data-slot="page-header"] h1');
       const transactionHeadingStyles = await page
         .locator('[data-slot="page-header"] h1')
         .evaluate((h1) => {
@@ -834,40 +833,32 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
             letterSpacing: style.letterSpacing,
           };
         });
-      const transactionActionMetrics = await page
-        .locator('[data-slot="page-header"] [data-variant]')
-        .evaluateAll((links) =>
-          links.map((link) => {
-            const style = getComputedStyle(link);
-            const rect = link.getBoundingClientRect();
-            return { width: rect.width, height: rect.height, fontSize: style.fontSize };
-          }),
-        );
+      const transactionFabMetrics = await page
+        .locator('a[aria-label="取引を登録"]')
+        .evaluate((link) => {
+          const rect = link.getBoundingClientRect();
+          return { right: rect.right, width: rect.width, height: rect.height };
+        });
       const narrow = width <= 480;
+      expect(transactionFabMetrics.width).toBeCloseTo(56, 0);
+      expect(transactionFabMetrics.height).toBeCloseTo(56, 0);
       expect(transactionHeadingStyles).toEqual({
         fontSize: narrow ? '21px' : '23px',
         fontWeight: '500',
         lineHeight: narrow ? '24.15px' : '26.45px',
         letterSpacing: narrow ? '-0.63px' : '-0.69px',
       });
-      expect(transactionActionMetrics).toHaveLength(1);
-      expect(transactionActionMetrics[0]?.fontSize).toBe(narrow ? '12px' : '14px');
-      expect(transactionActionMetrics[0]?.height).toBeCloseTo(36, 0);
-      expect(transactionActionMetrics[0]?.width).toBeCloseTo(narrow ? 102 : 114, 1);
-      const transactionsHeader = await measure('[data-slot="page-header"]');
-      const transactionsAction = await measure('[data-slot="page-header"] [data-variant]');
+      expect(transactionFabMetrics.right).toBeCloseTo(
+        narrow ? width - 16 : transactionShell.x + transactionShell.width,
+        0,
+      );
       const transactionsMonth = await measure('[data-slot="month-switcher"]');
       const transactionsChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
-      assertShellGeometry(overviewShell, width, 16, 61 * 16, 108);
-      assertShellGeometry(transactionShell, width, 16, 61 * 16, 108);
+      assertShellGeometry(overviewShell, width, 16, 61 * 16, 84);
+      assertShellGeometry(transactionShell, width, 16, 61 * 16, 84);
       expect(transactionShell.x).toBeCloseTo(overviewShell.x, 0);
       expect(transactionShell.y).toBeCloseTo(overviewShell.y, 0);
       expect(transactionShell.width).toBeCloseTo(overviewShell.width, 0);
-      expect(transactionsHeading.x).toBeCloseTo(transactionShell.x, 0);
-      expect(transactionsAction.y + transactionsAction.height / 2).toBeCloseTo(
-        transactionsHeader.y + transactionsHeader.height / 2,
-        0,
-      );
       // The 44px arrow targets pad the chevrons inwards, so the row is pulled out by
       // that inset: the chevron lines up with the shell edge, the box starts before it.
       expect(transactionsChevron.x).toBeCloseTo(transactionShell.x, 0);

@@ -6,8 +6,6 @@ import { PageSkeleton, SkeletonText } from './_components/page-skeleton';
 import { PageSummary } from './_components/page-summary';
 import { hasPageSkeleton, type PageSkeletonPath } from '../src/lib/page-skeleton-paths';
 
-const REGISTER_TRANSACTION = { label: '取引を登録', icon: '＋' };
-
 function FixedCostFilterSkeleton() {
   const filters: readonly { label: string; value?: string; arrow: boolean }[] = [
     { label: 'グループ', value: 'カテゴリ別', arrow: false },
@@ -105,7 +103,6 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
     <PageSkeleton
       label="概要を読み込み中"
       title="概要"
-      action={REGISTER_TRANSACTION}
       monthSwitcher
       month={month ?? undefined}
       blocks={[
@@ -156,7 +153,6 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
       label="取引を読み込み中"
       title="取引"
       count
-      action={REGISTER_TRANSACTION}
       monthSwitcher
       month={month ?? undefined}
       blocks={[{ kind: 'filter' }, { kind: 'list', rows: 8, amount: true, datedEvery: 3 }]}
@@ -166,7 +162,6 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
     <PageSkeleton
       label="残高を読み込み中"
       title="残高"
-      action={{ label: '資産を登録' }}
       blocks={[
         {
           kind: 'summary',
@@ -190,7 +185,6 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
       label="固定費を読み込み中"
       title="固定費"
       count
-      action={{ label: '固定費を登録' }}
       blocks={[
         {
           kind: 'summary',

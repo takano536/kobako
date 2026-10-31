@@ -45,7 +45,6 @@ interface PageSkeletonProps {
   /** 見出しが戻りリンクを兼ねる子画面です。 */
   back?: boolean;
   count?: boolean;
-  action?: { label: string; icon?: string };
   monthSwitcher?: boolean;
   /** 月切替に表示する月です。遷移先の月が分かっているときは仮の値ではなくその月を出します。 */
   month?: string;
@@ -76,8 +75,7 @@ function SkeletonHeader({
   title,
   back,
   count,
-  action,
-}: Pick<PageSkeletonProps, 'title' | 'back' | 'count' | 'action'>) {
+}: Pick<PageSkeletonProps, 'title' | 'back' | 'count'>) {
   const heading = <span className={headerStyles['heading-title']}>{title}</span>;
   return (
     <header className={headerStyles['page-header']}>
@@ -102,18 +100,6 @@ function SkeletonHeader({
           </span>
         ) : null}
       </h1>
-      {action ? (
-        <div className={headerStyles['page-header-actions']}>
-          <span
-            className={`${buttonStyles.linkButton} ${skeletonStyles.ghost}`}
-            data-variant="primary"
-            aria-hidden="true"
-          >
-            {action.icon ? <span className={buttonStyles.linkIcon}>{action.icon}</span> : null}
-            <span>{action.label}</span>
-          </span>
-        </div>
-      ) : null}
     </header>
   );
 }
@@ -232,7 +218,6 @@ export function PageSkeleton({
   width = 'wide',
   back = false,
   count = false,
-  action,
   monthSwitcher = false,
   month,
   blocks,
@@ -242,7 +227,7 @@ export function PageSkeleton({
       <div data-slot="page-skeleton" role="status">
         <span className="sr-only">{label}</span>
         <div aria-hidden="true">
-          <SkeletonHeader title={title} back={back} count={count} action={action} />
+          <SkeletonHeader title={title} back={back} count={count} />
         </div>
         {/* The month switcher stays live so a burst of taps keeps moving the shown month while one
             request is in flight. */}
