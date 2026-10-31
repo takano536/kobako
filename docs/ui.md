@@ -71,6 +71,7 @@
 
 - `PageShell`: `layout.module.css`／`page-transition.tsx`、`PageHeader`: `page-header.tsx`／`page-header.module.css`、`SectionHeading`: `ui.tsx`／`ui.module.css`、`MonthSwitcher`: `ui.tsx`／`month-switcher.module.css` でページの骨格を提供します。`PageTransition` は React 19 の `ViewTransition` を使い、ヘッダー・ナビゲーションを含まない本文だけを切り替えます。
 - `PageSummary`: `page-summary.tsx`／`page-summary.module.css`。固定費・残高の集計を同じ組み方で表示する共通部品です。見出しは置かず `aria-label` だけを残し、`primary`（主役の数字）と `secondary`（右端に寄せる副数字）を受け取ります。金額は `SignedYen` を渡し、色は金額の色の規則に任せます。
+- `FormActions`: `form-actions.tsx`／`form-actions.module.css`。フォームの送信行を一つにまとめ、`showCancel` を渡した画面だけ左にキャンセル（`variant="secondary"`）を置き、右端に送信を並べます。キャンセルは `router.back()` で開いた元の画面へ戻ります。カードで開く登録フォーム（取引・資産・固定費）はキャンセルを持ち、同じ URL を直接開いたページと編集フォームは持ちません（編集は見出しの戻るで閉じます）。
 - `Button`／`LinkButton`、`Card`、`Field`／`Input`／`Select`、`Amount`、`Section`: それぞれ `button.tsx`／`button.module.css`、`card.tsx`／`card.module.css`、`field.tsx`／`field.module.css`、`amount.tsx`／`amount.module.css`、`section.tsx`／`section.module.css` に置きます。
 - `CategoryBreakdown` は `overview/category-breakdown.tsx`／`category-breakdown.module.css`、残高・取引行・フォーム・設定・取込は各ページ／部品の専用 Module に置き、レスポンシブ規則も同じ所有 Module に co-locate します。
 - `RegisterFab` と `ActionLink`: ナビゲーション用リンクと登録導線の共通部品です。概要・取引・固定費・残高の登録導線は `RegisterFab` とし、`<a>` の `aria-label` に「取引を登録」「固定費を登録」「資産を登録」を設定します。FAB は 56px の円形で固定配置し、デスクトップでは一覧の金額列右端に揃え、モバイルでは下部ナビゲーションの上に置きます。`RegisterTransactionAction` は空状態の補助導線として使い、`ActionLink` はその他の画面内リンクに使います。

@@ -210,9 +210,6 @@ test.describe('固定費', () => {
     await page.goto('/fixed-costs');
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await expect(page.locator('#entry-dialog[data-card-pattern="overlay-card"]')).toBeVisible();
-    await expect(
-      page.locator('#entry-dialog').getByRole('button', { name: 'キャンセル', exact: true }),
-    ).toHaveCount(0);
     await page.getByRole('button', { name: '固定費を登録 — 戻る' }).click();
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
     await expect(page).toHaveURL(/\/fixed-costs$/);
@@ -226,6 +223,17 @@ test.describe('固定費', () => {
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await page.goto('/fixed-costs/new');
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'キャンセル', exact: true })).toHaveCount(0);
+  });
+
+  test('登録カードのキャンセルは一覧へ戻る', async ({ page }) => {
+    await page.goto('/fixed-costs');
+    await page.getByRole('link', { name: '固定費を登録' }).click();
+    const dialog = page.locator('#entry-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'キャンセル', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/\/fixed-costs$/);
   });
 
   test('一覧に代表的な固定費と集計を表示する', async ({ page }) => {

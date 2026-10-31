@@ -1,0 +1,12 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-item);
+  margin-top: var(--space-group);
+}
+
+.actions[data-with-cancel='true'] {
+  justify-content: space-between;
+}

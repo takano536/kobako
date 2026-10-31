@@ -9,7 +9,7 @@ import { createFixedCostAction } from '../actions';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '固定費を登録' };
 
-export async function NewFixedCostContent() {
+export async function NewFixedCostContent({ showCancel = false }: { showCancel?: boolean } = {}) {
   const householdId = await getCurrentHouseholdId();
   const db = await getLedgerDatabase();
   const [categories, accounts] = await Promise.all([
@@ -32,6 +32,7 @@ export async function NewFixedCostContent() {
         startMonth: currentTokyoMonth(),
         day: '1',
       }}
+      showCancel={showCancel}
     />
   );
 }
