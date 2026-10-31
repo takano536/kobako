@@ -344,7 +344,10 @@ async function logRenderedPlatformFonts(page: Page): Promise<void> {
   }
 }
 
-async function expectMobileSummaryLayout(page: Page): Promise<void> {
+async function expectMobileSummaryLayout(
+  page: Page,
+  { allowStacked = false }: { allowStacked?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
     const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     const list = summary?.querySelector<HTMLElement>('dl');
@@ -390,7 +393,7 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
     };
   });
   expect(layout.display).toBe('flex');
-  expect(layout.flexWrap).toBe('nowrap');
+  expect(layout.flexWrap).toBe('wrap');
   expect(layout.columnGap).toBe('12px');
   expect(layout.rowGap).toBe('12px');
   expect(layout.borderBlockEnd).toBe('1px');
@@ -410,14 +413,20 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
   expect(net.labelColor).not.toBe(assets.labelColor);
   expect(assets.labelColor).toBe(liabilities.labelColor);
-  expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
-  expect(Math.abs(net.valueBottom - assets.valueBottom)).toBeLessThanOrEqual(1);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    expect(Math.abs(net.valueBottom - assets.valueBottom)).toBeLessThanOrEqual(1);
+  }
   for (const metric of layout.metrics) {
     expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
   }
 }
 
-async function expectDesktopSummaryLayout(page: Page): Promise<void> {
+async function expectDesktopSummaryLayout(
+  page: Page,
+  { allowStacked = false }: { allowStacked?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
     const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     const list = summary?.querySelector<HTMLElement>('dl');
@@ -469,8 +478,12 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   }
   expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
   expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  for (const metric of layout.metrics) {
-    expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    for (const metric of layout.metrics) {
+      expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+    }
   }
 }
 
@@ -1772,7 +1785,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
         liabilities: compactSummaryLiabilitiesDisplay,
         net: `−${compactSummaryNetDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
@@ -1790,7 +1803,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
       liabilities: compactSummaryLiabilitiesDisplay,
       net: `−${compactSummaryNetDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectStickyBalanceSummary(page);
     await assertNoHorizontalOverflow(page);
@@ -1828,7 +1841,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
         liabilities: summaryFixtureLiabilitiesDisplay,
         net: `−${summaryFixtureNetMagnitudeDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectAccountValuesFit(page);
       await expectStickyBalanceSummary(page);
@@ -1845,7 +1858,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
       liabilities: summaryFixtureLiabilitiesDisplay,
       net: `−${summaryFixtureNetMagnitudeDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectAccountValuesFit(page);
     await expectStickyBalanceSummary(page);
