@@ -358,6 +358,7 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
           const metricBox = label.parentElement?.getBoundingClientRect();
           if (!metricBox) throw new Error('balance summary metric box is missing');
           return {
+            longValue: value.querySelector('[data-summary-long]') !== null,
             label: label.textContent,
             labelColor: labelStyle.color,
             valueFontSize: Number.parseFloat(valueStyle.fontSize),
@@ -390,8 +391,8 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
     };
   });
   expect(layout.display).toBe('flex');
-  expect(layout.flexWrap).toBe('wrap');
-  expect(layout.columnGap).toBe('16px');
+  expect(layout.flexWrap).toBe('nowrap');
+  expect(layout.columnGap).toBe('12px');
   expect(layout.rowGap).toBe('12px');
   expect(layout.borderBlockEnd).toBe('1px');
   expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
@@ -399,25 +400,22 @@ async function expectMobileSummaryLayout(page: Page): Promise<void> {
   const assets = layout.metrics[1];
   const liabilities = layout.metrics[2];
   if (!net || !assets || !liabilities) throw new Error('balance summary metrics are missing');
-  // 主役の純資産だけを大きく、資産・負債は同じ小さめの指定でそろえます。
-  expect(net.valueFontSize).toBe(22);
+  const compact320 = await page.evaluate(() => window.innerWidth <= 320);
+  const primarySize = compact320 ? 23.36 : 26;
+  const secondarySize = compact320 ? 14.72 : 16;
+  expect(net.valueFontSize).toBeCloseTo(net.longValue ? primarySize * 0.5 : primarySize, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBe(15);
-    expect(metric.valueFontWeight).toBe(500);
+    expect(metric.valueFontSize).toBeCloseTo(
+      metric.longValue ? secondarySize * 0.5 : secondarySize,
+      2,
+    );
   }
   // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
   expect(net.labelColor).not.toBe(assets.labelColor);
   expect(assets.labelColor).toBe(liabilities.labelColor);
-  const secondariesAligned = Math.abs(assets.valueBottom - liabilities.valueBottom) <= 1;
-  const secondariesStacked =
-    assets.metricBottom <= liabilities.metricTop + 1 ||
-    liabilities.metricBottom <= assets.metricTop + 1;
-  expect(secondariesAligned || secondariesStacked).toBe(true);
-  // 同じ行なら下端が揃い、折り返す場合は主役の下に副数字が重ならず続きます。
-  const sameRow = Math.abs(net.metricBottom - assets.metricBottom) <= 1;
-  const stacked = net.metricBottom <= assets.metricTop + 1;
-  expect(sameRow || stacked).toBe(true);
+  expect(Math.abs(assets.valueBottom - liabilities.valueBottom)).toBeLessThanOrEqual(1);
+  expect(Math.abs(net.valueBottom - assets.valueBottom)).toBeLessThanOrEqual(1);
   for (const metric of layout.metrics) {
     expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
   }
@@ -434,6 +432,7 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
           const valueStyle = getComputedStyle(value);
           const box = value.getBoundingClientRect();
           return {
+            longValue: value.querySelector('[data-summary-long]') !== null,
             label: label.textContent,
             valueFontSize: Number.parseFloat(valueStyle.fontSize),
             valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
@@ -460,27 +459,23 @@ async function expectDesktopSummaryLayout(page: Page): Promise<void> {
   });
   expect(layout.display).toBe('flex');
   expect(layout.alignItems).toBe('flex-end');
-  expect(layout.columnGap).toBe('32px');
+  expect(layout.columnGap).toBe('64px');
   expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
   const net = layout.metrics[0];
   const assets = layout.metrics[1];
   const liabilities = layout.metrics[2];
   if (!net || !assets || !liabilities)
     throw new Error('desktop balance summary metrics are missing');
-  expect(net.valueFontSize).toBe(24);
+  expect(net.valueFontSize).toBeCloseTo(net.longValue ? 36 * 0.5 : 36, 2);
   expect(net.valueFontWeight).toBe(600);
   for (const metric of [assets, liabilities]) {
-    expect(metric.valueFontSize).toBe(18);
+    expect(metric.valueFontSize).toBeCloseTo(metric.longValue ? 18 * 0.5 : 18, 2);
     expect(metric.valueFontWeight).toBe(500);
   }
   expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
-  if (await page.evaluate(() => window.innerWidth >= 600)) {
-    expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
-  }
-  if (await page.evaluate(() => window.innerWidth >= 600)) {
-    for (const metric of layout.metrics) {
-      expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
-    }
+  expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
+  for (const metric of layout.metrics) {
+    expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
   }
 }
 

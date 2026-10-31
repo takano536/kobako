@@ -3,17 +3,21 @@
  * 数字の色は SignedYen 側の既存ルールに従います。
  */
 .summary {
+  --summary-primary-size: 36px;
+  --summary-secondary-size: 18px;
+  --summary-primary-label-size: 14px;
+  --summary-secondary-label-size: 12px;
+  --summary-secondary-gap: 32px;
+  --summary-primary-gap: 64px;
+  --summary-padding: 24px;
+
   position: sticky;
   top: 0;
   z-index: var(--layer-summary);
   margin-block: var(--space-group) 0;
-  padding-block-end: var(--space-group);
+  padding-block-end: var(--summary-padding);
   border-block-end: var(--stroke-hairline) solid var(--rule);
   background: var(--paper);
-}
-
-.hero {
-  padding-block-end: calc(var(--space-block) + var(--space-within));
 }
 
 .static {
@@ -22,10 +26,10 @@
 
 .list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-section);
+  gap: var(--summary-primary-gap);
   margin: 0;
 }
 
@@ -38,18 +42,27 @@
 }
 
 .primary {
-  margin-inline-end: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.secondary-list {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: flex-end;
+  gap: var(--summary-secondary-gap);
 }
 
 .metric dt {
   color: var(--muted);
-  font-size: var(--text-small);
+  font-size: var(--summary-secondary-label-size);
   line-height: var(--leading-meta);
 }
 
 .primary dt {
   color: var(--ink);
-  font-size: var(--text-body);
+  font-size: var(--summary-primary-label-size);
   font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-title);
 }
@@ -58,110 +71,35 @@
   min-width: 0;
   margin: 0;
   overflow-wrap: normal;
+  font-size: var(--summary-secondary-size);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
   white-space: nowrap;
 }
 
 .primary dd {
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.hero .primary dd {
-  font-size: var(--text-hero);
+  font-size: var(--summary-primary-size);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-hero);
   line-height: var(--leading-tight);
 }
-
-.metric dd {
-  font-size: var(--text-lead);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-tight);
+.summary .primary dd:has([data-summary-long]) {
+  font-size: calc(var(--summary-primary-size) * 0.5);
 }
-.primary dd {
-  font-size: 1.5rem;
-  font-weight: var(--weight-semibold);
+
+.summary .secondary-list dd:has([data-summary-long]) {
+  font-size: calc(var(--summary-secondary-size) * 0.5);
 }
 
 @media (max-width: 30rem) {
-  .hero.inline {
-    padding-block-end: var(--space-block);
-  }
-  .stack .list {
-    flex-wrap: wrap;
-    gap: var(--space-related) var(--space-group);
-  }
-
-  .stack .primary {
-    margin-inline-end: 0;
-  }
-
-  .stack .primary + .secondary {
-    margin-inline-start: auto;
-  }
-
-  .stack .secondary:last-child {
-    margin-inline-start: auto;
-  }
-
-  .stack .primary dd {
-    font-size: calc(var(--text-lead) + var(--space-within));
-  }
-  .stack .secondary dd {
-    font-size: 0.9375rem;
-  }
-
-  .inline .list {
-    flex-wrap: nowrap;
-    gap: var(--space-related);
-  }
-
-  .inline .primary {
-    flex: 1 1 auto;
-  }
-
-  .inline .secondary {
-    flex: 0 1 auto;
-  }
-
-  .inline .metric dt {
-    font-size: var(--text-micro);
-    line-height: 1.4;
-  }
-
-  .inline .metric dd {
-    font-size: min(1rem, 4.102564vw);
-    line-height: 1.2;
-  }
-
-  .inline .primary dd {
-    font-size: min(calc(var(--text-lead) + var(--space-item)), 6.666667vw);
-  }
-}
-
-@media (max-width: 20rem) {
-  .inline.hero {
-    padding-block-end: calc(var(--space-block) + var(--space-within));
-  }
-
-  .inline .list {
-    flex-wrap: wrap;
-    gap: var(--space-item);
-  }
-
-  .inline .primary {
-    flex: 0 1 auto;
-  }
-
-  .inline .primary dd {
-    font-size: min(1.5rem, 12vw);
-  }
-
-  .inline .secondary dd {
-    font-size: min(0.9375rem, 5vw);
-  }
-
-  .inline .secondary dt {
-    font-size: min(0.625rem, 3.2vw);
+  .summary {
+    --summary-primary-size: min(26px, 7.3vw);
+    --summary-secondary-size: min(16px, 4.6vw);
+    --summary-primary-label-size: 14px;
+    --summary-secondary-label-size: 11px;
+    --summary-secondary-gap: 12px;
+    --summary-primary-gap: 12px;
+    --summary-padding: 12px;
   }
 }

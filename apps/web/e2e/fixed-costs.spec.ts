@@ -361,14 +361,14 @@ test.describe('固定費', () => {
         };
       }),
     );
-    // 月あたりを主役に大きく、副指標は右端に置き、デスクトップ18px・モバイル15pxで表示します。
+    // 月あたりを主役に大きく、副指標はまとまりとして右端に置きます。
     const compact = await page.evaluate(() => window.matchMedia('(max-width: 30rem)').matches);
     expect(summaryStyles[0]).toMatchObject({
-      fontSize: compact ? '22px' : '24px',
+      fontSize: compact ? '26px' : '36px',
       fontWeight: '600',
     });
     expect(summaryStyles[1]).toMatchObject({
-      fontSize: compact ? '15px' : '18px',
+      fontSize: compact ? '16px' : '18px',
       fontWeight: '500',
     });
     expect(summaryStyles[1]!.x).toBeGreaterThan(summaryStyles[0]!.x);

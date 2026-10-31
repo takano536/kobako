@@ -59,7 +59,7 @@ export function SignedYen({
     negative: joinClasses(uiStyles['money-amount'], uiStyles['money-negative']),
   }[resolvedTone];
   return (
-    <Amount className={toneClass}>
+    <Amount className={toneClass} summaryLong={absoluteValue.length >= 9}>
       {negative ? <span className="sr-only">マイナス</span> : null}
       <span aria-hidden="true">{negative ? '−' : ''}</span>
       {formatYen(absoluteValue)}

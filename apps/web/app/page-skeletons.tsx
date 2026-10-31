@@ -111,8 +111,6 @@ const pageSkeletons: Record<PageSkeletonPath, (month?: string | null) => ReactNo
             <PageSummary
               label="この月の支出"
               role="group"
-              primaryScale="hero"
-              mobileLayout="inline"
               sticky={false}
               secondaryRole
               primary={{ label: 'この月の支出', value: <SkeletonText>¥000,000</SkeletonText> }}
