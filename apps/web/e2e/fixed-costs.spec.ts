@@ -7,6 +7,7 @@ import {
   type DatabaseClient,
 } from '@kobako/db';
 import { seedDemoLedger } from '../src/lib/demo-ledger';
+import { selectFieldOption } from './select-field-helpers';
 
 declare global {
   interface Window {
@@ -238,9 +239,54 @@ test.describe('固定費', () => {
     await expect(page.getByText('Amazon Prime')).toBeVisible();
   });
 
+  test('固定費の素のselectを共通メニューへ自動変換する', async ({ page }) => {
+    await page.goto('/fixed-costs/new');
+    const native = page.locator('select[name="categoryId"]');
+    await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
+    await expect(native).toHaveAttribute('aria-hidden', 'true');
+    const trigger = page.locator('button#fixed-cost-category');
+    const measured = await page.evaluate(() => {
+      const select = document.querySelector('select[name="categoryId"]');
+      const label = document.querySelector('label[for="fixed-cost-category"]');
+      const trigger = document.getElementById('fixed-cost-category');
+      const menu = document.getElementById('fixed-cost-category-menu');
+      return {
+        selectTag: select?.tagName,
+        selectId: select?.id,
+        labelControl: label instanceof HTMLLabelElement ? label.control?.tagName : undefined,
+        triggerTag: trigger?.tagName,
+        triggerId: trigger?.id,
+        menuId: menu?.id,
+        menuLabelledBy: menu?.getAttribute('aria-labelledby'),
+      };
+    });
+    expect(measured).toEqual({
+      selectTag: 'SELECT',
+      selectId: '',
+      labelControl: 'BUTTON',
+      triggerTag: 'BUTTON',
+      triggerId: 'fixed-cost-category',
+      menuId: 'fixed-cost-category-menu',
+      menuLabelledBy: 'fixed-cost-category',
+    });
+    const labelled = page.getByLabel('カテゴリ');
+    await expect(labelled).toHaveCount(1);
+    await expect(labelled).toBeVisible();
+    await expect(page.getByRole('button', { name: 'カテゴリ' })).toHaveCount(1);
+    await native.selectOption({ label: '娯楽' });
+    await expect(trigger).toContainText('娯楽');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    await expect(trigger).toHaveAttribute('aria-controls', 'fixed-cost-category-menu');
+    await trigger.click();
+    await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.locator('button#fixed-cost-frequency').click();
+    await page.getByRole('menuitemradio', { name: '間隔を指定' }).click();
+    await expect(page.locator('button#fixed-cost-frequency')).toHaveText('間隔を指定');
+  });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    await page.getByLabel('頻度').selectOption('custom');
+    await selectFieldOption(page.locator('#fixed-cost-frequency'), 'custom');
 
     const intervalCount = page.getByLabel('間隔', { exact: true });
     const intervalLine = intervalCount.locator('xpath=..');
@@ -328,9 +374,9 @@ test.describe('固定費', () => {
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await page.getByLabel('名称').fill(e2eFixedCostName);
     await page.getByLabel('金額').fill('1234');
-    await page.getByLabel('カテゴリ').selectOption({ label: '娯楽' });
-    await page.getByLabel('資産').selectOption({ label: '生活費口座' });
-    await page.getByLabel('日付').selectOption('20');
+    await selectFieldOption(page.locator('#fixed-cost-category'), { label: '娯楽' });
+    await selectFieldOption(page.locator('#fixed-cost-account'), { label: '生活費口座' });
+    await selectFieldOption(page.locator('#fixed-cost-day'), '20');
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(e2eFixedCostLink()).toBeVisible();

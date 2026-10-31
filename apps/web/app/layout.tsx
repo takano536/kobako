@@ -10,6 +10,7 @@ import { THEME_COLORS } from '../src/lib/theme';
 import { PrefetchLink } from './_components/prefetch-link';
 import { NavigationShell, NavigationShellProvider } from './_components/navigation-shell';
 import { SelectDismissTapGuard } from './_components/select-dismiss-tap-guard';
+import { SelectFieldEnhancer } from './_components/select-field';
 import { TapDebugLog } from './_components/tap-debug-log';
 import { ThemeScript } from './_components/theme-script';
 import { OriginBadgeScript } from './_components/origin-badge-script';
@@ -54,6 +55,7 @@ export default function RootLayout({
       </head>
       <body>
         <SelectDismissTapGuard />
+        <SelectFieldEnhancer />
         <TapDebugLog />
         <NavigationShellProvider>
           <div data-slot="app-shell" className={layoutStyles['app-shell']}>
