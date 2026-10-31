@@ -66,6 +66,9 @@ export function OverlayCard({
       : card.querySelector<HTMLElement>(autoFocusSelector || FOCUSABLE_SELECTOR);
     const frame = window.requestAnimationFrame(() => focusTarget?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector('[data-slot="select-field-menu"]')) {
+        return;
+      }
       if (
         card.querySelector('details[open]') ||
         document.querySelector('[data-slot="delete-confirm"][open]')

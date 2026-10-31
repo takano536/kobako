@@ -23,6 +23,7 @@ import {
   assertDeleteModalInteraction,
   type ModalViewport,
 } from './delete-modal-helpers';
+import { selectFieldOption } from './select-field-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -75,16 +76,7 @@ async function selectTextGeometry(select: Locator): Promise<{
 }
 
 async function selectOptionByKeyboard(select: Locator, label: string): Promise<void> {
-  const options = await select.locator('option').allTextContents();
-  const optionIndex = options.findIndex((option) => option === label);
-  if (optionIndex < 1) {
-    throw new Error(`option ${label} was not found`);
-  }
-  await select.focus();
-  await select.press('Home');
-  for (let index = 0; index < optionIndex; index += 1) {
-    await select.press('ArrowDown');
-  }
+  await selectFieldOption(select, { label });
 }
 
 async function seedRunTransfer(): Promise<void> {
@@ -263,14 +255,14 @@ test('uses one form for all types with type-specific fields and preserved shared
 
   await page.locator('#entry-dialog').getByText('支出', { exact: true }).click();
   const categorySelect = page.locator('#transaction-category-expense');
-  await categorySelect.selectOption({ label: '食費' });
-  await expect(categorySelect).toHaveRole('combobox');
+  await selectFieldOption(categorySelect, { label: '食費' });
+  await expect(categorySelect).toHaveRole('button');
   const categoryGeometry = await selectTextGeometry(categorySelect);
 
   await page.locator('#entry-dialog').getByText('振替', { exact: true }).click();
   const accountSelects = [page.getByLabel('振替元'), page.getByLabel('振替先')];
   for (const accountSelect of accountSelects) {
-    await expect(accountSelect).toHaveRole('combobox');
+    await expect(accountSelect).toHaveRole('button');
     const accountGeometry = await selectTextGeometry(accountSelect);
     expect(accountGeometry.textStartX).toBeCloseTo(categoryGeometry.textStartX, 1);
     expect(accountGeometry.height).toBeCloseTo(categoryGeometry.height, 1);
@@ -506,7 +498,7 @@ test('converts a transfer to expense and updates the list and overview totals', 
   await page.goto(`/transactions?month=${month}`);
   await runTransferRows(page).click();
   await page.locator('#entry-dialog').getByText('支出', { exact: true }).click();
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByRole('button', { name: '変更を保存' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
   await expect(runTransferRows(page)).toHaveCount(0);
@@ -590,15 +582,15 @@ test('navigates from the ledger, creates exactly one transfer, and preserves cas
   await expect(page.getByRole('heading', { name: '取引を登録' })).toBeVisible();
   await page.locator('#entry-dialog').getByText('振替', { exact: true }).click();
 
-  await page.getByLabel('振替元').selectOption({ label: fromName });
-  await page.getByLabel('振替先').selectOption({ label: fromName });
+  await selectFieldOption(page.getByLabel('振替元'), { label: fromName });
+  await selectFieldOption(page.getByLabel('振替先'), { label: fromName });
   await page.getByLabel('金額').fill('3,000');
   await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
   await page.getByRole('button', { name: '登録する' }).click();
   await page.getByRole('button', { name: '閉じる' }).click();
   await expect(page).toHaveURL(/\/transactions\/new/);
 
-  await page.getByLabel('振替先').selectOption({ label: toName });
+  await selectFieldOption(page.getByLabel('振替先'), { label: toName });
   await page.getByLabel('金額').fill('0');
   await page.getByRole('button', { name: '登録する' }).click();
   await page.getByRole('button', { name: '閉じる' }).click();
@@ -611,8 +603,8 @@ test('navigates from the ledger, creates exactly one transfer, and preserves cas
 
   await page.getByRole('link', { name: '取引を登録', exact: true }).first().click();
   await page.locator('#entry-dialog').getByText('振替', { exact: true }).click();
-  await page.getByLabel('振替元').selectOption({ label: fromName });
-  await page.getByLabel('振替先').selectOption({ label: toName });
+  await selectFieldOption(page.getByLabel('振替元'), { label: fromName });
+  await selectFieldOption(page.getByLabel('振替先'), { label: toName });
   await page.getByLabel('金額').fill('3,000');
   await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
   await page.getByLabel('メモ（任意）').fill(`${marker}:作成`);
@@ -639,11 +631,11 @@ test('edits a transfer and reflects the changed from and to accounts', async ({ 
   await expect(runTransferRows(page)).toHaveCount(1);
   await runTransferRows(page).click();
   await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
-  await expect(page.getByLabel('振替元')).toHaveValue(/^\d+$/);
-  await expect(page.getByLabel('振替先')).toHaveValue(/^\d+$/);
+  await expect(page.getByLabel('振替元')).toContainText(fromName);
+  await expect(page.getByLabel('振替先')).toContainText(toName);
 
-  await page.getByLabel('振替元').selectOption({ label: toName });
-  await page.getByLabel('振替先').selectOption({ label: alternateName });
+  await selectFieldOption(page.getByLabel('振替元'), { label: toName });
+  await selectFieldOption(page.getByLabel('振替先'), { label: alternateName });
   await page.getByLabel('金額').fill('2,000');
   await page.getByRole('button', { name: '変更を保存' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -663,7 +655,7 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('100');
   await page.locator('input[name="occurredOn"]').fill(`${month}-11`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(`${marker}:visual-expense`);
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -771,7 +763,7 @@ test('matches delete control dimensions to save controls on desktop and mobile',
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('100');
   await page.locator('input[name="occurredOn"]').fill(`${month}-11`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(`${marker}:delete-geometry`);
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));

@@ -6,6 +6,7 @@ import {
   initializeDefaultLedger,
   verifySafeTestDatabaseConnection,
 } from '@kobako/db';
+import { selectFieldOption } from './select-field-helpers';
 
 const runSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -276,7 +277,9 @@ test.describe('設定画面', () => {
     try {
       await page.goto('/accounts/new');
       await page.getByLabel('名前', { exact: true }).fill(assetName);
-      await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
+      await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), {
+        label: customName,
+      });
       await page.getByRole('button', { name: '登録する' }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
       accountId = new URL(page.url()).searchParams.get('account') ?? '';
@@ -298,7 +301,7 @@ test.describe('設定画面', () => {
       await expect(page).toHaveURL('/settings');
       await assetRow.click();
       await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
-      await expect(page.getByLabel('資産カテゴリ', { exact: true })).toHaveValue(/\d+/);
+      await expect(page.getByLabel('資産カテゴリ', { exact: true })).toContainText(customName);
       await page.getByRole('button', { name: '保存する' }).click();
       await expect(page).toHaveURL('/settings?saved=1');
       await expect(page.getByRole('status')).toHaveText('保存しました');
@@ -326,16 +329,18 @@ test.describe('設定画面', () => {
     await expect(categoryRow(page, customName)).toHaveCount(1);
     await page.goto('/accounts/new');
     await page.getByLabel('名前', { exact: true }).fill(assetName);
-    await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ label: customName });
+    await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), {
+      label: customName,
+    });
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
     const accountId = new URL(page.url()).searchParams.get('account');
     if (!accountId) throw new Error('custom account id is missing');
     await page.goto(`/transactions/new?type=expense&month=2099-12&account=${accountId}`);
-    await page.getByLabel('資産', { exact: true }).selectOption(accountId);
+    await selectFieldOption(page.getByLabel('資産', { exact: true }), accountId);
     await page.getByLabel('金額').fill('1');
     await page.locator('input[name="occurredOn"]').fill('2099-12-01');
-    await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+    await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
     await page.getByLabel('メモ（任意）').fill(customName);
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/transactions\?month=2099-12$/);
