@@ -1,62 +1,6 @@
 /* Balance summary and account rows. */
 .balances-list-section {
-  margin-top: calc(var(--space-section) - 0.1875rem);
-}
-
-.balance-summary {
-  position: sticky;
-  top: 0;
-  z-index: var(--layer-summary);
-  background: var(--paper);
-}
-
-.balance-summary-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-block: var(--stroke-hairline) solid var(--rule);
-}
-
-.balance-summary-item {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-within);
-  justify-items: end;
-  padding-block: var(--space-group);
-  padding-inline: var(--space-group);
-  text-align: right;
-}
-
-.balance-summary-item + .balance-summary-item {
-  border-inline-start: var(--stroke-hairline) solid var(--rule);
-}
-
-.balance-summary-item:last-child {
-  padding-inline-end: 0;
-}
-
-.balance-summary-label {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: var(--leading-meta);
-}
-
-.balance-summary-value {
-  min-width: 0;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-medium);
-  line-height: 1.3125rem;
-  white-space: nowrap;
-}
-
-.balance-summary-value > span {
-  display: inline-block;
-  line-height: inherit;
-}
-
-.balance-summary-net {
-  font-weight: var(--weight-medium);
-  line-height: 1.3125rem;
+  margin-top: var(--space-section);
 }
 
 .balance-group {
@@ -68,7 +12,6 @@
   display: grid;
   gap: 0;
   min-width: 0;
-  border-top: var(--stroke-hairline) solid var(--rule);
 }
 
 .balance-row,
@@ -223,83 +166,8 @@
 }
 
 @media (max-width: 30rem) {
-  .balance-summary > [data-slot='section-heading'] {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    border: 0;
-    white-space: nowrap;
-  }
-
-  .balance-summary-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-group);
-    border-block: 0;
-    padding-inline: 0;
-  }
-
-  .balance-summary-item {
-    position: static;
-    display: grid;
-    flex: 1 1 0;
-    min-width: max-content;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    align-items: start;
-    justify-items: start;
-    gap: var(--space-within);
-    padding-block: var(--space-item);
-    padding-inline: 0;
-    text-align: left;
-  }
-
-  .balance-summary-item + .balance-summary-item {
-    border-inline-start: 0;
-    border-block-start: 0;
-  }
-
-  .balance-summary-item + .balance-summary-item::before {
-    display: none;
-  }
-
-  .balance-summary-label {
-    justify-self: start;
-    text-align: left;
-  }
-
-  .balance-summary-value {
-    align-self: end;
-    justify-self: start;
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    color: var(--ink);
-    font-size: var(--text-body);
-    font-weight: var(--weight-regular);
-    letter-spacing: var(--tracking-normal);
-    line-height: 1.125rem;
-    text-align: left;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .balance-summary-item:has(.balance-summary-net) .balance-summary-label {
-    color: var(--ink);
-  }
-
-  .balance-summary-net {
-    font-size: var(--text-heading);
-    font-weight: var(--weight-medium);
-    line-height: 1.125rem;
-  }
-
   .balances-list-section {
-    margin-top: calc(var(--space-section) + var(--space-item) - 0.1875rem);
+    margin-top: calc(var(--space-section) - var(--space-item));
   }
 
   .balance-row {
