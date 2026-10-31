@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Baseline comparisons
 
-Create comparison baselines with `scripts/baseline-checkout.sh <ref>`. Do not create baseline checkouts under `/tmp`; the script stores them in the persistent user cache.
+Create comparison baselines with `scripts/baseline-checkout.sh <ref>`. Do not create baseline checkouts under `/tmp`; the script stores them in the persistent user cache. If dependencies are needed in an extracted baseline, run `pnpm install --frozen-lockfile` there so pnpm uses hard links from its content-addressable store; never copy an existing `node_modules`. Remove an unused baseline with `rm -rf ~/.cache/kobako/<sha>`.
