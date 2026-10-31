@@ -82,6 +82,7 @@ function syncState(state: SelectState): void {
 function close(state: SelectState, returnFocus: boolean): void {
   state.open = false;
   state.menu.hidden = true;
+  delete state.menu.dataset.slot;
   state.trigger.setAttribute('aria-expanded', 'false');
   if (returnFocus) state.trigger.focus();
 }
@@ -121,6 +122,7 @@ function open(state: SelectState): void {
   syncState(state);
   state.open = true;
   state.menu.hidden = false;
+  state.menu.dataset.slot = 'select-field-menu';
   state.trigger.setAttribute('aria-expanded', 'true');
   placeMenu(state);
   const target =
@@ -160,7 +162,6 @@ function enhance(select: HTMLSelectElement): SelectState {
   menu.className = styles.menu!;
   menu.hidden = true;
   menu.setAttribute('aria-labelledby', triggerId);
-  menu.dataset.slot = 'select-field-menu';
   document.body.append(menu);
   if (parent.classList.contains('selectChevronWrap')) {
     trigger.classList.add('native-select-trigger');
