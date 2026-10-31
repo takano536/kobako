@@ -1,7 +1,3 @@
-:global(.native-select-trigger)::after {
-  display: none;
-}
-
 .trigger {
   position: relative;
   display: flex;

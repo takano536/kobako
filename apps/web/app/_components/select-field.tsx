@@ -34,12 +34,7 @@ function syncState(state: SelectState): void {
   const selected = select.selectedOptions[0];
   const label = selected ? optionLabel(selected) : '';
   trigger.querySelector('[data-select-value]')!.textContent = label;
-  trigger.className = [
-    styles.trigger!,
-    state.parent.classList.contains('selectChevronWrap') && 'native-select-trigger',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  trigger.className = styles.trigger!;
   trigger.disabled = select.disabled;
   trigger.setAttribute('aria-expanded', String(state.open));
   if (select.hasAttribute('aria-invalid')) {
@@ -171,9 +166,6 @@ function enhance(select: HTMLSelectElement): SelectState {
   menu.hidden = true;
   menu.setAttribute('aria-labelledby', triggerId);
   document.body.append(menu);
-  if (parent.classList.contains('selectChevronWrap')) {
-    trigger.classList.add('native-select-trigger');
-  }
   const state: SelectState = {
     select,
     parent,
