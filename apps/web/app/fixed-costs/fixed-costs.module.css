@@ -5,8 +5,7 @@
   align-items: center;
   gap: var(--space-item);
   margin-top: var(--space-group);
-  padding-bottom: var(--space-related);
-  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-item);
 }
 
 .chipWrap {
@@ -220,9 +219,8 @@
 .groups {
   display: grid;
   gap: calc(var(--space-section) - 0.1875rem);
-  margin-top: calc(var(--space-section) - 0.1875rem);
+  margin-top: var(--space-group);
 }
-
 .groupHeading,
 .row {
   display: grid;
@@ -427,6 +425,6 @@
 
   .groups,
   .flatList {
-    margin-top: calc(var(--space-section) + var(--space-item) - 0.1875rem);
+    margin-top: var(--space-group);
   }
 }

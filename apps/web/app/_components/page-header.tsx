@@ -13,7 +13,6 @@ export function PageHeader({
   titleAriaLabel,
   count,
   backLink,
-  actions,
   className,
 }: {
   title: ReactNode;
@@ -59,11 +58,6 @@ export function PageHeader({
           </span>
         ) : null}
       </h1>
-      {actions ? (
-        <div data-slot="page-header-actions" className={styles['page-header-actions']}>
-          {actions}
-        </div>
-      ) : null}
     </header>
   );
 }

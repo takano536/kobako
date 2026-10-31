@@ -25,7 +25,7 @@
   box-sizing: border-box;
   width: min(100%, var(--layout-wide));
   margin: 0 auto;
-  padding: 0 max(1rem, 2.5vw) var(--space-page);
+  padding: 0 max(1rem, 2.5vw) 6rem;
 }
 
 .content-stack {
@@ -50,7 +50,7 @@
 @media (max-width: 30rem) {
   .page-content {
     padding-bottom: calc(
-      var(--space-page) + var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px)
+      8.25rem + var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px)
     );
   }
 
@@ -60,7 +60,7 @@
 }
 @media (max-width: 30rem) and (max-height: 32rem) {
   .page-content {
-    padding-bottom: var(--space-page);
+    padding-bottom: 8.25rem;
   }
 
   .header-inner {

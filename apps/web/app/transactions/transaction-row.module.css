@@ -100,7 +100,7 @@
 }
 
 .transaction-groups {
-  margin-top: var(--space-section);
+  margin-top: 20px;
   transition: opacity var(--motion-fast) var(--ease-standard);
 }
 

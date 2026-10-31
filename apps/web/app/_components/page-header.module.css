@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-group);
-  margin: var(--space-page) 0 var(--space-group);
+  margin: var(--space-group) 0 var(--space-group);
 }
 
 .page-header h1 {
@@ -79,16 +79,6 @@
 
 .heading-title {
   min-width: 0;
-}
-
-.page-header-actions {
-  display: flex;
-  min-width: min-content;
-  flex: 0 1 11.25rem;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-item);
 }
 
 @media (prefers-reduced-motion: reduce) {

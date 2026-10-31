@@ -5,8 +5,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-item);
-  padding-bottom: var(--space-related);
-  border-bottom: var(--stroke-hairline) solid var(--rule);
+  padding-bottom: var(--space-item);
 }
 
 /* The chip is the bordered box; its trigger button covers the whole box (see .trigger::after). */
