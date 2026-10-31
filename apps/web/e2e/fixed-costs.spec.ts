@@ -272,7 +272,8 @@ test.describe('固定費', () => {
     await expect(labelled).toHaveCount(1);
     await expect(labelled).toBeVisible();
     await expect(page.getByRole('button', { name: 'カテゴリ' })).toHaveCount(1);
-    await expect(native).toHaveValue('');
+    await native.selectOption({ label: '娯楽' });
+    await expect(trigger).toContainText('娯楽');
     await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
     await expect(trigger).toHaveAttribute('aria-controls', 'fixed-cost-category-menu');
     await trigger.click();
