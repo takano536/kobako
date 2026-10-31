@@ -374,9 +374,9 @@ test.describe('固定費', () => {
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await page.getByLabel('名称').fill(e2eFixedCostName);
     await page.getByLabel('金額').fill('1234');
-    await page.getByLabel('カテゴリ').selectOption({ label: '娯楽' });
-    await page.getByLabel('資産').selectOption({ label: '生活費口座' });
-    await page.getByLabel('日付').selectOption('20');
+    await selectFieldOption(page.locator('#fixed-cost-category'), { label: '娯楽' });
+    await selectFieldOption(page.locator('#fixed-cost-account'), { label: '生活費口座' });
+    await selectFieldOption(page.locator('#fixed-cost-day'), '20');
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(e2eFixedCostLink()).toBeVisible();
