@@ -1,4 +1,11 @@
 # Changelog
+## [0.19.0](https://github.com/takano536/kobako/compare/v0.18.0...v0.19.0) (2026-10-31)
+
+
+### Features
+
+* 固定費の登録と自動記録を追加 ([#38](https://github.com/takano536/kobako/issues/38)) ([be8002a](https://github.com/takano536/kobako/commit/be8002a13a4baf5d7dcb8247434033ec524c3d0a))
+
 ## [0.18.0](https://github.com/takano536/kobako/compare/v0.17.0...v0.18.0) (2026-10-27)
 
 
