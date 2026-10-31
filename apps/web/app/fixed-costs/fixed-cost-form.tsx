@@ -105,7 +105,7 @@ export function FixedCostForm({
             <div className={formsStyles['field-value']}>
               <div className={fieldStyles.selectChevronWrap}>
                 <Select
-                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  className={fieldStyles.selectChevron}
                   id="fixed-cost-category"
                   name="categoryId"
                   value={values.categoryId}
@@ -127,7 +127,7 @@ export function FixedCostForm({
             <div className={formsStyles['field-value']}>
               <div className={fieldStyles.selectChevronWrap}>
                 <Select
-                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  className={fieldStyles.selectChevron}
                   id="fixed-cost-account"
                   name="accountId"
                   value={values.accountId}
@@ -149,7 +149,7 @@ export function FixedCostForm({
             <div className={formsStyles['field-value']}>
               <div className={fieldStyles.selectChevronWrap}>
                 <Select
-                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  className={fieldStyles.selectChevron}
                   id="fixed-cost-frequency"
                   value={frequency}
                   onChange={(event) => updateFrequency(event.currentTarget.value)}
@@ -207,7 +207,7 @@ export function FixedCostForm({
               <div className={formsStyles['field-value']}>
                 <div className={fieldStyles.selectChevronWrap}>
                   <Select
-                    className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                    className={fieldStyles.selectChevron}
                     id="fixed-cost-month"
                     aria-label="月"
                     value={month}
@@ -230,7 +230,7 @@ export function FixedCostForm({
             <div className={formsStyles['field-value']}>
               <div className={fieldStyles.selectChevronWrap}>
                 <Select
-                  className={`${formsStyles['field-select']} ${fieldStyles.selectChevron}`}
+                  className={fieldStyles.selectChevron}
                   id="fixed-cost-day"
                   name="day"
                   value={values.day}
