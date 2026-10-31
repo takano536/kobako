@@ -39,6 +39,10 @@
   transform: translateY(-65%) rotate(45deg);
 }
 
+.selectChevronWrap:has(> button[aria-haspopup='menu'])::after {
+  display: none;
+}
+
 .selectChevron,
 .selectChevronWrap > .selectChevron {
   appearance: none;
