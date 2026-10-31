@@ -139,6 +139,8 @@ function enhance(select: HTMLSelectElement): SelectState {
   const parent = select.parentElement as HTMLElement;
   const originalId = select.id;
   const originalStyle = select.getAttribute('style') ?? '';
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
   const triggerId = originalId
     ? `${originalId}-trigger`
     : `select-${Math.random().toString(36).slice(2)}`;
