@@ -139,17 +139,26 @@ function enhance(select: HTMLSelectElement): SelectState {
   const parent = select.parentElement as HTMLElement;
   const originalId = select.id;
   const originalStyle = select.getAttribute('style') ?? '';
-  const trigger = document.createElement('button');
-  trigger.type = 'button';
-  const triggerId = originalId || `select-${Math.random().toString(36).slice(2)}`;
+  const triggerId = originalId
+    ? `${originalId}-trigger`
+    : `select-${Math.random().toString(36).slice(2)}`;
   const menuId = `${triggerId}-menu`;
   trigger.id = triggerId;
   trigger.className = [styles.trigger!, select.className].filter(Boolean).join(' ');
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-controls', menuId);
-  if (select.hasAttribute('aria-label'))
+  if (select.hasAttribute('aria-label')) {
     trigger.setAttribute('aria-label', select.getAttribute('aria-label')!);
+  } else if (originalId) {
+    const label = Array.from(document.querySelectorAll('label')).find(
+      (candidate) => candidate.htmlFor === originalId,
+    );
+    if (label) {
+      if (!label.id) label.id = `${triggerId}-label`;
+      trigger.setAttribute('aria-label', label.textContent?.trim() ?? '');
+    }
+  }
   const value = document.createElement('span');
   value.className = styles.value!;
   value.dataset.selectValue = '';
@@ -177,7 +186,6 @@ function enhance(select: HTMLSelectElement): SelectState {
     cleanups: [],
   };
   parent.insertBefore(trigger, select);
-  select.removeAttribute('id');
   select.setAttribute(ENHANCED_ATTR, '');
   select.setAttribute('aria-hidden', 'true');
   select.tabIndex = -1;
@@ -352,7 +360,6 @@ export function SelectFieldEnhancer(): null {
         if (record.type === 'attributes' && record.target instanceof HTMLSelectElement) {
           const state = states.get(record.target);
           if (state) {
-            if (record.attributeName === 'id') record.target.removeAttribute('id');
             syncState(state);
           }
         }

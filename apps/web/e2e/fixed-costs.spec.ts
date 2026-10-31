@@ -240,21 +240,21 @@ test.describe('固定費', () => {
 
   test('固定費の素のselectを共通メニューへ自動変換する', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    const native = page.locator('select[name="categoryId"]');
+    const native = page.locator('select#fixed-cost-category');
     await expect(native).toHaveAttribute('data-kobako-select-enhanced', '');
     await expect(native).toHaveAttribute('aria-hidden', 'true');
-    const trigger = page.locator('button#fixed-cost-category');
+    const trigger = page.locator('button#fixed-cost-category-trigger');
     await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
     await expect(trigger).toHaveAttribute('aria-controls', /-menu$/);
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.locator('select:has(option[value="custom"])').selectOption('custom');
-    await expect(page.locator('button#fixed-cost-frequency')).toHaveText('間隔を指定');
+    await page.getByLabel('頻度').selectOption('custom');
+    await expect(page.locator('button#fixed-cost-frequency-trigger')).toHaveText('間隔を指定');
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    await page.locator('select:has(option[value="custom"])').selectOption('custom');
+    await page.getByLabel('頻度').selectOption('custom');
 
     const intervalCount = page.getByLabel('間隔', { exact: true });
     const intervalLine = intervalCount.locator('xpath=..');
@@ -342,9 +342,9 @@ test.describe('固定費', () => {
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await page.getByLabel('名称').fill(e2eFixedCostName);
     await page.getByLabel('金額').fill('1234');
-    await page.locator('select[name="categoryId"]').selectOption({ label: '娯楽' });
-    await page.locator('select[name="accountId"]').selectOption({ label: '生活費口座' });
-    await page.locator('select[name="day"]').selectOption('20');
+    await page.getByLabel('カテゴリ').selectOption({ label: '娯楽' });
+    await page.getByLabel('資産').selectOption({ label: '生活費口座' });
+    await page.getByLabel('日付').selectOption('20');
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(e2eFixedCostLink()).toBeVisible();
