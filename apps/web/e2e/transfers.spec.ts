@@ -963,8 +963,8 @@ test('supports transfer create, edit, delete confirmation/cancel, and server val
     await expect(runTransferRows(page)).toHaveCount(1);
 
     await runTransferRows(page).click();
-    await page.getByLabel('振替元').selectOption({ label: toName });
-    await page.getByLabel('振替先').selectOption({ label: alternateName });
+    await page.locator('#transaction-from-account').selectOption({ label: toName });
+    await page.locator('#transaction-to-account').selectOption({ label: alternateName });
     await page.getByLabel('金額').fill('2,000');
     await page.getByRole('button', { name: '変更を保存' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -1028,8 +1028,8 @@ test('supports all three entry types without JavaScript, including conversion an
     await expect(page.getByRole('heading', { name: '取引を編集' })).toBeVisible();
 
     await page.getByText('振替', { exact: true }).click();
-    await page.getByLabel('振替元').selectOption({ label: fromName });
-    await page.getByLabel('振替先').selectOption({ label: toName });
+    await page.locator('#transaction-from-account').selectOption({ label: fromName });
+    await page.locator('#transaction-to-account').selectOption({ label: toName });
     await page.getByLabel('メモ（任意）').fill(`${marker}:transfer`);
     await page.getByRole('button', { name: '変更を保存' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));

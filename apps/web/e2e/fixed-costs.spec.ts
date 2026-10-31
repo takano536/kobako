@@ -249,12 +249,12 @@ test.describe('固定費', () => {
     await trigger.click();
     await expect(page.getByRole('menuitemradio', { name: '娯楽' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.getByLabel('頻度').selectOption('custom');
+    await page.locator('#fixed-cost-frequency').selectOption('custom');
     await expect(page.getByRole('button', { name: '頻度' })).toHaveText('間隔を指定');
   });
   test('間隔指定の行と固定費用集計のスタイルを揃える', async ({ page }) => {
     await page.goto('/fixed-costs/new');
-    await page.getByLabel('頻度').selectOption('custom');
+    await page.locator('#fixed-cost-frequency').selectOption('custom');
 
     const intervalCount = page.getByLabel('間隔', { exact: true });
     const intervalLine = intervalCount.locator('xpath=..');
@@ -342,9 +342,9 @@ test.describe('固定費', () => {
     await page.getByRole('link', { name: '固定費を登録' }).click();
     await page.getByLabel('名称').fill(e2eFixedCostName);
     await page.getByLabel('金額').fill('1234');
-    await page.getByLabel('カテゴリ').selectOption({ label: '娯楽' });
-    await page.getByLabel('資産').selectOption({ label: '生活費口座' });
-    await page.getByLabel('日付').selectOption('20');
+    await page.locator('#fixed-cost-category').selectOption({ label: '娯楽' });
+    await page.locator('#fixed-cost-account').selectOption({ label: '生活費口座' });
+    await page.locator('#fixed-cost-day').selectOption('20');
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(/\/fixed-costs$/);
     await expect(e2eFixedCostLink()).toBeVisible();
