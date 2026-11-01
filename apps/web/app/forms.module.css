@@ -152,6 +152,7 @@
   font-size: var(--text-body);
 }
 .delete-action > .delete-confirm > summary {
+  min-height: 2.75rem;
   border: var(--stroke-hairline) solid var(--button-danger);
   border-radius: var(--radius-sm);
   padding: var(--space-item) var(--space-group);
