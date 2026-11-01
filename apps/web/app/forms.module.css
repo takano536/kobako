@@ -141,7 +141,7 @@
 
 .delete-cancel {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 2.75rem;
   align-items: center;
   color: var(--muted);
   font-size: var(--text-small);

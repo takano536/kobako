@@ -117,7 +117,7 @@
 @media (max-width: 30rem) {
   .button,
   .linkButton {
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
   }
