@@ -1,4 +1,12 @@
 # Changelog
+## [0.21.2](https://github.com/takano536/kobako/compare/v0.21.1...v0.21.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** remove transaction row chevrons ([#54](https://github.com/takano536/kobako/issues/54)) ([92d306c](https://github.com/takano536/kobako/commit/92d306cf64d3ba8135cebc967bb5e21de613ef0c))
+* **web:** remove undefined secondary class from page summary ([#55](https://github.com/takano536/kobako/issues/55)) ([e365672](https://github.com/takano536/kobako/commit/e3656729083145d612a86c29e7de4453d1486bc9))
+
 ## [0.21.1](https://github.com/takano536/kobako/compare/v0.21.0...v0.21.1) (2026-11-01)
 
 
