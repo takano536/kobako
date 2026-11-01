@@ -4,6 +4,7 @@ import { PrefetchLink } from '../_components/prefetch-link';
 import { useEffect, useMemo, useState } from 'react';
 import type { ListedFixedCost } from '@kobako/db';
 import { formatYen } from '../../src/lib/format';
+import { groupFixedCostsByFrequency } from '../../src/lib/fixed-cost-grouping';
 import styles from './fixed-costs.module.css';
 
 type FilterKey = 'category' | 'frequency' | 'account' | 'group';
@@ -65,18 +66,20 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
     [rows, filters],
   );
   const groups = new Map<string, ListedFixedCost[]>();
-  for (const row of filtered) {
-    const key =
-      filters.group === 'none'
-        ? '固定費'
-        : filters.group === 'categoryName'
-          ? row.categoryName
+  if (filters.group === 'frequency') {
+    for (const [label, items] of groupFixedCostsByFrequency(filtered)) groups.set(label, items);
+  } else {
+    for (const row of filtered) {
+      const key =
+        filters.group === 'none'
+          ? '固定費'
           : filters.group === 'accountName'
             ? row.accountName
             : filters.group === 'day'
               ? `${row.day}日`
               : frequencyLabel(row);
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+      groups.set(key, [...(groups.get(key) ?? []), row]);
+    }
   }
   const active = Object.entries(filters).filter(([key, value]) => key !== 'group' && value);
   if (rows.length === 0) return <Empty message="まだ固定費がありません" />;
