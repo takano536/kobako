@@ -626,7 +626,7 @@
 @media (max-width: 30rem) {
   .delete-action > .delete-confirm > summary {
     display: inline-flex;
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     align-items: center;
     padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
