@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>カードスケルトンの比較 | kobako</title>
+<title>カードフォームのスケルトン比較</title>
 <style>
   :root,
   [data-theme='light'] {
@@ -13,15 +13,15 @@
     --muted: #68736c;
     --accent: #426d59;
     --button-primary: #2f6b52;
-    --on-accent: #fff;
+    --button-danger: #a84f45;
     --money-negative: #a33a36;
     --rule: #dfe3da;
     --surface: #f8faf5;
     --soft-control: #f0f2eb;
-    --accent-strong: #315944;
+    --on-accent: #fff;
     --shadow-raised: 0 24px 90px #18291f24;
+    --danger-soft: #f9efed;
   }
-
   [data-theme='dark'] {
     color-scheme: dark;
     --paper: #1a1f1c;
@@ -29,330 +29,264 @@
     --muted: #a2ada5;
     --accent: #8cc4a6;
     --button-primary: #8cc4a6;
-    --on-accent: #142019;
+    --button-danger: #ec948a;
     --money-negative: #f2978e;
     --rule: #343d37;
     --surface: #1f2521;
     --soft-control: #262d28;
-    --accent-strong: #a8d6bd;
+    --on-accent: #142019;
     --shadow-raised: 0 24px 90px rgb(0 0 0 / 55%);
+    --danger-soft: #362422;
   }
-
-  :root {
-    --font-ui: 'Noto Sans JP Variable', 'Noto Sans JP', 'Hiragino Sans',
-      'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', system-ui, sans-serif;
-  }
-
   * { box-sizing: border-box; }
-
-  html, body { margin: 0; padding: 0; }
-
+  html, body { margin: 0; min-width: 0; min-height: 100%; }
   body {
     background: var(--paper);
     color: var(--ink);
-    font-family: var(--font-ui);
+    font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-
-  button, input, textarea { font: inherit; }
-
-  .sheet {
-    width: min(980px, 100%);
-    padding: 28px 24px 40px;
+  [hidden] { display: none !important; }
+  h1, h2, h3, p, dl, dd { margin: 0; }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
   }
 
+  .page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 36px 24px 20px;
+  }
   .eyebrow {
-    margin: 0;
-    color: var(--muted);
+    color: var(--accent);
     font-size: 11px;
-    letter-spacing: 0.08em;
+    font-weight: 600;
+    letter-spacing: .08em;
     text-transform: uppercase;
   }
-
-  h1 {
-    margin: 4px 0 6px;
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.03em;
-  }
-
-  .lead {
-    margin: 0 0 20px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .group {
-    display: inline-flex;
-    overflow: hidden;
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    background: var(--surface);
-  }
-
-  .tab {
-    border: 0;
-    border-right: 1px solid var(--rule);
-    padding: 8px 12px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  .tab:last-child { border-right: 0; }
-  .tab:hover { color: var(--ink); }
-  .tab[aria-pressed='true'] {
-    background: var(--soft-control);
-    color: var(--ink);
+  .page-head h1 {
+    margin-top: 4px;
+    font-size: 28px;
     font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -.03em;
   }
-
-  .play {
-    border: 1px solid var(--button-primary);
-    border-radius: 6px;
-    padding: 8px 12px;
-    background: var(--button-primary);
-    color: var(--on-accent);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .play:hover {
-    border-color: var(--accent-strong);
-    background: var(--accent-strong);
-  }
-
-  .theme {
+  .lede { margin-top: 8px; color: var(--muted); font-size: 14px; }
+  .ghost-button {
+    flex: none;
+    min-height: 36px;
+    padding: 6px 14px;
     border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 8px 12px;
-    background: var(--surface);
+    border-radius: 999px;
+    background: var(--paper);
     color: var(--muted);
     font-size: 12px;
-    cursor: pointer;
   }
+  .ghost-button:hover { color: var(--ink); }
 
-  .theme:hover { color: var(--ink); }
-
-  .comparison {
+  .layout {
     display: grid;
-    grid-template-columns: 220px minmax(0, 490px);
+    grid-template-columns: 220px minmax(0, 710px);
+    gap: 28px;
     align-items: start;
-    gap: 32px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px 28px;
   }
-
-  .notes { padding-top: 4px; }
-
-  .state-label {
-    margin: 0 0 4px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .state-desc {
-    margin: 0 0 18px;
+  .panel { display: grid; gap: 22px; min-width: 0; }
+  .panel-block { min-width: 0; }
+  .panel-label {
+    margin-bottom: 6px;
     color: var(--muted);
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
   }
-
+  .panel h2 {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -.02em;
+  }
+  .panel .muted { margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .panel .note { color: var(--muted); font-size: 11px; line-height: 1.65; }
   .metrics {
     display: grid;
-    gap: 10px;
-    margin: 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
   }
-
-  .metrics div {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--rule);
-  }
-
   .metrics dt {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 10px;
+    letter-spacing: .02em;
   }
-
   .metrics dd {
-    margin: 0;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
+    margin-top: 1px;
+    font-size: 16px;
     font-weight: 500;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
   }
+  .metrics dd[data-tone='diff'] { color: var(--money-negative); }
+  .metrics dd[data-tone='same'] { color: var(--accent); }
 
-  .metrics dd.neg { color: var(--money-negative); }
-  .metrics dd.ok { color: var(--accent); }
-
-  .hint {
-    min-height: 1.6em;
-    margin: 14px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-  }
-
-  .stage {
-    display: flex;
-    min-width: 0;
-    min-height: 560px;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 24px;
+  .stage-wrap { min-width: 0; }
+  .toolbar {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px;
     border: 1px solid var(--rule);
     border-radius: 12px;
     background: var(--surface);
   }
+  .route-groups {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .group-label {
+    margin: 0 2px 0 6px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .group-label:first-child { margin-left: 0; }
+  .tab {
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .tab:hover { background: var(--soft-control); color: var(--ink); }
+  .tab.active {
+    border-color: var(--accent);
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .tool-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    background: var(--paper);
+  }
+  .seg .tab { min-height: 28px; padding: 4px 9px; border-radius: 5px; }
+  .seg .tab.active { border-color: transparent; background: var(--soft-control); }
+  .play {
+    min-height: 32px;
+    margin-left: auto;
+    padding: 5px 13px;
+    border: 1px solid var(--button-primary);
+    border-radius: 6px;
+    background: var(--button-primary);
+    color: var(--on-accent);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .play:hover { filter: brightness(1.05); }
 
-  /* ---- the shipped overlay card ---- */
+  .stage {
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+    min-height: 620px;
+    padding: 26px 24px;
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, var(--surface) 0%, var(--paper) 72%);
+  }
+  .stage-caption {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+  }
+  .measure {
+    position: absolute;
+    top: 0;
+    left: -9999px;
+    width: 440px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .overlay-card {
     width: 440px;
     max-width: 100%;
+    align-self: flex-start;
     overflow: hidden;
     border: 1px solid var(--rule);
     border-radius: 16px;
     background: var(--paper);
     box-shadow: var(--shadow-raised);
   }
-
   .overlay-header {
     display: flex;
+    align-items: center;
+    gap: 8px;
     min-height: 60px;
-    align-items: center;
-    padding: 8px 16px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--rule);
   }
-
-  .back-target {
-    display: flex;
-    min-width: 0;
-    flex: 0 1 auto;
-    align-items: center;
-    margin-inline-start: -8px;
-  }
-
-  .back {
+  .overlay-header .back {
     display: inline-flex;
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
+    width: 22px;
+    height: 22px;
     align-items: center;
     justify-content: center;
-    margin-inline: 0 -7px;
-    border: 0;
-    border-radius: 999px;
-    padding: 0;
-    background: transparent;
-    cursor: default;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
   }
-
-  .back svg {
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: var(--muted);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.5;
-  }
-
-  .title {
+  .overlay-header h2 {
     margin: 0;
     font-size: 15px;
     font-weight: 500;
     line-height: 1.3;
-    letter-spacing: -0.02em;
+    letter-spacing: -.02em;
   }
+  .overlay-body { padding: 12px 24px 24px; }
 
-  .overlay-body {
-    padding: 12px 24px 24px;
-  }
-
-  /* ---- current skeleton (CardSkeletonFields) ---- */
-  .sk-wrap {
-    display: grid;
-    gap: 8px;
-    padding-block: 4px;
-  }
-
-  .sk-row {
-    display: grid;
-    gap: 4px;
-  }
-
-  .sk-label {
-    width: 72px;
-    height: 12px;
-  }
-
-  .sk-control { height: 44px; }
-
-  .sk-actions {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: 16px;
-  }
-
-  .sk-button {
-    width: 120px;
-    height: 44px;
-  }
-
-  .bone {
+  .ledger-form { display: grid; gap: 0; font-size: 14px; }
+  .type-field { margin: 0 0 16px; padding: 0; border: 0; }
+  .type-field .legend {
     display: block;
-    border-radius: 6px;
-    background: var(--soft-control);
-    animation: skeleton-pulse 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite alternate;
-  }
-
-  @keyframes skeleton-pulse {
-    from { opacity: 1; }
-    to { opacity: 0.55; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .bone { animation: none; opacity: 0.7; }
-  }
-
-  /* ---- real form geometry (forms.module.css) ---- */
-  .ledger-form {
-    display: grid;
-    gap: 0;
-    font-size: 14px;
-  }
-
-  .type-field {
-    min-width: 0;
-    margin: 0 0 16px;
-    padding: 0;
-    border: 0;
-  }
-
-  .legend,
-  .field > label {
-    display: block;
-    margin-bottom: 4px;
+    margin: 0 0 4px;
     color: var(--muted);
     font-size: 12px;
+    line-height: 1.6;
   }
-
-  .type-options {
-    display: inline-flex;
-    gap: 16px;
-  }
-
+  .type-options { display: flex; align-items: center; gap: 16px; min-height: 44px; }
   .type-choice {
     display: inline-flex;
     min-height: 44px;
@@ -361,832 +295,842 @@
     color: var(--muted);
     font-size: 14px;
   }
-
   .type-choice.selected {
     border-bottom: 2px solid var(--accent);
     color: var(--ink);
     font-weight: 500;
   }
 
-  .entry-detail-grid {
-    display: grid;
-    gap: 0;
-  }
-
-  .entry-detail-grid .field {
-    display: grid;
-    grid-template-columns: 90px minmax(0, 1fr);
-    grid-template-rows: minmax(52px, auto);
-    align-items: center;
-    column-gap: 16px;
-    min-height: 52px;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .entry-detail-grid .field > label {
-    grid-column: 1;
-    grid-row: 1;
-    margin: 0;
-  }
-
-  .field-value {
-    display: grid;
-    min-width: 0;
-    gap: 4px;
-  }
-
+  .entry-detail-grid { display: grid; gap: 0; }
+  .entry-detail-grid .field,
   .amount-field {
     display: grid;
     grid-template-columns: 90px minmax(0, 1fr);
-    grid-template-rows: 52px;
-    align-items: center;
+    grid-template-rows: minmax(52px, auto);
     column-gap: 16px;
+    align-items: center;
     min-height: 52px;
     border-bottom: 1px solid var(--rule);
   }
-
+  .entry-detail-grid .field > label,
   .amount-field > label {
     grid-column: 1;
     grid-row: 1;
     margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
   }
-
+  .field-value {
+    display: grid;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: 4px;
+  }
+  .field-value .value {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    min-width: 0;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
   .amount-line {
     display: flex;
     grid-column: 2;
     grid-row: 1;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
     min-height: 52px;
-    align-items: center;
-    gap: 8px;
   }
-
-  .amount-line > span {
+  .amount-line .yen { color: var(--muted); font-size: 12px; line-height: 1; }
+  .amount-line .value { flex: 1; min-height: 44px; }
+  .section { margin-top: 0; }
+  .section-heading {
+    margin: 0 0 16px;
     color: var(--muted);
     font-size: 12px;
-    line-height: 1;
+    font-weight: 400;
+    line-height: 1.45;
   }
 
-  /* ---- proposed skeleton ---- */
-  .sk-legend-line {
-    margin-bottom: 4px;
-    font-size: 12px;
-    line-height: 1.6;
-  }
-
-  .sk-legend {
-    display: inline-block;
-    width: 64px;
-    height: 12px;
-    vertical-align: middle;
-  }
-
-  .sk-choice {
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
-  }
-
-  .sk-choice-bone {
-    width: 44px;
-    height: 16px;
-  }
-
-  .sk-field-label {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    width: 64px;
-    height: 12px;
-  }
-
-  .sk-yen {
-    width: 10px;
-    height: 12px;
-  }
-
-  .sk-value {
-    width: 55%;
-    height: 14px;
-    align-self: center;
-  }
-
-  .sk-value-amount { width: 45%; }
-
-  .sk-action { height: 44px; }
-  .sk-action-cancel { width: var(--cancel-w, 104px); }
-  .sk-action-save { width: var(--save-w, 90px); }
-
-  /* ---- loaded form ---- */
-  .ledger-form input,
-  .ledger-form textarea {
-    width: 100%;
-    min-height: 44px;
-    padding: 4px 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--ink);
-  }
-
-  .ledger-form input:focus,
-  .ledger-form textarea:focus { outline: none; }
-
-  .amount-input {
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.15;
-  }
-
-  .memo-input {
-    height: 51px;
-    min-height: 44px;
-    padding: 4px 0;
-    line-height: 1.6;
-    resize: none;
-  }
-
-  .value-text {
+  .form-actions {
     display: flex;
-    min-height: 44px;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
-    gap: 8px;
-  }
-
-  .icon {
-    width: 12px;
-    height: 12px;
-    flex: 0 0 12px;
-    fill: none;
-    stroke: var(--muted);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.5;
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    gap: 12px;
     margin-top: 16px;
   }
-
-  .actions[data-with-cancel='true'] { justify-content: space-between; }
-
   .btn {
     display: inline-flex;
-    min-width: 0;
     min-height: 44px;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--button-primary);
-    border-radius: 6px;
     padding: 8px 16px;
-    background: var(--button-primary);
-    color: var(--on-accent);
+    border: 1px solid transparent;
+    border-radius: 6px;
     font-size: 14px;
-    font-weight: 500;
-    line-height: 1.3;
-    cursor: default;
-  }
-
-  .btn.secondary {
-    border-color: var(--rule);
-    background: var(--soft-control);
-    color: var(--ink);
-  }
-
-  /* ---- measurement tables ---- */
-  .tables { margin-top: 36px; }
-
-  .tables h2 {
-    margin: 0 0 8px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .tables table {
-    width: 100%;
-    margin-bottom: 28px;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-
-  .tables th,
-  .tables td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--rule);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .tables thead th {
-    color: var(--muted);
-    font-weight: 500;
-  }
-
-  .tables th:first-child,
-  .tables td:first-child {
-    text-align: left;
-    font-variant-numeric: normal;
-  }
-
-  .tables .neg { color: var(--money-negative); }
-  .tables .ok { color: var(--accent); }
-
-  .spec th:not(:first-child),
-  .spec td:not(:first-child) {
-    text-align: left;
-    font-variant-numeric: normal;
-  }
-
-  .footnote {
-    margin-top: 4px;
-    padding-top: 14px;
-    border-top: 1px solid var(--rule);
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 1.6;
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    border: 0;
+    line-height: 1.15;
     white-space: nowrap;
   }
-
-  #measure {
-    position: absolute;
-    top: 0;
-    left: -10000px;
-    width: 440px;
-    visibility: hidden;
-    pointer-events: none;
+  .btn.secondary { border-color: var(--rule); background: var(--paper); color: var(--ink); }
+  .btn.primary { border-color: var(--button-primary); background: var(--button-primary); color: var(--on-accent); }
+  .btn.danger {
+    min-height: 40px;
+    border-color: var(--button-danger);
+    background: transparent;
+    color: var(--button-danger);
   }
 
-  @media (max-width: 760px) {
-    .sheet { padding: 20px 16px 32px; }
+  .bone {
+    display: block;
+    border-radius: 6px;
+    background: var(--soft-control);
+    animation: pulse 1.4s cubic-bezier(.2,.7,.2,1) infinite alternate;
+  }
+  @keyframes pulse { from { opacity: 1; } to { opacity: .55; } }
+  @media (prefers-reduced-motion: reduce) {
+    .bone { animation: none; opacity: .7; }
+  }
 
-    .comparison {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
+  .sk-form { display: grid; gap: 0; }
+  .sk-field {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: center;
+    min-height: 53px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sk-label { width: 48px; height: 12px; }
+  .sk-value { width: 140px; height: 14px; }
+  .sk-amount {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: center;
+    min-height: 52px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sk-type { margin: 0 0 16px; }
+  .sk-legend {
+    display: flex;
+    height: 19.2px;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .sk-legend .bone { width: 32px; height: 12px; }
+  .sk-type .type-options { min-height: 44px; }
+  .sk-choice { width: 40px; height: 14px; }
+  .sk-section {
+    display: flex;
+    height: 17.4px;
+    align-items: center;
+    margin-top: 0;
+    margin-bottom: 16px;
+  }
+  .sk-section .bone { width: 84px; height: 12px; }
+  .sk-actions { align-items: flex-end; }
+  .sk-action-left {
+    width: var(--left-w, 104px);
+    height: var(--left-h, 44px);
+    align-self: flex-end;
+  }
+  .sk-action-save { width: var(--save-w, 90px); height: 44px; }
 
-    .notes {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px 16px;
-    }
+  .legacy { display: grid; gap: 8px; padding-block: 12px 4px; }
+  .legacy-row {
+    display: grid;
+    gap: 4px;
+    height: 60px;
+    align-content: center;
+  }
+  .legacy-label { width: 72px; height: 12px; }
+  .legacy-control { height: 44px; }
+  .legacy-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+  .legacy-button { width: 120px; height: 44px; }
 
-    .state-desc { grid-column: 1 / -1; margin-bottom: 0; }
+  .tables {
+    display: grid;
+    gap: 26px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 4px 24px 32px;
+  }
+  .table-block { min-width: 0; }
+  .table-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    margin-bottom: 10px;
+  }
+  .table-head h2 {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -.02em;
+  }
+  .table-head p { color: var(--muted); font-size: 12px; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+  }
+  tr:last-child > * { border-bottom: 0; }
+  thead th {
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    white-space: nowrap;
+  }
+  tbody th { font-weight: 400; }
+  tbody th strong { display: block; font-weight: 500; }
+  tbody th code, .route-path {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+  .matrix td:nth-child(n+5), .matrix th:nth-child(n+5) { text-align: right; white-space: nowrap; }
+  .matrix td:nth-child(n+5) { font-variant-numeric: tabular-nums; }
+  .matrix .same { color: var(--accent); }
+  .matrix .split { color: var(--muted); }
+  .matrix small { color: var(--muted); font-size: 10px; }
+  .decision-table th:first-child { width: 34%; }
+  .decision-table .ok { color: var(--accent); }
+  .decision-table .warn { color: var(--money-negative); }
+  .callout {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .callout strong { color: var(--ink); }
+  .recipe {
+    overflow-x: auto;
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .recipe .comment { color: var(--muted); }
+  .footnote {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .error { color: var(--money-negative); font-size: 13px; }
 
-    .metrics {
-      grid-column: 1 / -1;
-      display: flex;
-      gap: 16px;
-    }
-
-    .metrics div {
-      flex: 1;
-      flex-direction: column;
-      gap: 2px;
-      padding-bottom: 0;
-      border-bottom: 0;
-    }
-
-    .hint { grid-column: 1 / -1; margin: 0; }
-
-    .stage {
-      min-height: 0;
-      padding: 0;
-      border: 0;
-      background: transparent;
-    }
-
-    .tables { overflow-x: auto; }
-    .tables table { min-width: 560px; }
+  @media (max-width: 800px) {
+    .page-head { padding-top: 24px; }
+    .layout { grid-template-columns: 1fr; gap: 18px; }
+    .panel { gap: 14px; }
+    .metrics { grid-template-columns: repeat(4, 1fr); }
+    .stage { min-height: 0; padding: 18px 12px; }
+    .toolbar { padding: 10px; }
+    .play { margin-left: 0; }
+  }
+  @media (max-width: 470px) {
+    .page-head { padding: 20px 16px 14px; }
+    .layout, .tables, .footnote { padding-inline: 16px; }
+    .page-head h1 { font-size: 23px; }
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .overlay-body { padding-inline: 18px; }
+    .overlay-header { padding-inline: 18px; }
+    .entry-detail-grid .field,
+    .amount-field,
+    .sk-field,
+    .sk-amount { grid-template-columns: 78px minmax(0, 1fr); column-gap: 12px; }
+    .sk-label { width: 40px; }
+    .sk-value { width: 110px; }
+    .group-label { width: 100%; margin: 4px 0 0; }
+    .group-label:first-child { margin-top: 0; }
   }
 </style>
 </head>
 <body>
-<main class="sheet">
-  <header>
-    <p class="eyebrow">kobako / UI comparison</p>
-    <h1>カードスケルトンの比較</h1>
-    <p class="lead">実フォームの寸法に合わせた骨組み。440px幅・行高53px・ヘッダー60px。</p>
-  </header>
-
-  <div class="toolbar">
-    <div class="group" role="group" aria-label="カード">
-      <button class="tab" type="button" data-card="transaction" aria-pressed="true">取引</button>
-      <button class="tab" type="button" data-card="fixed" aria-pressed="false">固定費</button>
-      <button class="tab" type="button" data-card="asset" aria-pressed="false">資産</button>
-    </div>
-    <div class="group" role="group" aria-label="表示">
-      <button class="tab" type="button" data-mode="current" aria-pressed="true">現状</button>
-      <button class="tab" type="button" data-mode="proposed" aria-pressed="false">提案</button>
-      <button class="tab" type="button" data-mode="complete" aria-pressed="false">完成</button>
-    </div>
-    <button class="play" type="button" id="play">▶ 読み込みを再生</button>
-    <button class="theme" type="button" id="theme">ダーク</button>
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Card form</p>
+    <h1>スケルトンの比較</h1>
+    <p class="lede">行の部品は共通。カードごとに行の並びと左の操作だけを持つ。</p>
   </div>
+  <button id="theme" class="ghost-button" type="button">ダーク</button>
+</header>
 
-  <section class="comparison">
-    <div class="notes">
-      <p class="state-label" id="stateLabel">現状のスケルトン</p>
-      <p class="state-desc" id="stateDesc">ラベルが上・4行固定・罫線なし</p>
+<main class="layout">
+  <aside class="panel">
+    <section class="panel-block">
+      <p class="panel-label">表示中</p>
+      <h2 id="stateTitle">取引を登録</h2>
+      <p id="stateLabel" class="muted">取引を読み込み中</p>
       <dl class="metrics">
-        <div><dt>カード高</dt><dd id="cardHeight">438px</dd></div>
-        <div><dt>完成との差</dt><dd id="cardDelta" class="neg">−68px</dd></div>
-        <div><dt>行数</dt><dd id="rowCount">4行</dd></div>
+        <div><dt>カード高</dt><dd id="cardHeight">—</dd></div>
+        <div><dt>完成との差</dt><dd id="cardDelta">—</dd></div>
+        <div><dt>行数</dt><dd id="rowCount">—</dd></div>
+        <div><dt>操作</dt><dd id="actionLabel">—</dd></div>
       </dl>
-      <p class="hint" id="playStatus" role="status" aria-live="polite"></p>
+    </section>
+    <section class="panel-block">
+      <p class="panel-label">読み込み</p>
+      <p id="playStatus" class="muted">提案 → 完成</p>
+      <p class="note" style="margin-top:6px">右の「読み込みを再生」で、骨組みから完成形に切り替わります。</p>
+    </section>
+    <section class="panel-block">
+      <p class="panel-label">このモックが見ていないもの</p>
+      <p class="note">Next.js のストリーミング、フォーカス移動、Esc/戻る、実読み込み時間、カードの最大高さとスクロール、オーバーレイの背景と出現アニメーション。</p>
+    </section>
+  </aside>
+
+  <section class="stage-wrap">
+    <div class="toolbar">
+      <div class="route-groups" role="tablist" aria-label="画面">
+        <span class="group-label">取引</span>
+        <button class="tab" type="button" role="tab" data-route="tx-new">新規</button>
+        <button class="tab" type="button" role="tab" data-route="tx-edit">編集</button>
+        <button class="tab" type="button" role="tab" data-route="tx-transfer">振替編集</button>
+        <span class="group-label">固定費</span>
+        <button class="tab" type="button" role="tab" data-route="fixed-new">新規</button>
+        <button class="tab" type="button" role="tab" data-route="fixed-edit">編集</button>
+        <span class="group-label">資産</span>
+        <button class="tab" type="button" role="tab" data-route="asset-new">新規</button>
+        <button class="tab" type="button" role="tab" data-route="asset-edit">編集</button>
+      </div>
+      <div class="tool-row">
+        <div class="seg" role="tablist" aria-label="状態">
+          <button class="tab" type="button" role="tab" data-mode="current">現状</button>
+          <button class="tab" type="button" role="tab" data-mode="proposed">提案</button>
+          <button class="tab" type="button" role="tab" data-mode="complete">完成</button>
+        </div>
+        <div id="conditionsControl" class="seg" role="tablist" aria-label="カード条件">
+          <button class="tab" type="button" role="tab" data-conditions="off">条件なし</button>
+          <button class="tab" type="button" role="tab" data-conditions="on">条件あり</button>
+        </div>
+        <button id="play" class="play" type="button">読み込みを再生</button>
+      </div>
     </div>
-    <div class="stage" id="stage"></div>
+    <div id="stage" class="stage"></div>
+    <p id="caption" class="stage-caption"></p>
   </section>
-
-  <section class="tables">
-    <h2>実測（440px幅・px）</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>カード</th>
-          <th>現状</th>
-          <th>提案</th>
-          <th>完成</th>
-          <th>現状の差</th>
-          <th>提案の差</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th>取引</th>
-          <td id="m-transaction-current">—</td>
-          <td id="m-transaction-proposed">—</td>
-          <td id="m-transaction-complete">—</td>
-          <td id="m-transaction-diff-current" class="neg">—</td>
-          <td id="m-transaction-diff-proposed" class="ok">—</td>
-        </tr>
-        <tr>
-          <th>固定費</th>
-          <td id="m-fixed-current">—</td>
-          <td id="m-fixed-proposed">—</td>
-          <td id="m-fixed-complete">—</td>
-          <td id="m-fixed-diff-current" class="neg">—</td>
-          <td id="m-fixed-diff-proposed" class="ok">—</td>
-        </tr>
-        <tr>
-          <th>資産</th>
-          <td id="m-asset-current">—</td>
-          <td id="m-asset-proposed">—</td>
-          <td id="m-asset-complete">—</td>
-          <td id="m-asset-diff-current" class="neg">—</td>
-          <td id="m-asset-diff-proposed" class="ok">—</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h2>行の寸法</h2>
-    <table class="spec">
-      <thead>
-        <tr><th></th><th>現状</th><th>提案 / 完成</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>行の形</td><td>ラベルが上、値が下</td><td>左90pxのラベル列、右に値</td></tr>
-        <tr><td>1行の高さ</td><td>60px</td><td>53px（下線1pxを含む）</td></tr>
-        <tr><td>行数（取引）</td><td>4行固定</td><td>6行（種別・金額・カテゴリ・資産・日付・メモ）</td></tr>
-        <tr><td>操作列</td><td>右に保存風の箱1つ（120×44）</td><td>左キャンセル・右保存（実ボタンと同じ44px）</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <p class="footnote">
-    このモックが見ていないもの: Next.js のストリーミング、フォーカス移動、Esc/戻る、実読み込み時間、
-    カードの最大高さとスクロール、オーバーレイの背景と出現アニメーション。
-    資産のカード条件など、データ到着後に増える節はデフォルト形状で表示しています。
-    寸法は 440px 幅・デスクトップ表示。フォントは環境の Noto Sans JP / Yu Gothic にフォールバックします。
-  </p>
 </main>
 
-<div id="measure" aria-hidden="true"></div>
+<section class="tables">
+  <div class="table-block">
+    <div class="table-head">
+      <h2>7つの loading.tsx</h2>
+      <p>同じ行の部品を、カードごとの並びで使う。</p>
+    </div>
+    <div class="table-scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>画面 / loading.tsx</th>
+            <th>行の並び</th>
+            <th>左</th>
+            <th>右</th>
+            <th>現状</th>
+            <th>提案</th>
+            <th>完成</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th><strong>取引 新規</strong><code>@modal/(.)transactions/new</code></th>
+            <td>種別・金額・カテゴリ・資産・日付・メモ</td>
+            <td>キャンセル</td><td>登録する</td>
+            <td>438</td><td class="same">506</td><td class="same">506</td>
+          </tr>
+          <tr>
+            <th><strong>取引 編集</strong><code>@modal/(.)transactions/[id]/edit</code></th>
+            <td>種別・金額・カテゴリ・資産・日付・メモ</td>
+            <td>削除する</td><td>変更を保存</td>
+            <td>438</td><td class="same">506</td><td class="same">506</td>
+          </tr>
+          <tr>
+            <th><strong>振替 編集</strong><code>@modal/(.)transactions/transfers/[id]/edit</code></th>
+            <td>種別・金額・振替元・振替先・日付・メモ</td>
+            <td>削除する</td><td>変更を保存</td>
+            <td>438</td><td class="same">506</td><td class="same">506</td>
+          </tr>
+          <tr>
+            <th><strong>固定費 新規</strong><code>@modal/(.)fixed-costs/new</code></th>
+            <td>名称・金額・カテゴリ・資産・頻度・日付</td>
+            <td>キャンセル</td><td>登録する</td>
+            <td>438</td><td class="same">476</td><td class="same">476</td>
+          </tr>
+          <tr>
+            <th><strong>固定費 編集</strong><code>@modal/(.)fixed-costs/[id]/edit</code></th>
+            <td>名称・金額・カテゴリ・資産・頻度・日付</td>
+            <td>削除する</td><td>保存する</td>
+            <td>438</td><td class="same">476</td><td class="same">476</td>
+          </tr>
+          <tr>
+            <th><strong>資産 新規</strong><code>@modal/(.)accounts/new</code></th>
+            <td>名前・資産カテゴリ</td>
+            <td>キャンセル</td><td>登録する</td>
+            <td>438</td><td class="same">264</td><td class="same">264</td>
+          </tr>
+          <tr>
+            <th><strong>資産 編集</strong><code>@modal/(.)accounts/[id]/edit</code></th>
+            <td>名前・資産カテゴリ<br><small>+ カード条件4行（クレジットカードのみ）</small></td>
+            <td>削除する</td><td>保存する</td>
+            <td>438</td><td class="split">264 / 509<br><small>条件なし / あり</small></td><td class="split">264 / 509<br><small>条件なし / あり</small></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="table-block">
+    <div class="table-head">
+      <h2>資産編集のカード条件</h2>
+      <p>カテゴリが届くまで、4行の節があるか分からない。</p>
+    </div>
+    <div class="table-scroll">
+      <table class="decision-table">
+        <thead>
+          <tr><th>骨組みの既定</th><th>非カード（264px）</th><th>クレジットカード（509px）</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>2行（条件なし）</th>
+            <td class="ok">264 = 264<br><small>差 0</small></td>
+            <td class="warn">264 → 509<br><small>245px不足</small></td>
+          </tr>
+          <tr>
+            <th>6行（節を確保）</th>
+            <td class="warn">509 → 264<br><small>245px余り</small></td>
+            <td class="ok">509 = 509<br><small>差 0</small></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="callout"><strong>推奨: 2行を既定。</strong>カード条件は追加の節なので、読み込み後に下へ伸びる方が、非カードに空の節を見せるより自然です。カードのときの245pxの伸びを許容するか、カードだけ6行の骨組みを使うかを決めます。<br>現状の骨組みは4行・438px。非カードには174px高く、クレジットカードには71px低い。</p>
+  </div>
+
+  <div class="table-block">
+    <div class="table-head">
+      <h2>レシピ</h2>
+      <p>新しいカードは、行の並びと左の操作を足すだけ。</p>
+    </div>
+    <pre class="recipe"><code><span class="comment">// 行の部品</span>
+const transactionRows = ['choice', 'amount', 'field', 'field', 'field', 'field'];
+const fixedCostRows  = ['field', 'amount', 'field', 'field', 'field', 'field'];
+const assetRows      = ['field', 'field'];
+const cardConditionRows = ['section', 'field', 'field', 'field', 'field'];
+
+<span class="comment">// 7つの loading.tsx（取引の新規・編集・振替編集は同じ並び）</span>
+&lt;CardFormSkeleton label="取引を読み込み中" rows={transactionRows} action="cancel" /&gt;
+&lt;CardFormSkeleton label="取引を読み込み中" rows={transactionRows} action="delete" /&gt;
+&lt;CardFormSkeleton label="固定費を読み込み中" rows={fixedCostRows} action="cancel" /&gt;
+&lt;CardFormSkeleton label="固定費を読み込み中" rows={fixedCostRows} action="delete" /&gt;
+&lt;CardFormSkeleton label="資産を読み込み中" rows={assetRows} action="cancel" /&gt;
+&lt;CardFormSkeleton label="資産を読み込み中" rows={assetRows} action="delete" /&gt;
+
+<span class="comment">// 資産編集でカード条件まで確保する場合（推奨は既定2行）</span>
+&lt;CardFormSkeleton
+  label="資産を読み込み中"
+  rows={[...assetRows, ...cardConditionRows]}
+  action="delete"
+/&gt;</code></pre>
+  </div>
+</section>
+
+<footer class="footnote">
+  <p>数値は実フォームの実測とCSSから（440px幅、ヘッダー60px、行53px）。カード条件の節は、4行212px＋見出しと余白33px＝245px、カードは509px。現状の骨組みは全カード438pxです。</p>
+</footer>
 
 <script>
-  const params = new URLSearchParams(location.search);
-  const oneOf = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+(function () {
+  'use strict';
 
-  const state = {
-    card: oneOf(params.get('card'), ['transaction', 'fixed', 'asset'], 'transaction'),
-    mode: oneOf(params.get('mode'), ['current', 'proposed', 'complete'], 'current'),
-    theme: oneOf(params.get('theme'), ['light', 'dark'], 'light'),
+  var ROUTES = {
+    'tx-new': {
+      key: 'tx-new', title: '取引を登録', loading: '取引を読み込み中',
+      rows: ['choice', 'amount', 'field', 'field', 'field', 'field'],
+      action: 'cancel', save: '登録する', complete: 'expense'
+    },
+    'tx-edit': {
+      key: 'tx-edit', title: '取引を編集', loading: '取引を読み込み中',
+      rows: ['choice', 'amount', 'field', 'field', 'field', 'field'],
+      action: 'delete', save: '変更を保存', complete: 'expense'
+    },
+    'tx-transfer': {
+      key: 'tx-transfer', title: '振替を編集', loading: '取引を読み込み中',
+      rows: ['choice', 'amount', 'field', 'field', 'field', 'field'],
+      action: 'delete', save: '変更を保存', complete: 'transfer'
+    },
+    'fixed-new': {
+      key: 'fixed-new', title: '固定費を登録', loading: '固定費を読み込み中',
+      rows: ['field', 'amount', 'field', 'field', 'field', 'field'],
+      action: 'cancel', save: '登録する', complete: 'fixed'
+    },
+    'fixed-edit': {
+      key: 'fixed-edit', title: '固定費を編集', loading: '固定費を読み込み中',
+      rows: ['field', 'amount', 'field', 'field', 'field', 'field'],
+      action: 'delete', save: '保存する', complete: 'fixed'
+    },
+    'asset-new': {
+      key: 'asset-new', title: '資産を登録', loading: '資産を読み込み中',
+      rows: ['field', 'field'], action: 'cancel', save: '登録する', complete: 'asset'
+    },
+    'asset-edit': {
+      key: 'asset-edit', title: '資産設定', loading: '資産を読み込み中',
+      rows: ['field', 'field'], action: 'delete', save: '保存する', complete: 'asset'
+    }
   };
 
-  const CARDS = {
-    transaction: {
-      title: '取引を登録',
-      loading: '取引を読み込み中',
-      rows: 6,
-      proposed: ['choice', 'amount', 'field', 'field', 'field', 'field'],
-    },
-    fixed: {
-      title: '固定費を登録',
-      loading: '固定費を読み込み中',
-      rows: 6,
-      proposed: ['field', 'amount', 'field', 'field', 'field', 'field'],
-    },
-    asset: {
-      title: '資産を登録',
-      loading: '資産を読み込み中',
-      rows: 2,
-      proposed: ['field', 'field'],
-    },
-  };
+  var state = readState();
+  var stage = document.getElementById('stage');
+  var stateTitle = document.getElementById('stateTitle');
+  var stateLabel = document.getElementById('stateLabel');
+  var cardHeight = document.getElementById('cardHeight');
+  var cardDelta = document.getElementById('cardDelta');
+  var rowCount = document.getElementById('rowCount');
+  var actionLabel = document.getElementById('actionLabel');
+  var playStatus = document.getElementById('playStatus');
+  var caption = document.getElementById('caption');
+  var conditionsControl = document.getElementById('conditionsControl');
+  var themeButton = document.getElementById('theme');
+  var playButton = document.getElementById('play');
+  var playTimer = null;
 
-  const MODES = {
-    current: { label: '現状のスケルトン', desc: 'ラベルが上・4行固定・罫線なし' },
-    proposed: { label: '提案のスケルトン', desc: '実フォームと同じ行の部品で構成' },
-    complete: { label: '読み込み後', desc: '実際のフォーム（比較用）' },
-  };
-
-  const chevron =
-    '<svg class="icon" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"/></svg>';
-  const calendar =
-    '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1"/><path d="M5 2v3M11 2v3M2.5 6h11"/></svg>';
-
-  function header(title) {
-    return `
-      <header class="overlay-header">
-        <div class="back-target">
-          <button class="back" type="button" aria-label="${title} — 戻る">
-            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m7.5 2.25-3.25 3.75L7.5 9.75"/></svg>
-          </button>
-          <p class="title">${title}</p>
-        </div>
-      </header>`;
+  function readState() {
+    var p = new URLSearchParams(window.location.search);
+    var aliases = { transaction: 'tx-new', fixed: 'fixed-new', asset: 'asset-new' };
+    var route = p.get('card') || 'tx-new';
+    route = aliases[route] || route;
+    if (!ROUTES[route]) route = 'tx-new';
+    var mode = p.get('mode');
+    if (mode !== 'current' && mode !== 'proposed' && mode !== 'complete') mode = 'proposed';
+    return {
+      route: route,
+      mode: mode,
+      conditions: p.get('conditions') === 'on',
+      theme: p.get('theme') === 'dark' ? 'dark' : 'light'
+    };
   }
 
-  function currentSkeleton(loadingLabel) {
-    const rows = Array.from(
-      { length: 4 },
-      () => '<div class="sk-row"><span class="bone sk-label"></span><span class="bone sk-control"></span></div>',
-    ).join('');
-    return `
-      <div role="status">
-        <span class="sr-only">${loadingLabel}</span>
-        <div class="sk-wrap" aria-hidden="true">
-          ${rows}
-          <div class="sk-actions"><span class="bone sk-button"></span></div>
-        </div>
-      </div>`;
+  function route() { return ROUTES[state.route]; }
+
+  function rows() {
+    if (state.route === 'asset-edit' && state.conditions) {
+      return ['field', 'field', 'section', 'field', 'field', 'field', 'field'];
+    }
+    return route().rows.slice();
+  }
+
+  function typeField(selected) {
+    var labels = ['支出', '収入', '振替'];
+    return '<div class="type-field"><span class="legend">種別</span><div class="type-options">' +
+      labels.map(function (label) {
+        return '<span class="type-choice' + (label === selected ? ' selected' : '') + '">' + label + '</span>';
+      }).join('') +
+      '</div></div>';
+  }
+
+  function fieldRow(label, value) {
+    return '<div class="entry-detail-grid"><div class="field"><label>' + label +
+      '</label><div class="field-value"><span class="value">' + value +
+      '</span></div></div></div>';
+  }
+
+  function amountRow(value) {
+    return '<div class="amount-field"><label>金額</label><div class="amount-line">' +
+      '<span class="yen">¥</span><span class="value">' + value + '</span></div></div>';
+  }
+
+  function sectionMarkup() {
+    return '<section class="section"><h2 class="section-heading">カード条件</h2>' +
+      fieldRow('締め日', '20日') +
+      fieldRow('支払日', '10日') +
+      fieldRow('支払月', '翌月') +
+      fieldRow('引落口座', 'みずほ銀行') +
+      '</section>';
+  }
+
+  function actionsMarkup() {
+    var left = route().action === 'cancel'
+      ? '<button type="button" class="btn secondary">キャンセル</button>'
+      : '<button type="button" class="btn danger">削除する</button>';
+    return '<div class="form-actions">' + left +
+      '<button type="button" class="btn primary">' + route().save + '</button></div>';
+  }
+
+  function completeForm() {
+    var parts = [];
+    if (route().complete === 'expense') {
+      parts.push(typeField('支出'));
+      parts.push(amountRow('12,400'));
+      parts.push(fieldRow('カテゴリ', '食費'));
+      parts.push(fieldRow('資産', '現金'));
+      parts.push(fieldRow('日付', '2026年11月3日'));
+      parts.push(fieldRow('メモ', 'スーパー'));
+    } else if (route().complete === 'transfer') {
+      parts.push(typeField('振替'));
+      parts.push(amountRow('30,000'));
+      parts.push(fieldRow('振替元', 'みずほ銀行'));
+      parts.push(fieldRow('振替先', '現金'));
+      parts.push(fieldRow('日付', '2026年11月3日'));
+      parts.push(fieldRow('メモ', '生活費'));
+    } else if (route().complete === 'fixed') {
+      parts.push(fieldRow('名称', '家賃'));
+      parts.push(amountRow('85,000'));
+      parts.push(fieldRow('カテゴリ', '住居'));
+      parts.push(fieldRow('資産', 'みずほ銀行'));
+      parts.push(fieldRow('頻度', '毎月'));
+      parts.push(fieldRow('日付', '毎月1日'));
+    } else {
+      parts.push(fieldRow('名前', 'みずほ銀行'));
+      parts.push(fieldRow('資産カテゴリ', '銀行'));
+      if (state.route === 'asset-edit' && state.conditions) parts.push(sectionMarkup());
+    }
+    return '<div class="ledger-form">' + parts.join('') + actionsMarkup() + '</div>';
+  }
+
+  function cardShell(body, mode) {
+    return '<article class="overlay-card" data-route="' + state.route + '" data-mode="' + mode + '">' +
+      '<header class="overlay-header"><span class="back" aria-hidden="true">‹</span><h2>' +
+      route().title + '</h2></header><div class="overlay-body">' + body + '</div></article>';
+  }
+
+  function legacyCard() {
+    var rowsHtml = '';
+    for (var i = 0; i < 4; i++) {
+      rowsHtml += '<div class="legacy-row"><span class="bone legacy-label"></span>' +
+        '<span class="bone legacy-control"></span></div>';
+    }
+    return cardShell('<div class="legacy" aria-hidden="true">' + rowsHtml +
+      '<div class="legacy-actions"><span class="bone legacy-button"></span></div></div>', 'current');
   }
 
   function typeSkeleton() {
-    return `
-      <div class="type-field">
-        <div class="sk-legend-line"><span class="bone sk-legend"></span></div>
-        <div class="type-options">
-          ${Array.from({ length: 3 }, () => '<span class="sk-choice"><span class="bone sk-choice-bone"></span></span>').join('')}
-        </div>
-      </div>`;
-  }
-
-  function amountSkeleton() {
-    return `
-      <div class="field amount-field">
-        <span class="bone sk-field-label"></span>
-        <div class="amount-line">
-          <span class="bone sk-yen"></span>
-          <span class="bone sk-value sk-value-amount"></span>
-        </div>
-      </div>`;
+    return '<div class="type-field sk-type"><div class="sk-legend"><span class="bone"></span></div>' +
+      '<div class="type-options"><span class="bone sk-choice"></span>' +
+      '<span class="bone sk-choice"></span><span class="bone sk-choice"></span></div></div>';
   }
 
   function fieldSkeleton() {
-    return `
-      <div class="entry-detail-grid">
-        <div class="field">
-          <span class="bone sk-field-label"></span>
-          <div class="field-value"><span class="bone sk-value"></span></div>
-        </div>
-      </div>`;
+    return '<div class="entry-detail-grid"><div class="sk-field"><span class="bone sk-label"></span>' +
+      '<span class="bone sk-value"></span></div></div>';
   }
 
-  function actionsSkeleton() {
-    return `
-      <div class="actions" data-with-cancel="true">
-        <span class="bone sk-action sk-action-cancel"></span>
-        <span class="bone sk-action sk-action-save"></span>
-      </div>`;
+  function skeletonForm() {
+    var html = '';
+    rows().forEach(function (row) {
+      if (row === 'section') {
+        html += '<div class="sk-section" aria-hidden="true"><span class="bone"></span></div>';
+      } else if (row === 'choice') {
+        html += typeSkeleton();
+      } else if (row === 'amount') {
+        html += '<div class="amount-field sk-amount"><span class="bone sk-label"></span>' +
+          '<span class="bone sk-value"></span></div>';
+      } else {
+        html += fieldSkeleton();
+      }
+    });
+    var left = route().action === 'cancel'
+      ? '<span class="bone sk-action-left"></span>'
+      : '<span class="bone sk-action-left"></span>';
+    html += '<div class="form-actions sk-actions" aria-hidden="true">' + left +
+      '<span class="bone sk-action-save"></span></div>';
+    return '<div class="sk-form" aria-hidden="true">' + html + '</div>';
   }
 
-  function proposedSkeleton(rows, loadingLabel) {
-    const parts = rows
-      .map((kind) => (kind === 'choice' ? typeSkeleton() : kind === 'amount' ? amountSkeleton() : fieldSkeleton()))
-      .join('');
-    return `
-      <div role="status">
-        <span class="sr-only">${loadingLabel}</span>
-        <div class="ledger-form" aria-hidden="true">
-          ${parts}
-          ${actionsSkeleton()}
-        </div>
-      </div>`;
-  }
-
-  function completeForm(key) {
-    const actions = `
-      <div class="actions" data-with-cancel="true">
-        <button class="btn secondary" type="button">キャンセル</button>
-        <button class="btn primary" type="button">登録する</button>
-      </div>`;
-
-    if (key === 'transaction') {
-      return `
-        <form class="ledger-form" onsubmit="return false">
-          <div class="type-field">
-            <span class="legend">種別</span>
-            <div class="type-options">
-              <span class="type-choice selected">支出</span>
-              <span class="type-choice">収入</span>
-              <span class="type-choice">振替</span>
-            </div>
-          </div>
-          <div class="field amount-field">
-            <label>金額</label>
-            <div class="amount-line">
-              <span>¥</span>
-              <input class="amount-input" value="12,400" readonly tabindex="-1">
-            </div>
-          </div>
-          <div class="entry-detail-grid">
-            <div class="field">
-              <label>カテゴリ</label>
-              <div class="field-value"><span class="value-text">食費 ${chevron}</span></div>
-            </div>
-          </div>
-          <div class="entry-detail-grid">
-            <div class="field">
-              <label>資産</label>
-              <div class="field-value"><span class="value-text">生活費口座 ${chevron}</span></div>
-            </div>
-          </div>
-          <div class="entry-detail-grid">
-            <div class="field">
-              <label>日付</label>
-              <div class="field-value"><span class="value-text">2026/11/02 ${calendar}</span></div>
-            </div>
-            <div class="field">
-              <label>メモ（任意）</label>
-              <div class="field-value"><textarea class="memo-input" rows="1" readonly tabindex="-1">スーパー</textarea></div>
-            </div>
-          </div>
-          ${actions}
-        </form>`;
-    }
-
-    if (key === 'fixed') {
-      return `
-        <form class="ledger-form" onsubmit="return false">
-          <div class="entry-detail-grid">
-            <div class="field amount-field">
-              <label>名称</label>
-              <div class="field-value"><input value="家賃" readonly tabindex="-1"></div>
-            </div>
-            <div class="field amount-field">
-              <label>金額</label>
-              <div class="amount-line">
-                <span>¥</span>
-                <div class="field-value"><input class="amount-input" value="85,000" readonly tabindex="-1"></div>
-              </div>
-            </div>
-            <div class="field">
-              <label>カテゴリ</label>
-              <div class="field-value"><span class="value-text">住居 ${chevron}</span></div>
-            </div>
-            <div class="field">
-              <label>資産</label>
-              <div class="field-value"><span class="value-text">生活費口座 ${chevron}</span></div>
-            </div>
-            <div class="field">
-              <label>頻度</label>
-              <div class="field-value"><span class="value-text">毎月 ${chevron}</span></div>
-            </div>
-            <div class="field">
-              <label>日付</label>
-              <div class="field-value"><span class="value-text">27日 ${chevron}</span></div>
-            </div>
-          </div>
-          ${actions}
-        </form>`;
-    }
-
-    return `
-      <form class="ledger-form" onsubmit="return false">
-        <div class="entry-detail-grid">
-          <div class="field">
-            <label>名前</label>
-            <div class="field-value"><input value="みずほ銀行" readonly tabindex="-1"></div>
-          </div>
-          <div class="field">
-            <label>資産カテゴリ</label>
-            <div class="field-value"><span class="value-text">銀行 ${chevron}</span></div>
-          </div>
-        </div>
-        ${actions}
-      </form>`;
-  }
-
-  function cardHtml(key, mode) {
-    const data = CARDS[key];
-    const body =
-      mode === 'current'
-        ? currentSkeleton(data.loading)
-        : mode === 'proposed'
-          ? proposedSkeleton(data.proposed, data.loading)
-          : completeForm(key);
-    return `<div class="overlay-card" data-card="${key}" data-mode="${mode}">${header(data.title)}<div class="overlay-body">${body}</div></div>`;
-  }
-
-  const stage = document.getElementById('stage');
-  const measureRoot = document.getElementById('measure');
-  const stateLabel = document.getElementById('stateLabel');
-  const stateDesc = document.getElementById('stateDesc');
-  const cardHeight = document.getElementById('cardHeight');
-  const cardDelta = document.getElementById('cardDelta');
-  const rowCount = document.getElementById('rowCount');
-  const playStatus = document.getElementById('playStatus');
-  const playButton = document.getElementById('play');
-  const themeButton = document.getElementById('theme');
-  let playTimer = null;
-
-  function measure(key, mode) {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = cardHtml(key, mode);
-    const card = wrap.firstElementChild;
-    measureRoot.append(card);
-    const height = card.offsetHeight;
-    card.remove();
+  function measureCard(mode) {
+    var holder = document.createElement('div');
+    holder.className = 'measure';
+    holder.innerHTML = mode === 'complete'
+      ? cardShell(completeForm(), 'complete')
+      : cardShell(skeletonForm(), 'proposed');
+    document.body.appendChild(holder);
+    var card = holder.querySelector('.overlay-card');
+    var height = card ? Math.round(card.getBoundingClientRect().height) : 0;
+    holder.remove();
     return height;
   }
 
-  // The action bones take the width of the real buttons in the same font environment,
-  // so the skeleton's footer cannot drift when the fallback font differs.
   function syncActionWidths() {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = cardHtml('transaction', 'complete');
-    const card = wrap.firstElementChild;
-    measureRoot.append(card);
-    const cancel = card.querySelector('.actions .btn.secondary');
-    const save = card.querySelector('.actions .btn.primary');
-    if (cancel && save) {
-      document.documentElement.style.setProperty('--cancel-w', `${cancel.offsetWidth}px`);
-      document.documentElement.style.setProperty('--save-w', `${save.offsetWidth}px`);
+    var holder = document.createElement('div');
+    holder.className = 'measure';
+    holder.innerHTML = cardShell(completeForm(), 'measure');
+    document.body.appendChild(holder);
+    var actions = holder.querySelector('.form-actions');
+    var buttons = actions ? Array.prototype.slice.call(actions.querySelectorAll('.btn')) : [];
+    if (buttons.length > 1) {
+      var left = buttons[0];
+      document.documentElement.style.setProperty('--left-w', left.offsetWidth + 'px');
+      document.documentElement.style.setProperty('--left-h', left.offsetHeight + 'px');
     }
-    card.remove();
-  }
-
-  function syncTabs() {
-    document.querySelectorAll('[data-card]').forEach((button) => {
-      button.setAttribute('aria-pressed', String(button.dataset.card === state.card));
-    });
-    document.querySelectorAll('[data-mode]').forEach((button) => {
-      button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode));
-    });
-    themeButton.textContent = state.theme === 'light' ? 'ダーク' : 'ライト';
-  }
-
-  function syncUrl() {
-    const next = new URLSearchParams();
-    next.set('card', state.card);
-    next.set('mode', state.mode);
-    next.set('theme', state.theme);
-    try {
-      history.replaceState(null, '', `${location.pathname}?${next.toString()}`);
-    } catch {
-      /* The inline preview is sandboxed; the URL sync is only useful on the hosted copy. */
+    if (buttons.length) {
+      var save = buttons[buttons.length - 1];
+      document.documentElement.style.setProperty('--save-w', save.offsetWidth + 'px');
     }
+    holder.remove();
   }
 
   function updateMetrics() {
-    const card = stage.querySelector('.overlay-card');
-    const height = card.offsetHeight;
-    const complete = measure(state.card, 'complete');
-    const diff = height - complete;
-
-    cardHeight.textContent = `${height}px`;
-    if (state.mode === 'complete') {
-      cardDelta.textContent = '基準';
-      cardDelta.className = '';
-    } else if (diff === 0) {
-      cardDelta.textContent = '一致';
-      cardDelta.className = 'ok';
+    var card = stage.querySelector('.overlay-card');
+    var actual = card ? Math.round(card.getBoundingClientRect().height) : 0;
+    var complete = measureCard('complete');
+    var diff = actual - complete;
+    cardHeight.textContent = actual + 'px';
+    cardDelta.textContent = diff === 0 ? '±0' : (diff > 0 ? '+' : '') + diff + 'px';
+    cardDelta.dataset.tone = diff === 0 ? 'same' : 'diff';
+    if (state.mode === 'current') {
+      rowCount.textContent = '4行';
+      actionLabel.textContent = '保存のみ';
     } else {
-      cardDelta.textContent = `${diff > 0 ? '+' : '−'}${Math.abs(diff)}px`;
-      cardDelta.className = 'neg';
+      var fields = rows().filter(function (row) { return row !== 'section'; }).length;
+      var hasSection = rows().indexOf('section') !== -1;
+      rowCount.textContent = fields + '行' + (hasSection ? ' + 節' : '');
+      actionLabel.textContent = (route().action === 'cancel' ? 'キャンセル' : '削除する') + ' / ' + route().save;
     }
+  }
 
-    rowCount.textContent = `${state.mode === 'current' ? 4 : CARDS[state.card].rows}行`;
-    stateLabel.textContent = MODES[state.mode].label;
-    stateDesc.textContent = MODES[state.mode].desc;
+  function updateTabs() {
+    document.querySelectorAll('[data-route]').forEach(function (button) {
+      var on = button.getAttribute('data-route') === state.route;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-selected', String(on));
+    });
+    document.querySelectorAll('[data-mode]').forEach(function (button) {
+      var on = button.getAttribute('data-mode') === state.mode;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-selected', String(on));
+    });
+    document.querySelectorAll('[data-conditions]').forEach(function (button) {
+      var value = button.getAttribute('data-conditions') === 'on';
+      var on = value === state.conditions;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-selected', String(on));
+    });
+    conditionsControl.hidden = state.route !== 'asset-edit';
+  }
+
+  function updateUrl() {
+    var p = new URLSearchParams();
+    p.set('card', state.route);
+    p.set('mode', state.mode);
+    if (state.route === 'asset-edit') p.set('conditions', state.conditions ? 'on' : 'off');
+    p.set('theme', state.theme);
+    try { window.history.replaceState(null, '', '?' + p.toString()); } catch (error) { /* file:// の一部環境 */ }
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    themeButton.textContent = state.theme === 'dark' ? 'ライト' : 'ダーク';
   }
 
   function render() {
-    stage.innerHTML = cardHtml(state.card, state.mode);
-    syncTabs();
+    var html = state.mode === 'current'
+      ? legacyCard()
+      : state.mode === 'proposed' ? cardShell(skeletonForm(), 'proposed') : cardShell(completeForm(), 'complete');
+    stage.innerHTML = html;
+    stateTitle.textContent = route().title;
+    stateLabel.textContent = route().loading;
+    if (state.mode === 'current') {
+      caption.textContent = '現状: 4行・右に保存のみ';
+    } else if (state.mode === 'complete') {
+      caption.textContent = '完成: ' + route().title;
+    } else {
+      caption.textContent = '提案: ' + (rows().filter(function (r) { return r !== 'section'; }).length) +
+        '行・左' + (route().action === 'cancel' ? 'キャンセル' : '削除') + ' / 右' + route().save;
+    }
+    updateTabs();
     updateMetrics();
+    syncActionWidths();
+    updateUrl();
+    applyTheme();
   }
 
-  function fillTable() {
-    Object.keys(CARDS).forEach((key) => {
-      const current = measure(key, 'current');
-      const proposed = measure(key, 'proposed');
-      const complete = measure(key, 'complete');
-
-      document.getElementById(`m-${key}-current`).textContent = current;
-      document.getElementById(`m-${key}-proposed`).textContent = proposed;
-      document.getElementById(`m-${key}-complete`).textContent = complete;
-
-      const currentDiff = current - complete;
-      const proposedDiff = proposed - complete;
-      const currentCell = document.getElementById(`m-${key}-diff-current`);
-      const proposedCell = document.getElementById(`m-${key}-diff-proposed`);
-
-      currentCell.textContent =
-        currentDiff === 0 ? '0' : `${currentDiff > 0 ? '+' : '−'}${Math.abs(currentDiff)}`;
-      currentCell.className = currentDiff === 0 ? 'ok' : 'neg';
-      proposedCell.textContent =
-        proposedDiff === 0 ? '0' : `${proposedDiff > 0 ? '+' : '−'}${Math.abs(proposedDiff)}`;
-      proposedCell.className = proposedDiff === 0 ? 'ok' : 'neg';
-    });
-  }
-
-  function resetPlay() {
-    if (playTimer) clearTimeout(playTimer);
-    playTimer = null;
-    playStatus.textContent = '';
-  }
-
-  document.querySelectorAll('[data-card]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.card = button.dataset.card;
-      resetPlay();
+  document.querySelectorAll('[data-route]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.route = button.getAttribute('data-route');
+      if (state.route !== 'asset-edit') state.conditions = false;
       render();
-      syncUrl();
     });
   });
-
-  document.querySelectorAll('[data-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.mode = button.dataset.mode;
-      resetPlay();
+  document.querySelectorAll('[data-mode]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.mode = button.getAttribute('data-mode');
+      playStatus.textContent = state.mode === 'complete' ? '完成' : '提案 → 完成';
       render();
-      syncUrl();
     });
   });
-
-  themeButton.addEventListener('click', () => {
-    state.theme = state.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = state.theme;
-    syncTabs();
-    syncUrl();
+  document.querySelectorAll('[data-conditions]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.conditions = button.getAttribute('data-conditions') === 'on';
+      render();
+    });
   });
-
-  playButton.addEventListener('click', () => {
-    resetPlay();
-    state.mode = state.mode === 'complete' ? 'proposed' : state.mode;
-    render();
-    syncUrl();
-    playStatus.textContent = '読み込み中…';
-    playTimer = setTimeout(() => {
+  themeButton.addEventListener('click', function () {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    updateUrl();
+  });
+  playButton.addEventListener('click', function () {
+    clearTimeout(playTimer);
+    var from = state.mode;
+    if (from === 'complete') {
+      state.mode = 'proposed';
+      playStatus.textContent = '提案 → 完成';
+      render();
+    } else {
+      playStatus.textContent = (from === 'current' ? '現状' : '提案') + ' → 完成';
+    }
+    playTimer = setTimeout(function () {
       state.mode = 'complete';
+      playStatus.textContent = '完成';
       render();
-      syncUrl();
-      playStatus.textContent = '完了';
-      playTimer = null;
-    }, 1200);
+    }, 900);
+  });
+  window.addEventListener('popstate', function () {
+    state = readState();
+    render();
+  });
+  window.addEventListener('error', function (event) {
+    var target = document.getElementById('stage');
+    if (target && !target.querySelector('.overlay-card')) {
+      target.innerHTML = '<p class="error">モックの描画に失敗しました: ' + (event.message || 'unknown') + '</p>';
+    }
   });
 
-  document.documentElement.dataset.theme = state.theme;
-  syncActionWidths();
   render();
-  syncTabs();
-  fillTable();
-
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
+    document.fonts.ready.then(function () {
       syncActionWidths();
-      fillTable();
       updateMetrics();
     });
   }
+})();
 </script>
 </body>
 </html>
