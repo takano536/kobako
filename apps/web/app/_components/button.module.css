@@ -123,6 +123,13 @@
   }
 }
 
+@media (max-width: 30rem) {
+  :global(#entry-dialog) .button,
+  :global(#entry-dialog) .linkButton {
+    min-height: 2.25rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .button,
   .linkButton {
