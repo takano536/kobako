@@ -670,7 +670,7 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   await expect(ordinaryRow.locator('[data-slot="transaction-memo"]')).toHaveCount(1);
   await expect(transferRow).toContainText('振替');
   await expect(transferRow).not.toContainText('編集');
-  await expect(transferRow.locator('[data-slot="row-affordance"]')).toHaveText('›');
+  await expect(page.locator('[data-slot="row-affordance"]')).toHaveCount(0);
   const transferDot = await transferRow.locator('[data-slot="category-dot"]').boundingBox();
   const ordinaryDot = await ordinaryRow.locator('[data-slot="category-dot"]').boundingBox();
   if (!transferDot || !ordinaryDot) {
@@ -685,12 +685,7 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   const ordinaryMain = await ordinaryRow.locator('[data-slot="transaction-main"]').boundingBox();
   const transferAmount = await transferRow.locator('[data-slot="record-amount"]').boundingBox();
   const ordinaryAmount = await ordinaryRow.locator('[data-slot="record-amount"]').boundingBox();
-  const transferAffordance = await transferRow
-    .locator('[data-slot="row-affordance"]')
-    .boundingBox();
-  const ordinaryAffordance = await ordinaryRow
-    .locator('[data-slot="row-affordance"]')
-    .boundingBox();
+  const transactionList = await page.locator('ul[aria-label="取引"]').boundingBox();
   const transferLink = await transferRow.boundingBox();
   const ordinaryLink = await ordinaryRow.boundingBox();
   if (
@@ -698,8 +693,7 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
     !ordinaryMain ||
     !transferAmount ||
     !ordinaryAmount ||
-    !transferAffordance ||
-    !ordinaryAffordance ||
+    !transactionList ||
     !transferLink ||
     !ordinaryLink
   ) {
@@ -707,10 +701,13 @@ test('keeps transfer row columns and neutral amount tone', async ({ page }) => {
   }
   expect(transferMain.x).toBeCloseTo(ordinaryMain.x, 1);
   expect(transferAmount.x + transferAmount.width).toBeCloseTo(
-    ordinaryAmount.x + ordinaryAmount.width,
-    1,
+    transactionList.x + transactionList.width,
+    0,
   );
-  expect(transferAffordance.x).toBeCloseTo(ordinaryAffordance.x, 1);
+  expect(ordinaryAmount.x + ordinaryAmount.width).toBeCloseTo(
+    transactionList.x + transactionList.width,
+    0,
+  );
   // Transfer account names may wrap naturally; column alignment is asserted above.
   const transferAmountElement = transferRow.locator('[data-slot="record-amount"]');
   await expect(transferAmountElement).toHaveAttribute('data-tone', 'neutral');

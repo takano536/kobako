@@ -204,13 +204,6 @@ export function TransactionRow({
         <span className={amountClassName} data-slot="record-amount">
           {amount}
         </span>
-        <span
-          data-slot="row-affordance"
-          className={transactionStyles['row-affordance']}
-          aria-hidden="true"
-        >
-          ›
-        </span>
       </PrefetchLink>
     </li>
   );

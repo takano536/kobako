@@ -92,13 +92,6 @@ export function TransferRow({
         >
           {formatYen(transfer.amount)}
         </span>
-        <span
-          data-slot="row-affordance"
-          className={transactionStyles['row-affordance']}
-          aria-hidden="true"
-        >
-          ›
-        </span>
       </PrefetchLink>
     </li>
   );

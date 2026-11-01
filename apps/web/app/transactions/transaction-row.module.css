@@ -7,10 +7,6 @@
   list-style: none;
 }
 
-.transaction-list-recent {
-  /* The overview omits the edit affordance while retaining the same row parts. */
-}
-
 .recent-row {
   min-width: 0;
 }
@@ -59,8 +55,7 @@
 .transfer-account,
 .transfer-destination,
 .transfer-arrow,
-.record-amount,
-.row-affordance {
+.record-amount {
   min-width: 0;
 }
 
@@ -137,7 +132,7 @@
 
 .transaction-list .transaction-link {
   display: grid;
-  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content 13px;
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
   align-items: center;
   column-gap: var(--space-item);
   min-width: 0;
@@ -146,17 +141,7 @@
   text-decoration: none;
 }
 
-.transaction-list-recent .transaction-link {
-  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
-}
-
 .transaction-list .transaction-link-ordinary {
-  grid-template-columns:
-    6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(0, max-content)
-    13px;
-}
-
-.transaction-list-recent .transaction-link-ordinary {
   grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) minmax(
       0,
       max-content
@@ -168,8 +153,7 @@
   margin-top: 0;
 }
 
-.transaction-list .transaction-link > .record-amount,
-.transaction-list .transaction-link > .row-affordance {
+.transaction-list .transaction-link > .record-amount {
   align-self: center;
 }
 
@@ -280,13 +264,6 @@
   white-space: nowrap;
 }
 
-.transaction-list .row-affordance {
-  color: var(--muted);
-  font-size: var(--text-body);
-  line-height: var(--leading-none);
-  text-align: right;
-}
-
 .transaction-list .transaction-link-ordinary > .record-amount {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -334,10 +311,6 @@
   .transaction-category-cell > .transaction-category {
     grid-column: 1;
     padding-inline-start: calc(0.375rem + var(--space-dot-text));
-  }
-
-  .transaction-list .transaction-link > .row-affordance {
-    display: block;
   }
 }
 
