@@ -26,10 +26,7 @@ describe('groupFixedCostsByFrequency', () => {
     ]);
 
     expect([...groups.entries()]).toEqual([
-      [
-        '毎月',
-        [row(1, 1, 'month', 27, '2026-01-01'), row(2, 1, 'month', 15, '2026-01-01')],
-      ],
+      ['毎月', [row(1, 1, 'month', 27, '2026-01-01'), row(2, 1, 'month', 15, '2026-01-01')]],
     ]);
   });
 
@@ -42,14 +39,8 @@ describe('groupFixedCostsByFrequency', () => {
     ]);
 
     expect([...groups.entries()]).toEqual([
-      [
-        '2か月ごと',
-        [row(1, 2, 'month', 10, '2026-01-01'), row(2, 2, 'month', 20, '2026-03-01')],
-      ],
-      [
-        '2年ごと',
-        [row(3, 2, 'year', 10, '2026-01-01'), row(4, 2, 'year', 20, '2027-01-01')],
-      ],
+      ['2か月ごと', [row(1, 2, 'month', 10, '2026-01-01'), row(2, 2, 'month', 20, '2026-03-01')]],
+      ['2年ごと', [row(3, 2, 'year', 10, '2026-01-01'), row(4, 2, 'year', 20, '2027-01-01')]],
     ]);
   });
 
