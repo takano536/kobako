@@ -1,4 +1,11 @@
 # Changelog
+## [0.21.3](https://github.com/takano536/kobako/compare/v0.21.2...v0.21.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** 固定費の頻度別を支払日と無関係にまとめる ([#57](https://github.com/takano536/kobako/issues/57)) ([ee5da95](https://github.com/takano536/kobako/commit/ee5da959c4c63e58a6f64fdd77585f1b2f5bfef5))
+
 ## [0.21.2](https://github.com/takano536/kobako/compare/v0.21.1...v0.21.2) (2026-11-01)
 
 
