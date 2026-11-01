@@ -1,4 +1,11 @@
 # Changelog
+## [0.21.1](https://github.com/takano536/kobako/compare/v0.21.0...v0.21.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** 固定費の登録カードにキャンセルを置き、フォームの送信行を共通化 ([#51](https://github.com/takano536/kobako/issues/51)) ([30e8e1c](https://github.com/takano536/kobako/commit/30e8e1c7c8237b7e0c80f0a8994b72b66324c054))
+
 ## [0.21.0](https://github.com/takano536/kobako/compare/v0.20.0...v0.21.0) (2026-10-31)
 
 
