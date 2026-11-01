@@ -144,10 +144,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           ) : (
             <ul
               data-slot="recent-list"
-              className={[
-                transactionStyles['transaction-list'],
-                transactionStyles['transaction-list-recent'],
-              ].join(' ')}
+              className={transactionStyles['transaction-list']}
               aria-label="最近の取引"
             >
               {latestTransactions.map((transaction) => (

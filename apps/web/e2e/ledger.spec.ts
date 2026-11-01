@@ -623,6 +623,9 @@ test('centers transaction detail blocks in the list and overview', async ({ page
     expectedTransferCount: number,
   ) => {
     await page.goto(path);
+    if (path.startsWith('/transactions')) {
+      await expect(page.locator('[data-slot="row-affordance"]')).toHaveCount(0);
+    }
     const rowSelector = [
       ...transactionIds.map(
         (id) => `[data-slot="transaction-link"][href^="/transactions/${id}/edit"]`,
@@ -645,6 +648,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
             ? {
                 center: bounds.y + bounds.height / 2,
                 height: bounds.height,
+                right: bounds.right,
               }
             : undefined;
         };
@@ -658,7 +662,6 @@ test('centers transaction detail blocks in the list and overview', async ({ page
           category: box('[data-slot="transaction-category"]'),
           dot: box('[data-slot="category-dot"]'),
           amount: box('[data-slot="record-amount"]'),
-          affordance: box('[data-slot="row-affordance"]'),
         };
       }),
     );
@@ -672,8 +675,12 @@ test('centers transaction detail blocks in the list and overview', async ({ page
       expect(Math.abs(geometry.main!.center - geometry.category!.center)).toBeLessThanOrEqual(1);
       expect(Math.abs(geometry.main!.center - geometry.dot!.center)).toBeLessThanOrEqual(1);
       expect(Math.abs(geometry.main!.center - geometry.amount!.center)).toBeLessThanOrEqual(1);
-      if (geometry.affordance) {
-        expect(Math.abs(geometry.main!.center - geometry.affordance.center)).toBeLessThanOrEqual(1);
+      if (path.startsWith('/transactions')) {
+        const listBounds = await page.locator('ul[aria-label="取引"]').boundingBox();
+        if (!listBounds) {
+          throw new Error('transaction list is not measurable');
+        }
+        expect(geometry.amount!.right).toBeCloseTo(listBounds.x + listBounds.width, 0);
       }
     }
     const dimensions = await page.evaluate(() => ({
