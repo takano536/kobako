@@ -8,6 +8,7 @@ import fieldStyles from '../_components/field.module.css';
 import { Button } from '../_components/button';
 import styles from './fixed-costs.module.css';
 import { Field, Input, Select } from '../_components/field';
+import { FormActions } from '../_components/form-actions';
 import type { FixedCostFormState } from './actions';
 
 interface Option {
@@ -37,12 +38,14 @@ export function FixedCostForm({
   categories,
   accounts,
   submitLabel,
+  showCancel = false,
 }: {
   action: (state: FixedCostFormState, formData: FormData) => Promise<FixedCostFormState>;
   initialValues: FixedCostFormValues;
   categories: readonly Option[];
   accounts: readonly Option[];
   submitLabel: string;
+  showCancel?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
@@ -256,9 +259,9 @@ export function FixedCostForm({
             入力内容を確認してください。
           </p>
         ) : null}
-        <div className={`${formsStyles['save-button-options']} ${styles.actions}`}>
+        <FormActions showCancel={showCancel}>
           <Submit label={submitLabel} />
-        </div>
+        </FormActions>
       </form>
     </>
   );
