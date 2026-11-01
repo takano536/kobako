@@ -239,7 +239,10 @@ test.describe('固定費', () => {
   test('一覧に代表的な固定費と集計を表示する', async ({ page }) => {
     await page.goto('/fixed-costs');
     await expect(page.getByRole('heading', { name: /^固定費\s*\d+件$/ })).toBeVisible();
-    await expect(page.getByText('月あたり')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '住居', exact: true })).toBeVisible();
+    await expect(
+      page.locator('h3').filter({ hasText: /(?:毎月\d+日|毎年\d+月\d+日|\d+(?:か月|年)ごと・)/ }),
+    ).toHaveCount(0);
     await expect(page.getByText('112,460円')).toBeVisible();
     await expect(page.getByText('年間')).toBeVisible();
     await expect(page.getByText('1,349,516円')).toBeVisible();

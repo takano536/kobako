@@ -73,11 +73,13 @@ export function FixedCostList({ rows }: { rows: readonly ListedFixedCost[] }) {
       const key =
         filters.group === 'none'
           ? '固定費'
-          : filters.group === 'accountName'
-            ? row.accountName
-            : filters.group === 'day'
-              ? `${row.day}日`
-              : frequencyLabel(row);
+          : filters.group === 'categoryName'
+            ? row.categoryName
+            : filters.group === 'accountName'
+              ? row.accountName
+              : filters.group === 'day'
+                ? `${row.day}日`
+                : frequencyLabel(row);
       groups.set(key, [...(groups.get(key) ?? []), row]);
     }
   }
