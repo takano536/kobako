@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kobako — 固定費（取引画面に寄せる）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================== tokens (apps/web/app/globals.css) ===================== */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --paper: #fcfcf8;
+  --ink: #292e2b;
+  --muted: #68736c;
+  --accent: #426d59;
+  --button-primary: #2f6b52;
+  --money-negative: #a33a36;
+  --money-positive: #245c9c;
+  --rule: #dfe3da;
+  --bar: #e5e9e1;
+  --surface: #f8faf5;
+  --surface-hover: #edf2eb;
+  --soft-control: #f0f2eb;
+  --focus: #2f614c;
+  --on-accent: #fff;
+  --accent-strong: #315944;
+  --shadow-popover: 0 3px 10px rgb(41 46 43 / 14%);
+  --import-positive-soft: #e9f2e9;
+  --frame-shadow: 0 18px 50px rgb(24 41 31 / 12%);
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #1a1f1c;
+  --ink: #e4e7e0;
+  --muted: #a2ada5;
+  --accent: #8cc4a6;
+  --button-primary: #8cc4a6;
+  --money-negative: #f2978e;
+  --money-positive: #8db9ef;
+  --rule: #343d37;
+  --bar: #2b332e;
+  --surface: #1f2521;
+  --surface-hover: #28302b;
+  --soft-control: #262d28;
+  --focus: #8cc4a6;
+  --on-accent: #142019;
+  --accent-strong: #a8d6bd;
+  --shadow-popover: 0 3px 10px rgb(0 0 0 / 45%);
+  --import-positive-soft: #203227;
+  --frame-shadow: 0 18px 50px rgb(0 0 0 / 45%);
+}
+:root {
+  --font-ui: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+  --text-title: 1.4375rem;
+  --text-heading: 0.9375rem;
+  --text-body: 0.875rem;
+  --text-small: 0.75rem;
+  --text-brand: 1.375rem;
+  --text-micro: 0.6875rem;
+  --text-lead: 1.125rem;
+  --text-icon: 1.5rem;
+  --text-hero: clamp(1.875rem, 2.6vw, 2.25rem);
+  --tracking-hero: -0.04em;
+  --tracking-title: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+  --space-within: 0.25rem;
+  --space-item: 0.5rem;
+  --space-dot-text: 0.5rem;
+  --space-related: 12px;
+  --space-group: 1rem;
+  --space-block: 24px;
+  --space-section: 2rem;
+  --space-page: 2.5rem;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+  --focus-ring: 3px solid var(--accent);
+  --focus-offset: 3px;
+  --stroke-hairline: 1px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --layer-inline: 1;
+  --layer-summary: 2;
+  --layer-menu: 10;
+  --layer-nav: 20;
+  --leading-tight: 1.15;
+  --leading-heading: 1.3;
+  --leading-body: 1.6;
+  --leading-meta: 1.45;
+  --leading-none: 1;
+  --layout-wide: 65rem;
+  --site-nav-mobile-height: 3.5rem;
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --motion-fast: 160ms;
+  --stage: color-mix(in srgb, var(--ink) 8%, var(--paper));
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { letter-spacing: var(--tracking-tight); }
+h1 { font-size: var(--text-title); font-weight: var(--weight-medium); line-height: var(--leading-tight); letter-spacing: var(--tracking-title); margin: 0; }
+h2 { font-size: var(--text-heading); font-weight: var(--weight-medium); line-height: var(--leading-heading); }
+h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-height: var(--leading-meta); }
+svg { display: block; }
+
+/* ===================== レビュー用の外枠 ===================== */
+.harness {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px max(20px, calc((100% - 1280px) / 2 + 24px));
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  backdrop-filter: blur(8px);
+}
+.harness-id { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.harness-name { font-size: 0.8125rem; letter-spacing: 0.02em; white-space: nowrap; }
+.harness-name span { color: var(--muted); }
+.harness-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.harness-tools { display: flex; gap: 8px; margin-left: auto; }
+.seg { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--rule); border-radius: var(--radius-md); }
+.seg button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-small);
+  line-height: var(--leading-none);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+.seg button:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
+
+.stage { padding: 28px 24px 72px; }
+.frame { display: flex; justify-content: center; }
+.frame[hidden] { display: none; }
+
+.app {
+  position: relative;
+  width: min(1280px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--frame-shadow);
+}
+.app-scroll { height: 900px; overflow-y: auto; overscroll-behavior: contain; }
+.app.is-mobile { width: 390px; height: 780px; border-radius: 22px; }
+.app.is-mobile .app-scroll { height: 100%; scrollbar-width: none; }
+.app.is-mobile .app-scroll::-webkit-scrollbar { display: none; }
+
+/* ===================== アプリ共通（layout / site-nav） ===================== */
+.site-header {
+  width: min(100%, var(--layout-wide));
+  min-height: 4.125rem;
+  margin: 0 auto;
+  padding: var(--space-group) max(1rem, 2.5%) var(--space-item);
+}
+.header-inner {
+  display: flex;
+  min-height: 2.6875rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-group);
+}
+.brand {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-within);
+  color: var(--ink);
+  font-size: var(--text-brand);
+  letter-spacing: var(--tracking-wide);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand svg {
+  width: 24px;
+  height: 21px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.2;
+}
+.site-nav { display: flex; min-height: 2.75rem; align-items: center; gap: var(--space-group); }
+.site-nav a {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-item);
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: var(--text-body);
+  text-decoration: none;
+}
+.site-nav a:hover { color: var(--ink); }
+.site-nav a[aria-current='page'] { border-bottom-color: var(--accent); color: var(--accent); font-weight: var(--weight-medium); }
+.site-nav-icon { display: none; }
+.site-settings {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: var(--muted);
+  text-decoration: none;
+}
+.site-settings svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.site-settings:hover { color: var(--accent); }
+.page-content {
+  width: min(100%, var(--layout-wide));
+  margin: 0 auto;
+  padding: 0 max(1rem, 2.5%) 6rem;
+}
+.mobile-nav { display: none; }
+
+/* ===================== ページ ===================== */
+.page-header {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-group);
+  margin: var(--space-group) 0;
+}
+.page-header h1 { display: flex; min-width: 0; flex: 1 1 0; align-items: center; gap: var(--space-item); }
+.heading-count {
+  color: var(--muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: inherit;
+  letter-spacing: var(--tracking-normal);
+  white-space: nowrap;
+  transform: translateY(calc((var(--text-title) - var(--text-body)) / 2));
+}
+
+/* 集計：絞り込んだ固定費の合計。組み方は資産画面の集計と同じ。 */
+.summary {
+  --summary-primary-size: max(var(--text-hero), 2.25rem);
+  --summary-secondary-size: var(--text-lead);
+  --summary-primary-label-size: var(--text-body);
+  --summary-secondary-label-size: var(--text-small);
+  --summary-secondary-gap: var(--space-section);
+  --summary-primary-gap: 4rem;
+  --summary-padding: var(--space-block);
+
+  position: sticky;
+  top: 0;
+  z-index: var(--layer-summary);
+  margin-block: var(--space-group) 0;
+  padding-block-end: var(--summary-padding);
+  border-block-end: var(--stroke-hairline) solid var(--rule);
+  background: var(--paper);
+}
+.summary dl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--summary-primary-gap);
+  margin: 0;
+}
+.summary .metric { display: grid; min-width: 0; gap: var(--space-within); justify-items: start; text-align: left; }
+.summary .primary { flex: 0 1 auto; min-width: 0; }
+.summary .secondary-list {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--summary-secondary-gap);
+}
+.summary dt { color: var(--muted); font-size: var(--summary-secondary-label-size); line-height: var(--leading-meta); }
+.summary .primary dt { color: var(--ink); font-size: var(--summary-primary-label-size); font-weight: var(--weight-medium); letter-spacing: var(--tracking-title); }
+.summary dd {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--summary-secondary-size);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+.summary .primary dd {
+  font-size: var(--summary-primary-size);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-hero);
+}
+.money-negative { color: var(--money-negative); }
+
+/* ===================== 絞り込み（取引画面と同じチップ） ===================== */
+.filters {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-item);
+  margin-top: var(--space-group);
+  padding-bottom: var(--space-item);
+}
+.chip-wrap { position: relative; display: inline-flex; min-width: 0; max-width: 100%; }
+.chip {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  height: 36px;
+  align-items: center;
+  gap: var(--space-item);
+  padding: 0 var(--space-related);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+  transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+}
+.chip[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--rule));
+  background: var(--import-positive-soft);
+  color: var(--accent-strong);
+}
+.chip[data-open='true'], .chip[data-open='true']:hover { border-color: var(--accent); color: var(--ink); }
+.trigger {
+  display: inline-flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  gap: var(--space-item);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: var(--leading-none);
+  cursor: pointer;
+}
+.trigger::after { position: absolute; inset: -1px; border-radius: inherit; content: ''; }
+.trigger:focus-visible { outline: none; }
+.chip:has(> .trigger:focus-visible) { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.chip-label { flex: none; }
+.chip-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+}
+.chip[data-active='true'] .chip-value { color: var(--accent-strong); }
+.chip-remove {
+  position: relative;
+  z-index: var(--layer-inline);
+  display: inline-flex;
+  width: 24px;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: 0 -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-micro);
+  line-height: var(--leading-none);
+  cursor: pointer;
+}
+.chip-remove span { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border-radius: var(--radius-circle); opacity: var(--opacity-subtle); }
+.chip-remove:hover span { background: color-mix(in srgb, currentColor 12%, transparent); opacity: 1; }
+.chip-remove:focus-visible { outline-offset: 0; }
+.chevron { width: 10px; height: 10px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; opacity: var(--opacity-subtle); pointer-events: none; }
+.menu {
+  position: absolute;
+  z-index: var(--layer-menu);
+  top: calc(100% + 6px);
+  left: -1px;
+  width: 15rem;
+  max-width: 70vw;
+  max-height: min(60vh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  padding: var(--space-item);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  white-space: normal;
+}
+.menu button {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: var(--space-item);
+  padding: 0 var(--space-item);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu button:hover, .menu button:focus-visible { background: var(--soft-control); outline: none; }
+.menu button[aria-checked='true'] { background: var(--button-primary); color: var(--on-accent); }
+.menu-check { margin-left: auto; font-size: 12px; visibility: hidden; }
+.menu button[aria-checked='true'] .menu-check { visibility: visible; }
+.clear {
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.clear:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; }
+.clear:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* ===================== 一覧（取引画面の行組み） ===================== */
+.groups { margin-top: 1.25rem; }
+.group + .group { margin-top: var(--space-group); }
+.group h3 {
+  min-height: 1.5625rem;
+  margin: 0;
+  padding-top: var(--space-within);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-normal);
+}
+.list { display: grid; margin: 0; padding: 0; list-style: none; }
+.list.flat { margin-top: 1.25rem; }
+.row { min-width: 0; }
+.row-link {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) minmax(0, max-content);
+  column-gap: var(--space-item);
+  align-items: center;
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--space-related) 0;
+  border-radius: var(--radius-xs);
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+}
+.row-link:hover, .row-link:focus-visible { background: var(--surface); }
+.row-link:active { transform: translateY(1px); }
+.row-link[data-columns='four'] { grid-template-columns: 6px minmax(0, 7rem) minmax(0, 1fr) minmax(0, max-content); }
+.row-category { min-width: 0; overflow: hidden; color: var(--ink); font-size: var(--text-body); line-height: var(--leading-body); text-overflow: ellipsis; white-space: nowrap; }
+.row-link:focus-visible { outline: var(--focus-ring); outline-offset: 0; }
+.dot { width: 6px; height: 6px; border-radius: var(--radius-circle); background: var(--dot, var(--muted)); align-self: center; }
+.row-main { display: flex; min-width: 0; flex-direction: column; align-self: center; gap: var(--space-within); }
+.row-name { min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); overflow-wrap: anywhere; text-wrap: pretty; }
+.row-meta { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); }
+.record-amount {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--money-negative);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ===================== 空の状態 ===================== */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-item);
+  padding: var(--space-page) min(var(--space-group), 1rem) var(--space-group);
+  color: var(--muted);
+  text-align: center;
+}
+.empty svg { width: 5.5rem; height: 4rem; margin-bottom: var(--space-within); fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.empty h2 { color: var(--ink); font-size: var(--text-heading); font-weight: var(--weight-medium); margin: 0; }
+.empty p { width: min(100%, 30rem); margin: 0; font-size: var(--text-body); line-height: var(--leading-body); text-wrap: balance; }
+.btn {
+  min-height: 40px;
+  padding: 0 var(--space-group);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+.btn:hover { background: var(--soft-control); }
+.empty .btn { margin-top: var(--space-within); }
+
+/* ===================== 登録 FAB ===================== */
+.fab {
+  position: absolute;
+  z-index: 30;
+  right: calc(max(0px, (100% - var(--layout-wide)) / 2) + max(1rem, 2.5%));
+  bottom: var(--space-section);
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--button-primary);
+  box-shadow: var(--shadow-popover);
+  color: var(--on-accent);
+  text-decoration: none;
+  transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+}
+.fab:hover { background: var(--accent); }
+.fab:active { transform: translateY(1px); }
+.fab svg { width: var(--text-icon); height: var(--text-icon); fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+
+/* ===================== モバイル枠 ===================== */
+.app.is-mobile { --text-title: 1.3125rem; --text-hero: 1.625rem; }
+.app.is-mobile .site-header { min-height: 3.5rem; padding: 6px 16px 4px; }
+.app.is-mobile .header-inner { min-height: 2.75rem; gap: var(--space-item); }
+.app.is-mobile .brand { min-height: 2.75rem; font-size: 1.25rem; }
+.app.is-mobile .brand svg { width: 21px; height: 18px; }
+.app.is-mobile .site-nav { display: none; }
+.app.is-mobile .page-content { padding: 0 16px calc(8.25rem + var(--site-nav-mobile-height)); }
+.app.is-mobile .page-header { margin: 2rem 0 var(--space-group); }
+.app.is-mobile .summary {
+  --summary-primary-size: 1.625rem;
+  --summary-secondary-size: 1rem;
+  --summary-secondary-label-size: var(--text-micro);
+  --summary-secondary-gap: var(--space-related);
+  --summary-primary-gap: 0.75rem;
+  --summary-padding: var(--space-related);
+}
+.app.is-mobile .row-link[data-columns='four'] { grid-template-columns: 6px 4.375rem minmax(0, 1fr) minmax(0, max-content); }
+.app.is-mobile .filters .menu { width: 12.5rem; }
+.app.is-mobile .clear { margin-left: 0; }
+.app.is-mobile .mobile-nav {
+  position: absolute;
+  z-index: var(--layer-nav);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  height: var(--site-nav-mobile-height);
+  align-items: stretch;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+.mobile-nav a {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-within);
+  padding: var(--space-within) var(--space-item);
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mobile-nav a svg { width: 1.25rem; height: 1.25rem; flex: 0 0 1.25rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.mobile-nav a[aria-current='page'] { color: var(--accent); font-weight: var(--weight-medium); }
+.app.is-mobile .fab { right: 1rem; bottom: calc(var(--site-nav-mobile-height) + 1rem); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <div class="harness-id">
+    <span class="harness-name">kobako <span>/ 固定費</span></span>
+    <span class="harness-badge">UIモック</span>
+  </div>
+  <div class="seg" data-group="preset" role="group" aria-label="状態">
+    <button type="button" data-preset="all" aria-pressed="true">すべて</button>
+    <button type="button" data-preset="filtered" aria-pressed="false">通信のみ</button>
+    <button type="button" data-preset="none" aria-pressed="false">該当なし</button>
+  </div>
+  <div class="harness-tools">
+    <div class="seg" data-group="columns" role="group" aria-label="カテゴリ列">
+      <button type="button" data-columns="three" aria-pressed="true">カテゴリ列なし</button>
+      <button type="button" data-columns="four" aria-pressed="false">カテゴリ列あり</button>
+    </div>
+    <div class="seg" data-group="view" role="group" aria-label="表示幅">
+      <button type="button" data-view="desktop" aria-pressed="true">PC</button>
+      <button type="button" data-view="mobile" aria-pressed="false">スマホ</button>
+    </div>
+    <div class="seg" data-group="theme" role="group" aria-label="テーマ">
+      <button type="button" data-theme-set="light" aria-pressed="true">ライト</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">ダーク</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="frame" data-frame="desktop"><div class="app" data-app="desktop"></div></div>
+  <div class="frame" data-frame="mobile" hidden><div class="app is-mobile" data-app="mobile"></div></div>
+</div>
+
+<script>
+/* ---------- サンプルデータ（デモの固定費と同じ9件） ---------- */
+const ROWS = [
+  { id: 'rent',      name: '家賃',              category: '住居',       amount: 85000, unit: 'month', count: 1, day: 27, startMonth: 10, account: '生活費口座' },
+  { id: 'water',     name: '水道',              category: '水道・光熱', amount: 3240,  unit: 'month', count: 2, day: 25, startMonth: 10, account: '生活費口座' },
+  { id: 'internet',  name: 'インターネット回線', category: '通信',       amount: 7800,  unit: 'month', count: 1, day: 5,  startMonth: 10, account: 'クレジットカード' },
+  { id: 'phone',     name: 'スマートフォン',     category: '通信',       amount: 3278,  unit: 'month', count: 1, day: 10, startMonth: 10, account: 'クレジットカード' },
+  { id: 'insurance', name: '医療保険',           category: '医療',       amount: 12000, unit: 'month', count: 3, day: 10, startMonth: 10, account: '生活費口座' },
+  { id: 'netflix',   name: 'Netflix',           category: '娯楽',       amount: 1490,  unit: 'month', count: 1, day: 8,  startMonth: 10, account: 'クレジットカード' },
+  { id: 'spotify',   name: 'Spotify Premium',   category: '娯楽',       amount: 1080,  unit: 'month', count: 1, day: 8,  startMonth: 10, account: 'クレジットカード' },
+  { id: 'prime',     name: 'Amazon Prime',      category: '娯楽',       amount: 5900,  unit: 'year',  count: 1, day: 15, startMonth: 3,  account: 'クレジットカード' },
+  { id: 'gym',       name: 'ジム',              category: '娯楽',       amount: 7700,  unit: 'month', count: 1, day: 15, startMonth: 10, account: '生活費口座' },
+];
+
+/* カテゴリの色は CategoryDot と同じ配色 */
+const DOT = { '住居': '#91a99d', '水道・光熱': '#98a6b0', '通信': '#aaa383', '医療': '#b49a96', '娯楽': '#b09eaf' };
+
+const GROUP_OPTIONS = [
+  ['categoryName', 'カテゴリ別'],
+  ['frequency', '頻度別'],
+  ['accountName', '資産別'],
+  ['day', '日付別'],
+  ['none', 'なし'],
+];
+const FREQUENCY_OPTIONS = [
+  ['month-1', '毎月'],
+  ['month-2', '2か月ごと'],
+  ['month-3', '3か月ごと'],
+  ['year-1', '1年ごと'],
+];
+const CATEGORIES = [...new Set(ROWS.map((row) => row.category))];
+const ACCOUNTS = [...new Set(ROWS.map((row) => row.account))];
+
+const state = { category: '', frequency: '', account: '', group: 'categoryName', categoryColumn: false, open: null, view: 'desktop', theme: 'light' };
+
+/* ---------- 表示用の組み立て ---------- */
+const yen = (value) => new Intl.NumberFormat('ja-JP').format(value) + '円';
+const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function frequencyValue(row) { return row.unit + '-' + row.count; }
+function frequencyLabel(row) {
+  if (row.unit === 'month' && row.count === 1) return '毎月' + row.day + '日';
+  if (row.unit === 'year' && row.count === 1) return '毎年' + row.startMonth + '月' + row.day + '日';
+  const unit = row.unit === 'year' ? '年' : 'か月';
+  return row.count + unit + 'ごと・' + row.startMonth + '月' + row.day + '日';
+}
+function periodMonths(row) { return row.unit === 'year' ? row.count * 12 : row.count; }
+
+/* getFixedCostSummary と同じ式：年間 = Σ(金額 × 12 ÷ 周期)、月あたり = 年間 ÷ 12 */
+function summarize(rows) {
+  const annualExact = rows.reduce((sum, row) => sum + (row.amount * 12) / periodMonths(row), 0);
+  const annual = Math.round(annualExact);
+  return { annual, monthly: Math.round(annual / 12) };
+}
+
+function filteredRows() {
+  return ROWS.filter((row) =>
+    (!state.category || row.category === state.category) &&
+    (!state.account || row.account === state.account) &&
+    (!state.frequency || frequencyValue(row) === state.frequency)
+  );
+}
+
+function groupKey(row) {
+  if (state.group === 'categoryName') return row.category;
+  if (state.group === 'accountName') return row.account;
+  if (state.group === 'day') return row.day + '日';
+  return frequencyLabel(row);
+}
+
+function groupLabel() {
+  return (GROUP_OPTIONS.find(([key]) => key === state.group) || GROUP_OPTIONS[0])[1];
+}
+
+/* ---------- 画面 ---------- */
+function chromeHTML() {
+  const links = [
+    ['概要', 'overview', '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>'],
+    ['取引', 'transactions', '<path d="M5 5h14M5 12h14M5 19h14"/><path d="M3 5h.01M3 12h.01M3 19h.01"/>'],
+    ['固定費', 'fixed-costs', '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>'],
+    ['残高', 'balances', '<path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4"/>'],
+  ];
+  const navLink = ([label, section, icon]) =>
+    '<a href="#" data-inert' + (section === 'fixed-costs' ? ' aria-current="page"' : '') + '>' +
+      '<svg class="site-nav-icon" viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg>' +
+      '<span>' + label + '</span>' +
+    '</a>';
+  return '' +
+    '<div class="app-scroll">' +
+      '<header class="site-header"><div class="header-inner">' +
+        '<a class="brand" href="#" data-inert aria-label="kobako 家計ノート ホーム">' +
+          '<svg viewBox="0 0 28 24" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg>' +
+          '<span>kobako</span>' +
+        '</a>' +
+        '<nav class="site-nav" aria-label="メインナビゲーション">' + links.map(navLink).join('') + '</nav>' +
+        '<a class="site-settings" href="#" data-inert aria-label="設定">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.7 3.7.5-1.2h3.6l.5 1.2 1 .4 1.2-.5 2.5 2.5-.5 1.2.4 1 1.2.5v3.6l-1.2.5-.4 1 .5 1.2-2.5 2.5-1.2-.5-1 .4-.5 1.2h-3.6l-.5-1.2-1-.4-1.2.5-2.5-2.5.5-1.2-.4-1-1.2-.5V8.8l1.2-.5.4-1-.5-1.2 2.5-2.5 1.2.5 1-.4Z"/><circle cx="12" cy="10.6" r="2.5"/></svg>' +
+        '</a>' +
+      '</div></header>' +
+      '<main class="page-content"><div data-region="screen"></div></main>' +
+    '</div>' +
+    '<a class="fab" href="#" data-inert aria-label="固定費を登録">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>' +
+    '</a>' +
+    '<nav class="mobile-nav" aria-label="メインナビゲーション">' + links.map(navLink).join('') + '</nav>';
+}
+
+function chipsHTML() {
+  const labelOf = (options, value) => {
+    const found = options.find(([key]) => key === value);
+    return found ? found[1] : value;
+  };
+  const chips = [
+    { key: 'group', label: 'グループ', value: state.group, display: groupLabel(), options: GROUP_OPTIONS, removable: false, active: false },
+    { key: 'category', label: 'カテゴリ', value: state.category, display: labelOf(CATEGORIES.map((c) => [c, c]), state.category), options: CATEGORIES.map((c) => [c, c]), removable: true, active: Boolean(state.category) },
+    { key: 'frequency', label: '頻度', value: state.frequency, display: labelOf(FREQUENCY_OPTIONS, state.frequency), options: FREQUENCY_OPTIONS, removable: true, active: Boolean(state.frequency) },
+    { key: 'account', label: '資産', value: state.account, display: labelOf(ACCOUNTS.map((a) => [a, a]), state.account), options: ACCOUNTS.map((a) => [a, a]), removable: true, active: Boolean(state.account) },
+  ];
+  const menu = (chip) => {
+    const items = [];
+    if (chip.removable && chip.value) items.push(['', 'すべて']);
+    chip.options.forEach(([key, label]) => items.push([key, label]));
+    return '<div class="menu" role="menu" aria-label="' + chip.label + '">' + items.map(([key, label]) =>
+      '<button type="button" role="menuitemradio" aria-checked="' + (key !== '' && key === chip.value) + '" data-choose="' + chip.key + '" data-value="' + esc(key) + '">' +
+        esc(label) + '<span class="menu-check" aria-hidden="true">✓</span>' +
+      '</button>'
+    ).join('') + '</div>';
+  };
+  return chips.map((chip) =>
+    '<div class="chip-wrap" data-active="' + chip.active + '">' +
+      '<div class="chip" data-active="' + chip.active + '" data-open="' + (state.open === chip.key) + '">' +
+        '<button type="button" class="trigger" data-chip-toggle="' + chip.key + '" aria-haspopup="menu" aria-expanded="' + (state.open === chip.key) + '">' +
+          '<span class="chip-label">' + chip.label + '</span>' +
+          (chip.display ? '<span class="chip-value">' + esc(chip.display) + '</span>' : '') +
+          '<svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4.5 4 4 4-4"/></svg>' +
+        '</button>' +
+        (chip.active ? '<button type="button" class="chip-remove" data-remove="' + chip.key + '" aria-label="絞り込みを外す"><span aria-hidden="true">×</span></button>' : '') +
+      '</div>' +
+      (state.open === chip.key ? menu(chip) : '') +
+    '</div>'
+  ).join('') + (state.category || state.frequency || state.account
+    ? '<button type="button" class="clear" data-clear>条件をクリア</button>'
+    : '');
+}
+
+function rowHTML(row) {
+  const meta = frequencyLabel(row) + '・' + row.account;
+  return '<li class="row">' +
+    '<a class="row-link" data-columns="' + (state.categoryColumn ? 'four' : 'three') + '" href="#" data-inert aria-label="' + esc((state.categoryColumn ? row.category + ' ' : '') + row.name + ' ' + meta + ' ' + yen(row.amount)) + '">' +
+      '<span class="dot" style="--dot: ' + (DOT[row.category] || '#b8b7ab') + '" aria-hidden="true"></span>' +
+      (state.categoryColumn ? '<span class="row-category">' + esc(row.category) + '</span>' : '') +
+      '<span class="row-main"><span class="row-name">' + esc(row.name) + '</span><span class="row-meta">' + esc(meta) + '</span></span>' +
+      '<span class="record-amount">' + yen(row.amount) + '</span>' +
+    '</a>' +
+  '</li>';
+}
+
+function listHTML(rows) {
+  if (rows.length === 0) {
+    return '<div class="empty" role="status">' +
+      '<svg viewBox="0 0 88 64" aria-hidden="true"><path d="M16 20h56v34H16zM16 20l8-9h40l8 9M30 30h28M30 39h20M30 48h13"/><path d="M24 11v9M64 11v9"/></svg>' +
+      '<h2>条件に合う固定費がありません</h2>' +
+      '<p>カテゴリや頻度を変えると、ほかの固定費が表示されます。</p>' +
+      '<button class="btn" type="button" data-clear>条件をクリア</button>' +
+    '</div>';
+  }
+  if (state.group === 'none') {
+    return '<ul class="list flat">' + rows.map(rowHTML).join('') + '</ul>';
+  }
+  const groups = new Map();
+  rows.forEach((row) => {
+    const key = groupKey(row);
+    groups.set(key, [...(groups.get(key) || []), row]);
+  });
+  return '<div class="groups">' + [...groups.entries()].map(([name, items], index) =>
+    '<section class="group" aria-labelledby="fixed-cost-group-' + index + '">' +
+      '<h3 id="fixed-cost-group-' + index + '">' + esc(name) + '</h3>' +
+      '<ul class="list" aria-labelledby="fixed-cost-group-' + index + '">' + items.map(rowHTML).join('') + '</ul>' +
+    '</section>'
+  ).join('') + '</div>';
+}
+
+function screenHTML() {
+  const rows = filteredRows();
+  const total = summarize(rows);
+  return '' +
+    '<header class="page-header"><h1><span class="heading-title">固定費</span><span class="heading-count">' + rows.length + '件</span></h1></header>' +
+    '<section class="summary" data-slot="page-summary" aria-label="固定費の集計" aria-live="polite" aria-atomic="true">' +
+      '<dl>' +
+        '<div class="metric primary"><dt>月あたり</dt><dd><span class="money-negative">' + yen(total.monthly) + '</span></dd></div>' +
+        '<div class="secondary-list"><div class="metric"><dt>年間</dt><dd><span class="money-negative">' + yen(total.annual) + '</span></dd></div></div>' +
+      '</dl>' +
+    '</section>' +
+    '<div class="filters" role="group" aria-label="固定費の表示条件">' + chipsHTML() + '</div>' +
+    listHTML(rows);
+}
+
+function render() {
+  document.querySelectorAll('[data-app]').forEach((app) => {
+    const screen = app.querySelector('[data-region="screen"]');
+    if (screen) screen.innerHTML = screenHTML();
+  });
+  syncHarness();
+}
+
+/* ---------- 操作 ---------- */
+function apply(patch) { Object.assign(state, patch); state.open = null; render(); }
+
+document.querySelectorAll('[data-app]').forEach((app) => {
+  app.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-choose],[data-remove],[data-chip-toggle],[data-clear],[data-inert]');
+    if (!target) {
+      if (state.open) { state.open = null; render(); }
+      return;
+    }
+    if (target.hasAttribute('data-inert')) { event.preventDefault(); return; }
+    if (target.dataset.choose) { apply({ [target.dataset.choose]: target.dataset.value }); return; }
+    if (target.dataset.remove) { apply({ [target.dataset.remove]: '' }); return; }
+    if (target.hasAttribute('data-clear')) { apply({ category: '', frequency: '', account: '' }); return; }
+    const key = target.dataset.chipToggle;
+    state.open = state.open === key ? null : key;
+    render();
+    const same = app.querySelector('[data-chip-toggle="' + key + '"]');
+    if (same) same.focus();
+  });
+  app.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.open) { state.open = null; render(); }
+  });
+});
+
+document.addEventListener('click', (event) => {
+  // 再描画で置き換わった古いノードからのクリックは無視する
+  if (!event.target.isConnected) return;
+  if (!event.target.closest('[data-app]') && !event.target.closest('.harness') && state.open) {
+    state.open = null;
+    render();
+  }
+});
+
+/* ---------- レビュー用コントロール ---------- */
+const PRESETS = {
+  all: { category: '', frequency: '', account: '' },
+  filtered: { category: '通信', frequency: '', account: '' },
+  none: { category: '通信', frequency: '', account: '生活費口座' },
+};
+function syncHarness() {
+  document.querySelectorAll('[data-preset]').forEach((button) => {
+    const preset = PRESETS[button.dataset.preset];
+    const match = preset && Object.entries(preset).every(([key, value]) => state[key] === value);
+    button.setAttribute('aria-pressed', match ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-view]').forEach((button) => {
+    button.setAttribute('aria-pressed', button.dataset.view === state.view ? 'true' : 'false');
+  });
+  document.querySelectorAll('.harness [data-columns]').forEach((button) => {
+    const on = button.dataset.columns === 'four';
+    button.setAttribute('aria-pressed', on === state.categoryColumn ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-theme-set]').forEach((button) => {
+    button.setAttribute('aria-pressed', button.dataset.themeSet === state.theme ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-frame]').forEach((frame) => {
+    frame.hidden = frame.dataset.frame !== state.view;
+  });
+}
+
+document.querySelector('.harness').addEventListener('click', (event) => {
+  const preset = event.target.closest('[data-preset]');
+  if (preset) { apply({ ...PRESETS[preset.dataset.preset], group: state.group }); return; }
+  const view = event.target.closest('[data-view]');
+  if (view) { state.view = view.dataset.view; render(); return; }
+  const columns = event.target.closest('[data-columns]');
+  if (columns) { state.categoryColumn = columns.dataset.columns === 'four'; render(); return; }
+  const theme = event.target.closest('[data-theme-set]');
+  if (theme) {
+    state.theme = theme.dataset.themeSet;
+    document.documentElement.dataset.theme = state.theme;
+    render();
+  }
+});
+
+/* ---------- 起動（?state=filtered&view=mobile&theme=dark で状態を固定できる） ---------- */
+const params = new URLSearchParams(location.search);
+if (PRESETS[params.get('state')]) Object.assign(state, PRESETS[params.get('state')]);
+if (['desktop', 'mobile'].includes(params.get('view'))) state.view = params.get('view');
+if (params.get('columns') === 'four') state.categoryColumn = true;
+if (['light', 'dark'].includes(params.get('theme'))) {
+  state.theme = params.get('theme');
+  document.documentElement.dataset.theme = state.theme;
+}
+document.querySelectorAll('[data-app]').forEach((app) => { app.innerHTML = chromeHTML(); });
+render();
+</script>
+</body>
+</html>
