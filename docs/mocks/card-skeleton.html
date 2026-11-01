@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>カードスケルトンの比較 | kobako</title>
+<style>
+  :root,
+  [data-theme='light'] {
+    color-scheme: light;
+    --paper: #fcfcf8;
+    --ink: #292e2b;
+    --muted: #68736c;
+    --accent: #426d59;
+    --button-primary: #2f6b52;
+    --on-accent: #fff;
+    --money-negative: #a33a36;
+    --rule: #dfe3da;
+    --surface: #f8faf5;
+    --soft-control: #f0f2eb;
+    --accent-strong: #315944;
+    --shadow-raised: 0 24px 90px #18291f24;
+  }
+
+  [data-theme='dark'] {
+    color-scheme: dark;
+    --paper: #1a1f1c;
+    --ink: #e4e7e0;
+    --muted: #a2ada5;
+    --accent: #8cc4a6;
+    --button-primary: #8cc4a6;
+    --on-accent: #142019;
+    --money-negative: #f2978e;
+    --rule: #343d37;
+    --surface: #1f2521;
+    --soft-control: #262d28;
+    --accent-strong: #a8d6bd;
+    --shadow-raised: 0 24px 90px rgb(0 0 0 / 55%);
+  }
+
+  :root {
+    --font-ui: 'Noto Sans JP Variable', 'Noto Sans JP', 'Hiragino Sans',
+      'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, textarea { font: inherit; }
+
+  .sheet {
+    width: min(980px, 100%);
+    padding: 28px 24px 40px;
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 4px 0 6px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.03em;
+  }
+
+  .lead {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .group {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .tab {
+    border: 0;
+    border-right: 1px solid var(--rule);
+    padding: 8px 12px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .tab:last-child { border-right: 0; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-pressed='true'] {
+    background: var(--soft-control);
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .play {
+    border: 1px solid var(--button-primary);
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: var(--button-primary);
+    color: var(--on-accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .play:hover {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+  }
+
+  .theme {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .theme:hover { color: var(--ink); }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 490px);
+    align-items: start;
+    gap: 32px;
+  }
+
+  .notes { padding-top: 4px; }
+
+  .state-label {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .state-desc {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .metrics {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .metrics div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .metrics dt {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .metrics dd {
+    margin: 0;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .metrics dd.neg { color: var(--money-negative); }
+  .metrics dd.ok { color: var(--accent); }
+
+  .hint {
+    min-height: 1.6em;
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .stage {
+    display: flex;
+    min-width: 0;
+    min-height: 560px;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  /* ---- the shipped overlay card ---- */
+  .overlay-card {
+    width: 440px;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    background: var(--paper);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .overlay-header {
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    padding: 8px 16px;
+  }
+
+  .back-target {
+    display: flex;
+    min-width: 0;
+    flex: 0 1 auto;
+    align-items: center;
+    margin-inline-start: -8px;
+  }
+
+  .back {
+    display: inline-flex;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    margin-inline: 0 -7px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  .back svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: var(--muted);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+  }
+
+  .title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .overlay-body {
+    padding: 12px 24px 24px;
+  }
+
+  /* ---- current skeleton (CardSkeletonFields) ---- */
+  .sk-wrap {
+    display: grid;
+    gap: 8px;
+    padding-block: 4px;
+  }
+
+  .sk-row {
+    display: grid;
+    gap: 4px;
+  }
+
+  .sk-label {
+    width: 72px;
+    height: 12px;
+  }
+
+  .sk-control { height: 44px; }
+
+  .sk-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 16px;
+  }
+
+  .sk-button {
+    width: 120px;
+    height: 44px;
+  }
+
+  .bone {
+    display: block;
+    border-radius: 6px;
+    background: var(--soft-control);
+    animation: skeleton-pulse 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite alternate;
+  }
+
+  @keyframes skeleton-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.55; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bone { animation: none; opacity: 0.7; }
+  }
+
+  /* ---- real form geometry (forms.module.css) ---- */
+  .ledger-form {
+    display: grid;
+    gap: 0;
+    font-size: 14px;
+  }
+
+  .type-field {
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    border: 0;
+  }
+
+  .legend,
+  .field > label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .type-options {
+    display: inline-flex;
+    gap: 16px;
+  }
+
+  .type-choice {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 2px 0 4px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .type-choice.selected {
+    border-bottom: 2px solid var(--accent);
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .entry-detail-grid {
+    display: grid;
+    gap: 0;
+  }
+
+  .entry-detail-grid .field {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    grid-template-rows: minmax(52px, auto);
+    align-items: center;
+    column-gap: 16px;
+    min-height: 52px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .entry-detail-grid .field > label {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .field-value {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .amount-field {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    grid-template-rows: 52px;
+    align-items: center;
+    column-gap: 16px;
+    min-height: 52px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .amount-field > label {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .amount-line {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 52px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .amount-line > span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  /* ---- proposed skeleton ---- */
+  .sk-legend-line {
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .sk-legend {
+    display: inline-block;
+    width: 64px;
+    height: 12px;
+    vertical-align: middle;
+  }
+
+  .sk-choice {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .sk-choice-bone {
+    width: 44px;
+    height: 16px;
+  }
+
+  .sk-field-label {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    width: 64px;
+    height: 12px;
+  }
+
+  .sk-yen {
+    width: 10px;
+    height: 12px;
+  }
+
+  .sk-value {
+    width: 55%;
+    height: 14px;
+    align-self: center;
+  }
+
+  .sk-value-amount { width: 45%; }
+
+  .sk-action { height: 44px; }
+  .sk-action-cancel { width: var(--cancel-w, 104px); }
+  .sk-action-save { width: var(--save-w, 90px); }
+
+  /* ---- loaded form ---- */
+  .ledger-form input,
+  .ledger-form textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+  }
+
+  .ledger-form input:focus,
+  .ledger-form textarea:focus { outline: none; }
+
+  .amount-input {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  .memo-input {
+    height: 51px;
+    min-height: 44px;
+    padding: 4px 0;
+    line-height: 1.6;
+    resize: none;
+  }
+
+  .value-text {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .icon {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 12px;
+    fill: none;
+    stroke: var(--muted);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .actions[data-with-cancel='true'] { justify-content: space-between; }
+
+  .btn {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--button-primary);
+    border-radius: 6px;
+    padding: 8px 16px;
+    background: var(--button-primary);
+    color: var(--on-accent);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    cursor: default;
+  }
+
+  .btn.secondary {
+    border-color: var(--rule);
+    background: var(--soft-control);
+    color: var(--ink);
+  }
+
+  /* ---- measurement tables ---- */
+  .tables { margin-top: 36px; }
+
+  .tables h2 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .tables table {
+    width: 100%;
+    margin-bottom: 28px;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .tables th,
+  .tables td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--rule);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tables thead th {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .tables th:first-child,
+  .tables td:first-child {
+    text-align: left;
+    font-variant-numeric: normal;
+  }
+
+  .tables .neg { color: var(--money-negative); }
+  .tables .ok { color: var(--accent); }
+
+  .spec th:not(:first-child),
+  .spec td:not(:first-child) {
+    text-align: left;
+    font-variant-numeric: normal;
+  }
+
+  .footnote {
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    border: 0;
+    white-space: nowrap;
+  }
+
+  #measure {
+    position: absolute;
+    top: 0;
+    left: -10000px;
+    width: 440px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @media (max-width: 760px) {
+    .sheet { padding: 20px 16px 32px; }
+
+    .comparison {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+    }
+
+    .state-desc { grid-column: 1 / -1; margin-bottom: 0; }
+
+    .metrics {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 16px;
+    }
+
+    .metrics div {
+      flex: 1;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .hint { grid-column: 1 / -1; margin: 0; }
+
+    .stage {
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .tables { overflow-x: auto; }
+    .tables table { min-width: 560px; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <p class="eyebrow">kobako / UI comparison</p>
+    <h1>カードスケルトンの比較</h1>
+    <p class="lead">実フォームの寸法に合わせた骨組み。440px幅・行高53px・ヘッダー60px。</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="group" role="group" aria-label="カード">
+      <button class="tab" type="button" data-card="transaction" aria-pressed="true">取引</button>
+      <button class="tab" type="button" data-card="fixed" aria-pressed="false">固定費</button>
+      <button class="tab" type="button" data-card="asset" aria-pressed="false">資産</button>
+    </div>
+    <div class="group" role="group" aria-label="表示">
+      <button class="tab" type="button" data-mode="current" aria-pressed="true">現状</button>
+      <button class="tab" type="button" data-mode="proposed" aria-pressed="false">提案</button>
+      <button class="tab" type="button" data-mode="complete" aria-pressed="false">完成</button>
+    </div>
+    <button class="play" type="button" id="play">▶ 読み込みを再生</button>
+    <button class="theme" type="button" id="theme">ダーク</button>
+  </div>
+
+  <section class="comparison">
+    <div class="notes">
+      <p class="state-label" id="stateLabel">現状のスケルトン</p>
+      <p class="state-desc" id="stateDesc">ラベルが上・4行固定・罫線なし</p>
+      <dl class="metrics">
+        <div><dt>カード高</dt><dd id="cardHeight">438px</dd></div>
+        <div><dt>完成との差</dt><dd id="cardDelta" class="neg">−68px</dd></div>
+        <div><dt>行数</dt><dd id="rowCount">4行</dd></div>
+      </dl>
+      <p class="hint" id="playStatus" role="status" aria-live="polite"></p>
+    </div>
+    <div class="stage" id="stage"></div>
+  </section>
+
+  <section class="tables">
+    <h2>実測（440px幅・px）</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>カード</th>
+          <th>現状</th>
+          <th>提案</th>
+          <th>完成</th>
+          <th>現状の差</th>
+          <th>提案の差</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>取引</th>
+          <td id="m-transaction-current">—</td>
+          <td id="m-transaction-proposed">—</td>
+          <td id="m-transaction-complete">—</td>
+          <td id="m-transaction-diff-current" class="neg">—</td>
+          <td id="m-transaction-diff-proposed" class="ok">—</td>
+        </tr>
+        <tr>
+          <th>固定費</th>
+          <td id="m-fixed-current">—</td>
+          <td id="m-fixed-proposed">—</td>
+          <td id="m-fixed-complete">—</td>
+          <td id="m-fixed-diff-current" class="neg">—</td>
+          <td id="m-fixed-diff-proposed" class="ok">—</td>
+        </tr>
+        <tr>
+          <th>資産</th>
+          <td id="m-asset-current">—</td>
+          <td id="m-asset-proposed">—</td>
+          <td id="m-asset-complete">—</td>
+          <td id="m-asset-diff-current" class="neg">—</td>
+          <td id="m-asset-diff-proposed" class="ok">—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>行の寸法</h2>
+    <table class="spec">
+      <thead>
+        <tr><th></th><th>現状</th><th>提案 / 完成</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>行の形</td><td>ラベルが上、値が下</td><td>左90pxのラベル列、右に値</td></tr>
+        <tr><td>1行の高さ</td><td>60px</td><td>53px（下線1pxを含む）</td></tr>
+        <tr><td>行数（取引）</td><td>4行固定</td><td>6行（種別・金額・カテゴリ・資産・日付・メモ）</td></tr>
+        <tr><td>操作列</td><td>右に保存風の箱1つ（120×44）</td><td>左キャンセル・右保存（実ボタンと同じ44px）</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="footnote">
+    このモックが見ていないもの: Next.js のストリーミング、フォーカス移動、Esc/戻る、実読み込み時間、
+    カードの最大高さとスクロール、オーバーレイの背景と出現アニメーション。
+    資産のカード条件など、データ到着後に増える節はデフォルト形状で表示しています。
+    寸法は 440px 幅・デスクトップ表示。フォントは環境の Noto Sans JP / Yu Gothic にフォールバックします。
+  </p>
+</main>
+
+<div id="measure" aria-hidden="true"></div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const oneOf = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+
+  const state = {
+    card: oneOf(params.get('card'), ['transaction', 'fixed', 'asset'], 'transaction'),
+    mode: oneOf(params.get('mode'), ['current', 'proposed', 'complete'], 'current'),
+    theme: oneOf(params.get('theme'), ['light', 'dark'], 'light'),
+  };
+
+  const CARDS = {
+    transaction: {
+      title: '取引を登録',
+      loading: '取引を読み込み中',
+      rows: 6,
+      proposed: ['choice', 'amount', 'field', 'field', 'field', 'field'],
+    },
+    fixed: {
+      title: '固定費を登録',
+      loading: '固定費を読み込み中',
+      rows: 6,
+      proposed: ['field', 'amount', 'field', 'field', 'field', 'field'],
+    },
+    asset: {
+      title: '資産を登録',
+      loading: '資産を読み込み中',
+      rows: 2,
+      proposed: ['field', 'field'],
+    },
+  };
+
+  const MODES = {
+    current: { label: '現状のスケルトン', desc: 'ラベルが上・4行固定・罫線なし' },
+    proposed: { label: '提案のスケルトン', desc: '実フォームと同じ行の部品で構成' },
+    complete: { label: '読み込み後', desc: '実際のフォーム（比較用）' },
+  };
+
+  const chevron =
+    '<svg class="icon" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"/></svg>';
+  const calendar =
+    '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1"/><path d="M5 2v3M11 2v3M2.5 6h11"/></svg>';
+
+  function header(title) {
+    return `
+      <header class="overlay-header">
+        <div class="back-target">
+          <button class="back" type="button" aria-label="${title} — 戻る">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m7.5 2.25-3.25 3.75L7.5 9.75"/></svg>
+          </button>
+          <p class="title">${title}</p>
+        </div>
+      </header>`;
+  }
+
+  function currentSkeleton(loadingLabel) {
+    const rows = Array.from(
+      { length: 4 },
+      () => '<div class="sk-row"><span class="bone sk-label"></span><span class="bone sk-control"></span></div>',
+    ).join('');
+    return `
+      <div role="status">
+        <span class="sr-only">${loadingLabel}</span>
+        <div class="sk-wrap" aria-hidden="true">
+          ${rows}
+          <div class="sk-actions"><span class="bone sk-button"></span></div>
+        </div>
+      </div>`;
+  }
+
+  function typeSkeleton() {
+    return `
+      <div class="type-field">
+        <div class="sk-legend-line"><span class="bone sk-legend"></span></div>
+        <div class="type-options">
+          ${Array.from({ length: 3 }, () => '<span class="sk-choice"><span class="bone sk-choice-bone"></span></span>').join('')}
+        </div>
+      </div>`;
+  }
+
+  function amountSkeleton() {
+    return `
+      <div class="field amount-field">
+        <span class="bone sk-field-label"></span>
+        <div class="amount-line">
+          <span class="bone sk-yen"></span>
+          <span class="bone sk-value sk-value-amount"></span>
+        </div>
+      </div>`;
+  }
+
+  function fieldSkeleton() {
+    return `
+      <div class="entry-detail-grid">
+        <div class="field">
+          <span class="bone sk-field-label"></span>
+          <div class="field-value"><span class="bone sk-value"></span></div>
+        </div>
+      </div>`;
+  }
+
+  function actionsSkeleton() {
+    return `
+      <div class="actions" data-with-cancel="true">
+        <span class="bone sk-action sk-action-cancel"></span>
+        <span class="bone sk-action sk-action-save"></span>
+      </div>`;
+  }
+
+  function proposedSkeleton(rows, loadingLabel) {
+    const parts = rows
+      .map((kind) => (kind === 'choice' ? typeSkeleton() : kind === 'amount' ? amountSkeleton() : fieldSkeleton()))
+      .join('');
+    return `
+      <div role="status">
+        <span class="sr-only">${loadingLabel}</span>
+        <div class="ledger-form" aria-hidden="true">
+          ${parts}
+          ${actionsSkeleton()}
+        </div>
+      </div>`;
+  }
+
+  function completeForm(key) {
+    const actions = `
+      <div class="actions" data-with-cancel="true">
+        <button class="btn secondary" type="button">キャンセル</button>
+        <button class="btn primary" type="button">登録する</button>
+      </div>`;
+
+    if (key === 'transaction') {
+      return `
+        <form class="ledger-form" onsubmit="return false">
+          <div class="type-field">
+            <span class="legend">種別</span>
+            <div class="type-options">
+              <span class="type-choice selected">支出</span>
+              <span class="type-choice">収入</span>
+              <span class="type-choice">振替</span>
+            </div>
+          </div>
+          <div class="field amount-field">
+            <label>金額</label>
+            <div class="amount-line">
+              <span>¥</span>
+              <input class="amount-input" value="12,400" readonly tabindex="-1">
+            </div>
+          </div>
+          <div class="entry-detail-grid">
+            <div class="field">
+              <label>カテゴリ</label>
+              <div class="field-value"><span class="value-text">食費 ${chevron}</span></div>
+            </div>
+          </div>
+          <div class="entry-detail-grid">
+            <div class="field">
+              <label>資産</label>
+              <div class="field-value"><span class="value-text">生活費口座 ${chevron}</span></div>
+            </div>
+          </div>
+          <div class="entry-detail-grid">
+            <div class="field">
+              <label>日付</label>
+              <div class="field-value"><span class="value-text">2026/11/02 ${calendar}</span></div>
+            </div>
+            <div class="field">
+              <label>メモ（任意）</label>
+              <div class="field-value"><textarea class="memo-input" rows="1" readonly tabindex="-1">スーパー</textarea></div>
+            </div>
+          </div>
+          ${actions}
+        </form>`;
+    }
+
+    if (key === 'fixed') {
+      return `
+        <form class="ledger-form" onsubmit="return false">
+          <div class="entry-detail-grid">
+            <div class="field amount-field">
+              <label>名称</label>
+              <div class="field-value"><input value="家賃" readonly tabindex="-1"></div>
+            </div>
+            <div class="field amount-field">
+              <label>金額</label>
+              <div class="amount-line">
+                <span>¥</span>
+                <div class="field-value"><input class="amount-input" value="85,000" readonly tabindex="-1"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>カテゴリ</label>
+              <div class="field-value"><span class="value-text">住居 ${chevron}</span></div>
+            </div>
+            <div class="field">
+              <label>資産</label>
+              <div class="field-value"><span class="value-text">生活費口座 ${chevron}</span></div>
+            </div>
+            <div class="field">
+              <label>頻度</label>
+              <div class="field-value"><span class="value-text">毎月 ${chevron}</span></div>
+            </div>
+            <div class="field">
+              <label>日付</label>
+              <div class="field-value"><span class="value-text">27日 ${chevron}</span></div>
+            </div>
+          </div>
+          ${actions}
+        </form>`;
+    }
+
+    return `
+      <form class="ledger-form" onsubmit="return false">
+        <div class="entry-detail-grid">
+          <div class="field">
+            <label>名前</label>
+            <div class="field-value"><input value="みずほ銀行" readonly tabindex="-1"></div>
+          </div>
+          <div class="field">
+            <label>資産カテゴリ</label>
+            <div class="field-value"><span class="value-text">銀行 ${chevron}</span></div>
+          </div>
+        </div>
+        ${actions}
+      </form>`;
+  }
+
+  function cardHtml(key, mode) {
+    const data = CARDS[key];
+    const body =
+      mode === 'current'
+        ? currentSkeleton(data.loading)
+        : mode === 'proposed'
+          ? proposedSkeleton(data.proposed, data.loading)
+          : completeForm(key);
+    return `<div class="overlay-card" data-card="${key}" data-mode="${mode}">${header(data.title)}<div class="overlay-body">${body}</div></div>`;
+  }
+
+  const stage = document.getElementById('stage');
+  const measureRoot = document.getElementById('measure');
+  const stateLabel = document.getElementById('stateLabel');
+  const stateDesc = document.getElementById('stateDesc');
+  const cardHeight = document.getElementById('cardHeight');
+  const cardDelta = document.getElementById('cardDelta');
+  const rowCount = document.getElementById('rowCount');
+  const playStatus = document.getElementById('playStatus');
+  const playButton = document.getElementById('play');
+  const themeButton = document.getElementById('theme');
+  let playTimer = null;
+
+  function measure(key, mode) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml(key, mode);
+    const card = wrap.firstElementChild;
+    measureRoot.append(card);
+    const height = card.offsetHeight;
+    card.remove();
+    return height;
+  }
+
+  // The action bones take the width of the real buttons in the same font environment,
+  // so the skeleton's footer cannot drift when the fallback font differs.
+  function syncActionWidths() {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml('transaction', 'complete');
+    const card = wrap.firstElementChild;
+    measureRoot.append(card);
+    const cancel = card.querySelector('.actions .btn.secondary');
+    const save = card.querySelector('.actions .btn.primary');
+    if (cancel && save) {
+      document.documentElement.style.setProperty('--cancel-w', `${cancel.offsetWidth}px`);
+      document.documentElement.style.setProperty('--save-w', `${save.offsetWidth}px`);
+    }
+    card.remove();
+  }
+
+  function syncTabs() {
+    document.querySelectorAll('[data-card]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.card === state.card));
+    });
+    document.querySelectorAll('[data-mode]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode));
+    });
+    themeButton.textContent = state.theme === 'light' ? 'ダーク' : 'ライト';
+  }
+
+  function syncUrl() {
+    const next = new URLSearchParams();
+    next.set('card', state.card);
+    next.set('mode', state.mode);
+    next.set('theme', state.theme);
+    try {
+      history.replaceState(null, '', `${location.pathname}?${next.toString()}`);
+    } catch {
+      /* The inline preview is sandboxed; the URL sync is only useful on the hosted copy. */
+    }
+  }
+
+  function updateMetrics() {
+    const card = stage.querySelector('.overlay-card');
+    const height = card.offsetHeight;
+    const complete = measure(state.card, 'complete');
+    const diff = height - complete;
+
+    cardHeight.textContent = `${height}px`;
+    if (state.mode === 'complete') {
+      cardDelta.textContent = '基準';
+      cardDelta.className = '';
+    } else if (diff === 0) {
+      cardDelta.textContent = '一致';
+      cardDelta.className = 'ok';
+    } else {
+      cardDelta.textContent = `${diff > 0 ? '+' : '−'}${Math.abs(diff)}px`;
+      cardDelta.className = 'neg';
+    }
+
+    rowCount.textContent = `${state.mode === 'current' ? 4 : CARDS[state.card].rows}行`;
+    stateLabel.textContent = MODES[state.mode].label;
+    stateDesc.textContent = MODES[state.mode].desc;
+  }
+
+  function render() {
+    stage.innerHTML = cardHtml(state.card, state.mode);
+    syncTabs();
+    updateMetrics();
+  }
+
+  function fillTable() {
+    Object.keys(CARDS).forEach((key) => {
+      const current = measure(key, 'current');
+      const proposed = measure(key, 'proposed');
+      const complete = measure(key, 'complete');
+
+      document.getElementById(`m-${key}-current`).textContent = current;
+      document.getElementById(`m-${key}-proposed`).textContent = proposed;
+      document.getElementById(`m-${key}-complete`).textContent = complete;
+
+      const currentDiff = current - complete;
+      const proposedDiff = proposed - complete;
+      const currentCell = document.getElementById(`m-${key}-diff-current`);
+      const proposedCell = document.getElementById(`m-${key}-diff-proposed`);
+
+      currentCell.textContent =
+        currentDiff === 0 ? '0' : `${currentDiff > 0 ? '+' : '−'}${Math.abs(currentDiff)}`;
+      currentCell.className = currentDiff === 0 ? 'ok' : 'neg';
+      proposedCell.textContent =
+        proposedDiff === 0 ? '0' : `${proposedDiff > 0 ? '+' : '−'}${Math.abs(proposedDiff)}`;
+      proposedCell.className = proposedDiff === 0 ? 'ok' : 'neg';
+    });
+  }
+
+  function resetPlay() {
+    if (playTimer) clearTimeout(playTimer);
+    playTimer = null;
+    playStatus.textContent = '';
+  }
+
+  document.querySelectorAll('[data-card]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.card = button.dataset.card;
+      resetPlay();
+      render();
+      syncUrl();
+    });
+  });
+
+  document.querySelectorAll('[data-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.mode = button.dataset.mode;
+      resetPlay();
+      render();
+      syncUrl();
+    });
+  });
+
+  themeButton.addEventListener('click', () => {
+    state.theme = state.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = state.theme;
+    syncTabs();
+    syncUrl();
+  });
+
+  playButton.addEventListener('click', () => {
+    resetPlay();
+    state.mode = state.mode === 'complete' ? 'proposed' : state.mode;
+    render();
+    syncUrl();
+    playStatus.textContent = '読み込み中…';
+    playTimer = setTimeout(() => {
+      state.mode = 'complete';
+      render();
+      syncUrl();
+      playStatus.textContent = '完了';
+      playTimer = null;
+    }, 1200);
+  });
+
+  document.documentElement.dataset.theme = state.theme;
+  syncActionWidths();
+  render();
+  syncTabs();
+  fillTable();
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      syncActionWidths();
+      fillTable();
+      updateMetrics();
+    });
+  }
+</script>
+</body>
+</html>
