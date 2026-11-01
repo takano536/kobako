@@ -138,6 +138,7 @@
     font-weight: 500;
     line-height: 1.25;
     font-variant-numeric: tabular-nums;
+    text-align: right;
   }
   .metrics dd[data-tone='diff'] { color: var(--money-negative); }
   .metrics dd[data-tone='same'] { color: var(--accent); }
@@ -484,7 +485,7 @@
     padding: 9px 10px;
     border-bottom: 1px solid var(--rule);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
   }
   tr:last-child > * { border-bottom: 0; }
   thead th {
@@ -509,6 +510,15 @@
   .matrix td:nth-child(n+5) { font-variant-numeric: tabular-nums; }
   .matrix .same { color: var(--accent); }
   .matrix .split { color: var(--muted); }
+  .value-pair {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .value-pair small { color: var(--muted); font-size: 10px; }
+  .value-pair > span { font-variant-numeric: tabular-nums; }
   .matrix small { color: var(--muted); font-size: 10px; }
   .decision-table th:first-child { width: 34%; }
   .decision-table .ok { color: var(--accent); }
@@ -701,7 +711,7 @@
             <th><strong>資産 編集</strong><code>@modal/(.)accounts/[id]/edit</code></th>
             <td>名前・資産カテゴリ<br><small>+ カード条件4行（クレジットカードのみ）</small></td>
             <td>削除する</td><td>保存する</td>
-            <td>438</td><td class="split">264 / 509<br><small>条件なし / あり</small></td><td class="split">264 / 509<br><small>条件なし / あり</small></td>
+            <td>438</td><td class="split"><span class="value-pair"><small>条件なし</small><span>264</span></span><span class="value-pair"><small>あり</small><span>509</span></span></td><td class="split"><span class="value-pair"><small>条件なし</small><span>264</span></span><span class="value-pair"><small>あり</small><span>509</span></span></td>
           </tr>
         </tbody>
       </table>
