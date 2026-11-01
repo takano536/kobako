@@ -617,7 +617,7 @@
 @media (max-width: 30rem) {
   .delete-confirm-form button,
   .delete-confirmation .delete-cancel {
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
   }
