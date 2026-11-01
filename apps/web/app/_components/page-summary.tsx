@@ -44,7 +44,7 @@ export function PageSummary({
           <div className={styles['secondary-list']}>
             {secondary.map((metric) => (
               <div
-                className={[styles.metric, styles.secondary].join(' ')}
+                className={styles.metric}
                 key={metric.label}
                 role={secondaryRole ? 'group' : undefined}
                 aria-label={secondaryRole ? metric.label : undefined}
