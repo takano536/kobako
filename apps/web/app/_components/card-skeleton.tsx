@@ -125,7 +125,7 @@ function LabelBone({ children }: { children: ReactNode }) {
 }
 
 function ValueBone() {
-  return <input className={skeletonStyles.bone} disabled aria-hidden tabIndex={-1} />;
+  return <span className={`${skeletonStyles.bone} ${skeletonStyles.value}`} aria-hidden="true" />;
 }
 
 function ChoiceRow({ choices }: { choices: readonly string[] }) {
@@ -221,16 +221,6 @@ export function CardFormSkeleton({
           <ActionBone kind="save" label={actions.saveLabel} />
         </div>
       </div>
-    </div>
-  );
-}
-
-/** 設定などページ用フォームの既存スケルトンです。 */
-export function CardSkeleton({ label }: { label: string }) {
-  return (
-    <div role="status">
-      <span className="sr-only">{label}</span>
-      <CardSkeletonFields />
     </div>
   );
 }
