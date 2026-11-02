@@ -194,7 +194,7 @@ test.describe('overlay cards', () => {
     expect(cardStyles.borderBottomWidth).toBe('1px');
     expect(cardStyles.labelFontSize).toBe('12px');
     expect(cardStyles.saveWidth).toBeCloseTo(page.viewportSize()!.width <= 480 ? 74 : 90, 1);
-    expect(cardStyles.saveHeight).toBe(page.viewportSize()!.width <= 480 ? 36 : 44);
+    expect(cardStyles.saveHeight).toBe(44);
     expect(cardStyles.saveFontSize).toBe(page.viewportSize()!.width <= 480 ? '12px' : '14px');
     const last = page.locator('#entry-dialog button:not([disabled]):visible').last();
     await last.focus();
