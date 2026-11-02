@@ -70,4 +70,4 @@ Docker jobは `docker compose stop -t 20` 後に worker終了コード `0`、web
 
 ## PR プレビュー
 
-`pull_request` の opened / synchronize / reopened で `preview` job が Cloudflare Workers へデモを配備し、PR にコメントで URL を出します。同じ run で GitHub の Deployments に `pr-<番号>` 環境として記録するため、PR 上部の "View deployment" からも開けます。closed では同じ job が `wrangler preview delete` を実行します。必要な secret と制約は [`docs/preview.md`](preview.md) を参照してください。
+`pull_request` の opened / synchronize / reopened で `preview` job が Cloudflare Workers へデモを配備し、PR にコメントで URL を出します。プレビューは GitHub の Deployments を作らず、PR コメントに URL・配備コミット・時刻を出します。closed では同じ job が `wrangler preview delete` を実行し、Deployments の該当配備を inactive（destroyed）にします。必要な secret と制約は [`docs/preview.md`](preview.md) を参照してください。
