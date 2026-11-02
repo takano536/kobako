@@ -14,7 +14,7 @@
 
 DB を分けているのは、PR ブランチの migration や濫用が公開デモを壊さないようにするためです。Neon の無料枠はプロジェクト単位（各 100 CU-hours / 1GB）なので、2プロジェクトに分けても費用は変わりません。
 
-プレビューは GitHub の Deployments にも記録するため、PR 上部の "View deployment" から直接開けます。環境名は `pr-<番号>`（transient environment）で、Preview URL は同じ PR への push で更新され、配備ごとの不変 URL（deployment URL）も job summary に出ます。
+公開デモの配備は GitHub の Deployments に `production` 環境として記録し、リポジトリの Deployments から URL を開けます。PR プレビューは GitHub の Deployments には記録しません。Deployments は公開デモの配備だけを示す場所として空けておきます。Preview URL は同じ PR への push で更新され、配備ごとの不変 URL（deployment URL）は job summary に出ます。PR のコメントは同じ1件を書き換えるため、どの時点の配備か分かるように配備したコミット・時刻・その配備だけの URL を本文に載せます。
 
 ## 訪問者ごとの世帯
 
