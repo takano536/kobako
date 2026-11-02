@@ -6,6 +6,11 @@
   background: var(--soft-control);
   animation: skeleton-pulse 1.4s var(--ease-standard) infinite alternate;
 }
+.value {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 2.75rem;
+}
 
 /* Sized by a transparent copy of the real label, so the placeholder keeps the label's width. */
 .text {
