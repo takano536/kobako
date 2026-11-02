@@ -2,17 +2,19 @@
 
 公開デモ（README 用）と PR プレビューの2つを Cloudflare Workers に配備します。どちらも `apps/web` を [OpenNext Cloudflare](https://opennext.js.org/cloudflare) でビルドし、訪問者ごとに使い捨ての世帯を発行します。分けているのはコードではなく、Worker と DB です。どちらも `workers.dev` のサブドメインで配備するため、独自ドメインは使いません。
 
-|          | 公開デモ                                            | PR プレビュー                                                  |
-| -------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| URL      | `https://demo.takano536.workers.dev`                | `https://pr-<番号>.takano536.workers.dev`                      |
-| トリガ   | main への push                                      | PR の open / synchronize                                       |
-| Worker   | `demo`                                              | `pr-<番号>`（close で削除）                                    |
-| 設定     | `apps/web/wrangler.jsonc`                           | `apps/web/wrangler.preview.jsonc`（`PR_NUMBER` を sed で置換） |
-| DB       | `DEMO_DATABASE_URL`                                 | `PREVIEW_DATABASE_URL`                                         |
-| 保護     | 公開。上限とリセットで守る                          | 公開。上限を50世帯に絞る                                       |
-| リセット | 毎日 03:00 JST（`demo-reset.yml`）と main への push | PR への push                                                   |
+|          | 公開デモ                                            | PR プレビュー                                                 |
+| -------- | --------------------------------------------------- | ------------------------------------------------------------- |
+| URL      | `https://demo.takano536.workers.dev`                | `https://pr-<番号>-demo.takano536.workers.dev`（Preview URL） |
+| トリガ   | main への push                                      | PR の open / synchronize                                      |
+| Worker   | `demo`                                              | `demo` の Preview `pr-<番号>`（close で削除）                 |
+| 設定     | `apps/web/wrangler.jsonc`                           | `apps/web/wrangler.jsonc` の `previews` ブロック              |
+| DB       | `DEMO_DATABASE_URL`                                 | `PREVIEW_DATABASE_URL`                                        |
+| 保護     | 公開。上限とリセットで守る                          | 公開。上限を50世帯に絞る                                      |
+| リセット | 毎日 03:00 JST（`demo-reset.yml`）と main への push | PR への push                                                  |
 
 DB を分けているのは、PR ブランチの migration や濫用が公開デモを壊さないようにするためです。Neon の無料枠はプロジェクト単位（各 100 CU-hours / 1GB）なので、2プロジェクトに分けても費用は変わりません。
+
+プレビューは GitHub の Deployments にも記録するため、PR 上部の "View deployment" から直接開けます。環境名は `pr-<番号>`（transient environment）で、Preview URL は同じ PR への push で更新され、配備ごとの不変 URL（deployment URL）も job summary に出ます。
 
 ## 訪問者ごとの世帯
 
@@ -61,7 +63,7 @@ pnpm demo:build   # @kobako/db build + OpenNext build
 DATABASE_URL=... pnpm demo:seed
 ```
 
-`wrangler` は `apps/web` の devDependency です。手元で配備する場合は `apps/web` で `pnpm exec wrangler preview --name <name>` を実行します。
+`wrangler` は `apps/web` の devDependency です。手元で配備する場合は `apps/web` で `pnpm exec wrangler preview --name <name> --json` を実行します。URL は `scripts/preview-output.mjs` で取り出せます。
 
 ## 代替
 

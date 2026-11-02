@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  deployments: write
 
 concurrency:
   group: kobako-preview-${{ github.event.pull_request.number }}
@@ -23,6 +24,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
       DEMO_RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
+      PREVIEW_NAME: pr-${{ github.event.pull_request.number }}
+      PREVIEW_WORKER_NAME: demo
     steps:
       - name: Check preview configuration
         id: config
@@ -45,18 +48,12 @@ jobs:
       - if: steps.config.outputs.ready == 'true'
         uses: ./.github/actions/setup
 
-      - name: Write the preview config
-        if: steps.config.outputs.ready == 'true'
-        working-directory: apps/web
-        run: |
-          set -euo pipefail
-          sed "s/PR_NUMBER/${{ github.event.pull_request.number }}/g" wrangler.preview.jsonc \
-            > wrangler.generated.jsonc
-
       - name: Stop the pull request preview
         if: steps.config.outputs.ready == 'true' && github.event.action == 'closed'
         working-directory: apps/web
-        run: pnpm exec wrangler delete --config wrangler.generated.jsonc || true
+        run: |
+          set -euo pipefail
+          pnpm exec wrangler preview delete --name "${PREVIEW_NAME}" --skip-confirmation || true
 
       - name: Build the worker bundle
         if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
@@ -80,17 +77,68 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${GITHUB_WORKSPACE}/.tmp"
+          secrets_file="${GITHUB_WORKSPACE}/.tmp/preview.env"
+          output="${GITHUB_WORKSPACE}/.tmp/preview.json"
           {
             printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
             printf 'DEMO_RESET_TOKEN=%s\n' "${DEMO_RESET_TOKEN}"
-          } > "${GITHUB_WORKSPACE}/.tmp/preview.env"
-          pnpm exec wrangler deploy \
-            --config wrangler.generated.jsonc \
-            --secrets-file "${GITHUB_WORKSPACE}/.tmp/preview.env" \
-            --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}"
-          url=$(node scripts/workers-dev-url.mjs "pr-${{ github.event.pull_request.number }}")
-          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+          } > "${secrets_file}"
+          pnpm exec wrangler preview \
+            --name "${PREVIEW_NAME}" \
+            --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}" \
+            --secrets-file "${secrets_file}" \
+            --json > "${output}"
+          url=$(node scripts/preview-output.mjs "${output}" preview-url)
+          deployment_url=$(node scripts/preview-output.mjs "${output}" deployment-url)
+          dashboard_url=$(node scripts/preview-output.mjs "${output}" dashboard-url)
+          {
+            echo "url=${url}"
+            echo "deployment_url=${deployment_url}"
+            echo "dashboard_url=${dashboard_url}"
+          } >> "${GITHUB_OUTPUT}"
           echo "プレビュー: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Record the GitHub deployment
+        if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          DASHBOARD_URL: ${{ steps.deploy.outputs.dashboard_url }}
+          PR_REF: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PREVIEW_URL}" ]; then
+            echo 'プレビュー URL を取得できなかったため deployment を記録しませんでした。' >&2
+            exit 1
+          fi
+          deployment_id=$(
+            jq -n \
+              --arg ref "${PR_REF}" \
+              --arg sha "${PR_SHA}" \
+              --arg environment "${PREVIEW_NAME}" \
+              '{
+                ref: $ref,
+                sha: $sha,
+                environment: $environment,
+                description: "Cloudflare Workers Preview",
+                transient_environment: true,
+                production_environment: false,
+                auto_merge: false,
+                required_contexts: []
+              }' | gh api --method POST "repos/${GITHUB_REPOSITORY}/deployments" --input - --jq '.id'
+          )
+          jq -n \
+            --arg environment_url "${PREVIEW_URL}" \
+            --arg log_url "${DASHBOARD_URL}" \
+            '{
+              state: "success",
+              environment_url: $environment_url,
+              log_url: $log_url,
+              description: "Cloudflare Workers Preview",
+              auto_inactive: true
+            }' | gh api --method POST "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" --input - > /dev/null
+          echo "deployment ${deployment_id}: ${PREVIEW_URL}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Comment the preview URL
         if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
