@@ -26,6 +26,11 @@ function tokyoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function nextMonthDate(year: number, month: number, day: number): string {
+  const next = new Date(Date.UTC(year, month, day));
+  return tokyoDate(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+}
+
 function recentMonths(count: number): Array<{ year: number; month: number }> {
   const now = new Date();
   const tokyo = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -39,7 +44,7 @@ function recentMonths(count: number): Array<{ year: number; month: number }> {
 
 /**
  * Fill the demo ledger with a readable household: four accounts, three months of
- * transactions, and two transfers. The newest month mixes hand-entered rows with a card
+ * transactions, and seven transfers. The newest month mixes hand-entered rows with a card
  * statement written through the real API ingest path, so the "API" badge and the API-only
  * filter have something to show. `reset` truncates the ledger first so a preview always
  * starts from the same state, while the default run is a no-op once accounts exist.
@@ -307,18 +312,31 @@ export async function seedDemoLedger(
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
   };
+  const transferRows: DemoRow[] = months.flatMap(({ year, month }, index) => [
+    {
+      household_id: householdId,
+      from_account_id: salaryAccount,
+      to_account_id: livingAccount,
+      amount: 180000,
+      occurred_on: tokyoDate(year, month, 26),
+      memo: '生活費へ振替',
+    },
+    ...(index === 0
+      ? []
+      : [
+          {
+            household_id: householdId,
+            from_account_id: livingAccount,
+            to_account_id: cashAccount,
+            amount: 30000,
+            occurred_on: tokyoDate(year, month, 10),
+            memo: '現金へ振替',
+          },
+        ]),
+  ]);
   await sql`
     insert into transfers ${sql(
-      [
-        {
-          household_id: householdId,
-          from_account_id: salaryAccount,
-          to_account_id: livingAccount,
-          amount: 150000,
-          occurred_on: tokyoDate(oldest.year, oldest.month, 26),
-          memo: '生活費へ振替',
-        },
-      ],
+      transferRows,
       'household_id',
       'from_account_id',
       'to_account_id',
@@ -332,6 +350,39 @@ export async function seedDemoLedger(
   // origin 'api', an api_batches row is recorded, and the income row gets a server fingerprint.
   const newest = months[0] ?? oldest;
   const newestDay = (value: number): string => tokyoDate(newest.year, newest.month, value);
+  const oldestMonthStart = tokyoDate(oldest.year, oldest.month, 1);
+  const oldestMonthEnd = nextMonthDate(oldest.year, oldest.month, 1);
+  const cardPaymentDate = nextMonthDate(oldest.year, oldest.month, 27);
+  const [oldestCardSpend] = await sql<{ amount: string | number }[]>`
+    select coalesce(sum(amount), 0)::bigint as amount
+    from transactions
+    where household_id = ${householdId}
+      and account_id = ${cardAccount}
+      and type = 'expense'
+      and occurred_on >= ${oldestMonthStart}
+      and occurred_on < ${oldestMonthEnd}
+  `;
+  const cardPaymentAmount = Number(oldestCardSpend?.amount ?? 0);
+  await sql`
+    insert into account_card_settings (
+      household_id,
+      account_id,
+      closing_day,
+      payment_day,
+      payment_month_offset,
+      debit_account_id,
+      auto_payment_starts_on
+    )
+    values (
+      ${householdId},
+      ${cardAccount},
+      'last',
+      '27',
+      'next_month',
+      ${livingAccount},
+      ${oldestMonthStart}
+    )
+  `;
   const apiTransactions: ApiTransactionRow[] = [
     {
       type: 'expense',
@@ -362,9 +413,9 @@ export async function seedDemoLedger(
   ];
   const apiTransfers: ApiTransferRow[] = [
     {
-      amount: 20000,
+      amount: 30000,
       occurredOn: newestDay(10),
-      from: '給与口座',
+      from: '生活費口座',
       to: '現金',
       memo: 'ATMで引き出し',
       externalId: 'demo-atm-withdrawal',
@@ -384,13 +435,50 @@ export async function seedDemoLedger(
   if (!replayed && !ingestedAll) {
     throw new Error(`demo API ingest failed: ${JSON.stringify(ingested.rows)}`);
   }
+  // Record the oldest statement's already-completed payment so the worker does not create it again.
+  const [autoPaymentTransfer] = await sql<{ id: number }[]>`
+    insert into transfers (
+      household_id,
+      from_account_id,
+      to_account_id,
+      amount,
+      occurred_on,
+      memo
+    )
+    values (
+      ${householdId},
+      ${livingAccount},
+      ${cardAccount},
+      ${cardPaymentAmount},
+      ${cardPaymentDate},
+      '自動引落'
+    )
+    returning id
+  `;
+  if (!autoPaymentTransfer) throw new Error('demo card payment transfer insert returned no row');
+  await sql`
+    insert into card_auto_payment_runs (
+      household_id,
+      card_account_id,
+      due_on,
+      status,
+      transfer_id
+    )
+    values (
+      ${householdId},
+      ${cardAccount},
+      ${cardPaymentDate},
+      'completed',
+      ${autoPaymentTransfer.id}
+    )
+  `;
   const apiRowCount = replayed ? 0 : apiTransactions.length;
 
   return {
     status: 'seeded',
     accounts: accountRows.length,
     transactions: transactions.length + apiRowCount,
-    transfers: 1 + apiTransfers.length,
+    transfers: transferRows.length + apiTransfers.length + 1,
     apiTransactions: apiRowCount,
     apiTransfers: apiTransfers.length,
   };
