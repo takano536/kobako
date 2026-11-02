@@ -1,4 +1,11 @@
 # Changelog
+## [0.21.4](https://github.com/takano536/kobako/compare/v0.21.3...v0.21.4) (2026-11-02)
+
+
+### Bug Fixes
+
+* **web:** カードフォームのスケルトンを実フォームに合わせる ([#59](https://github.com/takano536/kobako/issues/59)) ([21be832](https://github.com/takano536/kobako/commit/21be83200e9963a65886490cf103d8677573ea1f))
+
 ## [0.21.3](https://github.com/takano536/kobako/compare/v0.21.2...v0.21.3) (2026-11-01)
 
 
