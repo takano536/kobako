@@ -1,4 +1,12 @@
 # Changelog
+## [0.21.5](https://github.com/takano536/kobako/compare/v0.21.4...v0.21.5) (2026-11-02)
+
+
+### Bug Fixes
+
+* **web:** restore card skeleton value surfaces ([#62](https://github.com/takano536/kobako/issues/62)) ([e68010e](https://github.com/takano536/kobako/commit/e68010ed77eb20aa0955f5c0830de22a6980edb3))
+* **web:** デモのクレジットカードを引落口座と請求サイクルに紐付ける ([#61](https://github.com/takano536/kobako/issues/61)) ([7cc3650](https://github.com/takano536/kobako/commit/7cc3650c9d6597f76745ce84830f8b507d677d93))
+
 ## [0.21.4](https://github.com/takano536/kobako/compare/v0.21.3...v0.21.4) (2026-11-02)
 
 
