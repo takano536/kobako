@@ -130,8 +130,9 @@
   font-size: var(--text-body);
 }
 .delete-confirmation .delete-cancel {
+  box-sizing: border-box;
+  height: 2.75rem;
   order: -1;
-  min-height: 2.75rem;
   padding: var(--space-item) var(--space-group);
   border: var(--stroke-hairline) solid var(--rule);
   border-radius: var(--radius-sm);
@@ -140,8 +141,9 @@
 }
 
 .delete-cancel {
+  box-sizing: border-box;
+  height: 2.75rem;
   display: inline-flex;
-  min-height: 2.75rem;
   align-items: center;
   color: var(--muted);
   font-size: var(--text-small);
@@ -151,8 +153,12 @@
   margin: 0;
   font-size: var(--text-body);
 }
+
 .delete-action > .delete-confirm > summary {
-  min-height: 2.75rem;
+  box-sizing: border-box;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
   border: var(--stroke-hairline) solid var(--button-danger);
   border-radius: var(--radius-sm);
   padding: var(--space-item) var(--space-group);
@@ -617,7 +623,8 @@
 @media (max-width: 30rem) {
   .delete-confirm-form button,
   .delete-confirmation .delete-cancel {
-    min-height: 2.75rem;
+    box-sizing: border-box;
+    height: 2.75rem;
     padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
   }
@@ -625,8 +632,9 @@
 
 @media (max-width: 30rem) {
   .delete-action > .delete-confirm > summary {
+    box-sizing: border-box;
+    height: 2.75rem;
     display: inline-flex;
-    min-height: 2.75rem;
     align-items: center;
     padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
