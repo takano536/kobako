@@ -315,6 +315,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 }
 .month button svg { width: 1rem; height: 1rem; }
 .month .label {
+  width: auto;
   padding-inline: var(--space-within);
   color: var(--ink);
   font-size: var(--text-small);
@@ -427,7 +428,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 .cat-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
-  grid-template-rows: minmax(2rem, auto) minmax(1.75rem, auto);
+  grid-template-rows: minmax(1.75rem, auto) minmax(1.25rem, auto);
   column-gap: var(--space-item);
   align-items: start;
 }
@@ -471,7 +472,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
   grid-row: 2;
   align-self: start;
   height: 0.125rem;
-  margin-top: var(--space-item);
+  margin-top: var(--space-within);
   overflow: hidden;
   background: var(--bar);
 }
@@ -489,7 +490,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
   grid-column: 2;
   grid-row: 2;
   align-self: start;
-  margin-top: var(--space-item);
+  margin-top: var(--space-within);
   color: var(--muted);
   font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
@@ -773,6 +774,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 .settings-row .label { min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); }
 .settings-row .value {
   min-width: 0;
+  margin-inline-start: auto;
   overflow: hidden;
   color: var(--muted);
   font-size: var(--text-body);
@@ -937,10 +939,15 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
   background: var(--button-primary);
   box-shadow: var(--shadow-popover);
   color: var(--on-accent);
-  transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+  transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard);
 }
 .fab:hover { background: var(--accent); }
 .fab:active { transform: translateY(1px); }
+.fab.is-retracted {
+  transform: translateY(calc(100% + 1.5rem));
+  opacity: 0;
+  pointer-events: none;
+}
 .fab svg {
   width: var(--text-icon);
   height: var(--text-icon);
@@ -990,6 +997,13 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 @media (max-width: 30rem) {
   :root { --text-title: 1.3125rem; }
+}
+/* Short screens (Android 360x800 class): tighten the top rhythm so the
+   seven category rows clear the FAB without changing the 390x844 look. */
+@media (max-height: 820px) {
+  .page-header { margin-block: var(--space-item); }
+  .month { margin-bottom: var(--space-within); }
+  .summary { padding-block-end: var(--space-within); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -1293,6 +1307,7 @@ document.getElementById('txList').innerHTML = TX.map(t => `
   <div class="tx-group"><div class="tx-date">${t.date}</div>${txRow(t)}</div>`).join('');
 
 const screens = ['overview','transactions','fixed','balances','settings','connect'];
+let lastScrollY = 0;
 function show(name) {
   screens.forEach(s => document.getElementById('screen-' + s).hidden = s !== name);
   document.querySelectorAll('.nav a').forEach(a => {
@@ -1302,11 +1317,20 @@ function show(name) {
     if (name === 'settings') g.setAttribute('aria-current','page'); else g.removeAttribute('aria-current');
   });
   document.getElementById('fab').hidden = !['overview','transactions'].includes(name);
+  document.getElementById('fab').classList.remove('is-retracted');
+  lastScrollY = 0;
   document.querySelector('.nav').hidden = name === 'connect';
   window.scrollTo(0,0);
 }
 document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); show(el.dataset.goto); }));
 document.getElementById('fab').addEventListener('click', () => alert('取引を登録'));
+addEventListener('scroll', () => {
+  const y = Math.max(0, window.scrollY);
+  const fab = document.getElementById('fab');
+  if (y > lastScrollY + 6 && y > 24) fab.classList.add('is-retracted');
+  else if (y < lastScrollY - 6 || y <= 8) fab.classList.remove('is-retracted');
+  lastScrollY = y;
+}, { passive: true });
 document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () => {
   const on = s.getAttribute('aria-checked') !== 'true';
   s.setAttribute('aria-checked', on ? 'true' : 'false');
