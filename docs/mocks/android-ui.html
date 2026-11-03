@@ -8,581 +8,962 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
+/* ============================================================
+   Design tokens — copied from apps/web/app/globals.css
+   ============================================================ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
   --paper: #fcfcf8;
   --ink: #292e2b;
   --muted: #68736c;
   --accent: #426d59;
-  --accent-strong: #315944;
-  --accent-soft: #e8f0e9;
-  --on-accent: #ffffff;
   --button-primary: #2f6b52;
+  --button-danger: #a84f45;
   --money-negative: #a33a36;
   --money-positive: #245c9c;
   --category-dot: #91a99d;
   --category-bar: #8da597;
-  --surface: #f8faf5;
-  --bar: #e5e9e1;
   --rule: #dfe3da;
+  --bar: #e5e9e1;
+  --surface: #f8faf5;
+  --surface-hover: #edf2eb;
+  --soft-control: #f0f2eb;
+  --focus: #2f614c;
+  --on-accent: #fff;
+  --accent-strong: #315944;
+  --scrim: rgb(22 36 29 / 52%);
+  --scrim-dialog: rgb(41 46 43 / 20%);
+  --shadow-raised: 0 24px 90px #18291f24;
+  --shadow-popover: 0 3px 10px rgb(41 46 43 / 14%);
+  --control-hover: #e7eee7;
+  --danger-soft: #f9efed;
+  --danger-border: #a84f45;
+  --danger-rule: #e7cbc6;
+  --error-border: #b77b73;
+  --error-surface: #fff9f6;
+  --error-text: #703f3a;
+  --import-border: #aebcaf;
+  --import-icon-border: #b9c8bb;
+  --import-soft: #e3eee4;
+  --import-muted: #eef0ed;
+  --import-badge: #e8eee9;
+  --import-positive-soft: #e9f2e9;
+  --import-negative-soft: #f8eae7;
+  --import-duplicate-border: #9bb2a0;
+  --import-duplicate-surface: #f7faf7;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #1a1f1c;
+  --ink: #e4e7e0;
+  --muted: #a2ada5;
+  --accent: #8cc4a6;
+  --button-primary: #8cc4a6;
+  --button-danger: #ec948a;
+  --money-negative: #f2978e;
+  --money-positive: #8db9ef;
+  --category-dot: #91a99d;
+  --category-bar: #6f8a7c;
+  --rule: #343d37;
+  --bar: #2b332e;
+  --surface: #1f2521;
+  --surface-hover: #28302b;
+  --soft-control: #262d28;
+  --focus: #8cc4a6;
+  --on-accent: #142019;
+  --accent-strong: #a8d6bd;
+  --scrim: rgb(6 9 7 / 64%);
+  --scrim-dialog: rgb(6 9 7 / 48%);
+  --shadow-raised: 0 24px 90px rgb(0 0 0 / 55%);
+  --shadow-popover: 0 3px 10px rgb(0 0 0 / 45%);
+  --control-hover: #2c352f;
+  --danger-soft: #362422;
+  --danger-border: #ec948a;
+  --danger-rule: #5a3833;
+  --error-border: #b8786f;
+  --error-surface: #2a2120;
+  --error-text: #f3bcb4;
+  --import-border: #56665a;
+  --import-icon-border: #5d6e61;
+  --import-soft: #24352a;
+  --import-muted: #262b28;
+  --import-badge: #26302a;
+  --import-positive-soft: #203227;
+  --import-negative-soft: #3a2725;
+  --import-duplicate-border: #5f7a66;
+  --import-duplicate-surface: #1e2621;
+}
+
+:root {
+  --font-ui:
+    'Noto Sans JP Variable', 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+    system-ui, sans-serif;
+  --text-title: 1.4375rem;
+  --text-heading: 0.9375rem;
   --text-body: 0.875rem;
   --text-small: 0.75rem;
-  --text-meta: 0.6875rem;
-  --text-page-title: 1.3125rem;
-  --text-section: 0.9375rem;
-  --text-lead: 1.875rem;
-  --text-summary: 1.1875rem;
-  --space-page: 1rem;
-  --radius: 0.3rem;
-  --font: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  --text-brand: 1.375rem;
+  --text-micro: 0.6875rem;
+  --text-lead: 1.125rem;
+  --text-icon: 1.5rem;
+  --text-hero: clamp(1.875rem, 2.6vw, 2.25rem);
+  --tracking-hero: -0.04em;
+  --tracking-title: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+  --opacity-muted: 0.8;
+  --opacity-inactive: 0.3;
+  --space-within: 0.25rem;
+  --space-item: 0.5rem;
+  --space-dot-text: 0.5rem;
+  --space-related: 12px;
+  --space-group: 1rem;
+  --space-block: 24px;
+  --space-section: 2rem;
+  --space-page: 2.5rem;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+  --shadow-ring-accent: 0 0 0 1px var(--accent);
+  --shadow-ring-accent-inset: inset 0 0 0 1px var(--accent);
+  --shadow-underline-accent: inset 0 -1px 0 var(--accent);
+  --shadow-underline-negative: inset 0 -1px 0 var(--money-negative);
+  --focus-ring: 3px solid var(--accent);
+  --focus-ring-danger: 3px solid var(--money-negative);
+  --focus-ring-tight: 2px solid var(--accent);
+  --focus-offset: 3px;
+  --focus-offset-tight: 1px;
+  --focus-offset-flush: 0;
+  --stroke-hairline: 1px;
+  --stroke-medium: 1.5px;
+  --stroke-emphasis: 2px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --layer-inline: 1;
+  --layer-summary: 2;
+  --layer-menu: 10;
+  --layer-nav: 20;
+  --layer-popover: 30;
+  --layer-backdrop: 50;
+  --leading-tight: 1.15;
+  --leading-heading: 1.3;
+  --leading-body: 1.6;
+  --leading-meta: 1.45;
+  --leading-none: 1;
+  --layout-wide: 65rem;
+  --layout-narrow: 42rem;
+  --site-nav-mobile-height: 3.5rem;
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --motion-fast: 160ms;
+  --motion-enter: 240ms;
+  --motion-bars: 420ms;
+  --page-gutter: max(1rem, 2.5vw);
+  --page-bottom: calc(8.25rem + var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px));
 }
+
+/* ============================================================
+   Base
+   ============================================================ */
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body {
   margin: 0;
+  min-width: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
-  line-height: 1.6;
+  line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-button, a { color: inherit; font: inherit; }
-button { border: 0; background: none; padding: 0; cursor: pointer; }
-a { text-decoration: none; }
+button, a, input { color: inherit; font: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+a { text-decoration: none; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3, p, dl, dd, dt { margin: 0; }
+h1, h2, h3 { letter-spacing: var(--tracking-tight); }
+h1 {
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-title);
+}
+h2 { font-size: var(--text-heading); font-weight: var(--weight-medium); line-height: var(--leading-heading); }
+h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-height: var(--leading-meta); }
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* ===== shell ===== */
-.app {
-  width: 100%;
-  max-width: 390px;
+/* ============================================================
+   Shell — layout.module.css
+   ============================================================ */
+.app { min-height: 100svh; }
+.site-header {
+  width: min(100%, var(--layout-wide));
+  min-height: 4.125rem;
   margin: 0 auto;
-  min-height: 100vh;
-  background: var(--paper);
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding: var(--space-group) var(--page-gutter) var(--space-item);
 }
-.topbar {
-  height: 68px;
-  padding: 16px var(--space-page) 8px;
+.header-inner {
   display: flex;
+  min-height: 2.6875rem;
   align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-item);
 }
-.topbar .gear {
+.brand {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-within);
+  color: var(--ink);
+  font-size: var(--text-brand);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+}
+.brand .mark { display: inline-flex; flex: 0 0 auto; color: var(--accent); }
+.brand .mark svg {
+  width: 21px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.2;
+}
+.site-settings {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: var(--muted);
-  border-radius: 50%;
 }
-.topbar .gear svg { width: 21px; height: 21px; }
-.topbar .gear[aria-current="page"] { color: var(--accent); }
-
-.page { padding: 16px var(--space-page) 0; }
-.page-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  margin: 0 0 16px;
+.site-settings svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
-.page-head h1 {
-  margin: 0;
-  font-size: var(--text-page-title);
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-}
-.gear {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  border-radius: 50%;
-}
-.gear svg { width: 21px; height: 21px; }
-.gear[aria-current="page"] { color: var(--accent); }
-.page-head .gear { margin-left: auto; }
-.page-head .count {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: 1.15;
-  transform: translateY(1px);
+.site-settings:hover { color: var(--accent); }
+.site-settings[aria-current='page'] { color: var(--accent); }
+.page {
+  width: min(100%, var(--layout-wide));
+  margin: 0 auto;
+  padding: 0 var(--page-gutter) var(--page-bottom);
 }
 
-/* month */
+/* ============================================================
+   Page header — page-header.module.css
+   ============================================================ */
+.page-header {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-group);
+  margin: var(--space-group) 0 var(--space-group);
+}
+.page-header h1 { display: flex; min-width: 0; flex: 1 1 0; align-items: center; gap: var(--space-item); }
+.heading-count {
+  color: var(--muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: inherit;
+  letter-spacing: var(--tracking-normal);
+  white-space: nowrap;
+  transform: translateY(calc((var(--text-title) - var(--text-body)) / 2));
+}
+
+/* ============================================================
+   Month switcher — month-switcher.module.css
+   ============================================================ */
 .month {
   display: grid;
-  grid-template-columns: 44px auto 44px;
+  grid-template-columns: 2.75rem auto 2.75rem;
   align-items: center;
   justify-content: start;
   width: max-content;
-  height: 44px;
-  margin: 0 0 16px -12px;
+  min-height: 2.75rem;
+  margin: 0 0 var(--space-group) calc(var(--space-related) * -1);
 }
 .month button {
-  width: 44px;
-  height: 44px;
   display: flex;
+  width: 2.75rem;
+  height: 2.75rem;
   align-items: center;
   justify-content: center;
   color: var(--muted);
 }
+.month button svg { width: 1rem; height: 1rem; }
 .month .label {
-  padding: 0 4px;
+  padding-inline: var(--space-within);
   color: var(--ink);
   font-size: var(--text-small);
-  line-height: 1.3;
+  line-height: var(--leading-heading);
   white-space: nowrap;
 }
 
-/* summary — live web: label + lead left, two metrics right, one rule below */
+/* ============================================================
+   Summary — page-summary.module.css
+   ============================================================ */
 .summary {
+  --summary-primary-size: min(1.625rem, 7.3vw);
+  --summary-secondary-size: min(1rem, 4.6vw);
+  --summary-primary-label-size: var(--text-body);
+  --summary-secondary-label-size: var(--text-micro);
+  --summary-secondary-gap: var(--space-related);
+  --summary-primary-gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: var(--layer-summary);
+  margin-block: var(--space-group) 0;
+  padding-block-end: var(--space-related);
+  border-block-end: var(--stroke-hairline) solid var(--rule);
+  background: var(--paper);
+}
+.summary-list {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
+  justify-content: space-between;
+  gap: var(--summary-primary-gap);
 }
-.summary .primary { min-width: 0; flex: 1; }
-.summary .eyebrow {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: 1.3;
+.summary .metric {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-within);
+  justify-items: start;
+  text-align: left;
 }
-.summary .lead {
-  margin-top: 2px;
-  color: var(--money-negative);
-  font-size: var(--text-lead);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
+.summary .primary { flex: 0 1 auto; min-width: 0; }
 .summary .secondary {
   display: flex;
-  gap: 16px;
-  padding-bottom: 1px;
+  min-width: 0;
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--summary-secondary-gap);
 }
-.summary .secondary .metric { min-width: 0; }
 .summary dt {
   color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.3;
-  white-space: nowrap;
+  font-size: var(--summary-secondary-label-size);
+  line-height: var(--leading-meta);
+}
+.summary .primary dt {
+  color: var(--ink);
+  font-size: var(--summary-primary-label-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-title);
 }
 .summary dd {
-  margin: 2px 0 0;
-  font-size: var(--text-summary);
-  font-weight: 500;
-  line-height: 1.15;
+  min-width: 0;
+  font-size: var(--summary-secondary-size);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
   white-space: nowrap;
+}
+.summary .primary dd {
+  font-size: var(--summary-primary-size);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-hero);
 }
 .pos { color: var(--money-positive); }
 .neg { color: var(--money-negative); }
 
-/* sections */
-.section { margin-top: 32px; }
+/* ============================================================
+   Sections
+   ============================================================ */
+.section { margin-top: var(--space-section); }
 .section-head {
   display: flex;
+  min-height: 2.75rem;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  min-height: 44px;
+  gap: var(--space-item);
 }
 .section-head h2 {
-  margin: 0;
-  font-size: var(--text-section);
-  font-weight: 500;
-  line-height: 1.3;
+  font-size: var(--text-heading);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-heading);
 }
 .section-link {
-  min-height: 44px;
   display: inline-flex;
+  min-height: 2.75rem;
   align-items: center;
-  margin-right: -8px;
-  padding: 0 8px;
+  margin-right: calc(var(--space-item) * -1);
+  padding-inline: var(--space-item);
   color: var(--muted);
   font-size: var(--text-small);
-  line-height: 1.3;
+  line-height: var(--leading-heading);
   white-space: nowrap;
 }
 
-/* category rows */
-.cat-list { margin-top: 4px; }
-.cat-item { padding: 7px 0; }
-.cat-top {
+/* ============================================================
+   Category breakdown — category-breakdown.module.css
+   ============================================================ */
+.cat-list { display: grid; }
+.cat-item {
   display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 8px;
-  min-height: 22px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-rows: minmax(2rem, auto) minmax(1.75rem, auto);
+  column-gap: var(--space-item);
+  align-items: start;
+}
+.cat-name-cell {
+  display: grid;
+  grid-template-columns: 0.375rem minmax(0, 1fr);
+  column-gap: var(--space-dot-text);
+  align-items: start;
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 .cat-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-circle);
   background: var(--category-dot);
+  align-self: start;
+  margin-top: calc((1lh - 0.375rem) / 2);
 }
 .cat-name {
   min-width: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-body);
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+  line-height: var(--leading-body);
+  text-wrap: pretty;
+  white-space: normal;
 }
 .cat-amount {
-  color: var(--money-negative);
+  grid-column: 2;
+  grid-row: 1;
+  overflow-wrap: anywhere;
   font-size: var(--text-body);
-  line-height: 1.4;
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
   white-space: nowrap;
 }
-.cat-track {
-  position: relative;
-  height: 2px;
-  margin: 8px 0 4px 14px;
+.cat-bar {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  height: 0.125rem;
+  margin-top: var(--space-item);
+  overflow: hidden;
   background: var(--bar);
 }
-.cat-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--share, 0%);
+.cat-bar span {
+  display: block;
+  width: var(--category-width);
+  height: 100%;
   background: var(--category-bar);
+  transform: scaleX(0.85);
+  transform-origin: left center;
+  opacity: var(--opacity-inactive);
+  animation: category-bar-reveal var(--motion-bars) var(--ease-standard) both;
 }
-.cat-meta {
-  display: flex;
-  justify-content: flex-end;
-  margin-left: 14px;
+.cat-share {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  margin-top: var(--space-item);
   color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.3;
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading-meta);
+  text-align: right;
+  white-space: nowrap;
+}
+@keyframes category-bar-reveal {
+  from { transform: scaleX(0.85); opacity: var(--opacity-inactive); }
+  to { transform: scaleX(1); opacity: 1; }
 }
 
-/* recent */
-.recent { margin-top: 4px; }
-.recent-item + .recent-item { margin-top: 16px; }
+/* ============================================================
+   Transactions — transaction-row.module.css
+   ============================================================ */
+.recent-list { display: grid; }
+.recent-item + .recent-item { margin-top: calc(var(--space-group) + var(--space-within)); }
 .recent-date {
+  display: block;
   color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.3;
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
 }
-.recent-link {
+.tx-link {
   display: grid;
-  grid-template-columns: 6px minmax(0, 70px) minmax(0, 1fr) auto;
+  grid-template-columns: 6px minmax(0, clamp(4rem, 18vw, 7rem)) minmax(0, 1fr) max-content;
   align-items: center;
-  column-gap: 8px;
+  column-gap: var(--space-item);
+  min-width: 0;
   min-height: 56px;
-  padding: 6px 0;
+  padding: var(--space-related) 0;
+  border-radius: var(--radius-xs);
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
-.recent-cat { font-size: var(--text-body); line-height: 1.4; }
-.recent-main { min-width: 0; display: grid; }
-.recent-account {
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.recent-memo {
-  font-size: var(--text-small);
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.recent-amount {
+.tx-link:hover { background: var(--surface); }
+.tx-cat {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-body);
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  line-height: var(--leading-body);
 }
-
-/* transactions */
-.filters {
+.tx-cat.transfer { color: var(--muted); }
+.tx-main {
   display: flex;
-  gap: 8px;
-  margin: 4px 0 8px;
-  padding-bottom: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-direction: column;
+  align-self: center;
+  min-width: 0;
+  gap: var(--space-within);
+  font-size: var(--text-body);
 }
-.filters::-webkit-scrollbar { display: none; }
-.filter {
-  flex: none;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--ink);
-  font-size: var(--text-small);
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.filter svg { width: 12px; height: 12px; color: var(--muted); }
-.filter.is-on { border-color: var(--accent); color: var(--accent); }
-.tx-group + .tx-group { margin-top: 16px; }
-.tx-date {
-  padding-top: 4px;
-  color: var(--muted);
-  font-size: var(--text-meta);
-  font-weight: 500;
-  line-height: 1.3;
-}
-.tx-row {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 70px) minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 8px;
-  width: 100%;
-  min-height: 56px;
-  padding: 8px 0;
-  text-align: left;
-}
-.tx-main { min-width: 0; display: grid; }
 .tx-account {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  color: var(--muted);
-  font-size: var(--text-small);
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 .tx-memo {
   display: flex;
-  align-items: center;
-  gap: 6px;
   min-width: 0;
+  align-items: center;
+  color: var(--muted);
   font-size: var(--text-small);
-  line-height: 1.3;
+  line-height: var(--leading-meta);
 }
-.tx-memo span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.api {
-  flex: none;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-size: 10px;
-  line-height: 1.4;
+.tx-memo > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tx-amount {
   font-size: var(--text-body);
-  line-height: 1.4;
   font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
+}
+.api {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  block-size: 1.0625rem;
+  margin-inline-start: 0.375rem;
+  padding: 0 var(--space-item);
+  border-radius: var(--radius-pill);
+  background: var(--import-positive-soft);
+  color: var(--accent-strong);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-normal);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+}
+.tx-group + .tx-group { margin-top: var(--space-group); }
+.tx-date {
+  min-height: 1.5625rem;
+  margin: 0;
+  padding-top: var(--space-within);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-meta);
 }
 
-/* balances */
-.balance-summary {
+/* ============================================================
+   Filter chips — filter-chips.module.css
+   ============================================================ */
+.filters {
   display: flex;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-item);
+  padding-bottom: var(--space-item);
 }
-.balance-summary .metric { flex: 1; min-width: 0; }
-.balance-summary dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.3; }
-.balance-summary dd {
-  margin: 2px 0 0;
-  font-size: var(--text-summary);
-  font-weight: 500;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.balance-group + .balance-group { margin-top: 28px; }
-.balance-group h3 {
-  margin: 0;
-  padding: 8px 0;
+.chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  height: 36px;
+  align-items: center;
+  gap: var(--space-item);
+  padding: 0 var(--space-related);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--muted);
-  font-size: var(--text-meta);
-  font-weight: 500;
-  line-height: 1.3;
+  font-size: var(--text-small);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+  transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
 }
-.balance-cols {
+.chip[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--rule));
+  background: var(--import-positive-soft);
+  color: var(--accent-strong);
+}
+.chip .value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+}
+.chip[data-active='true'] .value { color: var(--accent-strong); }
+.chip svg {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  opacity: var(--opacity-muted);
+}
+.chip .check { width: 12px; height: 12px; stroke-width: 2; opacity: var(--opacity-inactive); }
+.chip[data-active='true'] .check { opacity: 1; }
+.filters .clear {
+  min-height: 36px;
+  margin-left: auto;
+  padding-inline: 2px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.filters .clear:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; }
+
+/* ============================================================
+   Balances — balances.module.css
+   ============================================================ */
+.balance-list-section { margin-top: calc(var(--space-section) - var(--space-item)); }
+.balance-group { margin-top: calc(var(--space-section) - 0.1875rem); }
+.balance-group h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-normal);
+  line-height: var(--leading-heading);
+}
+.balance-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 60%);
+  column-gap: var(--space-item);
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  border-top: 1px solid var(--rule);
-  color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.3;
+  min-width: 0;
+  padding-block: var(--space-related) var(--space-within);
 }
-.balance-cols .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; text-align: right; }
+.balance-heading .metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-within);
+}
+.balance-heading .metrics span {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: var(--leading-heading);
+  text-align: right;
+  white-space: nowrap;
+}
 .balance-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 60%);
+  column-gap: var(--space-item);
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-block: var(--space-related);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
-.balance-row .name { min-width: 0; font-size: var(--text-small); line-height: 1.3; }
-.balance-row .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; text-align: right; font-size: var(--text-small); font-variant-numeric: tabular-nums; }
-.balance-row .metrics span:first-child { color: var(--muted); }
+.balance-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.balance-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-within);
+}
+.balance-amount {
+  min-width: 0;
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
-/* settings */
-.settings-list { display: grid; gap: 32px; margin-top: 32px; }
-.settings-section { display: grid; gap: 8px; }
+/* ============================================================
+   Fixed costs — fixed-costs.module.css
+   ============================================================ */
+.fixed-list { display: grid; }
+.fixed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-item);
+  min-height: 2.75rem;
+  padding-block: var(--space-related);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+}
+.fixed-name { font-size: var(--text-body); line-height: var(--leading-body); }
+.fixed-meta { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); }
+.fixed-amount {
+  color: var(--money-negative);
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Settings — settings.module.css
+   ============================================================ */
+.settings-list { display: grid; gap: var(--space-section); margin-top: var(--space-section); }
+.settings-section { display: grid; gap: var(--space-item); }
 .settings-section h2 {
-  margin: 0;
-  font-size: var(--text-section);
-  font-weight: 500;
-  line-height: 1.3;
+  font-size: var(--text-heading);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-heading);
 }
 .settings-rows { display: grid; }
 .settings-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
   min-height: 44px;
-  margin: 0 -8px;
-  padding: 8px;
-  border-radius: var(--radius);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-item);
+  margin-inline: calc(var(--space-item) * -1);
+  padding-inline: var(--space-item);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
   text-align: left;
 }
-.settings-row .label { min-width: 0; font-size: var(--text-small); line-height: 1.3; }
+.settings-row:hover { background: var(--surface-hover); }
+.settings-row .label { min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); }
 .settings-row .value {
   min-width: 0;
-  margin-left: auto;
   overflow: hidden;
   color: var(--muted);
-  font-size: var(--text-small);
-  line-height: 1.3;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.settings-row .arrow { flex: none; color: var(--muted); font-size: var(--text-small); line-height: 1; }
-.settings-row .check { flex: none; color: var(--accent); font-size: var(--text-small); line-height: 1; }
-.switch {
+.settings-row .arrow { flex: none; color: var(--muted); font-size: var(--text-body); line-height: var(--leading-none); }
+.settings-row .arrow::after { content: '→'; }
+.settings-note { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-body); }
+
+.theme-options {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--space-item);
+}
+.theme-option {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-item);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-item);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+}
+.theme-option:hover { background: var(--surface-hover); }
+.theme-option[aria-checked='true'] { border-color: var(--accent); box-shadow: var(--shadow-ring-accent-inset); }
+.theme-preview {
+  display: flex;
+  height: 2.75rem;
+  overflow: hidden;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+.theme-sheet {
+  display: grid;
+  flex: 1 1 0;
+  min-width: 0;
+  align-content: center;
+  gap: var(--space-within);
+  padding-inline: var(--space-related);
+  background: var(--paper);
+}
+.theme-sheet + .theme-sheet { border-left: var(--stroke-hairline) solid var(--rule); }
+.theme-sheet > span { display: block; border-radius: var(--radius-pill); }
+.theme-sheet-title { width: 60%; height: 0.375rem; background: var(--ink); }
+.theme-sheet-rule { height: 1px; background: var(--rule); }
+.theme-sheet-text { width: 85%; height: 0.25rem; background: var(--muted); }
+.theme-sheet-accent { width: 35%; height: 0.375rem; background: var(--accent); }
+.theme-option-text { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-item); min-width: 0; line-height: var(--leading-meta); }
+.theme-option-indicator {
   flex: none;
-  margin-left: auto;
+  width: 1rem;
+  height: 1rem;
+  border: var(--stroke-medium) solid var(--muted);
+  border-radius: var(--radius-circle);
+}
+.theme-option[aria-checked='true'] .theme-option-indicator {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 40%, transparent 45%);
+}
+.theme-option-hint {
+  flex-basis: 100%;
+  padding-left: calc(1rem + var(--space-item));
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.switch {
+  position: relative;
+  flex: none;
   width: 40px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bar);
-  position: relative;
-  transition: background .15s;
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
 .switch::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 3px;
   left: 3px;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--paper);
-  box-shadow: 0 1px 2px rgba(0,0,0,.18);
-  transition: transform .15s;
+  box-shadow: var(--shadow-popover);
+  transition: transform var(--motion-fast) var(--ease-standard);
 }
-.switch.on { background: var(--accent); }
-.switch.on::after { transform: translateX(16px); }
-.settings-note {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.5;
-}
-.settings-danger { color: var(--money-negative); }
+.switch[aria-checked='true'] { background: var(--button-primary); }
+.switch[aria-checked='true']::after { transform: translateX(16px); }
 
-/* fixed costs */
-.fixed-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 8px 0;
-}
-.fixed-row + .fixed-row { border-top: 1px solid var(--rule); }
-.fixed-row .name { font-size: var(--text-body); line-height: 1.3; }
-.fixed-row .sub { color: var(--muted); font-size: var(--text-meta); line-height: 1.3; }
-.fixed-row .amount { font-size: var(--text-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-/* nav */
+/* ============================================================
+   Bottom navigation — site-nav.module.css
+   ============================================================ */
 .nav {
   position: fixed;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
+  z-index: var(--layer-nav);
+  right: 0;
   bottom: 0;
-  z-index: 20;
-  width: 100%;
-  max-width: 390px;
-  height: calc(56px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--paper);
-  border-top: 1px solid var(--rule);
+  left: 0;
   display: flex;
+  width: 100%;
+  height: calc(var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px));
+  min-height: calc(var(--site-nav-mobile-height) + env(safe-area-inset-bottom, 0px));
+  align-items: stretch;
+  padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+  border-top: var(--stroke-hairline) solid var(--rule);
+  background: var(--paper);
 }
 .nav[hidden] { display: none; }
 .nav a {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  min-width: 2.75rem;
+  min-height: var(--site-nav-mobile-height);
+  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-within);
+  padding: var(--space-within) var(--space-item);
   color: var(--muted);
-  font-size: var(--text-meta);
-  line-height: 1.45;
+  font-size: var(--text-small);
+  line-height: var(--leading-meta);
+  white-space: nowrap;
 }
-.nav a svg { width: 23px; height: 23px; }
-.nav a[aria-current="page"] { color: var(--accent); }
-.nav a[aria-current="page"] span { font-weight: 500; }
+.nav a svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+.nav a[aria-current='page'] { color: var(--accent); }
+.nav a[aria-current='page'] span { font-weight: var(--weight-medium); }
 
-/* FAB */
-.fab[hidden] { display: none; }
+/* ============================================================
+   FAB — register-fab.module.css
+   ============================================================ */
 .fab {
   position: fixed;
-  left: calc(50% + 123px);
-  right: auto;
-  bottom: calc(56px + 16px + env(safe-area-inset-bottom));
-  z-index: 21;
+  z-index: var(--layer-popover);
+  right: 1rem;
+  bottom: calc(var(--site-nav-mobile-height) + 1rem + env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
   width: 56px;
   height: 56px;
-  border-radius: 50%;
-  background: var(--button-primary);
-  color: #fff;
-  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(41,46,43,.24);
+  border-radius: var(--radius-circle);
+  background: var(--button-primary);
+  box-shadow: var(--shadow-popover);
+  color: var(--on-accent);
+  transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
 }
-.fab svg { width: 24px; height: 24px; }
+.fab:hover { background: var(--accent); }
+.fab:active { transform: translateY(1px); }
+.fab svg {
+  width: var(--text-icon);
+  height: var(--text-icon);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+.fab[hidden] { display: none; }
 
-/* onboarding (unchanged connection screen, no device chrome) */
-.connect[hidden] { display: none; }
+/* ============================================================
+   Connection screen — kept as-is, tokens applied
+   ============================================================ */
 .connect {
-  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 40px 24px;
 }
 .connect .mark { color: var(--accent); margin-bottom: 24px; }
-.connect h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.connect h1 { font-size: 24px; font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
 .connect .tagline { margin: 6px 0 32px; color: var(--muted); font-size: var(--text-small); }
 .connect label { display: block; margin-bottom: 6px; color: var(--muted); font-size: var(--text-small); }
 .connect input {
@@ -590,8 +971,8 @@ a { text-decoration: none; }
   height: 48px;
   margin-bottom: 16px;
   padding: 0 12px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -599,18 +980,25 @@ a { text-decoration: none; }
 .connect .primary {
   width: 100%;
   height: 48px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--button-primary);
-  color: #fff;
+  color: var(--on-accent);
   font-size: var(--text-body);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
-.connect .hint { margin-top: 16px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
+.connect .hint { margin-top: 16px; color: var(--muted); font-size: var(--text-micro); line-height: var(--leading-body); }
 
-@media (max-width: 360px) {
-  :root { --text-lead: 1.625rem; --text-summary: 1.0625rem; }
-  .summary { gap: 12px; }
-  .summary .secondary { gap: 12px; }
+@media (max-width: 30rem) {
+  :root { --text-title: 1.3125rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .cat-bar span { animation: none; transform: none; opacity: 1; }
 }
 </style>
 </head>
@@ -618,59 +1006,65 @@ a { text-decoration: none; }
 
 <!-- 概要 -->
 <div class="app" id="screen-overview" data-screen="overview">
-
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
+        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
+        <span>kobako</span>
+      </a>
+      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
+    </div>
+  </header>
   <main class="page">
-    <div class="page-head"><h1>概要</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
-
+    <div class="page-header"><h1>概要</h1></div>
     <nav class="month" aria-label="月の切り替え">
-      <button aria-label="前の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <button class="label">2026年11月</button>
-      <button aria-label="次の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
     </nav>
-
     <section class="summary" aria-label="この月の支出">
-      <div class="primary">
-        <div class="eyebrow">この月の支出</div>
-        <div class="lead">186,800円</div>
-      </div>
-      <div class="secondary">
-        <div class="metric"><dt>収入</dt><dd class="pos">328,000円</dd></div>
-        <div class="metric"><dt>収支差額</dt><dd class="pos">141,200円</dd></div>
-      </div>
+      <dl class="summary-list">
+        <div class="metric primary"><dt>この月の支出</dt><dd class="neg">186,800円</dd></div>
+        <div class="secondary">
+          <div class="metric"><dt>収入</dt><dd class="pos">328,000円</dd></div>
+          <div class="metric"><dt>収支差額</dt><dd class="pos">141,200円</dd></div>
+        </div>
+      </dl>
     </section>
-
     <section class="section">
-      <div class="section-head">
-        <h2>支出カテゴリ別の支出</h2>
-        <a class="section-link" href="#">支出をすべて見る</a>
-      </div>
+      <div class="section-head"><h2>支出カテゴリ別の支出</h2><a class="section-link" href="#" data-goto="transactions">すべて見る</a></div>
       <div class="cat-list" id="catList"></div>
     </section>
-
     <section class="section">
-      <div class="section-head">
-        <h2>最近の取引</h2>
-        <a class="section-link" href="#" data-goto="transactions">取引一覧を見る</a>
-      </div>
-      <div class="recent" id="recentList"></div>
+      <div class="section-head"><h2>最近の取引</h2><a class="section-link" href="#" data-goto="transactions">取引一覧</a></div>
+      <div class="recent-list" id="recentList"></div>
     </section>
   </main>
 </div>
 
 <!-- 取引 -->
 <div class="app" id="screen-transactions" data-screen="transactions" hidden>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
+        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
+        <span>kobako</span>
+      </a>
+      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
+    </div>
+  </header>
   <main class="page">
-    <div class="page-head"><h1>取引</h1><span class="count">11件</span><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="page-header"><h1>取引<span class="heading-count">11件</span></h1></div>
     <nav class="month" aria-label="月の切り替え">
-      <button aria-label="前の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <button class="label">2026年11月</button>
-      <button aria-label="次の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
     </nav>
     <div class="filters">
-      <button class="filter">種別 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-      <button class="filter">カテゴリ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-      <button class="filter">資産 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-      <button class="filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg> APIのみ</button>
+      <button class="chip">種別<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="chip">カテゴリ<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="chip">資産<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="chip" aria-pressed="false"><svg class="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>APIのみ</button>
     </div>
     <div id="txList"></div>
   </main>
@@ -678,18 +1072,29 @@ a { text-decoration: none; }
 
 <!-- 固定費 -->
 <div class="app" id="screen-fixed" data-screen="fixed" hidden>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
+        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
+        <span>kobako</span>
+      </a>
+      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
+    </div>
+  </header>
   <main class="page">
-    <div class="page-head"><h1>固定費</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="page-header"><h1>固定費</h1></div>
     <section class="summary" aria-label="毎月の固定費">
-      <div class="primary"><div class="eyebrow">毎月の固定費</div><div class="lead neg">104,300円</div></div>
-      <div class="secondary"><div class="metric"><dt>年換算</dt><dd>1,251,600円</dd></div></div>
+      <dl class="summary-list">
+        <div class="metric primary"><dt>毎月の固定費</dt><dd class="neg">104,300円</dd></div>
+        <div class="secondary"><div class="metric"><dt>年換算</dt><dd>1,251,600円</dd></div></div>
+      </dl>
     </section>
     <section class="section">
       <div class="section-head"><h2>固定費の内訳</h2></div>
-      <div>
-        <div class="fixed-row"><div><div class="name">住居</div><div class="sub">生活費口座・毎月27日</div></div><div class="amount neg">85,000円</div></div>
-        <div class="fixed-row"><div><div class="name">水道・光熱</div><div class="sub">生活費口座・毎月8日</div></div><div class="amount neg">12,000円</div></div>
-        <div class="fixed-row"><div><div class="name">通信</div><div class="sub">クレジットカード・毎月5日</div></div><div class="amount neg">7,300円</div></div>
+      <div class="fixed-list">
+        <div class="fixed-row"><div><div class="fixed-name">住居</div><div class="fixed-meta">生活費口座・毎月27日</div></div><div class="fixed-amount">85,000円</div></div>
+        <div class="fixed-row"><div><div class="fixed-name">水道・光熱</div><div class="fixed-meta">生活費口座・毎月8日</div></div><div class="fixed-amount">12,000円</div></div>
+        <div class="fixed-row"><div><div class="fixed-name">通信</div><div class="fixed-meta">クレジットカード・毎月5日</div></div><div class="fixed-amount">7,300円</div></div>
       </div>
     </section>
   </main>
@@ -697,48 +1102,85 @@ a { text-decoration: none; }
 
 <!-- 残高 -->
 <div class="app" id="screen-balances" data-screen="balances" hidden>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
+        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
+        <span>kobako</span>
+      </a>
+      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
+    </div>
+  </header>
   <main class="page">
-    <div class="page-head"><h1>残高</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
-    <section class="balance-summary">
-      <div class="metric"><dt>資産</dt><dd class="pos">842,000円</dd></div>
-      <div class="metric"><dt>負債</dt><dd class="neg">−85,000円</dd></div>
-      <div class="metric"><dt>純資産</dt><dd>757,000円</dd></div>
+    <div class="page-header"><h1>残高</h1></div>
+    <section class="summary" aria-label="純資産">
+      <dl class="summary-list">
+        <div class="metric primary"><dt>純資産</dt><dd>757,000円</dd></div>
+        <div class="secondary">
+          <div class="metric"><dt>資産</dt><dd>842,000円</dd></div>
+          <div class="metric"><dt>負債</dt><dd class="neg">−85,000円</dd></div>
+        </div>
+      </dl>
     </section>
-    <div class="balance-group">
-      <h3>銀行</h3>
-      <div class="balance-cols"><span></span><div class="metrics"><span>支払予定</span><span>残高</span></div></div>
-      <div class="balance-row"><div class="name">生活費口座</div><div class="metrics"><span>0円</span><span>512,000円</span></div></div>
-      <div class="balance-row"><div class="name">給与口座</div><div class="metrics"><span>0円</span><span>245,000円</span></div></div>
-    </div>
-    <div class="balance-group">
-      <h3>現金</h3>
-      <div class="balance-cols"><span></span><div class="metrics"><span>残高</span></div></div>
-      <div class="balance-row"><div class="name">現金</div><div class="metrics"><span>—</span><span>85,000円</span></div></div>
-    </div>
-    <div class="balance-group">
-      <h3>クレジットカード</h3>
-      <div class="balance-cols"><span></span><div class="metrics"><span>決済予定</span><span>未決済</span></div></div>
-      <div class="balance-row"><div class="name">クレジットカード</div><div class="metrics"><span>−85,000円</span><span>0円</span></div></div>
+    <div class="balance-list-section">
+      <div class="balance-group">
+        <h3>銀行</h3>
+        <div class="balance-heading"><span></span><div class="metrics"><span>支払予定</span><span>残高</span></div></div>
+        <div class="balance-row"><div class="balance-name">生活費口座</div><div class="balance-metrics"><span class="balance-amount">0円</span><span class="balance-amount">512,000円</span></div></div>
+        <div class="balance-row"><div class="balance-name">給与口座</div><div class="balance-metrics"><span class="balance-amount">0円</span><span class="balance-amount">245,000円</span></div></div>
+      </div>
+      <div class="balance-group">
+        <h3>現金</h3>
+        <div class="balance-heading"><span></span><div class="metrics"><span>残高</span></div></div>
+        <div class="balance-row"><div class="balance-name">現金</div><div class="balance-metrics"><span></span><span class="balance-amount">85,000円</span></div></div>
+      </div>
+      <div class="balance-group">
+        <h3>クレジットカード</h3>
+        <div class="balance-heading"><span></span><div class="metrics"><span>決済予定</span><span>未決済</span></div></div>
+        <div class="balance-row"><div class="balance-name">クレジットカード</div><div class="balance-metrics"><span class="balance-amount">−85,000円</span><span class="balance-amount">0円</span></div></div>
+      </div>
     </div>
   </main>
 </div>
 
 <!-- 設定 -->
 <div class="app" id="screen-settings" data-screen="settings" hidden>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
+        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
+        <span>kobako</span>
+      </a>
+      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定" aria-current="page"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
+    </div>
+  </header>
   <main class="page">
-    <div class="page-head"><h1>設定</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="page-header"><h1>設定</h1></div>
     <div class="settings-list">
       <section class="settings-section">
         <h2>接続</h2>
         <div class="settings-rows">
-          <button class="settings-row"><span class="label">サーバー</span><span class="value">kobako.example.com</span><span class="arrow">→</span></button>
+          <button class="settings-row"><span class="label">サーバー</span><span class="value">kobako.example.com</span><span class="arrow"></span></button>
         </div>
       </section>
       <section class="settings-section">
-        <h2>表示</h2>
+        <h2>外観</h2>
+        <div class="theme-options" role="radiogroup" aria-label="テーマ">
+          <button class="theme-option" role="radio" aria-checked="true" data-theme-value="system">
+            <span class="theme-preview"><span class="theme-sheet" data-theme="light"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span><span class="theme-sheet" data-theme="dark"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span></span>
+            <span class="theme-option-text"><span class="theme-option-indicator"></span>システム<span class="theme-option-hint">端末の設定に合わせる</span></span>
+          </button>
+          <button class="theme-option" role="radio" aria-checked="false" data-theme-value="light">
+            <span class="theme-preview"><span class="theme-sheet" data-theme="light"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span><span class="theme-sheet" data-theme="light"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span></span>
+            <span class="theme-option-text"><span class="theme-option-indicator"></span>ライト</span>
+          </button>
+          <button class="theme-option" role="radio" aria-checked="false" data-theme-value="dark">
+            <span class="theme-preview"><span class="theme-sheet" data-theme="dark"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span><span class="theme-sheet" data-theme="dark"><span class="theme-sheet-title"></span><span class="theme-sheet-rule"></span><span class="theme-sheet-text"></span><span class="theme-sheet-accent"></span></span></span>
+            <span class="theme-option-text"><span class="theme-option-indicator"></span>ダーク</span>
+          </button>
+        </div>
         <div class="settings-rows">
-          <button class="settings-row"><span class="label">テーマ</span><span class="value">システム</span><span class="arrow">→</span></button>
-          <div class="settings-row"><span class="label">カード支払い通知</span><span class="switch on" role="switch" aria-checked="true" tabindex="0" aria-label="カード支払い通知"></span></div>
+          <div class="settings-row"><span class="label">カード支払い通知</span><button class="switch" role="switch" aria-checked="true" aria-label="カード支払い通知"></button></div>
         </div>
       </section>
       <section class="settings-section">
@@ -746,7 +1188,7 @@ a { text-decoration: none; }
         <div class="settings-rows">
           <div class="settings-row"><span class="label">バージョン</span><span class="value">0.1.0</span></div>
           <div class="settings-row"><span class="label">ライセンス</span><span class="value">AGPL-3.0-only</span></div>
-          <a class="settings-row" href="https://github.com/takano536/kobako" target="_blank" rel="noreferrer"><span class="label">ソースコード</span><span class="arrow">→</span></a>
+          <a class="settings-row" href="https://github.com/takano536/kobako" target="_blank" rel="noreferrer"><span class="label">ソースコード</span><span class="arrow"></span></a>
         </div>
       </section>
     </div>
@@ -768,52 +1210,53 @@ a { text-decoration: none; }
 
 <nav class="nav" aria-label="メインナビゲーション">
   <a href="#" data-goto="overview" aria-current="page">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>概要</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>概要</span>
   </a>
   <a href="#" data-goto="transactions">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14M5 12h14M5 19h14"/><path d="M3 5h.01M3 12h.01M3 19h.01"/></svg><span>取引</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M5 12h14M5 19h14"/><path d="M3 5h.01M3 12h.01M3 19h.01"/></svg><span>取引</span>
   </a>
   <a href="#" data-goto="fixed">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg><span>固定費</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg><span>固定費</span>
   </a>
   <a href="#" data-goto="balances">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4"/></svg><span>残高</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4"/></svg><span>残高</span>
   </a>
 </nav>
 
 <button class="fab" id="fab" aria-label="取引を登録">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
 </button>
 
 <script>
+const TOTAL = 186800;
 const CATEGORIES = [
-  { name: '住居', amount: 85000, share: 46, dot: '#91a99d' },
-  { name: '食費', amount: 42000, share: 22, dot: '#b49a96' },
-  { name: '日用品', amount: 16000, share: 9, dot: '#b8b7ab' },
-  { name: '娯楽', amount: 14500, share: 8, dot: '#b09eaf' },
-  { name: '水道・光熱', amount: 12000, share: 6, dot: '#98a6b0' },
-  { name: '交通', amount: 9500, share: 5, dot: '#a4b2a9' },
-  { name: '通信', amount: 7300, share: 4, dot: '#aaa383' }
+  { name: '住居', amount: 85000, dot: '#91a99d' },
+  { name: '食費', amount: 42500, dot: '#b49a96' },
+  { name: '日用品', amount: 16000, dot: '#b0a784' },
+  { name: '娯楽', amount: 14500, dot: '#b09eaf' },
+  { name: '水道・光熱', amount: 12000, dot: '#98a6b0' },
+  { name: '交通', amount: 9500, dot: '#a4b2a9' },
+  { name: '通信', amount: 7300, dot: '#aaa383' }
 ];
 const RECENT = [
   { date: '11月27日（金）', cat: '住居', dot: '#91a99d', account: '生活費口座', memo: '家賃', amount: -85000 },
   { date: '11月25日（水）', cat: '給与', dot: '#91a99d', account: '給与口座', memo: '給与', amount: 320000 },
-  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍・サブスクリプション', amount: -14500, api: true },
-  { date: '11月18日（水）', cat: '臨時収入', dot: '#91a99d', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
+  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍', amount: -14500, api: true },
+  { date: '11月18日（水）', cat: '臨時収入', dot: '#b7b9ad', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
   { date: '11月15日（日）', cat: '交通', dot: '#a4b2a9', account: '現金', memo: '定期券', amount: -9500 }
 ];
 const TX = [
   { date: '11月27日（金）', cat: '住居', dot: '#91a99d', account: '生活費口座', memo: '家賃', amount: -85000 },
   { date: '11月26日（木）', cat: '振替', dot: '#b8b7ab', account: '給与口座 → 生活費口座', memo: '生活費へ振替', amount: 180000, transfer: true },
   { date: '11月25日（水）', cat: '給与', dot: '#91a99d', account: '給与口座', memo: '給与', amount: 320000 },
-  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍・サブスクリプション', amount: -14500, api: true },
-  { date: '11月18日（水）', cat: '臨時収入', dot: '#91a99d', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
+  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍', amount: -14500, api: true },
+  { date: '11月18日（水）', cat: '臨時収入', dot: '#b7b9ad', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
   { date: '11月15日（日）', cat: '交通', dot: '#a4b2a9', account: '現金', memo: '定期券', amount: -9500 },
-  { date: '11月12日（木）', cat: '日用品', dot: '#b8b7ab', account: '現金', memo: 'ドラッグストア', amount: -16000 },
+  { date: '11月12日（木）', cat: '日用品', dot: '#b0a784', account: '現金', memo: 'ドラッグストア', amount: -16000 },
   { date: '11月10日（火）', cat: '振替', dot: '#b8b7ab', account: '生活費口座 → 現金', memo: 'ATMで引き出し', amount: 30000, transfer: true, api: true },
   { date: '11月8日（日）', cat: '水道・光熱', dot: '#98a6b0', account: '生活費口座', memo: '電気・ガス', amount: -12000 },
   { date: '11月5日（木）', cat: '通信', dot: '#aaa383', account: 'クレジットカード', memo: '携帯電話', amount: -7300 },
-  { date: '11月1日（土）', cat: '食費', dot: '#b49a96', account: '現金', memo: 'スーパー', amount: -42000 }
+  { date: '11月1日（土）', cat: '食費', dot: '#b49a96', account: '現金', memo: 'スーパー', amount: -42500 }
 ];
 
 function money(n, signed = false) {
@@ -822,43 +1265,40 @@ function money(n, signed = false) {
   if (signed && n > 0) return '＋' + abs + '円';
   return abs + '円';
 }
+function share(amount) {
+  return Math.round((amount / TOTAL) * 100);
+}
 function catItem(c) {
+  const p = share(c.amount);
   return `<div class="cat-item">
-    <div class="cat-top"><span class="cat-dot" style="background:${c.dot}"></span><span class="cat-name">${c.name}</span><span class="cat-amount">${money(c.amount)}</span></div>
-    <div class="cat-track"><span class="cat-fill" style="width:${c.share}%"></span></div>
-    <div class="cat-meta">${c.share < 1 ? '&lt;1%' : c.share + '%'}</div>
+    <div class="cat-name-cell"><span class="cat-dot" style="background:${c.dot}"></span><span class="cat-name">${c.name}</span></div>
+    <span class="cat-amount">${money(c.amount)}</span>
+    <div class="cat-bar"><span style="--category-width:${p}%"></span></div>
+    <span class="cat-share">${p < 1 ? '&lt;1%' : p + '%'}</span>
   </div>`;
+}
+function txRow(t) {
+  const cls = t.amount < 0 ? 'neg' : (t.amount > 0 && !t.transfer) ? 'pos' : '';
+  return `<a class="tx-link" href="#">
+    <span class="cat-dot" style="background:${t.dot}"></span>
+    <span class="tx-cat${t.transfer ? ' transfer' : ''}">${t.cat}</span>
+    <span class="tx-main"><span class="tx-account">${t.account}</span><span class="tx-memo"><span>${t.memo}</span>${t.api ? '<span class="api">API</span>' : ''}</span></span>
+    <span class="tx-amount ${cls}">${money(t.amount, !t.transfer)}</span>
+  </a>`;
 }
 document.getElementById('catList').innerHTML = CATEGORIES.map(catItem).join('');
 document.getElementById('recentList').innerHTML = RECENT.map(t => `
-  <div class="recent-item">
-    <div class="recent-date">${t.date}</div>
-    <a class="recent-link" href="#">
-      <span class="cat-dot" style="background:${t.dot}"></span>
-      <span class="recent-cat">${t.cat}</span>
-      <span class="recent-main"><span class="recent-account">${t.account}</span><span class="recent-memo">${t.memo}${t.api ? ' <span class="api">API</span>' : ''}</span></span>
-      <span class="recent-amount ${t.amount < 0 ? 'neg' : t.amount > 0 ? 'pos' : ''}">${money(t.amount, true)}</span>
-    </a>
-  </div>`).join('');
+  <div class="recent-item"><div class="recent-date">${t.date}</div>${txRow(t)}</div>`).join('');
 document.getElementById('txList').innerHTML = TX.map(t => `
-  <div class="tx-group">
-    <div class="tx-date">${t.date}</div>
-    <button class="tx-row">
-      <span class="cat-dot" style="background:${t.dot}"></span>
-      <span>${t.cat}</span>
-      <span class="tx-main"><span class="tx-account">${t.account}</span><span class="tx-memo"><span>${t.memo}</span>${t.api ? '<span class="api">API</span>' : ''}</span></span>
-      <span class="tx-amount ${t.amount < 0 ? 'neg' : (t.amount > 0 && !t.transfer) ? 'pos' : ''}">${money(t.amount, !t.transfer)}</span>
-    </button>
-  </div>`).join('');
+  <div class="tx-group"><div class="tx-date">${t.date}</div>${txRow(t)}</div>`).join('');
 
 const screens = ['overview','transactions','fixed','balances','settings','connect'];
 function show(name) {
   screens.forEach(s => document.getElementById('screen-' + s).hidden = s !== name);
   document.querySelectorAll('.nav a').forEach(a => {
-    a.toggleAttribute('aria-current', a.dataset.goto === name);
     if (a.dataset.goto === name) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
   });
-  document.querySelectorAll('.gear').forEach(g => {
+  document.querySelectorAll('.site-settings').forEach(g => {
     if (name === 'settings') g.setAttribute('aria-current','page'); else g.removeAttribute('aria-current');
   });
   document.getElementById('fab').hidden = !['overview','transactions'].includes(name);
@@ -866,11 +1306,24 @@ function show(name) {
   window.scrollTo(0,0);
 }
 document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); show(el.dataset.goto); }));
-document.querySelectorAll('.gear').forEach(g => g.addEventListener('click', e => { e.preventDefault(); show('settings'); }));
 document.getElementById('fab').addEventListener('click', () => alert('取引を登録'));
 document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () => {
-  s.classList.toggle('on'); s.setAttribute('aria-checked', s.classList.contains('on') ? 'true' : 'false');
+  const on = s.getAttribute('aria-checked') !== 'true';
+  s.setAttribute('aria-checked', on ? 'true' : 'false');
 }));
+
+const root = document.documentElement;
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(value) {
+  if (value === 'system') root.setAttribute('data-theme', mq.matches ? 'dark' : 'light');
+  else root.setAttribute('data-theme', value);
+  document.querySelectorAll('.theme-option').forEach(o => {
+    o.setAttribute('aria-checked', o.dataset.themeValue === value ? 'true' : 'false');
+  });
+}
+document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => applyTheme(o.dataset.themeValue)));
+applyTheme('system');
+mq.addEventListener('change', () => { const cur = document.querySelector('.theme-option[aria-checked="true"]'); if (cur && cur.dataset.themeValue === 'system') applyTheme('system'); });
 </script>
 </body>
 </html>
