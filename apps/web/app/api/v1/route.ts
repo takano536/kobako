@@ -7,6 +7,11 @@ export function GET(request: Request): Promise<Response> {
   return handleApi(request, async () =>
     noStore({
       name: 'kobako',
+      apiVersion: 1,
+      features: {
+        summary: true,
+        balances: true,
+      },
       resources: {
         accounts: '/api/v1/accounts',
         categories: '/api/v1/categories',

@@ -116,3 +116,84 @@ Idempotency-Key: agent-run-2026-10-26
 - `DELETE` は成功時に本文なしの HTTP 204 を返します。
 
 更新時のカテゴリ・資産も登録済みの名前で指定してください。存在しない名前、存在しない ID、振替元と振替先が同じ場合はエラーになります。
+
+## モバイル向け読み取り API
+
+`GET /api/v1` の `apiVersion` と `features` は、対応機能を判定するためのフラグです。既存の `name`、`resources`、`notes` は維持されます。
+
+```json
+{
+  "name": "kobako",
+  "apiVersion": 1,
+  "features": { "summary": true, "balances": true },
+  "resources": {
+    "accounts": "/api/v1/accounts",
+    "categories": "/api/v1/categories",
+    "transactions": "/api/v1/transactions",
+    "transfers": "/api/v1/transfers"
+  },
+  "notes": []
+}
+```
+
+### `GET /api/v1/summary?month=YYYY-MM`
+
+`month` は省略すると Asia/Tokyo の現在月になります。形式が不正な場合は HTTP 400 です。金額は円の整数を10進文字列で返します。
+
+```json
+{
+  "month": "2026-11",
+  "income": "350000",
+  "expense": "210000",
+  "difference": "140000",
+  "expenseCategories": [{ "categoryId": 1, "categoryName": "食費", "total": "45000" }]
+}
+```
+
+取引がない月は金額がすべて `"0"`、`expenseCategories` が空配列になります。カテゴリは既存の並び（合計金額の降順、同額の場合は ID 昇順）です。
+
+### `GET /api/v1/balances`
+
+削除されていない資産を資産カテゴリ別にまとめます。グループと口座は既存の残高画面と同じ順序です。金額は円の整数を10進文字列で返します。
+
+```json
+{
+  "summary": { "assets": "1200000", "liabilities": "85000", "net": "1115000" },
+  "groups": [
+    {
+      "name": "銀行",
+      "systemKey": "bank",
+      "accounts": [
+        {
+          "id": 1,
+          "name": "住信SBI",
+          "kind": "bank",
+          "balance": "800000",
+          "scheduledAmount": "85000",
+          "scheduledDueOn": null,
+          "unbilledAmount": null,
+          "nextPayment": null
+        }
+      ]
+    },
+    {
+      "name": "クレジットカード",
+      "systemKey": "credit_card",
+      "accounts": [
+        {
+          "id": 2,
+          "name": "三井住友カード",
+          "kind": "credit_card",
+          "balance": "-85000",
+          "scheduledAmount": "85000",
+          "scheduledDueOn": "2026-11-27",
+          "unbilledAmount": "12000",
+          "nextPayment": { "dueOn": "2026-11-27", "amount": "85000" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+銀行の `scheduledAmount` は当月支払予定のカード請求額の合計です。カードの `scheduledAmount`、`scheduledDueOn`、`unbilledAmount` は導出した請求予定、`nextPayment` は次回請求（該当なしは `null`）です。カード以外の請求項目は `scheduledDueOn`、`unbilledAmount`、`nextPayment` が `null` になります。
