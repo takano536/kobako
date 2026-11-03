@@ -213,9 +213,12 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
   align-items: center;
   gap: var(--space-item);
   margin: 0 auto;
-  padding: 0.875rem var(--page-gutter) 1.5rem;
+  padding: 1.125rem var(--page-gutter);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 .topbar h1 { min-width: 0; flex: 1 1 auto; }
+.topbar .heading-count { color: var(--on-accent); opacity: 0.72; }
 .page {
   width: min(100%, var(--layout-wide));
   margin: 0 auto;
@@ -950,7 +953,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 /* Short screens (Android 360x800 class): tighten the top rhythm so the
    seven category rows clear the FAB without changing the 390x844 look. */
 @media (max-height: 820px) {
-  .topbar { padding-block: 0.5rem 1rem; }
+  .topbar { padding-block: 0.875rem; }
   .month { margin-bottom: var(--space-within); }
   .summary { padding-block-end: var(--space-within); }
 }
