@@ -40,7 +40,7 @@ export function GET(request: Request): Promise<Response> {
           name: string;
           kind: (typeof balances)[number]['kind'];
           balance: string;
-          scheduledAmount: string;
+          scheduledAmount: string | null;
           scheduledDueOn: string | null;
           unbilledAmount: string | null;
           nextPayment: unknown;
@@ -49,7 +49,7 @@ export function GET(request: Request): Promise<Response> {
     >();
 
     for (const account of balances) {
-      let scheduledAmount = '0';
+      let scheduledAmount: string | null = '0';
       let scheduledDueOn: string | null = null;
       let unbilledAmount: string | null = null;
       let nextPayment: unknown = null;
@@ -57,10 +57,13 @@ export function GET(request: Request): Promise<Response> {
         scheduledAmount = (scheduledByBankId.get(account.accountId) ?? 0n).toString();
       } else if (account.kind === 'credit_card') {
         const billing = billingByAccountId.get(account.accountId);
-        const schedule = deriveCardBalancePaymentSchedule(billing?.periods ?? [], today);
-        scheduledAmount = schedule.scheduledAmount;
-        scheduledDueOn = schedule.scheduledDueOn;
-        unbilledAmount = schedule.unbilledAmount;
+        const schedule =
+          billing?.settings && billing.settingsComplete && billing.calendarError === null
+            ? deriveCardBalancePaymentSchedule(billing.periods, today)
+            : null;
+        scheduledAmount = schedule?.scheduledAmount ?? null;
+        scheduledDueOn = schedule?.scheduledDueOn ?? null;
+        unbilledAmount = schedule?.unbilledAmount ?? null;
         nextPayment = billing?.nextPayment ?? null;
       }
 

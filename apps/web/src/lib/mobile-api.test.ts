@@ -171,6 +171,15 @@ describe('GET /api/v1/balances', () => {
     ]);
     const billing = {
       accountId: 2,
+      settings: {
+        closingDay: '15',
+        paymentDay: '10',
+        paymentMonthOffset: 'next_month',
+        debitAccountId: 1,
+        autoPaymentStartsOn: '2026-01-01',
+      },
+      settingsComplete: true,
+      calendarError: null,
       nextPayment: { dueOn: '2026-11-27', amount: '85000' },
       periods: [],
     };
@@ -222,5 +231,101 @@ describe('GET /api/v1/balances', () => {
     });
     expect(getCardBillingSummaries).toHaveBeenCalledWith(db, 'household', [2], '2026-11-03');
     expect(aggregateBankPaymentSchedules).toHaveBeenCalledWith([billing], '2026-11');
+  });
+
+  it('returns unknown schedule fields when card billing settings are incomplete', async () => {
+    getManagedAccountBalances.mockResolvedValue([
+      {
+        accountId: 4,
+        accountName: '未設定カード',
+        kind: 'credit_card',
+        balance: '-500',
+        deletedAt: null,
+        assetCategoryId: 4,
+        assetCategoryName: 'クレジットカード',
+        assetCategorySystemKey: 'credit_card',
+      },
+    ]);
+    const billing = {
+      accountId: 4,
+      settings: null,
+      settingsComplete: false,
+      calendarError: null,
+      nextPayment: { dueOn: '2026-11-27', amount: '500' },
+      periods: [],
+    };
+    getCardBillingSummaries.mockResolvedValue([billing]);
+
+    const response = await getBalances(new Request('https://example.test/api/v1/balances'));
+    expect(await response.json()).toEqual({
+      summary: { assets: '0', liabilities: '500', net: '-500' },
+      groups: [
+        {
+          name: 'クレジットカード',
+          systemKey: 'credit_card',
+          accounts: [
+            {
+              id: 4,
+              name: '未設定カード',
+              kind: 'credit_card',
+              balance: '-500',
+              scheduledAmount: null,
+              scheduledDueOn: null,
+              unbilledAmount: null,
+              nextPayment: { dueOn: '2026-11-27', amount: '500' },
+            },
+          ],
+        },
+      ],
+    });
+    expect(deriveCardBalancePaymentSchedule).not.toHaveBeenCalled();
+  });
+
+  it('returns unknown schedule fields when card billing calendar has an error', async () => {
+    getManagedAccountBalances.mockResolvedValue([
+      {
+        accountId: 5,
+        accountName: 'エラーカード',
+        kind: 'credit_card',
+        balance: '-700',
+        deletedAt: null,
+        assetCategoryId: 5,
+        assetCategoryName: 'クレジットカード',
+        assetCategorySystemKey: 'credit_card',
+      },
+    ]);
+    const billing = {
+      accountId: 5,
+      settings: { closingDay: '15' },
+      settingsComplete: true,
+      calendarError: 'invalid_schedule',
+      nextPayment: { dueOn: '2026-11-27', amount: '700' },
+      periods: [],
+    };
+    getCardBillingSummaries.mockResolvedValue([billing]);
+
+    const response = await getBalances(new Request('https://example.test/api/v1/balances'));
+    expect(await response.json()).toEqual({
+      summary: { assets: '0', liabilities: '700', net: '-700' },
+      groups: [
+        {
+          name: 'クレジットカード',
+          systemKey: 'credit_card',
+          accounts: [
+            {
+              id: 5,
+              name: 'エラーカード',
+              kind: 'credit_card',
+              balance: '-700',
+              scheduledAmount: null,
+              scheduledDueOn: null,
+              unbilledAmount: null,
+              nextPayment: { dueOn: '2026-11-27', amount: '700' },
+            },
+          ],
+        },
+      ],
+    });
+    expect(deriveCardBalancePaymentSchedule).not.toHaveBeenCalled();
   });
 });
