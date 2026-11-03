@@ -207,41 +207,15 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
    Shell — layout.module.css
    ============================================================ */
 .app { min-height: 100svh; }
-.site-header {
-  width: min(100%, var(--layout-wide));
-  min-height: 4.125rem;
-  margin: 0 auto;
-  padding: var(--space-group) var(--page-gutter) var(--space-item);
-}
-.header-inner {
+.topbar {
   display: flex;
-  min-height: 2.6875rem;
+  width: min(100%, var(--layout-wide));
   align-items: center;
-  justify-content: flex-start;
   gap: var(--space-item);
+  margin: 0 auto;
+  padding: 0.875rem var(--page-gutter) 0.375rem;
 }
-.brand {
-  display: inline-flex;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  align-items: center;
-  gap: var(--space-within);
-  color: var(--ink);
-  font-size: var(--text-brand);
-  font-weight: var(--weight-regular);
-  letter-spacing: var(--tracking-wide);
-  white-space: nowrap;
-}
-.brand .mark { display: inline-flex; flex: 0 0 auto; color: var(--accent); }
-.brand .mark svg {
-  width: 21px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.2;
-}
+.topbar h1 { min-width: 0; flex: 1 1 auto; }
 .site-settings {
   display: inline-flex;
   width: 2.75rem;
@@ -272,17 +246,10 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 /* ============================================================
    Page header — page-header.module.css
    ============================================================ */
-.page-header {
-  display: flex;
-  min-width: 0;
-  min-height: 2.75rem;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-group);
-  margin: var(--space-group) 0 var(--space-group);
-}
-.page-header h1 { display: flex; min-width: 0; flex: 1 1 0; align-items: center; gap: var(--space-item); }
+/* ============================================================
+   Heading count — page-header.module.css
+   ============================================================ */
+.topbar h1 { display: flex; align-items: center; gap: var(--space-item); }
 .heading-count {
   color: var(--muted);
   font-size: var(--text-body);
@@ -1004,7 +971,7 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 /* Short screens (Android 360x800 class): tighten the top rhythm so the
    seven category rows clear the FAB without changing the 390x844 look. */
 @media (max-height: 820px) {
-  .page-header { margin-block: var(--space-item); }
+  .topbar { padding-block: 0.5rem 0.25rem; }
   .month { margin-bottom: var(--space-within); }
   .summary { padding-block-end: var(--space-within); }
 }
@@ -1023,17 +990,11 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 <!-- 概要 -->
 <div class="app" id="screen-overview" data-screen="overview">
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
-        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
-        <span>kobako</span>
-      </a>
-      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
-    </div>
+  <header class="topbar">
+    <h1>概要</h1>
+    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
-    <div class="page-header"><h1>概要</h1></div>
     <nav class="month" aria-label="月の切り替え">
       <button aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <button class="label">2026年11月</button>
@@ -1061,17 +1022,11 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 <!-- 取引 -->
 <div class="app" id="screen-transactions" data-screen="transactions" hidden>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
-        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
-        <span>kobako</span>
-      </a>
-      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
-    </div>
+  <header class="topbar">
+    <h1>取引<span class="heading-count">11件</span></h1>
+    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
-    <div class="page-header"><h1>取引<span class="heading-count">11件</span></h1></div>
     <nav class="month" aria-label="月の切り替え">
       <button aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
       <button class="label">2026年11月</button>
@@ -1089,17 +1044,11 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 <!-- 固定費 -->
 <div class="app" id="screen-fixed" data-screen="fixed" hidden>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
-        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
-        <span>kobako</span>
-      </a>
-      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
-    </div>
+  <header class="topbar">
+    <h1>固定費</h1>
+    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
-    <div class="page-header"><h1>固定費</h1></div>
     <section class="summary" aria-label="毎月の固定費">
       <dl class="summary-list">
         <div class="metric primary"><dt>毎月の固定費</dt><dd class="neg">104,300円</dd></div>
@@ -1119,17 +1068,11 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 <!-- 残高 -->
 <div class="app" id="screen-balances" data-screen="balances" hidden>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
-        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
-        <span>kobako</span>
-      </a>
-      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
-    </div>
+  <header class="topbar">
+    <h1>残高</h1>
+    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
-    <div class="page-header"><h1>残高</h1></div>
     <section class="summary" aria-label="純資産">
       <dl class="summary-list">
         <div class="metric primary"><dt>純資産</dt><dd>757,000円</dd></div>
@@ -1162,17 +1105,11 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 
 <!-- 設定 -->
 <div class="app" id="screen-settings" data-screen="settings" hidden>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" data-goto="overview" aria-label="kobako 家計ノート ホーム">
-        <span class="mark"><svg viewBox="0 0 28 24" focusable="false" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span>
-        <span>kobako</span>
-      </a>
-      <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定" aria-current="page"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
-    </div>
+  <header class="topbar">
+    <h1>設定</h1>
+    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定" aria-current="page"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
-    <div class="page-header"><h1>設定</h1></div>
     <div class="settings-list">
       <section class="settings-section">
         <h2>接続</h2>
