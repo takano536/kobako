@@ -1,0 +1,1300 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kobako Android — UI案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   kobako Android — design mock
+   App tokens mirror kobako web (paper / ink / green), then adapt
+   them to Android: edge-to-edge, 3-destination navigation, M3
+   expressive hierarchy, 48dp targets, tabular money, dark theme.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --paper: #fcfcf8;
+  --ink: #292e2b;
+  --muted: #68736c;
+  --accent: #426d59;
+  --accent-strong: #315944;
+  --accent-soft: #e8f0e9;
+  --on-accent: #ffffff;
+  --button-primary: #2f6b52;
+  --button-danger: #a84f45;
+  --money-negative: #a33a36;
+  --money-positive: #245c9c;
+  --category-dot: #91a99d;
+  --category-bar: #6f8a7c;
+  --rule: #dfe3da;
+  --rule-soft: #ecefe7;
+  --bar: #e5e9e1;
+  --surface: #f8faf5;
+  --surface-hover: #edf2eb;
+  --soft-control: #f0f2eb;
+  --danger-soft: #f9efed;
+  --danger-rule: #e7cbc6;
+  --error-text: #703f3a;
+  --focus: #2f614c;
+  --scrim: rgb(22 36 29 / 52%);
+  --shadow-raised: 0 24px 90px #18291f24;
+  --poster: #eeece5;
+  --poster-ink: #22261f;
+  --poster-muted: #6d7268;
+  --poster-line: #d9d6cc;
+  --poster-panel: #f6f4ed;
+  --bezel: #1e221e;
+  --device-shadow: 0 30px 80px rgba(30, 40, 33, .20), 0 4px 14px rgba(30, 40, 33, .08);
+  --font: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1a1f1c;
+  --ink: #e4e7e0;
+  --muted: #a2ada5;
+  --accent: #8cc4a6;
+  --accent-strong: #a8d6bd;
+  --accent-soft: #24352a;
+  --on-accent: #142019;
+  --button-primary: #8cc4a6;
+  --button-danger: #ec948a;
+  --money-negative: #f2978e;
+  --money-positive: #8db9ef;
+  --category-dot: #91a99d;
+  --category-bar: #8cc4a6;
+  --rule: #343d37;
+  --rule-soft: #272f29;
+  --bar: #2b332e;
+  --surface: #1f2521;
+  --surface-hover: #28302b;
+  --soft-control: #262d28;
+  --danger-soft: #362422;
+  --danger-rule: #5a3833;
+  --error-text: #f3bcb4;
+  --focus: #8cc4a6;
+  --scrim: rgb(6 9 7 / 64%);
+  --shadow-raised: 0 24px 90px rgba(0, 0, 0, .55);
+  --poster: #0d100e;
+  --poster-ink: #e9ece5;
+  --poster-muted: #8a958d;
+  --poster-line: #232a26;
+  --poster-panel: #151a16;
+  --bezel: #2b302b;
+  --device-shadow: 0 30px 80px rgba(0, 0, 0, .60), 0 0 0 1px rgba(255, 255, 255, .04);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+html { background: var(--poster); color: var(--poster-ink); }
+body {
+  min-height: 100vh;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, select { font: inherit; color: inherit; }
+button { padding: 0; border: 0; background: none; cursor: pointer; }
+button:disabled { cursor: default; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+
+/* ---------------- prototype chrome (not app UI) ---------------- */
+.harness { width: min(1140px, 100%); margin: 0 auto; padding: 40px 28px 8px; }
+.harness-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--poster-line);
+}
+.harness-title { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.harness-sub { margin: 5px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--poster-muted); }
+.harness-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 16px; }
+.control { display: inline-flex; align-items: center; gap: 7px; }
+.control-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--poster-muted); }
+.seg { display: inline-flex; padding: 3px; border: 1px solid var(--poster-line); border-radius: 999px; background: var(--poster-panel); }
+.seg button { padding: 6px 11px; border-radius: 999px; color: var(--poster-muted); font-size: 11.5px; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--poster-ink); color: var(--poster); }
+.control select {
+  appearance: none; padding: 6px 28px 6px 10px; border: 1px solid var(--poster-line); border-radius: 8px;
+  background: var(--poster-panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d7268' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;
+  color: var(--poster-ink); font-size: 11.5px; cursor: pointer;
+}
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--poster-muted); cursor: pointer; }
+.check input { width: 14px; height: 14px; accent-color: var(--poster-ink); margin: 0; }
+
+/* ---------------- device ---------------- */
+.stage { display: flex; justify-content: center; padding: 30px 16px 56px; }
+.device {
+  box-sizing: content-box;
+  position: relative;
+  display: flex; flex-direction: column;
+  width: 390px; height: 844px; flex: none;
+  overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  border: 9px solid var(--bezel);
+  border-radius: 44px;
+  box-shadow: var(--device-shadow);
+  container-type: inline-size;
+  transition: width .38s cubic-bezier(.2, .8, .2, 1), height .38s cubic-bezier(.2, .8, .2, 1), border-radius .38s ease;
+}
+.device[data-width="tablet"] { width: 840px; height: 700px; border-radius: 30px; }
+.punch {
+  position: absolute; top: 8px; left: 50%; z-index: 30;
+  width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%);
+  background: color-mix(in srgb, var(--ink) 32%, transparent);
+}
+[data-theme="dark"] .punch { background: color-mix(in srgb, var(--ink) 24%, transparent); }
+
+.statusbar {
+  height: 24px; flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px 0 22px;
+  color: var(--ink); font-size: 11px; font-weight: 600; letter-spacing: .01em;
+}
+.status-icons { display: inline-flex; align-items: center; gap: 5px; opacity: .9; }
+.status-icons svg { display: block; }
+
+.app { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; background: var(--paper); }
+.workspace { flex: 1; min-height: 0; display: flex; }
+.main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#appbarHost, #demoHost { flex: none; }
+.app.no-nav .navbar, .app.no-nav .rail { display: none; }
+
+/* ---------------- app bar ---------------- */
+.appbar {
+  height: 64px; display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 20px; background: var(--paper);
+  position: relative; z-index: 4;
+  transition: box-shadow .18s ease;
+}
+.appbar.scrolled { box-shadow: 0 1px 0 var(--rule); }
+.appbar-title {
+  margin: 0 auto 0 0; min-width: 0;
+  font-size: 26px; font-weight: 600; line-height: 1.2; letter-spacing: -.025em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.appbar.has-back { padding-left: 8px; }
+.appbar.has-back .appbar-title { font-size: 20px; letter-spacing: -.015em; }
+.appbar-actions { display: inline-flex; align-items: center; gap: 0; }
+.iconbtn {
+  width: 48px; height: 48px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--ink);
+  transition: background .15s ease, color .15s ease;
+}
+.iconbtn:hover { background: var(--soft-control); }
+.iconbtn:active { background: var(--surface-hover); }
+.iconbtn svg { width: 22px; height: 22px; }
+.iconbtn[aria-pressed="true"] { color: var(--accent); }
+
+/* ---------------- demo strip ---------------- */
+.demo-strip {
+  height: 30px; display: flex; align-items: center; gap: 7px;
+  padding: 0 20px;
+  background: var(--accent-soft); color: var(--accent-strong);
+  border-bottom: 1px solid var(--rule);
+  font-size: 11px; font-weight: 500;
+}
+.demo-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .8; }
+.demo-strip button { margin-left: auto; padding: 6px 2px 6px 10px; color: var(--accent-strong); font-size: 11px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---------------- content ---------------- */
+.content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.content::-webkit-scrollbar { display: none; }
+.screen {
+  padding: 0 20px 28px;
+  animation: screen-in .22s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes screen-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* month switcher */
+.month-row { display: flex; align-items: center; min-height: 48px; margin: 0 0 10px; }
+.month-arrow {
+  width: 48px; height: 48px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; color: var(--muted);
+  transition: background .15s ease, color .15s ease;
+}
+.month-arrow:hover { background: var(--soft-control); color: var(--ink); }
+.month-arrow svg { width: 20px; height: 20px; }
+.month-label {
+  padding: 5px 2px; font-size: 16px; font-weight: 500; line-height: 1.4;
+  letter-spacing: .005em; white-space: nowrap;
+}
+.month-chip {
+  margin-left: auto; padding: 6px 12px; border-radius: 999px;
+  background: var(--soft-control); color: var(--accent-strong);
+  font-size: 11px; font-weight: 600;
+}
+
+/* hero */
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  padding: 16px 18px 14px;
+  margin-bottom: 17px;
+}
+.hero-label { color: var(--muted); font-size: 11.5px; font-weight: 500; letter-spacing: .01em; }
+.hero-amount {
+  margin-top: 3px;
+  font-size: 36px;
+  font-size: clamp(32px, 9.2cqw, 40px);
+  font-weight: 600; line-height: 1.12; letter-spacing: -.035em;
+  white-space: nowrap;
+}
+.hero-rule { height: 1px; background: var(--rule); margin: 10px 0 9px; }
+.hero-side { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hero-side-label { color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+.hero-side-value {
+  margin-top: 1px;
+  font-size: 15px; font-weight: 600; line-height: 1.4; letter-spacing: -.015em;
+  white-space: nowrap;
+}
+.meter { margin-top: 12px; }
+.meter-track { height: 3px; overflow: hidden; border-radius: 999px; background: var(--bar); }
+.meter-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); transform-origin: left; animation: meter-in .55s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes meter-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.meter-note { margin-top: 6px; color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+
+/* section heading */
+.section { margin-top: 17px; }
+.section-head { display: flex; align-items: center; gap: 8px; min-height: 30px; margin-bottom: 4px; }
+.section-head h2 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; letter-spacing: .005em; }
+.section-head .count { color: var(--muted); font-size: 11px; }
+.section-action {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 1px;
+  padding: 6px 0 6px 8px; color: var(--accent); font-size: 11.5px; font-weight: 600;
+}
+.section-action svg { width: 15px; height: 15px; }
+
+/* category breakdown */
+.cat-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.cat-row { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto 2.6em; align-items: center; column-gap: 10px; }
+.cat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--category-dot); }
+.cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 1.45; }
+.cat-amount { text-align: right; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 1.45; }
+.cat-share { text-align: right; white-space: nowrap; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cat-bar { height: 3px; margin: 6px 0 0 17px; overflow: hidden; border-radius: 999px; background: var(--bar); }
+.cat-bar span { display: block; height: 100%; border-radius: inherit; background: var(--category-bar); transform-origin: left; animation: bar-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes bar-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* transaction rows */
+.tx-list { margin: 0; padding: 0; list-style: none; }
+.tx-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 0; border-top: 1px solid var(--rule-soft); }
+.tx-row:first-child { border-top: 0; }
+.tx-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--category-dot); }
+.tx-main { flex: 1; min-width: 0; }
+.tx-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 1.4; }
+.tx-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.tx-amount { flex: none; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 1.4; }
+
+/* day groups */
+.tx-groups { margin-top: 2px; }
+.day-group { margin-top: 10px; }
+.day-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  height: 33px; background: var(--paper);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.day-date { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+.day-total { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.day-list { margin: 0; padding: 0; list-style: none; }
+.tx-row-full { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 10px 0; border-bottom: 1px solid var(--rule-soft); }
+.day-list .tx-row-full:last-child { border-bottom: 0; }
+
+/* states */
+.statebox { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 18px; text-align: center; }
+.state-icon {
+  width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 14px;
+  border-radius: 50%; background: var(--soft-control); color: var(--muted);
+}
+.state-icon svg { width: 25px; height: 25px; }
+.statebox h3 { margin: 0 0 5px; color: var(--ink); font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+.statebox p { max-width: 27em; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.state-action { margin-top: 16px; color: var(--accent); font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 999px; background: var(--accent-soft); }
+
+.error-banner {
+  margin: 10px 0 18px; padding: 14px 14px 12px 16px;
+  border: 1px solid var(--danger-rule); border-radius: 14px;
+  background: var(--danger-soft); color: var(--error-text);
+}
+.error-head { display: flex; align-items: center; gap: 8px; }
+.error-head svg { width: 19px; height: 19px; flex: none; color: var(--money-negative); }
+.error-head h3 { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
+.error-banner p { margin: 5px 0 0 27px; font-size: 11.5px; line-height: 1.65; opacity: .9; }
+.error-banner button { margin: 10px 0 0 27px; padding: 7px 12px; border-radius: 999px; background: var(--paper); color: var(--error-text); border: 1px solid var(--danger-rule); font-size: 11.5px; font-weight: 600; }
+
+/* skeleton */
+.sk { position: relative; overflow: hidden; border-radius: 6px; background: var(--soft-control); }
+.sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .38), transparent);
+  animation: shimmer 1.45s infinite;
+}
+[data-theme="dark"] .sk::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .055), transparent); }
+@keyframes shimmer { to { transform: translateX(100%); } }
+.sk-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.sk-stack { display: grid; gap: 10px; }
+.sk-group { padding: 10px 0 4px; }
+.sk-group + .sk-group { border-top: 1px solid var(--rule-soft); }
+
+/* balances */
+.bgroup-list { margin-top: 2px; }
+.balances-screen { padding-top: 6px; }
+.bgroup { margin-top: 20px; }
+.bgroup:first-child { margin-top: 0; }
+.bgroup-head { display: flex; align-items: baseline; gap: 8px; min-height: 30px; border-bottom: 1px solid var(--rule); }
+.bgroup-name { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .035em; }
+.bgroup-total { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.bgroup-total.neg { color: var(--money-negative); }
+.brow { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 8px 0; border-bottom: 1px solid var(--rule-soft); }
+.brow-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; line-height: 1.45; }
+.brow-amount { flex: none; white-space: nowrap; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.card-metrics {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  margin: 0 0 12px; overflow: hidden;
+  border: 1px solid var(--rule); border-radius: 12px; background: var(--rule);
+}
+.card-metric { padding: 9px 12px 10px; background: var(--surface); }
+.card-metric .label { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.card-metric .value { margin-top: 1px; font-size: 13px; font-weight: 500; line-height: 1.4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.card-metric .sub { color: var(--muted); font-size: 10px; line-height: 1.4; }
+
+/* settings */
+.settings-screen { padding-bottom: 34px; }
+.group-label { margin: 20px 2px 7px; color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
+.group-label:first-child { margin-top: 2px; }
+.panel { overflow: hidden; border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
+.setting-row {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  min-height: 56px; padding: 9px 14px;
+  border-top: 1px solid var(--rule-soft); text-align: left;
+}
+.setting-row:first-child { border-top: 0; }
+.setting-row:hover { background: var(--surface-hover); }
+a.setting-row { text-decoration: none; }
+.setting-labels { flex: 1; min-width: 0; }
+.setting-label { font-size: 14px; font-weight: 500; line-height: 1.45; }
+.setting-desc { margin-top: 1px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.setting-value { flex: none; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.setting-value.ink { color: var(--ink); }
+.setting-row .chev { width: 17px; height: 17px; flex: none; color: var(--muted); margin-left: -6px; }
+.status-dot { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+.switch { position: relative; width: 52px; height: 32px; flex: none; border-radius: 999px; background: var(--bar); transition: background .2s ease; }
+.switch::before { content: ""; position: absolute; inset: -8px -2px; }
+.switch::after {
+  content: ""; position: absolute; top: 4px; left: 4px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--paper); box-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .2s ease;
+}
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-accent); }
+.settings-foot { margin-top: 22px; color: var(--muted); font-size: 10px; text-align: center; letter-spacing: .02em; }
+
+/* onboarding */
+.onboard { display: flex; flex-direction: column; min-height: 100%; padding: 4px 24px 30px; }
+.brand-lockup { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; }
+.brand-tagline { margin: 0 0 30px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.brand-mark { display: block; width: 26px; height: 22px; color: var(--ink); opacity: .85; }
+.brand-mark svg { display: block; width: 100%; height: 100%; }
+.brand-name { font-size: 24px; font-weight: 600; letter-spacing: -.045em; line-height: 1; }
+.onboard h1 { margin: 0 0 7px; font-size: 21px; font-weight: 600; line-height: 1.4; letter-spacing: -.02em; }
+.onboard .lead { margin: 0 0 26px; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
+.field { margin-bottom: 17px; }
+.field > label { display: block; margin-bottom: 7px; font-size: 11.5px; font-weight: 500; line-height: 1.4; }
+.input-wrap {
+  display: flex; align-items: center; min-height: 52px; padding: 0 4px 0 13px;
+  border: 1px solid var(--rule); border-radius: 12px; background: var(--paper);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input-wrap input { flex: 1; min-width: 0; padding: 12px 8px 12px 0; border: 0; outline: 0; background: none; color: var(--ink); font-size: 14px; }
+.input-wrap input::placeholder { color: var(--muted); opacity: .72; }
+.input-wrap .iconbtn { width: 42px; height: 42px; color: var(--muted); }
+.input-wrap .iconbtn svg { width: 20px; height: 20px; }
+.field .hint { margin-top: 5px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.primary-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 52px; border-radius: 999px;
+  background: var(--button-primary); color: var(--on-accent);
+  font-size: 14px; font-weight: 600;
+  transition: transform .12s ease, opacity .15s ease;
+}
+.primary-btn:active { transform: scale(.99); }
+.primary-btn[disabled] { opacity: .72; }
+.spinner { width: 15px; height: 15px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.divider-or { display: flex; align-items: center; gap: 12px; margin: 17px 0; color: var(--muted); font-size: 10.5px; }
+.divider-or::before, .divider-or::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.secondary-btn { width: 100%; min-height: 48px; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink); font-size: 13px; font-weight: 500; }
+.secondary-btn:hover { background: var(--surface-hover); }
+.trust { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: auto; padding-top: 26px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.trust svg { width: 14px; height: 14px; }
+.onboard .error-banner { margin: 0 0 16px; }
+
+/* bottom navigation */
+.navbar {
+  height: 80px; flex: none;
+  display: flex; align-items: stretch;
+  padding: 0 8px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+.navitem {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--muted);
+}
+.navicon { width: 64px; height: 32px; display: grid; place-items: center; border-radius: 999px; transition: background .18s ease, color .18s ease; }
+.navitem svg { width: 24px; height: 24px; }
+.navlabel { font-size: 12px; font-weight: 500; line-height: 1.3; letter-spacing: .005em; }
+.navitem[aria-current="page"] { color: var(--accent); }
+.navitem[aria-current="page"] .navicon { background: var(--accent-soft); }
+.navitem[aria-current="page"] .navlabel { font-weight: 600; }
+
+/* navigation rail (tablet) */
+.rail { display: none; }
+
+/* sheet */
+.scrim {
+  position: absolute; inset: 0; z-index: 20;
+  background: var(--scrim); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21;
+  max-height: 74%; overflow-y: auto;
+  padding: 8px 20px 26px;
+  background: var(--paper); border-radius: 24px 24px 0 0;
+  box-shadow: var(--shadow-raised);
+  visibility: hidden;
+  transform: translateY(102%);
+  transition: transform .32s cubic-bezier(.2, .9, .2, 1), visibility 0s linear .32s;
+}
+.sheet.open { visibility: visible; transform: translateY(0); transition: transform .32s cubic-bezier(.2, .9, .2, 1); }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.sheet-handle { width: 32px; height: 4px; margin: 0 auto 14px; border-radius: 999px; background: var(--rule); }
+.sheet h2 { margin: 0 0 5px; font-size: 18px; font-weight: 600; line-height: 1.4; letter-spacing: -.015em; }
+.sheet-sub { margin: 0 0 12px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
+.theme-option {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  min-height: 56px; padding: 9px 2px;
+  border-top: 1px solid var(--rule-soft); text-align: left;
+}
+.theme-option:first-of-type { border-top: 0; }
+.radio { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--muted); border-radius: 50%; }
+.theme-option[aria-checked="true"] .radio { border-color: var(--accent); }
+.theme-option[aria-checked="true"] .radio::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.theme-option .opt-label { display: block; font-size: 14px; font-weight: 500; line-height: 1.45; }
+.theme-option .opt-desc { display: block; margin-top: 1px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+
+/* gesture bar */
+.gesturebar { height: 20px; flex: none; display: grid; place-items: center; background: var(--paper); }
+.gesturebar span { display: block; width: 108px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 26%, transparent); }
+
+/* money colours */
+.pos { color: var(--money-positive); }
+.neg { color: var(--money-negative); }
+.amount { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+.privacy .amount, .privacy [data-amount] { font-variant-numeric: tabular-nums; }
+
+/* tablet layout */
+@container (max-width: 599px) {
+  .overview-columns > .section:last-child .tx-row:nth-child(n+2) { display: none; }
+}
+
+@container (min-width: 600px) {
+  .rail {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    width: 80px; flex: none; padding: 10px 0;
+    border-right: 1px solid var(--rule); background: var(--paper);
+  }
+  .railitem {
+    width: 72px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 0; color: var(--muted);
+  }
+  .railicon { width: 56px; height: 32px; display: grid; place-items: center; border-radius: 999px; transition: background .18s ease, color .18s ease; }
+  .railitem svg { width: 24px; height: 24px; }
+  .raillabel { font-size: 12px; font-weight: 500; line-height: 1.3; }
+  .railitem[aria-current="page"] { color: var(--accent); }
+  .railitem[aria-current="page"] .railicon { background: var(--accent-soft); }
+  .railitem[aria-current="page"] .raillabel { font-weight: 600; }
+  .navbar { display: none; }
+  .appbar { height: 72px; padding: 0 16px 0 32px; }
+  .appbar.has-back { padding-left: 20px; }
+  .appbar-title { font-size: 29px; }
+  .appbar.has-back .appbar-title { font-size: 21px; }
+  .demo-strip { padding: 0 32px; }
+  .screen { width: 100%; max-width: 800px; margin: 0 auto; padding: 0 32px 36px; }
+  .settings-screen { max-width: 680px; }
+  .onboard { width: 100%; max-width: 430px; margin: 0 auto; padding-top: 34px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); column-gap: 26px; align-items: end; padding: 22px 24px 18px; }
+  .hero-main { grid-column: 1; grid-row: 1; }
+  .hero-rule { display: none; }
+  .hero-side { grid-column: 2; grid-row: 1; align-self: stretch; align-content: center; padding-left: 26px; border-left: 1px solid var(--rule); }
+  .hero .meter { grid-column: 1 / -1; grid-row: 2; }
+  .overview-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 34px; }
+  .overview-columns .section { margin-top: 22px; }
+  .statebox { min-height: 430px; }
+  .sheet { left: 50%; right: auto; bottom: 22px; width: 460px; border-radius: 24px; transform: translate(-50%, 110%); }
+  .sheet.open { transform: translate(-50%, 0); }
+  .settings-foot { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="harness">
+  <div class="harness-head">
+    <div>
+      <h1 class="harness-title">kobako Android — UI案</h1>
+      <p class="harness-sub">Material 3 Expressive の考え方を、kobako の紙とインクのトーンで。390dp / 840dp・ライト / ダーク・4状態。</p>
+    </div>
+  </div>
+  <div class="harness-controls">
+    <div class="control"><span class="control-label">画面</span><div class="seg" id="screenSeg"></div></div>
+    <div class="control"><span class="control-label">テーマ</span><div class="seg" id="themeSeg"></div></div>
+    <div class="control"><span class="control-label">幅</span><div class="seg" id="widthSeg"></div></div>
+    <div class="control"><label class="control-label" for="stateSelect">状態</label>
+      <select id="stateSelect">
+        <option value="normal">通常</option>
+        <option value="loading">読み込み中</option>
+        <option value="empty">空</option>
+        <option value="error">エラー</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" id="demoCheck" checked> デモ</label>
+  </div>
+</header>
+
+<div class="stage">
+  <div class="device" id="device" data-width="phone">
+    <div class="punch" aria-hidden="true"></div>
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="status-icons" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="9" width="2.2" height="5" rx=".6" fill="currentColor"/><rect x="4.8" y="7" width="2.2" height="7" rx=".6" fill="currentColor"/><rect x="8.6" y="4.5" width="2.2" height="9.5" rx=".6" fill="currentColor"/><rect x="12.4" y="2" width="2.2" height="12" rx=".6" fill="currentColor"/></svg>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 5.5a9 9 0 0 1 12 0"/><path d="M4.2 8.2a6 6 0 0 1 7.6 0"/><path d="M6.6 10.8a3 3 0 0 1 2.8 0"/><circle cx="8" cy="13" r=".8" fill="currentColor" stroke="none"/></svg>
+        <svg width="20" height="12" viewBox="0 0 22 12"><rect x=".8" y=".8" width="18" height="10.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><rect x="2.4" y="2.4" width="13.2" height="7.2" rx="1.8" fill="currentColor"/><path d="M20.2 4v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></svg>
+      </span>
+    </div>
+
+    <div class="app" id="app">
+      <div class="workspace">
+        <nav class="rail" id="railHost" aria-label="主要な画面"></nav>
+        <div class="main-col">
+          <div id="appbarHost"></div>
+          <div id="demoHost"></div>
+          <main class="content" id="contentHost"></main>
+          <nav class="navbar" id="navHost" aria-label="主要な画面"></nav>
+        </div>
+      </div>
+
+      <div class="scrim" id="scrim" data-close-sheet></div>
+      <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <h2 id="sheetTitle">テーマ</h2>
+        <p class="sheet-sub">アプリの見た目を選びます。</p>
+        <div id="themeOptions" role="radiogroup" aria-label="テーマ"></div>
+      </section>
+    </div>
+
+    <div class="gesturebar" aria-hidden="true"><span></span></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   data (matches DemoRepository in kobako-android)
+   ============================================================ */
+const CURRENT_MONTH = '2026-11';
+const DATA = {
+  summary: { income: 350000, expense: 174200, difference: 175800 },
+  categories: [
+    { name: '家賃', total: 90000 },
+    { name: '食費', total: 45000 },
+    { name: '外食', total: 18000 },
+    { name: '光熱費', total: 12000 },
+    { name: '交通', total: 8000 },
+    { name: 'サブスク', total: 1200 },
+  ],
+  transactions: [
+    { id: 1, day: 1, category: '給与', account: '住信SBI', memo: '11月分給与', amount: 350000 },
+    { id: 2, day: 2, category: '家賃', account: '住信SBI', memo: null, amount: -90000 },
+    { id: 3, day: 3, category: '食費', account: '三井住友カード', memo: null, amount: -45000 },
+    { id: 4, day: 4, category: '外食', account: '三井住友カード', memo: null, amount: -18000 },
+    { id: 5, day: 5, category: '光熱費', account: '住信SBI', memo: null, amount: -12000 },
+    { id: 6, day: 6, category: '交通', account: 'Suica', memo: null, amount: -8000 },
+    { id: 7, day: 7, category: 'サブスク', account: '三井住友カード', memo: null, amount: -1200 },
+  ],
+  balances: {
+    summary: { assets: 842000, liabilities: 85000, net: 757000 },
+    groups: [
+      { name: '銀行', accounts: [{ name: '住信SBI', amount: 800000 }] },
+      { name: '現金', accounts: [{ name: '財布', amount: 30000 }] },
+      { name: 'クレジットカード', accounts: [{ name: '三井住友カード', amount: -85000, scheduled: 85000, due: '11月27日', unbilled: 12000 }] },
+      { name: '電子マネー', accounts: [{ name: 'Suica', amount: 12000 }] },
+    ],
+  },
+};
+
+const NAV = [
+  { id: 'overview', label: '概要', icon: 'overview' },
+  { id: 'transactions', label: '取引', icon: 'transactions' },
+  { id: 'balances', label: '残高', icon: 'balances' },
+];
+
+/* ============================================================
+   icons (stroke set, 24 viewBox)
+   ============================================================ */
+const ICONS = {
+  overview: '<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
+  transactions: '<path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-3-2V4a1 1 0 0 1 1-1Z"/><path d="M9 8h6M9 12h6"/>',
+  balances: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><circle cx="17" cy="15" r="1.2"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+  eye: '<path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 6.2A10.9 10.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17.6 17.6 0 0 1-3.2 3.8M6.1 6.3A17.5 17.5 0 0 0 2.5 12s3.5 6 9.5 6a10.8 10.8 0 0 0 5.1-1.3"/><path d="M9.9 9.9a2.8 2.8 0 0 0 3.9 3.9"/>',
+  back: '<path d="M19 12H5M11 18l-6-6 6-6"/>',
+  chevronLeft: '<path d="M15 18l-6-6 6-6"/>',
+  chevronRight: '<path d="M9 18l6-6-6-6"/>',
+  arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  lock: '<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/>',
+  alert: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.2v.1"/>',
+  empty: '<path d="M4 8.5 12 3l8 5.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.5Z"/><path d="M4 13h5l1.5 2h3L15 13h5"/>',
+};
+function icon(name, cls = '') {
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
+/* ============================================================
+   formatting
+   ============================================================ */
+function money(n, { sign = false } = {}) {
+  const abs = Math.abs(n).toLocaleString('ja-JP');
+  const prefix = n < 0 ? '−' : (sign && n > 0 ? '＋' : '');
+  return `${prefix}${abs}円`;
+}
+function amountEl(n, { sign = false, tone = null, tag = 'span', cls = '' } = {}) {
+  const text = money(n, { sign });
+  const klass = ['amount', tone !== null ? tone : (n < 0 ? 'neg' : n > 0 ? 'pos' : ''), cls].filter(Boolean).join(' ');
+  return `<${tag} class="${klass}" data-amount="${text}">${text}</${tag}>`;
+}
+function monthLabel(m) {
+  const [y, mo] = m.split('-');
+  return `${y}年${Number(mo)}月`;
+}
+function shiftMonth(m, delta) {
+  const [y, mo] = m.split('-').map(Number);
+  const d = new Date(y, mo - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function weekday(day) {
+  return '日月火水木金土'[new Date(2026, 10, day).getDay()];
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* quiet category markers, same palette as the web app */
+const CATEGORY_DOT = {
+  '食費': '#b49a96',
+  '家賃': '#91a99d',
+  '外食': '#b09eaf',
+  '光熱費': '#98a6b0',
+  '交通': '#a4b2a9',
+  'サブスク': '#aaa383',
+  '給与': '#91a99d',
+};
+function dot(name, cls = 'cat-dot') {
+  const color = CATEGORY_DOT[name] || '#b8b7ab';
+  return `<span class="${cls}" style="background:${color}" aria-hidden="true"></span>`;
+}
+
+/* ============================================================
+   state
+   ============================================================ */
+const state = {
+  screen: 'overview',
+  lastContent: 'overview',
+  theme: 'system',
+  width: 'phone',
+  appState: 'normal',
+  demo: true,
+  privacy: false,
+  month: CURRENT_MONTH,
+  notifications: false,
+};
+let renderedScreen = null;
+
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+
+function resolvedTheme() {
+  if (state.theme === 'system') {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return state.theme;
+}
+
+/* ============================================================
+   shell
+   ============================================================ */
+function renderHarness() {
+  const screens = [
+    { id: 'overview', label: '概要' },
+    { id: 'transactions', label: '取引' },
+    { id: 'balances', label: '残高' },
+    { id: 'settings', label: '設定' },
+    { id: 'onboarding', label: '接続' },
+  ];
+  $('#screenSeg').innerHTML = screens.map(s =>
+    `<button type="button" data-hs-screen="${s.id}" aria-pressed="${state.screen === s.id}">${s.label}</button>`
+  ).join('');
+  const themes = [
+    { id: 'system', label: '自動' },
+    { id: 'light', label: 'ライト' },
+    { id: 'dark', label: 'ダーク' },
+  ];
+  $('#themeSeg').innerHTML = themes.map(t =>
+    `<button type="button" data-hs-theme="${t.id}" aria-pressed="${state.theme === t.id}">${t.label}</button>`
+  ).join('');
+  const widths = [
+    { id: 'phone', label: '390dp' },
+    { id: 'tablet', label: '840dp' },
+  ];
+  $('#widthSeg').innerHTML = widths.map(w =>
+    `<button type="button" data-hs-width="${w.id}" aria-pressed="${state.width === w.id}">${w.label}</button>`
+  ).join('');
+  $('#stateSelect').value = state.appState;
+  $('#demoCheck').checked = state.demo;
+}
+
+function renderNav() {
+  const html = NAV.map(n =>
+    `<button type="button" class="navitem" data-screen="${n.id}" ${state.screen === n.id ? 'aria-current="page"' : ''} aria-label="${n.label}">
+      <span class="navicon">${icon(n.icon)}</span><span class="navlabel">${n.label}</span>
+    </button>`
+  ).join('');
+  $('#navHost').innerHTML = html;
+  $('#railHost').innerHTML = NAV.map(n =>
+    `<button type="button" class="railitem" data-screen="${n.id}" ${state.screen === n.id ? 'aria-current="page"' : ''} aria-label="${n.label}">
+      <span class="railicon">${icon(n.icon)}</span><span class="raillabel">${n.label}</span>
+    </button>`
+  ).join('');
+}
+
+function renderAppbar() {
+  const host = $('#appbarHost');
+  if (state.screen === 'onboarding') { host.innerHTML = ''; return; }
+  if (state.screen === 'settings') {
+    host.innerHTML = `<header class="appbar has-back"><button type="button" class="iconbtn" data-back aria-label="戻る">${icon('back')}</button><h1 class="appbar-title">設定</h1></header>`;
+    return;
+  }
+  const title = { overview: '概要', transactions: '取引', balances: '残高' }[state.screen];
+  host.innerHTML = `<header class="appbar">
+    <h1 class="appbar-title">${title}</h1>
+    <div class="appbar-actions">
+      <button type="button" class="iconbtn" data-privacy aria-label="${state.privacy ? '金額を表示' : '金額を隠す'}" aria-pressed="${state.privacy}">${icon(state.privacy ? 'eyeOff' : 'eye')}</button>
+      <button type="button" class="iconbtn" data-settings aria-label="設定">${icon('settings')}</button>
+    </div>
+  </header>`;
+}
+
+function renderDemo() {
+  const host = $('#demoHost');
+  const content = ['overview', 'transactions', 'balances'].includes(state.screen);
+  host.innerHTML = state.demo && content
+    ? `<div class="demo-strip"><span class="demo-dot"></span><span>デモデータを表示中</span><button type="button" data-end-demo>終了</button></div>`
+    : '';
+}
+
+function applyPrivacy() {
+  $$('[data-amount]').forEach(el => {
+    el.textContent = state.privacy ? '•••,•••円' : el.dataset.amount;
+  });
+  $$('.meter-note').forEach(el => { el.style.visibility = state.privacy ? 'hidden' : 'visible'; });
+  $$('.meter-fill').forEach(el => { el.style.opacity = state.privacy ? '.28' : '1'; });
+}
+
+function render() {
+  renderHarness();
+  renderAppbar();
+  renderDemo();
+  renderNav();
+  $('#app').classList.toggle('no-nav', state.screen === 'onboarding' || state.screen === 'settings');
+  const content = $('#contentHost');
+  const next = renderScreen();
+  const same = renderedScreen === state.screen;
+  content.innerHTML = next;
+  if (!same) content.scrollTop = 0;
+  renderedScreen = state.screen;
+  const appbar = $('.appbar');
+  if (appbar) appbar.classList.toggle('scrolled', content.scrollTop > 2);
+  applyPrivacy();
+  renderThemeOptions();
+}
+
+/* ============================================================
+   shared pieces
+   ============================================================ */
+function monthRow() {
+  return `<div class="month-row">
+    <button type="button" class="month-arrow" data-month="-1" aria-label="前の月">${icon('chevronLeft')}</button>
+    <span class="month-label">${monthLabel(state.month)}</span>
+    <button type="button" class="month-arrow" data-month="1" aria-label="次の月">${icon('chevronRight')}</button>
+    ${state.month !== CURRENT_MONTH ? `<button type="button" class="month-chip" data-this-month>今月</button>` : ''}
+  </div>`;
+}
+
+function sectionHead(title, { count = '', action = '', target = '' } = {}) {
+  return `<div class="section-head">
+    <h2>${title}</h2>
+    ${count ? `<span class="count">${count}</span>` : ''}
+    ${action ? `<button type="button" class="section-action" data-screen="${target}">${action}${icon('arrowRight')}</button>` : ''}
+  </div>`;
+}
+
+function emptyBox(title, body, action = '') {
+  return `<div class="statebox">
+    <div class="state-icon">${icon('empty')}</div>
+    <h3>${title}</h3>
+    <p>${body}</p>
+    ${action}
+  </div>`;
+}
+
+function errorBox(title, body, { retry = true } = {}) {
+  return `<div class="error-banner">
+    <div class="error-head">${icon('alert')}<h3>${title}</h3></div>
+    <p>${body}</p>
+    ${retry ? '<button type="button" data-retry>再試行</button>' : ''}
+  </div>`;
+}
+
+function txRow(t, { recent = false } = {}) {
+  const meta = recent
+    ? `${new Date(2026, 10, t.day).getMonth() + 1}/${t.day} ・ ${esc(t.account)}`
+    : `${esc(t.account)}${t.memo ? ` ・ ${esc(t.memo)}` : ''}`;
+  return `<li class="tx-row">
+    ${dot(t.category, 'tx-dot')}
+    <div class="tx-main"><span class="tx-title">${esc(t.category)}</span><span class="tx-meta">${meta}</span></div>
+    ${amountEl(t.amount, { sign: true, cls: 'tx-amount' })}
+  </li>`;
+}
+
+/* ============================================================
+   overview
+   ============================================================ */
+function renderOverview() {
+  const ratio = DATA.summary.income > 0 ? (DATA.summary.expense / DATA.summary.income) * 100 : 0;
+  const pct = Math.min(100, Math.round(ratio * 10) / 10);
+  const meterNote = ratio > 100 ? '収入を超えて支出' : `収入の${Math.round(ratio)}%を支出`;
+  const cats = DATA.categories.slice().sort((a, b) => b.total - a.total);
+  const recent = DATA.transactions.slice().sort((a, b) => b.day - a.day || b.id - a.id).slice(0, 3);
+
+  const categoryHtml = cats.map(c => {
+    const share = (c.total / DATA.summary.expense) * 100;
+    const shareLabel = share > 0 && share < 1 ? '&lt;1%' : `${Math.round(share)}%`;
+    return `<li>
+      <div class="cat-row">
+        ${dot(c.name)}
+        <span class="cat-name">${esc(c.name)}</span>
+        ${amountEl(-c.total, { tone: 'neg', cls: 'cat-amount' })}
+        <span class="cat-share">${shareLabel}</span>
+      </div>
+      <div class="cat-bar"><span style="width:${share.toFixed(1)}%"></span></div>
+    </li>`;
+  }).join('');
+
+  const hero = `<section class="hero" aria-label="この月の集計">
+    <div class="hero-main">
+      <div class="hero-label">この月の支出</div>
+      ${amountEl(-DATA.summary.expense, { tone: 'neg', tag: 'div', cls: 'hero-amount' })}
+    </div>
+    <div class="hero-rule"></div>
+    <div class="hero-side">
+      <div><div class="hero-side-label">収入</div>${amountEl(DATA.summary.income, { tone: 'pos', cls: 'hero-side-value' })}</div>
+      <div><div class="hero-side-label">収支差額</div>${amountEl(DATA.summary.difference, { tone: '', cls: 'hero-side-value' })}</div>
+    </div>
+    <div class="meter">
+      <div class="meter-track"><span class="meter-fill" style="width:${pct}%"></span></div>
+      <div class="meter-note">${meterNote}</div>
+    </div>
+  </section>`;
+
+  let body;
+  if (state.appState === 'loading') {
+    body = heroSkeleton() + `<div class="section">${sectionHead('支出カテゴリ')}${skeletonRows(6)}</div><div class="section">${sectionHead('最近の取引')}${skeletonRows(3)}</div>`;
+  } else if (state.appState === 'error') {
+    body = errorBox('月の集計を読み込めませんでした', '通信状態を確認して、もう一度お試しください。');
+  } else if (state.appState === 'empty' || state.month !== CURRENT_MONTH) {
+    body = state.month !== CURRENT_MONTH
+      ? emptyBox('この月の記録はありません', '別の月を選ぶと、それまでの記録を確認できます。', `<button type="button" class="state-action" data-this-month>今月に戻る</button>`)
+      : emptyBox('表示できるデータがありません', 'サーバーにデータが登録されると、ここに表示されます。');
+  } else {
+    body = `${hero}
+      <div class="overview-columns">
+        <div class="section">
+          ${sectionHead('支出カテゴリ', { count: `${cats.length}件` })}
+          <ul class="cat-list">${categoryHtml}</ul>
+        </div>
+        <div class="section">
+          ${sectionHead('最近の取引', { action: 'すべて見る', target: 'transactions' })}
+          <ul class="tx-list">${recent.map(t => txRow(t, { recent: true })).join('')}</ul>
+        </div>
+      </div>`;
+  }
+
+  return `<div class="screen">${monthRow()}${body}</div>`;
+}
+
+/* ============================================================
+   transactions
+   ============================================================ */
+function renderTransactions() {
+  let body;
+  if (state.appState === 'loading') {
+    body = skeletonGroups(4, 2);
+  } else if (state.appState === 'error') {
+    body = errorBox('取引を読み込めませんでした', '通信状態を確認して、もう一度お試しください。');
+  } else if (state.appState === 'empty' || state.month !== CURRENT_MONTH) {
+    body = state.month !== CURRENT_MONTH
+      ? emptyBox('この月の取引はありません', '別の月を選ぶと、それまでの記録を確認できます。', `<button type="button" class="state-action" data-this-month>今月に戻る</button>`)
+      : emptyBox('表示できる取引がありません', 'サーバーに取引が登録されると、ここに表示されます。');
+  } else {
+    const days = Array.from(new Set(DATA.transactions.map(t => t.day))).sort((a, b) => b - a);
+    body = `<div class="tx-groups">${days.map(day => {
+      const items = DATA.transactions.filter(t => t.day === day).sort((a, b) => b.id - a.id);
+      const total = items.reduce((n, t) => n + t.amount, 0);
+      return `<section class="day-group">
+        <header class="day-head"><span class="day-date">11月${day}日（${weekday(day)}）</span><span class="day-total" data-amount="${money(total, { sign: true })}">${money(total, { sign: true })}</span></header>
+        <ul class="day-list">${items.map(t => `<li class="tx-row-full">${dot(t.category, 'tx-dot')}<div class="tx-main"><span class="tx-title">${esc(t.category)}</span><span class="tx-meta">${esc(t.account)}${t.memo ? ` ・ ${esc(t.memo)}` : ''}</span></div>${amountEl(t.amount, { sign: true, cls: 'tx-amount' })}</li>`).join('')}</ul>
+      </section>`;
+    }).join('')}</div>`;
+  }
+  return `<div class="screen">${monthRow()}${body}</div>`;
+}
+
+/* ============================================================
+   balances
+   ============================================================ */
+function renderBalances() {
+  const s = DATA.balances.summary;
+  const hero = `<section class="hero" aria-label="残高の集計">
+    <div class="hero-main">
+      <div class="hero-label">純資産</div>
+      ${amountEl(s.net, { sign: false, tone: '', tag: 'div', cls: 'hero-amount' })}
+    </div>
+    <div class="hero-rule"></div>
+    <div class="hero-side">
+      <div><div class="hero-side-label">資産</div>${amountEl(s.assets, { sign: false, tone: 'pos', cls: 'hero-side-value' })}</div>
+      <div><div class="hero-side-label">負債</div>${amountEl(-s.liabilities, { tone: 'neg', cls: 'hero-side-value' })}</div>
+    </div>
+  </section>`;
+
+  let body;
+  if (state.appState === 'loading') {
+    body = heroSkeleton() + skeletonGroups(4, 1);
+  } else if (state.appState === 'error') {
+    body = errorBox('残高を読み込めませんでした', '通信状態を確認して、もう一度お試しください。');
+  } else if (state.appState === 'empty') {
+    body = emptyBox('表示する資産がありません', 'サーバーに資産を登録すると、ここに表示されます。');
+  } else {
+    const groups = DATA.balances.groups.map(g => {
+      const total = g.accounts.reduce((n, a) => n + a.amount, 0);
+      const rows = g.accounts.map(a => `<div class="brow"><span class="brow-name">${esc(a.name)}</span><span class="brow-amount ${a.amount < 0 ? 'neg' : ''}" data-amount="${money(a.amount, { sign: false })}">${money(a.amount, { sign: false })}</span></div>`).join('');
+      const metrics = g.accounts.filter(a => a.scheduled != null).map(a => `<div class="card-metrics">
+        <div class="card-metric"><div class="label">決済予定</div><div class="value" data-amount="${money(a.scheduled, { sign: false })}">${money(a.scheduled, { sign: false })}</div><div class="sub">${esc(a.due)}</div></div>
+        <div class="card-metric"><div class="label">未決済</div><div class="value" data-amount="${money(a.unbilled, { sign: false })}">${money(a.unbilled, { sign: false })}</div></div>
+      </div>`).join('');
+      return `<section class="bgroup">
+        <header class="bgroup-head"><span class="bgroup-name">${esc(g.name)}</span><span class="bgroup-total ${total < 0 ? 'neg' : ''}" data-amount="${money(total, { sign: false })}">${money(total, { sign: false })}</span></header>
+        ${rows}${metrics}
+      </section>`;
+    }).join('');
+    body = `${hero}<div class="bgroup-list">${groups}</div>`;
+  }
+  return `<div class="screen balances-screen">${body}</div>`;
+}
+
+/* ============================================================
+   settings
+   ============================================================ */
+function renderSettings() {
+  const themeLabel = { system: 'システム', light: 'ライト', dark: 'ダーク' }[state.theme];
+  const themeDesc = state.theme === 'system' ? '端末の設定に合わせる' : state.theme === 'light' ? '常にライトで表示' : '常にダークで表示';
+  return `<div class="screen settings-screen">
+    <div class="group-label">接続</div>
+    <div class="panel">
+      <div class="setting-row">
+        <div class="setting-labels"><div class="setting-label">サーバー</div><div class="setting-desc"><span class="status-dot"></span>接続済み</div></div>
+        <div class="setting-value">kobako.example.com</div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-labels"><div class="setting-label">デモ表示</div><div class="setting-desc">${state.demo ? 'サンプルデータで表示しています' : '実際のサーバーに接続しています'}</div></div>
+        <button type="button" class="switch" role="switch" aria-checked="${state.demo}" aria-label="デモ表示" data-toggle-demo></button>
+      </div>
+    </div>
+
+    <div class="group-label">表示</div>
+    <div class="panel">
+      <button type="button" class="setting-row" data-open-theme>
+        <div class="setting-labels"><div class="setting-label">テーマ</div><div class="setting-desc">${themeDesc}</div></div>
+        <span class="setting-value ink">${themeLabel}</span>${icon('chevronRight', 'chev')}
+      </button>
+    </div>
+
+    <div class="group-label">通知</div>
+    <div class="panel">
+      <div class="setting-row">
+        <div class="setting-labels"><div class="setting-label">支払い日</div><div class="setting-desc">引落しの前日と当日に通知します</div></div>
+        <button type="button" class="switch" role="switch" aria-checked="${state.notifications}" aria-label="支払い日の通知" data-toggle-notifications></button>
+      </div>
+    </div>
+
+    <div class="group-label">アプリ情報</div>
+    <div class="panel">
+      <div class="setting-row">
+        <div class="setting-labels"><div class="setting-label">バージョン</div></div>
+        <span class="setting-value">0.1.0</span>
+      </div>
+      <div class="setting-row">
+        <div class="setting-labels"><div class="setting-label">ライセンス</div></div>
+        <span class="setting-value">AGPL-3.0-only</span>
+      </div>
+      <a class="setting-row" href="https://github.com/takano536/kobako" target="_blank" rel="noreferrer">
+        <div class="setting-labels"><div class="setting-label">ソースコード</div></div>${icon('external', 'chev')}
+      </a>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   onboarding
+   ============================================================ */
+function renderOnboarding() {
+  return `<div class="onboard">
+    <div class="brand-lockup"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span><span class="brand-name">kobako</span></div>
+    <p class="brand-tagline">家計を、静かに見渡す</p>
+    <h1>サーバーに接続</h1>
+    <p class="lead">kobako のサーバーURLとAPIトークンを入力してください。</p>
+    <form id="connectForm" novalidate>
+      <div class="field">
+        <label for="serverUrl">サーバーURL</label>
+        <div class="input-wrap"><input id="serverUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://kobako.example.com" value="https://kobako.example.com"></div>
+      </div>
+      <div class="field">
+        <label for="apiToken">APIトークン</label>
+        <div class="input-wrap">
+          <input id="apiToken" type="password" autocomplete="off" placeholder="トークンを入力">
+          <button type="button" class="iconbtn" data-toggle-token aria-label="トークンを表示">${icon('eye')}</button>
+        </div>
+        <div class="hint">サーバーの設定画面で発行したトークンを使います。</div>
+      </div>
+      <div id="connectError"></div>
+      <button type="submit" class="primary-btn" id="connectBtn">接続する</button>
+    </form>
+    <div class="divider-or">または</div>
+    <button type="button" class="secondary-btn" data-demo>デモを見る</button>
+    <div class="trust">${icon('lock')}<span>APIトークンは端末内に保存されます</span></div>
+  </div>`;
+}
+
+/* ============================================================
+   skeletons
+   ============================================================ */
+function skeletonRows(n) {
+  return `<div class="sk-stack">${Array.from({ length: n }).map(() => `<div class="sk-row"><div class="sk" style="width:64%;height:14px"></div><div class="sk" style="width:22%;height:14px;margin-left:auto"></div></div>`).join('')}</div>`;
+}
+function skeletonGroups(groups, rows) {
+  return `<div>${Array.from({ length: groups }).map(() => `<div class="sk-group"><div class="sk" style="width:28%;height:12px;margin-bottom:10px"></div>${Array.from({ length: rows }).map(() => `<div class="sk-row"><div class="sk" style="width:46%;height:14px"></div><div class="sk" style="width:24%;height:14px;margin-left:auto"></div></div>`).join('')}</div>`).join('')}</div>`;
+}
+function heroSkeleton() {
+  return `<div class="sk" style="width:100%;height:176px;border-radius:20px;margin-bottom:24px"></div>`;
+}
+
+/* ============================================================
+   screen switch
+   ============================================================ */
+function renderScreen() {
+  switch (state.screen) {
+    case 'overview': return renderOverview();
+    case 'transactions': return renderTransactions();
+    case 'balances': return renderBalances();
+    case 'settings': return renderSettings();
+    case 'onboarding': return renderOnboarding();
+    default: return renderOverview();
+  }
+}
+
+/* ============================================================
+   theme sheet
+   ============================================================ */
+function renderThemeOptions() {
+  const options = [
+    { id: 'system', label: 'システム', desc: '端末の設定に合わせます' },
+    { id: 'light', label: 'ライト', desc: '明るい背景で表示します' },
+    { id: 'dark', label: 'ダーク', desc: '暗い背景で表示します' },
+  ];
+  $('#themeOptions').innerHTML = options.map(o =>
+    `<button type="button" class="theme-option" role="radio" aria-checked="${state.theme === o.id}" data-theme-option="${o.id}">
+      <span class="radio" aria-hidden="true"></span>
+      <span><span class="opt-label">${o.label}</span><span class="opt-desc">${o.desc}</span></span>
+    </button>`
+  ).join('');
+}
+function openSheet() {
+  renderThemeOptions();
+  $('#scrim').classList.add('open');
+  $('#sheet').classList.add('open');
+  $('#sheet').setAttribute('aria-hidden', 'false');
+  const first = $('#themeOptions .theme-option[aria-checked="true"]') || $('#themeOptions .theme-option');
+  if (first) first.focus();
+}
+function closeSheet() {
+  $('#scrim').classList.remove('open');
+  $('#sheet').classList.remove('open');
+  $('#sheet').setAttribute('aria-hidden', 'true');
+}
+function focusThemeTrigger() {
+  const trigger = $('[data-open-theme]');
+  if (trigger) trigger.focus();
+}
+
+/* ============================================================
+   actions
+   ============================================================ */
+function goScreen(id) {
+  if (['overview', 'transactions', 'balances'].includes(id)) state.lastContent = id;
+  state.screen = id;
+  render();
+}
+
+$('#app').addEventListener('click', (e) => {
+  const target = e.target.closest('[data-screen], [data-settings], [data-back], [data-privacy], [data-end-demo], [data-demo], [data-month], [data-this-month], [data-retry], [data-open-theme], [data-close-sheet], [data-theme-option], [data-toggle-demo], [data-toggle-notifications], [data-toggle-token]');
+  if (!target) return;
+
+  if (target.dataset.screen) { goScreen(target.dataset.screen); return; }
+  if (target.hasAttribute('data-settings')) {
+    if (['overview', 'transactions', 'balances'].includes(state.screen)) state.lastContent = state.screen;
+    state.screen = 'settings'; render(); return;
+  }
+  if (target.hasAttribute('data-back')) { state.screen = state.lastContent; render(); return; }
+  if (target.hasAttribute('data-privacy')) { state.privacy = !state.privacy; render(); return; }
+  if (target.hasAttribute('data-end-demo')) { state.demo = false; state.screen = 'onboarding'; render(); return; }
+  if (target.hasAttribute('data-demo')) { state.demo = true; state.screen = 'overview'; state.lastContent = 'overview'; render(); return; }
+  if (target.dataset.month) { state.month = shiftMonth(state.month, Number(target.dataset.month)); render(); return; }
+  if (target.hasAttribute('data-this-month')) { state.month = CURRENT_MONTH; render(); return; }
+  if (target.hasAttribute('data-retry')) { state.appState = 'normal'; render(); return; }
+  if (target.hasAttribute('data-open-theme')) { openSheet(); return; }
+  if (target.hasAttribute('data-close-sheet')) { closeSheet(); focusThemeTrigger(); return; }
+  if (target.dataset.themeOption) {
+    state.theme = target.dataset.themeOption;
+    applyTheme();
+    closeSheet();
+    render();
+    focusThemeTrigger();
+    return;
+  }
+  if (target.hasAttribute('data-toggle-demo')) {
+    state.demo = !state.demo;
+    if (!state.demo) state.screen = 'onboarding';
+    render();
+    return;
+  }
+  if (target.hasAttribute('data-toggle-notifications')) { state.notifications = !state.notifications; render(); return; }
+  if (target.hasAttribute('data-toggle-token')) {
+    const input = $('#apiToken');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    target.innerHTML = icon(show ? 'eyeOff' : 'eye');
+    target.setAttribute('aria-label', show ? 'トークンを隠す' : 'トークンを表示');
+    return;
+  }
+});
+
+/* onboarding form */
+$('#app').addEventListener('submit', (e) => {
+  if (!e.target.matches('#connectForm')) return;
+  e.preventDefault();
+  const url = $('#serverUrl').value.trim();
+  const token = $('#apiToken').value.trim();
+  const error = $('#connectError');
+  const button = $('#connectBtn');
+  if (!url || !token) {
+    error.innerHTML = errorBox('入力が足りません', 'サーバーURLとAPIトークンを入力してください。', { retry: false });
+    return;
+  }
+  button.disabled = true;
+  button.innerHTML = `<span class="spinner" aria-hidden="true"></span>接続しています…`;
+  setTimeout(() => {
+    if (state.screen !== 'onboarding') return;
+    button.disabled = false;
+    button.textContent = '接続する';
+    error.innerHTML = errorBox('接続できませんでした', 'URLと通信状態を確認してください。トークンが正しいかもご確認ください。', { retry: false });
+  }, 800);
+});
+
+/* harness */
+document.addEventListener('click', (e) => {
+  const screen = e.target.closest('[data-hs-screen]');
+  if (screen) { goScreen(screen.dataset.hsScreen); return; }
+  const theme = e.target.closest('[data-hs-theme]');
+  if (theme) { state.theme = theme.dataset.hsTheme; applyTheme(); render(); return; }
+  const width = e.target.closest('[data-hs-width]');
+  if (width) { state.width = width.dataset.hsWidth; $('#device').dataset.width = state.width; renderHarness(); return; }
+});
+$('#stateSelect').addEventListener('change', (e) => {
+  state.appState = e.target.value;
+  if (state.screen === 'onboarding') state.screen = 'overview';
+  $('#contentHost').scrollTop = 0;
+  render();
+});
+$('#demoCheck').addEventListener('change', (e) => {
+  state.demo = e.target.checked;
+  if (!state.demo) {
+    state.screen = 'onboarding';
+  } else if (state.screen === 'onboarding') {
+    state.screen = 'overview';
+    state.lastContent = 'overview';
+  }
+  render();
+});
+
+/* keyboard */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('#sheet').classList.contains('open')) { closeSheet(); focusThemeTrigger(); }
+});
+
+/* scroll shadow */
+$('#contentHost').addEventListener('scroll', () => {
+  const appbar = $('.appbar');
+  if (appbar) appbar.classList.toggle('scrolled', $('#contentHost').scrollTop > 2);
+});
+
+/* theme resolution */
+function applyTheme() {
+  document.documentElement.dataset.theme = resolvedTheme();
+}
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.theme === 'system') { applyTheme(); renderHarness(); }
+  });
+}
+
+/* boot */
+applyTheme();
+$('#device').dataset.width = state.width;
+render();
+</script>
+</body>
+</html>
