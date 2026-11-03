@@ -216,27 +216,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
   padding: 0.875rem var(--page-gutter) 0.375rem;
 }
 .topbar h1 { min-width: 0; flex: 1 1 auto; }
-.site-settings {
-  display: inline-flex;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex: 0 0 2.75rem;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  color: var(--muted);
-}
-.site-settings svg {
-  width: 1.25rem;
-  height: 1.25rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.7;
-}
-.site-settings:hover { color: var(--accent); }
-.site-settings[aria-current='page'] { color: var(--accent); }
 .page {
   width: min(100%, var(--layout-wide));
   margin: 0 auto;
@@ -992,7 +971,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 <div class="app" id="screen-overview" data-screen="overview">
   <header class="topbar">
     <h1>概要</h1>
-    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
     <nav class="month" aria-label="月の切り替え">
@@ -1024,7 +1002,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 <div class="app" id="screen-transactions" data-screen="transactions" hidden>
   <header class="topbar">
     <h1>取引<span class="heading-count">11件</span></h1>
-    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
     <nav class="month" aria-label="月の切り替え">
@@ -1046,7 +1023,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 <div class="app" id="screen-fixed" data-screen="fixed" hidden>
   <header class="topbar">
     <h1>固定費</h1>
-    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
     <section class="summary" aria-label="毎月の固定費">
@@ -1070,7 +1046,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 <div class="app" id="screen-balances" data-screen="balances" hidden>
   <header class="topbar">
     <h1>残高</h1>
-    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
     <section class="summary" aria-label="純資産">
@@ -1107,7 +1082,6 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 <div class="app" id="screen-settings" data-screen="settings" hidden>
   <header class="topbar">
     <h1>設定</h1>
-    <a class="site-settings" href="#" data-goto="settings" aria-label="設定" title="設定" aria-current="page"><svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></a>
   </header>
   <main class="page">
     <div class="settings-list">
@@ -1163,6 +1137,9 @@ h3 { font-size: var(--text-small); font-weight: var(--weight-medium); line-heigh
 </div>
 
 <nav class="nav" aria-label="メインナビゲーション">
+  <a href="#" data-goto="settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg><span>設定</span>
+  </a>
   <a href="#" data-goto="overview" aria-current="page">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>概要</span>
   </a>
@@ -1252,9 +1229,6 @@ function show(name) {
   screens.forEach(s => document.getElementById('screen-' + s).hidden = s !== name);
   document.querySelectorAll('.nav a').forEach(a => {
     if (a.dataset.goto === name) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
-  });
-  document.querySelectorAll('.site-settings').forEach(g => {
-    if (name === 'settings') g.setAttribute('aria-current','page'); else g.removeAttribute('aria-current');
   });
   document.getElementById('fab').hidden = !['overview','transactions'].includes(name);
   document.getElementById('fab').classList.remove('is-retracted');
