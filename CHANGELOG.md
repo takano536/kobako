@@ -1,4 +1,11 @@
 # Changelog
+## [0.22.0](https://github.com/takano536/kobako/compare/v0.21.5...v0.22.0) (2026-11-03)
+
+
+### Features
+
+* **api:** add mobile summary and balances endpoints ([#66](https://github.com/takano536/kobako/issues/66)) ([cfbf94b](https://github.com/takano536/kobako/commit/cfbf94b5f5b14c7f2e336c235838ac2ed6d0dd0f))
+
 ## [0.21.5](https://github.com/takano536/kobako/compare/v0.21.4...v0.21.5) (2026-11-02)
 
 
