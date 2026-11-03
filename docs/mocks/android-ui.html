@@ -1,1349 +1,876 @@
 <!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>kobako Android — web mobile 準拠案</title>
+<title>kobako Android — 実Webモバイル準拠</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   kobako Android — web mobile 準拠 mock
-   接続画面だけは承認済みの現状を維持。
-   それ以外は kobako web の 390px モバイル画面の
-   ヘッダー / ページタイトル / サマリー / リスト / 設定 を移植。
-   ============================================================ */
-
 :root {
-  color-scheme: light;
   --paper: #fcfcf8;
   --ink: #292e2b;
   --muted: #68736c;
   --accent: #426d59;
   --accent-strong: #315944;
   --accent-soft: #e8f0e9;
-  --on-accent: #fff;
+  --on-accent: #ffffff;
   --button-primary: #2f6b52;
-  --button-danger: #a84f45;
   --money-negative: #a33a36;
   --money-positive: #245c9c;
   --category-dot: #91a99d;
   --category-bar: #8da597;
-  --rule: #dfe3da;
-  --bar: #e5e9e1;
   --surface: #f8faf5;
-  --surface-hover: #edf2eb;
-  --soft-control: #f0f2eb;
-  --control-hover: #e7eee7;
-  --danger-soft: #f9efed;
-  --danger-rule: #e7cbc6;
-  --error-text: #703f3a;
-  --focus: #2f614c;
-  --scrim: rgb(22 36 29 / 52%);
-  --poster: #eeece5;
-  --poster-ink: #22261f;
-  --poster-muted: #6d7268;
-  --poster-line: #d9d6cc;
-  --poster-panel: #f6f4ed;
-  --bezel: #1e221e;
-  --device-shadow: 0 30px 80px rgba(30, 40, 33, .20), 0 4px 14px rgba(30, 40, 33, .08);
-  --font: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, system-ui, sans-serif;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  --site-nav-height: 56px;
-  --text-title: 21px;
-  --text-heading: 15px;
-  --text-body: 14px;
-  --text-small: 12px;
-  --text-brand: 22px;
-  --leading-tight: 1.15;
-  --leading-heading: 1.3;
-  --leading-body: 1.6;
-  --leading-meta: 1.45;
+  --bar: #e5e9e1;
+  --rule: #dfe3da;
+  --text-body: 0.875rem;
+  --text-small: 0.75rem;
+  --text-meta: 0.6875rem;
+  --text-page-title: 1.3125rem;
+  --text-section: 0.9375rem;
+  --text-lead: 1.875rem;
+  --text-summary: 1.1875rem;
+  --space-page: 1rem;
+  --radius: 0.3rem;
+  --font: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
 }
-
-[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #1a1f1c;
-  --ink: #e4e7e0;
-  --muted: #a2ada5;
-  --accent: #8cc4a6;
-  --accent-strong: #a8d6bd;
-  --accent-soft: #24352a;
-  --on-accent: #142019;
-  --button-primary: #8cc4a6;
-  --button-danger: #ec948a;
-  --money-negative: #f2978e;
-  --money-positive: #8db9ef;
-  --category-dot: #91a99d;
-  --category-bar: #8cc4a6;
-  --rule: #343d37;
-  --bar: #2b332e;
-  --surface: #1f2521;
-  --surface-hover: #28302b;
-  --soft-control: #262d28;
-  --control-hover: #2e3731;
-  --danger-soft: #362422;
-  --danger-rule: #5a3833;
-  --error-text: #f3bcb4;
-  --focus: #8cc4a6;
-  --scrim: rgb(6 9 7 / 64%);
-  --poster: #0d100e;
-  --poster-ink: #e9ece5;
-  --poster-muted: #8a958d;
-  --poster-line: #232a26;
-  --poster-panel: #151a16;
-  --bezel: #2b302b;
-  --device-shadow: 0 30px 80px rgba(0, 0, 0, .60), 0 0 0 1px rgba(255, 255, 255, .04);
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; }
-html { background: var(--poster); color: var(--poster-ink); }
+* { box-sizing: border-box; }
+html { background: var(--paper); }
 body {
-  min-height: 100vh;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font);
   font-size: var(--text-body);
-  line-height: var(--leading-body);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-button, input, select { font: inherit; color: inherit; }
-button { padding: 0; border: 0; background: none; cursor: pointer; }
-button:disabled { cursor: default; }
-a { color: inherit; }
-h1, h2, h3, p, ul, dl, dd, dt, fieldset { margin: 0; }
-ul { padding: 0; list-style: none; }
-h1, h2, h3 { font-weight: 500; letter-spacing: -.02em; line-height: var(--leading-heading); }
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
-.sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); border: 0; white-space: nowrap;
-}
+button, a { color: inherit; font: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; }
+a { text-decoration: none; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* ---------------- prototype chrome (not app UI) ---------------- */
-.harness { width: min(1140px, 100%); margin: 0 auto; padding: 40px 28px 8px; }
-.harness-head {
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
-  padding-bottom: 16px; border-bottom: 1px solid var(--poster-line);
-}
-.harness-title { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-.harness-sub { margin: 5px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--poster-muted); }
-.harness-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 16px; }
-.control { display: inline-flex; align-items: center; gap: 7px; }
-.control-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--poster-muted); }
-.seg { display: inline-flex; padding: 3px; border: 1px solid var(--poster-line); border-radius: 999px; background: var(--poster-panel); }
-.seg button { padding: 6px 11px; border-radius: 999px; color: var(--poster-muted); font-size: 11.5px; white-space: nowrap; }
-.seg button[aria-pressed="true"] { background: var(--poster-ink); color: var(--poster); }
-.control select {
-  appearance: none; padding: 6px 28px 6px 10px; border: 1px solid var(--poster-line); border-radius: 8px;
-  background: var(--poster-panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d7268' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;
-  color: var(--poster-ink); font-size: 11.5px; cursor: pointer;
-}
-.check { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--poster-muted); cursor: pointer; }
-.check input { width: 14px; height: 14px; accent-color: var(--poster-ink); margin: 0; }
-
-/* ---------------- device ---------------- */
-.stage { display: flex; justify-content: center; padding: 30px 16px 56px; }
-.device {
-  box-sizing: content-box;
-  position: relative;
-  display: flex; flex-direction: column;
-  width: 390px; height: 844px; flex: none;
-  overflow: hidden;
-  background: var(--paper); color: var(--ink);
-  border: 9px solid var(--bezel);
-  border-radius: 44px;
-  box-shadow: var(--device-shadow);
-  container-type: inline-size;
-  transition: width .38s cubic-bezier(.2, .8, .2, 1), height .38s cubic-bezier(.2, .8, .2, 1), border-radius .38s ease;
-}
-.device[data-width="tablet"] { width: 840px; height: 700px; border-radius: 30px; }
-.punch {
-  position: absolute; top: 8px; left: 50%; z-index: 30;
-  width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%);
-  background: color-mix(in srgb, var(--ink) 32%, transparent);
-}
-[data-theme="dark"] .punch { background: color-mix(in srgb, var(--ink) 24%, transparent); }
-.statusbar {
-  height: 24px; flex: none;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px 0 22px;
-  color: var(--ink); font-size: 11px; font-weight: 600; letter-spacing: .01em;
-}
-.status-icons { display: inline-flex; align-items: center; gap: 5px; opacity: .9; }
-.status-icons svg { display: block; }
-.gesturebar { height: 20px; flex: none; display: grid; place-items: center; background: var(--paper); }
-.gesturebar span { display: block; width: 108px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 26%, transparent); }
-
-/* ---------------- app shell ---------------- */
+/* ===== shell ===== */
 .app {
-  --gutter: max(16px, 2.5cqw);
-  flex: 1; min-height: 0; position: relative;
-  display: flex; flex-direction: column;
-  background: var(--paper); color: var(--ink);
-}
-.app.no-nav .navbar { display: none; }
-#appbarHost, #demoHost { flex: none; }
-.content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
-.content::-webkit-scrollbar { display: none; }
-
-/* ---------------- site header ---------------- */
-.site-header {
-  width: min(100%, 65rem); min-height: 66px;
-  margin: 0 auto; padding: 15px var(--gutter) 8px;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  min-height: 100vh;
   background: var(--paper);
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
-.header-inner { display: flex; min-height: 43px; align-items: center; gap: 8px; }
-.site-brand {
-  display: inline-flex; min-width: 44px; min-height: 44px;
-  align-items: center; gap: 4px;
-  color: var(--ink); font-size: var(--text-brand); font-weight: 400;
-  letter-spacing: .04em; line-height: 1; white-space: nowrap;
+.topbar {
+  height: 68px;
+  padding: 16px var(--space-page) 8px;
+  display: flex;
+  align-items: center;
 }
-.site-brand svg { display: block; width: 21px; height: 18px; stroke-width: 1.2; }
-.site-brand-name { display: inline-block; }
-.topnav { display: none; align-items: center; gap: 16px; min-height: 44px; }
-.topnav button {
-  display: inline-flex; min-height: 44px; align-items: center;
-  padding: 0 8px; border-bottom: 2px solid transparent;
-  color: var(--muted); font-size: var(--text-body); font-weight: 400;
+.topbar .gear {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  border-radius: 50%;
 }
-.topnav button[aria-current="page"] { border-bottom-color: var(--accent); color: var(--accent); font-weight: 500; }
-.site-gear {
-  width: 44px; height: 44px; flex: none; margin-left: auto;
-  display: grid; place-items: center; color: var(--muted);
-}
-.site-gear svg { width: 20px; height: 20px; }
-.site-gear:hover, .site-gear[aria-current="page"] { color: var(--accent); }
+.topbar .gear svg { width: 21px; height: 21px; }
+.topbar .gear[aria-current="page"] { color: var(--accent); }
 
-/* ---------------- demo strip ---------------- */
-.demo-strip {
-  min-height: 30px; display: flex; align-items: center; gap: 7px;
-  padding: 0 var(--gutter);
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper); color: var(--muted);
-  font-size: var(--text-small); line-height: 1.45;
-}
-.demo-dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--accent); opacity: .85; }
-.demo-strip button { margin-left: auto; padding: 6px 0 6px 10px; color: var(--accent); font-size: var(--text-small); }
-
-/* ---------------- page / header / month ---------------- */
-.page {
-  width: min(100%, 65rem); margin: 0 auto;
-  padding: 0 var(--gutter) 40px;
-  animation: page-in .18s var(--ease) both;
-}
-.page.settings { max-width: 42rem; }
-@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+.page { padding: 16px var(--space-page) 0; }
 .page-head {
-  display: flex; min-height: 44px; align-items: center; justify-content: space-between;
-  gap: 16px; margin: 40px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 0 16px;
 }
 .page-head h1 {
-  display: flex; min-width: 0; flex: 1 1 0; align-items: center; gap: 8px;
-  margin: 0; font-size: var(--text-title); font-weight: 500;
-  line-height: var(--leading-tight); letter-spacing: -.03em;
+  margin: 0;
+  font-size: var(--text-page-title);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
-.page-head .count {
-  color: var(--muted); font-size: var(--text-body); font-weight: 400; letter-spacing: 0;
-  white-space: nowrap; transform: translateY(calc((var(--text-title) - var(--text-body)) / 2));
-}
-.page-head .back {
-  display: inline-flex; min-height: 44px; align-items: center; gap: 8px;
-  margin: -8px; padding: 8px; color: inherit;
-  font-size: inherit; font-weight: inherit; letter-spacing: inherit; text-align: left;
-}
-.page-head .back svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
-.page-head .back:hover { color: var(--accent); }
-.page-head .back:hover svg { color: var(--muted); }
-
-.month-switcher {
-  display: grid; width: max-content; max-width: 100%; min-height: 44px;
-  grid-template-columns: 44px minmax(5rem, max-content) 44px;
+.gear {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: flex;
   align-items: center;
-  margin: 0 0 16px calc((12px - 44px) / 2);
+  justify-content: center;
+  color: var(--muted);
+  border-radius: 50%;
 }
-.month-control {
-  display: inline-flex; width: 44px; min-width: 44px; height: 44px;
-  align-items: center; justify-content: center;
-  color: var(--accent);
-}
-.month-control svg { width: 12px; height: 12px; }
-.month-control:active { transform: translateY(1px); }
-.month-label {
-  display: flex; min-height: 44px; align-items: center; justify-content: center;
-  color: var(--muted); font-size: var(--text-body); font-weight: 400;
-  letter-spacing: .03em; white-space: nowrap;
-}
-
-/* ---------------- overview summary ---------------- */
-.overview-summary {
-  display: grid; grid-template-columns: minmax(0, 1fr);
-  align-items: end; gap: 16px;
-  margin-top: 16px; padding-bottom: 32px;
-  border-bottom: 1px solid var(--rule);
-}
-.overview-lead { min-width: 0; }
-.summary-eyebrow {
-  color: var(--ink); font-size: var(--text-body); font-weight: 500;
-  letter-spacing: -.03em;
-}
-.summary-lead {
-  display: block; margin-top: 4px;
-  color: var(--ink); font-size: clamp(30px, 2.6cqw, 36px);
-  font-weight: 600; line-height: var(--leading-tight); letter-spacing: -.04em;
-  white-space: nowrap;
-}
-.summary-inline {
-  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-start;
-  gap: 16px; margin: 0; color: var(--muted); font-size: var(--text-body);
-}
-.summary-inline > div { display: grid; gap: 4px; justify-items: start; max-width: 100%; }
-.summary-inline dt { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); }
-.summary-inline dd {
-  margin: 0; color: var(--ink); font-size: 1.1875rem; font-weight: 500;
-  line-height: var(--leading-tight); font-variant-numeric: tabular-nums;
+.gear svg { width: 21px; height: 21px; }
+.gear[aria-current="page"] { color: var(--accent); }
+.page-head .gear { margin-left: auto; }
+.page-head .count {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.15;
+  transform: translateY(1px);
 }
 
-/* ---------------- sections ---------------- */
-.section { margin-top: 32px; }
-.section-head {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-  gap: 16px; margin-bottom: 4px;
-}
-.section-head h2 {
-  flex: 1 1 auto; min-width: 0; margin: 0;
-  font-size: var(--text-heading); font-weight: 500; line-height: var(--leading-heading);
-  letter-spacing: -.02em; overflow-wrap: anywhere;
-}
-.section-action {
-  display: inline-flex; min-height: 36px; align-items: center;
-  margin-right: -12px; padding: 8px 12px; color: var(--muted);
-  font-size: var(--text-small); font-weight: 400; line-height: 1.3; white-space: nowrap;
-}
-.section-action:hover, .section-action:focus-visible { color: var(--ink); text-decoration: underline; text-underline-offset: .2em; }
-
-/* ---------------- category breakdown ---------------- */
-.cat-list {
-  display: grid; grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 0 8px; margin: 0; padding: 0; list-style: none;
-}
-.cat-item {
-  display: grid; grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  grid-template-rows: minmax(32px, auto) minmax(28px, auto);
-  align-items: center; min-width: 0;
-}
-.cat-name-cell {
-  display: grid; grid-column: 1; grid-row: 1;
-  grid-template-columns: 6px minmax(0, 1fr);
-  gap: 0 8px; align-items: start; min-width: 0;
-  font-size: var(--text-body); line-height: var(--leading-body);
-}
-.cat-name-cell .cat-dot { align-self: start; grid-column: 1; grid-row: 1; margin-top: calc((1lh - 6px) / 2); }
-.cat-name { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: break-word; font-size: var(--text-body); line-height: var(--leading-body); text-wrap: pretty; }
-.cat-bar {
-  grid-column: 1; grid-row: 2; position: relative; display: block;
-  height: 2px; overflow: hidden; background: var(--bar);
-}
-.cat-bar span {
-  display: block; width: var(--category-width); height: 100%;
-  background: var(--category-bar); transform-origin: left center;
-  transform: scaleX(.85); opacity: .3;
-  animation: cat-bar-in 420ms var(--ease) both;
-}
-@keyframes cat-bar-in { from { transform: scaleX(.85); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
-.cat-amount {
-  grid-column: 2; grid-row: 1; text-align: right;
-  overflow-wrap: anywhere; font-size: var(--text-body);
-  font-variant-numeric: tabular-nums; white-space: normal;
-}
-.cat-share {
-  grid-column: 2; grid-row: 2; color: var(--muted);
-  font-size: var(--text-small); font-variant-numeric: tabular-nums;
-  text-align: right; white-space: nowrap;
-}
-.cat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--category-dot); }
-
-/* ---------------- transaction rows ---------------- */
-.tx-groups { margin-top: 32px; }
-.tx-group + .tx-group { margin-top: 16px; }
-.tx-date-head {
-  min-height: 25px; margin: 0; padding-top: 4px;
-  color: var(--muted); font-size: var(--text-small); font-weight: 500;
-  line-height: var(--leading-meta); letter-spacing: 0;
-}
-.tx-list { margin: 0; padding: 0; list-style: none; }
-.tx-link {
+/* month */
+.month {
   display: grid;
-  grid-template-columns: 6px minmax(0, clamp(4rem, 18cqw, 7rem)) minmax(0, 1fr) max-content;
-  align-items: center; column-gap: 8px;
-  min-width: 0; min-height: 56px; padding: 6px 0;
+  grid-template-columns: 44px auto 44px;
+  align-items: center;
+  justify-content: start;
+  width: max-content;
+  height: 44px;
+  margin: 0 0 16px -12px;
 }
-.tx-category { min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); overflow-wrap: anywhere; text-wrap: pretty; }
-.tx-main { display: flex; flex-direction: column; align-self: center; gap: 4px; min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); }
-.tx-account { min-width: 0; font-size: var(--text-body); line-height: var(--leading-body); overflow-wrap: anywhere; text-wrap: pretty; }
-.tx-memo { min-width: 0; color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); overflow-wrap: anywhere; }
-.tx-amount { align-self: center; font-size: var(--text-body); line-height: var(--leading-body); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-
-.recent-list { margin: 0; padding: 0; list-style: none; }
-.recent-row { min-width: 0; }
-.recent-row + .recent-row { margin-top: calc(16px + 4px); }
-.tx-date { display: block; color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); }
-
-/* ---------------- balances ---------------- */
-.balance-summary { position: sticky; top: 0; z-index: 2; background: var(--paper); }
-.balance-summary-title { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; white-space: nowrap; }
-.balance-summary-title h2 { font-size: var(--text-heading); font-weight: 500; line-height: var(--leading-heading); }
-.balance-summary-list { display: flex; flex-wrap: wrap; gap: 16px; margin: 0; padding: 0; }
-.balance-summary-item {
-  position: static; display: grid; flex: 1 1 0; min-width: max-content;
-  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr;
-  align-items: start; justify-items: start; gap: 4px;
-  padding: 8px 0; text-align: left;
-}
-.balance-summary-label { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-meta); }
-.balance-summary-value {
-  align-self: end; justify-self: start; width: 100%; min-width: 0; max-width: 100%;
-  color: var(--ink); font-size: var(--text-body); font-weight: 400;
-  line-height: 1.125rem; text-align: left; font-variant-numeric: tabular-nums;
-  white-space: normal; overflow-wrap: anywhere;
-}
-.balance-summary-item.net .balance-summary-label { color: var(--ink); }
-.balance-summary-net { font-size: var(--text-heading); font-weight: 500; }
-.balance-groups { display: grid; gap: 29px; margin-top: 37px; }
-.balance-group { --metrics-width: 60%; }
-.balance-head {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 8px; align-items: center; min-height: 0; padding: 8px 0;
-}
-.balance-head.with-metrics { grid-template-columns: minmax(0, 1fr) minmax(0, var(--metrics-width)); }
-.balance-head h3 {
-  min-width: 0; margin: 0; color: var(--muted);
-  font-size: var(--text-small); font-weight: 500; line-height: 1.25;
-  letter-spacing: 0; overflow-wrap: anywhere;
-}
-.balance-cols { display: grid; grid-template-columns: auto; min-width: 0; align-items: center; justify-items: stretch; }
-.balance-cols.with-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
-.balance-col-label {
-  color: var(--muted); font-size: var(--text-small); line-height: 1.25;
-  text-align: right; white-space: nowrap; word-break: keep-all;
-}
-.balance-list { display: grid; gap: 0; min-width: 0; border-top: 1px solid var(--rule); }
-.balance-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 8px; align-items: center; min-width: 0; min-height: 44px;
-  padding: 8px 0; border-bottom: 1px solid var(--rule);
-}
-.balance-row.with-metrics { grid-template-columns: minmax(0, 1fr) minmax(0, var(--metrics-width)); }
-.balance-name { min-width: 0; font-size: var(--text-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: anywhere; }
-.balance-metrics { display: grid; grid-template-columns: auto; min-width: 0; align-items: center; }
-.balance-metrics.with-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
-.balance-amount {
-  min-width: 0; color: var(--ink); font-size: var(--text-body); font-weight: 400;
-  line-height: var(--leading-body); font-variant-numeric: tabular-nums;
-  text-align: right; white-space: normal; overflow-wrap: anywhere;
-}
-
-/* ---------------- settings ---------------- */
-.settings-list { display: grid; gap: 32px; margin-top: 32px; }
-.settings-section { display: grid; gap: 8px; }
-.settings-section h2 { font-size: var(--text-heading); font-weight: 500; line-height: var(--leading-heading); }
-.settings-rows { display: grid; }
-.settings-row {
-  display: flex; min-height: 44px; align-items: center; justify-content: space-between;
-  gap: 12px; margin-inline: -8px; padding-inline: 8px;
-  border-radius: .3rem; color: var(--ink); text-align: left; text-decoration: none;
-}
-.settings-row:hover, .settings-row:focus-visible { background: var(--surface-hover); }
-.settings-row .label { min-width: 0; font-size: var(--text-small); line-height: 1.3; }
-.settings-row .row-accessory {
-  display: inline-flex; min-width: 0; max-width: 58%; align-items: center; gap: 8px;
-  margin-left: auto;
-}
-.settings-row .value {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--muted); font-size: var(--text-small); line-height: 1.3;
-  text-align: right;
-}
-.settings-row .row-arrow { flex: none; min-width: 1em; color: var(--muted); font-size: var(--text-small); line-height: 1; text-align: right; }
-.settings-row .check { flex: none; min-width: 1em; color: var(--accent); font-size: var(--text-small); line-height: 1; text-align: right; }
-.settings-row[data-variant="danger"] { color: var(--money-negative); }
-
-.switch {
-  position: relative; width: 40px; height: 22px; flex: none;
-  border-radius: 999px; background: color-mix(in srgb, var(--muted) 76%, var(--paper));
-  transition: background .2s ease;
-}
-.switch::before { content: ""; position: absolute; inset: -11px -10px; }
-.switch::after {
-  content: ""; position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--paper); box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
-  transition: transform .2s var(--ease), background .2s ease;
-}
-.switch[aria-checked="true"] { background: var(--accent); }
-.switch[aria-checked="true"]::after { transform: translateX(18px); background: var(--on-accent); }
-
-/* ---------------- bottom navigation ---------------- */
-.navbar {
-  height: var(--site-nav-height); flex: none;
-  display: flex; align-items: stretch;
-  padding: 0; border-top: 1px solid var(--rule);
-  background: var(--paper);
-}
-.navitem {
-  flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; min-height: var(--site-nav-height); padding: 4px 8px;
+.month button {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
 }
-.navitem svg { width: 20px; height: 20px; flex: none; stroke-width: 1.6; }
-.navlabel { font-size: var(--text-small); font-weight: 400; line-height: var(--leading-meta); white-space: nowrap; }
-.navitem[aria-current="page"] { color: var(--accent); }
-.navitem[aria-current="page"] .navlabel { font-weight: 500; }
+.month .label {
+  padding: 0 4px;
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  white-space: nowrap;
+}
 
-/* ---------------- states / skeleton ---------------- */
-.statebox {
-  display: grid; justify-items: center; gap: 8px;
-  padding: 56px 16px 16px; color: var(--muted); text-align: center;
+/* summary — live web: label + lead left, two metrics right, one rule below */
+.summary {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
 }
-.empty-motif { width: 76px; height: 60px; margin-bottom: 4px; fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; opacity: .8; }
-.statebox h3 { color: var(--ink); font-size: var(--text-heading); font-weight: 500; line-height: var(--leading-heading); }
-.statebox p { max-width: 30rem; font-size: var(--text-body); line-height: var(--leading-body); overflow-wrap: normal; text-wrap: balance; }
-.state-action {
-  display: inline-flex; min-height: 36px; align-items: center; justify-content: center;
-  margin-top: 8px; padding: 8px 12px; border-radius: .3rem;
-  background: var(--button-primary); color: var(--on-accent);
-  font-size: var(--text-small); font-weight: 500; line-height: 1.3;
+.summary .primary { min-width: 0; flex: 1; }
+.summary .eyebrow {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.3;
 }
-.error-banner {
-  margin: 10px 0 18px; padding: 14px 14px 12px 16px;
-  border: 1px solid var(--danger-rule); border-radius: 14px;
-  background: var(--danger-soft); color: var(--error-text);
+.summary .lead {
+  margin-top: 2px;
+  color: var(--money-negative);
+  font-size: var(--text-lead);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.error-head { display: flex; align-items: center; gap: 8px; }
-.error-head svg { width: 19px; height: 19px; flex: none; color: var(--money-negative); }
-.error-head h3 { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
-.error-banner p { margin: 5px 0 0 27px; font-size: 11.5px; line-height: 1.65; opacity: .9; }
-.error-banner button { margin: 10px 0 0 27px; padding: 7px 12px; border-radius: 999px; background: var(--paper); color: var(--error-text); border: 1px solid var(--danger-rule); font-size: 11.5px; font-weight: 600; }
-
-.sk { position: relative; overflow: hidden; border-radius: 6px; background: var(--soft-control); }
-.sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.38), transparent); animation: shimmer 1.45s infinite; }
-[data-theme="dark"] .sk::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.055), transparent); }
-@keyframes shimmer { to { transform: translateX(100%); } }
-.sk-summary { display: grid; gap: 10px; padding: 16px 0 32px; border-bottom: 1px solid var(--rule); }
-.sk-inline { display: flex; gap: 32px; margin-top: 4px; }
-.sk-inline > div { display: grid; gap: 6px; }
-.sk-section { margin-top: 32px; }
-.sk-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0; }
-.sk-stack { display: grid; gap: 0; }
-.sk-group { padding: 8px 0 4px; }
-.sk-group + .sk-group { margin-top: 20px; }
-
-/* ---------------- onboarding (approved: unchanged) ---------------- */
-.onboard { display: flex; flex-direction: column; min-height: 100%; padding: 4px 24px 30px; }
-.brand-lockup { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; }
-.brand-tagline { margin: 0 0 30px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-.brand-mark { display: block; width: 26px; height: 22px; color: var(--ink); opacity: .85; }
-.brand-mark svg { display: block; width: 100%; height: 100%; }
-.brand-name { font-size: 24px; font-weight: 600; letter-spacing: -.045em; line-height: 1; }
-.onboard h1 { margin: 0 0 7px; font-size: 21px; font-weight: 600; line-height: 1.4; letter-spacing: -.02em; }
-.onboard .lead { margin: 0 0 26px; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
-.field { margin-bottom: 17px; }
-.field > label { display: block; margin-bottom: 7px; font-size: 11.5px; font-weight: 500; line-height: 1.4; }
-.input-wrap {
-  display: flex; align-items: center; min-height: 52px; padding: 0 4px 0 13px;
-  border: 1px solid var(--rule); border-radius: 12px; background: var(--paper);
-  transition: border-color .15s ease, box-shadow .15s ease;
+.summary .secondary {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 1px;
 }
-.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.input-wrap input { flex: 1; min-width: 0; padding: 12px 8px 12px 0; border: 0; outline: 0; background: none; color: var(--ink); font-size: 14px; }
-.input-wrap input::placeholder { color: var(--muted); opacity: .72; }
-.input-wrap .iconbtn { width: 42px; height: 42px; color: var(--muted); }
-.input-wrap .iconbtn svg { width: 20px; height: 20px; }
-.field .hint { margin-top: 5px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
-.primary-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; min-height: 52px; border-radius: 999px;
-  background: var(--button-primary); color: var(--on-accent);
-  font-size: 14px; font-weight: 600;
-  transition: transform .12s ease, opacity .15s ease;
+.summary .secondary .metric { min-width: 0; }
+.summary dt {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+  white-space: nowrap;
 }
-.primary-btn:active { transform: scale(.99); }
-.primary-btn[disabled] { opacity: .72; }
-.spinner { width: 15px; height: 15px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .75s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.divider-or { display: flex; align-items: center; gap: 12px; margin: 17px 0; color: var(--muted); font-size: 10.5px; }
-.divider-or::before, .divider-or::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
-.secondary-btn { width: 100%; min-height: 48px; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink); font-size: 13px; font-weight: 500; }
-.secondary-btn:hover { background: var(--surface-hover); }
-.trust { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: auto; padding-top: 26px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
-.trust svg { width: 14px; height: 14px; }
-.onboard .error-banner { margin: 0 0 16px; }
-.iconbtn { width: 48px; height: 48px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--ink); transition: background .15s ease, color .15s ease; }
-.iconbtn:hover { background: var(--soft-control); }
-.iconbtn:active { background: var(--surface-hover); }
-.iconbtn svg { width: 22px; height: 22px; }
-
-/* ---------------- money ---------------- */
+.summary dd {
+  margin: 2px 0 0;
+  font-size: var(--text-summary);
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .pos { color: var(--money-positive); }
 .neg { color: var(--money-negative); }
-.amount { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
-/* ---------------- tablet / web > 480px ---------------- */
-@container (min-width: 480px) {
-  .header-inner { gap: 16px; }
-  .topnav { display: flex; }
-  .navbar { display: none; }
-  .page-head h1 { font-size: 23px; }
-  .overview-summary {
-    grid-template-columns: minmax(12rem, 24rem) minmax(0, 1fr);
-    gap: clamp(32px, 6cqw, 80px); align-items: end;
-    padding-bottom: 28px;
-  }
-  .summary-inline { gap: 32px; }
-  .cat-list { grid-template-columns: fit-content(40%) minmax(0, 1fr) max-content 3.2em; gap: 0 8px; }
-  .cat-item { grid-template-rows: minmax(44px, auto); }
-  .cat-name-cell { grid-column: 1; grid-row: 1; }
-  .cat-bar { grid-column: 2; grid-row: 1; align-self: center; }
-  .cat-amount { grid-column: 3; grid-row: 1; white-space: nowrap; }
-  .cat-share { grid-column: 4; grid-row: 1; }
-  .balance-summary-title { position: static; width: auto; height: auto; margin: 0 0 4px; padding: 0; overflow: visible; clip: auto; border: 0; white-space: normal; }
-  .balance-summary-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--rule); }
-  .balance-summary-item {
-    justify-items: end; align-items: start; gap: 4px; padding: 16px;
-    border-inline-start: 1px solid var(--rule); text-align: right;
-  }
-  .balance-summary-item:first-child { border-inline-start: 0; padding-inline-start: 0; }
-  .balance-summary-item:last-child { padding-inline-end: 0; }
-  .balance-summary-value { text-align: right; font-size: var(--text-body); font-weight: 500; line-height: 1.3125rem; white-space: nowrap; }
-  .balance-summary-net { font-size: var(--text-body); font-weight: 500; line-height: 1.3125rem; }
-  .balance-group { --metrics-width: calc(24rem + 16px); }
-  .balance-cols.with-metrics, .balance-metrics.with-metrics { grid-template-columns: repeat(2, minmax(0, 12rem)); gap: 16px; }
-  .balance-col-label { font-size: var(--text-small); }
+/* sections */
+.section { margin-top: 32px; }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+.section-head h2 {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.section-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: -8px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+/* category rows */
+.cat-list { margin-top: 4px; }
+.cat-item { padding: 7px 0; }
+.cat-top {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 22px;
+}
+.cat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--category-dot);
+}
+.cat-name {
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.cat-amount {
+  color: var(--money-negative);
+  font-size: var(--text-body);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cat-track {
+  position: relative;
+  height: 2px;
+  margin: 8px 0 4px 14px;
+  background: var(--bar);
+}
+.cat-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--share, 0%);
+  background: var(--category-bar);
+}
+.cat-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-left: 14px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+/* recent */
+.recent { margin-top: 4px; }
+.recent-item + .recent-item { margin-top: 16px; }
+.recent-date {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+}
+.recent-link {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 70px) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 56px;
+  padding: 6px 0;
+}
+.recent-cat { font-size: var(--text-body); line-height: 1.4; }
+.recent-main { min-width: 0; display: grid; }
+.recent-account {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-memo {
+  font-size: var(--text-small);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-amount {
+  font-size: var(--text-body);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* transactions */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+.filter {
+  flex: none;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.filter svg { width: 12px; height: 12px; color: var(--muted); }
+.filter.is-on { border-color: var(--accent); color: var(--accent); }
+.tx-group + .tx-group { margin-top: 16px; }
+.tx-date {
+  padding-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.tx-row {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 70px) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 0;
+  text-align: left;
+}
+.tx-main { min-width: 0; display: grid; }
+.tx-account {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-memo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-small);
+  line-height: 1.3;
+}
+.tx-memo span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.api {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.tx-amount {
+  font-size: var(--text-body);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* balances */
+.balance-summary {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.balance-summary .metric { flex: 1; min-width: 0; }
+.balance-summary dt { color: var(--muted); font-size: var(--text-meta); line-height: 1.3; }
+.balance-summary dd {
+  margin: 2px 0 0;
+  font-size: var(--text-summary);
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.balance-group + .balance-group { margin-top: 28px; }
+.balance-group h3 {
+  margin: 0;
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.balance-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 60%);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.3;
+}
+.balance-cols .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; text-align: right; }
+.balance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 60%);
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.balance-row .name { min-width: 0; font-size: var(--text-small); line-height: 1.3; }
+.balance-row .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; text-align: right; font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+.balance-row .metrics span:first-child { color: var(--muted); }
+
+/* settings */
+.settings-list { display: grid; gap: 32px; margin-top: 32px; }
+.settings-section { display: grid; gap: 8px; }
+.settings-section h2 {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.settings-rows { display: grid; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 -8px;
+  padding: 8px;
+  border-radius: var(--radius);
+  text-align: left;
+}
+.settings-row .label { min-width: 0; font-size: var(--text-small); line-height: 1.3; }
+.settings-row .value {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-row .arrow { flex: none; color: var(--muted); font-size: var(--text-small); line-height: 1; }
+.settings-row .check { flex: none; color: var(--accent); font-size: var(--text-small); line-height: 1; }
+.switch {
+  flex: none;
+  margin-left: auto;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--bar);
+  position: relative;
+  transition: background .15s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+  transition: transform .15s;
+}
+.switch.on { background: var(--accent); }
+.switch.on::after { transform: translateX(16px); }
+.settings-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.settings-danger { color: var(--money-negative); }
+
+/* fixed costs */
+.fixed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+}
+.fixed-row + .fixed-row { border-top: 1px solid var(--rule); }
+.fixed-row .name { font-size: var(--text-body); line-height: 1.3; }
+.fixed-row .sub { color: var(--muted); font-size: var(--text-meta); line-height: 1.3; }
+.fixed-row .amount { font-size: var(--text-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* nav */
+.nav {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  bottom: 0;
+  z-index: 20;
+  width: 100%;
+  max-width: 390px;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  display: flex;
+}
+.nav[hidden] { display: none; }
+.nav a {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+.nav a svg { width: 23px; height: 23px; }
+.nav a[aria-current="page"] { color: var(--accent); }
+.nav a[aria-current="page"] span { font-weight: 500; }
+
+/* FAB */
+.fab[hidden] { display: none; }
+.fab {
+  position: fixed;
+  left: calc(50% + 123px);
+  right: auto;
+  bottom: calc(56px + 16px + env(safe-area-inset-bottom));
+  z-index: 21;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--button-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(41,46,43,.24);
+}
+.fab svg { width: 24px; height: 24px; }
+
+/* onboarding (unchanged connection screen, no device chrome) */
+.connect[hidden] { display: none; }
+.connect {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 24px;
+}
+.connect .mark { color: var(--accent); margin-bottom: 24px; }
+.connect h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.connect .tagline { margin: 6px 0 32px; color: var(--muted); font-size: var(--text-small); }
+.connect label { display: block; margin-bottom: 6px; color: var(--muted); font-size: var(--text-small); }
+.connect input {
+  width: 100%;
+  height: 48px;
+  margin-bottom: 16px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.connect .primary {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius);
+  background: var(--button-primary);
+  color: #fff;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.connect .hint { margin-top: 16px; color: var(--muted); font-size: var(--text-meta); line-height: 1.5; }
+
+@media (max-width: 360px) {
+  :root { --text-lead: 1.625rem; --text-summary: 1.0625rem; }
+  .summary { gap: 12px; }
+  .summary .secondary { gap: 12px; }
 }
 </style>
 </head>
 <body>
 
-<header class="harness">
-  <div class="harness-head">
-    <div>
-      <h1 class="harness-title">kobako Android — web mobile 準拠案</h1>
-      <p class="harness-sub">web の 390px モバイル画面を基準に、ヘッダー・ページタイトル・サマリー・リスト・設定を移植。接続画面だけは現状維持。</p>
-    </div>
-  </div>
-  <div class="harness-controls">
-    <div class="control"><span class="control-label">画面</span><div class="seg" id="screenSeg"></div></div>
-    <div class="control"><span class="control-label">テーマ</span><div class="seg" id="themeSeg"></div></div>
-    <div class="control"><span class="control-label">幅</span><div class="seg" id="widthSeg"></div></div>
-    <div class="control"><label class="control-label" for="stateSelect">状態</label>
-      <select id="stateSelect">
-        <option value="normal">通常</option>
-        <option value="loading">読み込み中</option>
-        <option value="empty">空</option>
-        <option value="error">エラー</option>
-      </select>
-    </div>
-    <label class="check"><input type="checkbox" id="demoCheck" checked> デモ</label>
-  </div>
-</header>
+<!-- 概要 -->
+<div class="app" id="screen-overview" data-screen="overview">
 
-<div class="stage">
-  <div class="device" id="device" data-width="phone">
-    <div class="punch" aria-hidden="true"></div>
-    <div class="statusbar">
-      <span>9:41</span>
-      <span class="status-icons" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="9" width="2.2" height="5" rx=".6" fill="currentColor"/><rect x="4.8" y="7" width="2.2" height="7" rx=".6" fill="currentColor"/><rect x="8.6" y="4.5" width="2.2" height="9.5" rx=".6" fill="currentColor"/><rect x="12.4" y="2" width="2.2" height="12" rx=".6" fill="currentColor"/></svg>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 5.5a9 9 0 0 1 12 0"/><path d="M4.2 8.2a6 6 0 0 1 7.6 0"/><path d="M6.6 10.8a3 3 0 0 1 2.8 0"/><circle cx="8" cy="13" r=".8" fill="currentColor" stroke="none"/></svg>
-        <svg width="20" height="12" viewBox="0 0 22 12"><rect x=".8" y=".8" width="18" height="10.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/><rect x="2.4" y="2.4" width="13.2" height="7.2" rx="1.8" fill="currentColor"/><path d="M20.2 4v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></svg>
-      </span>
-    </div>
+  <main class="page">
+    <div class="page-head"><h1>概要</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
 
-    <div class="app" id="app">
-      <div id="appbarHost"></div>
-      <div id="demoHost"></div>
-      <main class="content" id="contentHost"></main>
-      <nav class="navbar" id="navHost" aria-label="主要な画面"></nav>
-    </div>
+    <nav class="month" aria-label="月の切り替え">
+      <button aria-label="前の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button class="label">2026年11月</button>
+      <button aria-label="次の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+    </nav>
 
-    <div class="gesturebar" aria-hidden="true"><span></span></div>
-  </div>
+    <section class="summary" aria-label="この月の支出">
+      <div class="primary">
+        <div class="eyebrow">この月の支出</div>
+        <div class="lead">186,800円</div>
+      </div>
+      <div class="secondary">
+        <div class="metric"><dt>収入</dt><dd class="pos">328,000円</dd></div>
+        <div class="metric"><dt>収支差額</dt><dd class="pos">141,200円</dd></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>支出カテゴリ別の支出</h2>
+        <a class="section-link" href="#">支出をすべて見る</a>
+      </div>
+      <div class="cat-list" id="catList"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>最近の取引</h2>
+        <a class="section-link" href="#" data-goto="transactions">取引一覧を見る</a>
+      </div>
+      <div class="recent" id="recentList"></div>
+    </section>
+  </main>
 </div>
 
-<script>
-/* ============================================================
-   data (matches DemoRepository in kobako-android)
-   ============================================================ */
-const CURRENT_MONTH = '2026-11';
-const DATA = {
-  summary: { income: 350000, expense: 174200, difference: 175800 },
-  categories: [
-    { name: '家賃', total: 90000 },
-    { name: '食費', total: 45000 },
-    { name: '外食', total: 18000 },
-    { name: '光熱費', total: 12000 },
-    { name: '交通', total: 8000 },
-    { name: 'サブスク', total: 1200 },
-  ],
-  transactions: [
-    { id: 1, day: 1, category: '給与', account: '住信SBI', memo: '11月分給与', amount: 350000 },
-    { id: 2, day: 2, category: '家賃', account: '住信SBI', memo: '11月分', amount: -90000 },
-    { id: 3, day: 3, category: '食費', account: '三井住友カード', memo: 'スーパー', amount: -45000 },
-    { id: 4, day: 4, category: '外食', account: '三井住友カード', memo: 'ランチ', amount: -18000 },
-    { id: 5, day: 5, category: '光熱費', account: '住信SBI', memo: '電気代', amount: -12000 },
-    { id: 6, day: 6, category: '交通', account: 'Suica', memo: '定期券', amount: -8000 },
-    { id: 7, day: 7, category: 'サブスク', account: '三井住友カード', memo: '動画サービス', amount: -1200 },
-  ],
-  balances: {
-    summary: { assets: 842000, liabilities: -85000, net: 757000 },
-    groups: [
-      { name: '銀行', columns: ['支払予定', '残高'], accounts: [{ name: '住信SBI', metrics: [0, 800000] }] },
-      { name: '現金', columns: ['残高'], accounts: [{ name: '財布', metrics: [30000] }] },
-      { name: 'クレジットカード', columns: ['決済予定', '未決済'], accounts: [{ name: '三井住友カード', metrics: [85000, 12000] }] },
-      { name: '電子マネー', columns: ['残高'], accounts: [{ name: 'Suica', metrics: [12000] }] },
-    ],
-  },
-};
-
-const NAV = [
-  { id: 'overview', label: '概要', icon: 'overview' },
-  { id: 'transactions', label: '取引', icon: 'transactions' },
-  { id: 'balances', label: '残高', icon: 'balances' },
-];
-
-/* ============================================================
-   icons
-   ============================================================ */
-const ICONS = {
-  overview: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>',
-  transactions: '<path d="M5 5h14M5 12h14M5 19h14"/><path d="M3 5h.01M3 12h.01M3 19h.01"/>',
-  balances: '<path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4"/>',
-  settings: '<path d="m9.7 3.7.5-1.2h3.6l.5 1.2 1 .4 1.2-.5 2.5 2.5-.5 1.2.4 1 1.2.5v3.6l-1.2.5-.4 1 .5 1.2-2.5 2.5-1.2-.5-1 .4-.5 1.2h-3.6l-.5-1.2-1-.4-1.2.5-2.5-2.5.5-1.2-.4-1-1.2-.5V8.8l1.2-.5.4-1-.5-1.2 2.5-2.5 1.2.5 1-.4Z"/><circle cx="12" cy="10.6" r="2.5"/>',
-  eye: '<path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/>',
-  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 6.2A10.9 10.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17.6 17.6 0 0 1-3.2 3.8M6.1 6.3A17.5 17.5 0 0 0 2.5 12s3.5 6 9.5 6a10.8 10.8 0 0 0 5.1-1.3"/><path d="M9.9 9.9a2.8 2.8 0 0 0 3.9 3.9"/>',
-  chevronLeft: '<path d="M15 18l-6-6 6-6"/>',
-  chevronRight: '<path d="M9 18l6-6-6-6"/>',
-  lock: '<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/>',
-  alert: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.2v.1"/>',
-};
-function icon(name, cls = '') {
-  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
-}
-function kobakoMark(cls = '') {
-  return `<svg class="${cls}" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg>`;
-}
-
-/* ============================================================
-   formatting
-   ============================================================ */
-function money(n, { sign = false } = {}) {
-  const abs = Math.abs(n).toLocaleString('ja-JP');
-  const prefix = n < 0 ? '−' : (sign && n > 0 ? '＋' : '');
-  return `${prefix}${abs}円`;
-}
-function amountEl(n, { sign = false, tone = null, tag = 'span', cls = '' } = {}) {
-  const text = money(n, { sign });
-  const klass = ['amount', tone !== null ? tone : (n < 0 ? 'neg' : n > 0 ? 'pos' : ''), cls].filter(Boolean).join(' ');
-  return `<${tag} class="${klass}">${text}</${tag}>`;
-}
-function monthLabel(m) {
-  const [y, mo] = m.split('-');
-  return `${y}年${Number(mo)}月`;
-}
-function shiftMonth(m, delta) {
-  const [y, mo] = m.split('-').map(Number);
-  const d = new Date(y, mo - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-function weekday(day) {
-  return '日月火水木金土'[new Date(2026, 10, day).getDay()];
-}
-function dateLabel(day) {
-  return `11月${day}日（${weekday(day)}）`;
-}
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
-
-/* quiet category markers, same palette as the web app */
-const CATEGORY_DOT = {
-  '食費': '#b49a96',
-  '家賃': '#91a99d',
-  '外食': '#b09eaf',
-  '光熱費': '#98a6b0',
-  '交通': '#a4b2a9',
-  'サブスク': '#aaa383',
-  '給与': '#91a99d',
-};
-function dot(name, cls = 'cat-dot') {
-  const color = CATEGORY_DOT[name] || '#b8b7ab';
-  return `<span class="${cls}" style="background:${color}" aria-hidden="true"></span>`;
-}
-
-/* ============================================================
-   state
-   ============================================================ */
-const state = {
-  screen: 'overview',
-  settingsView: 'main',
-  theme: 'system',
-  width: 'phone',
-  appState: 'normal',
-  demo: true,
-  month: CURRENT_MONTH,
-  notifications: false,
-};
-let renderedKey = null;
-
-const $ = (s, root = document) => root.querySelector(s);
-const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
-
-function resolvedTheme() {
-  if (state.theme === 'system') {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return state.theme;
-}
-
-/* ============================================================
-   shell
-   ============================================================ */
-function renderHarness() {
-  const screens = [
-    { id: 'overview', label: '概要' },
-    { id: 'transactions', label: '取引' },
-    { id: 'balances', label: '残高' },
-    { id: 'settings', label: '設定' },
-    { id: 'onboarding', label: '接続' },
-  ];
-  $('#screenSeg').innerHTML = screens.map(s =>
-    `<button type="button" data-hs-screen="${s.id}" aria-pressed="${state.screen === s.id}">${s.label}</button>`
-  ).join('');
-  const themes = [
-    { id: 'system', label: '自動' },
-    { id: 'light', label: 'ライト' },
-    { id: 'dark', label: 'ダーク' },
-  ];
-  $('#themeSeg').innerHTML = themes.map(t =>
-    `<button type="button" data-hs-theme="${t.id}" aria-pressed="${state.theme === t.id}">${t.label}</button>`
-  ).join('');
-  const widths = [
-    { id: 'phone', label: '390dp' },
-    { id: 'tablet', label: '840dp' },
-  ];
-  $('#widthSeg').innerHTML = widths.map(w =>
-    `<button type="button" data-hs-width="${w.id}" aria-pressed="${state.width === w.id}">${w.label}</button>`
-  ).join('');
-  $('#stateSelect').value = state.appState;
-  $('#demoCheck').checked = state.demo;
-}
-
-function renderAppbar() {
-  const host = $('#appbarHost');
-  if (state.screen === 'onboarding') { host.innerHTML = ''; return; }
-  const settingsActive = state.screen === 'settings';
-  const nav = NAV.map(n =>
-    `<button type="button" data-screen="${n.id}" ${state.screen === n.id ? 'aria-current="page"' : ''}>${n.label}</button>`
-  ).join('');
-  host.innerHTML = `<header class="site-header">
-    <div class="header-inner">
-      <button type="button" class="site-brand" data-screen="overview" aria-label="kobako 概要">
-        ${kobakoMark()}<span class="site-brand-name">kobako</span>
-      </button>
-      <nav class="topnav" aria-label="主要な画面">${nav}</nav>
-      <button type="button" class="site-gear" data-settings aria-label="設定" ${settingsActive ? 'aria-current="page"' : ''}>${icon('settings')}</button>
+<!-- 取引 -->
+<div class="app" id="screen-transactions" data-screen="transactions" hidden>
+  <main class="page">
+    <div class="page-head"><h1>取引</h1><span class="count">11件</span><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <nav class="month" aria-label="月の切り替え">
+      <button aria-label="前の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button class="label">2026年11月</button>
+      <button aria-label="次の月"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+    </nav>
+    <div class="filters">
+      <button class="filter">種別 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="filter">カテゴリ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="filter">資産 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg> APIのみ</button>
     </div>
-  </header>`;
-}
+    <div id="txList"></div>
+  </main>
+</div>
 
-function renderNav() {
-  $('#navHost').innerHTML = NAV.map(n =>
-    `<button type="button" class="navitem" data-screen="${n.id}" ${state.screen === n.id ? 'aria-current="page"' : ''} aria-label="${n.label}">
-      ${icon(n.icon)}<span class="navlabel">${n.label}</span>
-    </button>`
-  ).join('');
-}
-
-function renderDemo() {
-  const host = $('#demoHost');
-  const content = ['overview', 'transactions', 'balances'].includes(state.screen);
-  host.innerHTML = state.demo && content
-    ? `<div class="demo-strip"><span class="demo-dot"></span><span>デモ表示中</span><button type="button" data-end-demo>終了</button></div>`
-    : '';
-}
-
-function render() {
-  renderHarness();
-  renderAppbar();
-  renderDemo();
-  renderNav();
-  $('#app').classList.toggle('no-nav', state.screen === 'onboarding');
-  const content = $('#contentHost');
-  const next = renderScreen();
-  const key = state.screen + ':' + state.settingsView;
-  if (renderedKey !== key) content.scrollTop = 0;
-  content.innerHTML = next;
-  renderedKey = key;
-}
-
-/* ============================================================
-   shared pieces
-   ============================================================ */
-function pageHeader(title, { count = '', back = false } = {}) {
-  const titleHtml = back
-    ? `<button type="button" class="back" data-settings-back aria-label="設定に戻る">${icon('chevronLeft')}<span>${title}</span></button>`
-    : `<span>${title}</span>`;
-  return `<header class="page-head"><h1>${titleHtml}${count ? `<span class="count">${count}</span>` : ''}</h1></header>`;
-}
-
-function monthSwitcher() {
-  return `<div class="month-switcher">
-    <button type="button" class="month-control" data-month="-1" aria-label="前の月">${icon('chevronLeft')}</button>
-    <span class="month-label">${monthLabel(state.month)}</span>
-    <button type="button" class="month-control" data-month="1" aria-label="次の月">${icon('chevronRight')}</button>
-  </div>`;
-}
-
-function sectionHead(title, action) {
-  return `<div class="section-head"><h2>${title}</h2>${
-    action ? `<button type="button" class="section-action" data-screen="${action.target}">${action.label}</button>` : ''
-  }</div>`;
-}
-
-function emptyBox(title, body, action = '') {
-  return `<div class="statebox">
-    <svg class="empty-motif" viewBox="0 0 28 24" aria-hidden="true"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/></svg>
-    <h3>${title}</h3>
-    <p>${body}</p>
-    ${action}
-  </div>`;
-}
-
-function errorBox(title, body, { retry = true } = {}) {
-  return `<div class="error-banner">
-    <div class="error-head">${icon('alert')}<h3>${title}</h3></div>
-    <p>${body}</p>
-    ${retry ? '<button type="button" data-retry>再試行</button>' : ''}
-  </div>`;
-}
-
-function emptyAction(label, attrs = 'data-this-month') {
-  return `<button type="button" class="state-action" ${attrs}>${label}</button>`;
-}
-
-function txRow(t, { recent = false } = {}) {
-  return `<${recent ? 'div' : 'div'} class="tx-link">
-    ${dot(t.category, 'cat-dot')}
-    <span class="tx-category">${esc(t.category)}</span>
-    <span class="tx-main">
-      <span class="tx-account">${esc(t.account)}</span>
-      ${t.memo ? `<span class="tx-memo">${esc(t.memo)}</span>` : ''}
-    </span>
-    ${amountEl(t.amount, { sign: true, cls: 'tx-amount' })}
-  </div>`;
-}
-
-function recentRow(t) {
-  return `<li class="recent-row"><time class="tx-date">${dateLabel(t.day)}</time>${txRow(t, { recent: true })}</li>`;
-}
-
-/* ============================================================
-   overview
-   ============================================================ */
-function renderOverview() {
-  const header = pageHeader('概要');
-  const month = monthSwitcher();
-
-  if (state.appState === 'loading') {
-    return `<div class="page">${header}${month}
-      <div class="sk-summary">
-        <div class="sk" style="width:96px;height:14px"></div>
-        <div class="sk" style="width:220px;height:30px;margin-top:4px"></div>
-        <div class="sk-inline">
-          <div><div class="sk" style="width:40px;height:12px"></div><div class="sk" style="width:110px;height:19px"></div></div>
-          <div><div class="sk" style="width:56px;height:12px"></div><div class="sk" style="width:110px;height:19px"></div></div>
-        </div>
+<!-- 固定費 -->
+<div class="app" id="screen-fixed" data-screen="fixed" hidden>
+  <main class="page">
+    <div class="page-head"><h1>固定費</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <section class="summary" aria-label="毎月の固定費">
+      <div class="primary"><div class="eyebrow">毎月の固定費</div><div class="lead neg">104,300円</div></div>
+      <div class="secondary"><div class="metric"><dt>年換算</dt><dd>1,251,600円</dd></div></div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>固定費の内訳</h2></div>
+      <div>
+        <div class="fixed-row"><div><div class="name">住居</div><div class="sub">生活費口座・毎月27日</div></div><div class="amount neg">85,000円</div></div>
+        <div class="fixed-row"><div><div class="name">水道・光熱</div><div class="sub">生活費口座・毎月8日</div></div><div class="amount neg">12,000円</div></div>
+        <div class="fixed-row"><div><div class="name">通信</div><div class="sub">クレジットカード・毎月5日</div></div><div class="amount neg">7,300円</div></div>
       </div>
-      <div class="sk-section"><div class="sk" style="width:150px;height:15px;margin-bottom:12px"></div>${skeletonRows(6)}</div>
-      <div class="sk-section"><div class="sk" style="width:96px;height:15px;margin-bottom:12px"></div>${skeletonRows(3)}</div>
-    </div>`;
-  }
-  if (state.appState === 'error') {
-    return `<div class="page">${header}${month}${errorBox('月の集計を読み込めませんでした', '通信状態を確認して、もう一度お試しください。')}</div>`;
-  }
-  if (state.appState === 'empty' || state.month !== CURRENT_MONTH) {
-    const body = state.month !== CURRENT_MONTH
-      ? emptyBox('この月の記録はありません', '別の月を選ぶと、それまでの記録を確認できます。', emptyAction('今月に戻る'))
-      : emptyBox('表示できるデータがありません', 'サーバーにデータが登録されると、ここに表示されます。');
-    return `<div class="page">${header}${month}${body}</div>`;
-  }
-
-  const cats = DATA.categories.slice().sort((a, b) => b.total - a.total);
-  const recent = DATA.transactions.slice().sort((a, b) => b.day - a.day || b.id - a.id).slice(0, 5);
-
-  const categoryHtml = cats.map(c => {
-    const share = (c.total / DATA.summary.expense) * 100;
-    const shareLabel = share > 0 && share < 1 ? '&lt;1%' : `${Math.round(share)}%`;
-    return `<li class="cat-item" style="--category-width:${share.toFixed(1)}%">
-      <span class="cat-name-cell">${dot(c.name)}<span class="cat-name">${esc(c.name)}</span></span>
-      <span class="cat-bar" aria-hidden="true"><span></span></span>
-      ${amountEl(c.total, { tone: 'neg', cls: 'cat-amount' })}
-      <small class="cat-share">${shareLabel}</small>
-    </li>`;
-  }).join('');
-
-  return `<div class="page">${header}${month}
-    <section class="overview-summary" aria-label="この月の集計">
-      <div class="overview-lead">
-        <h2 class="summary-eyebrow">この月の支出</h2>
-        <p class="summary-lead">${amountEl(DATA.summary.expense, { tone: 'neg' })}</p>
-      </div>
-      <dl class="summary-inline">
-        <div><dt>収入</dt><dd>${amountEl(DATA.summary.income, { tone: 'pos' })}</dd></div>
-        <div><dt>収支差額</dt><dd>${amountEl(DATA.summary.difference)}</dd></div>
-      </dl>
     </section>
-    <section class="section" aria-label="支出カテゴリ別の支出">
-      ${sectionHead('支出カテゴリ別の支出', { target: 'transactions', label: '支出をすべて見る' })}
-      <ul class="cat-list">${categoryHtml}</ul>
+  </main>
+</div>
+
+<!-- 残高 -->
+<div class="app" id="screen-balances" data-screen="balances" hidden>
+  <main class="page">
+    <div class="page-head"><h1>残高</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
+    <section class="balance-summary">
+      <div class="metric"><dt>資産</dt><dd class="pos">842,000円</dd></div>
+      <div class="metric"><dt>負債</dt><dd class="neg">−85,000円</dd></div>
+      <div class="metric"><dt>純資産</dt><dd>757,000円</dd></div>
     </section>
-    <section class="section" aria-label="最近の取引">
-      ${sectionHead('最近の取引', { target: 'transactions', label: '取引一覧を見る' })}
-      <ul class="recent-list">${recent.map(recentRow).join('')}</ul>
-    </section>
-  </div>`;
-}
+    <div class="balance-group">
+      <h3>銀行</h3>
+      <div class="balance-cols"><span></span><div class="metrics"><span>支払予定</span><span>残高</span></div></div>
+      <div class="balance-row"><div class="name">生活費口座</div><div class="metrics"><span>0円</span><span>512,000円</span></div></div>
+      <div class="balance-row"><div class="name">給与口座</div><div class="metrics"><span>0円</span><span>245,000円</span></div></div>
+    </div>
+    <div class="balance-group">
+      <h3>現金</h3>
+      <div class="balance-cols"><span></span><div class="metrics"><span>残高</span></div></div>
+      <div class="balance-row"><div class="name">現金</div><div class="metrics"><span>—</span><span>85,000円</span></div></div>
+    </div>
+    <div class="balance-group">
+      <h3>クレジットカード</h3>
+      <div class="balance-cols"><span></span><div class="metrics"><span>決済予定</span><span>未決済</span></div></div>
+      <div class="balance-row"><div class="name">クレジットカード</div><div class="metrics"><span>−85,000円</span><span>0円</span></div></div>
+    </div>
+  </main>
+</div>
 
-/* ============================================================
-   transactions
-   ============================================================ */
-function renderTransactions() {
-  const header = pageHeader('取引', { count: `${DATA.transactions.length}件` });
-  const month = monthSwitcher();
-
-  if (state.appState === 'loading') {
-    return `<div class="page">${header}${month}${skeletonGroups(4, 2)}</div>`;
-  }
-  if (state.appState === 'error') {
-    return `<div class="page">${header}${month}${errorBox('取引を読み込めませんでした', '通信状態を確認して、もう一度お試しください。')}</div>`;
-  }
-  if (state.appState === 'empty' || state.month !== CURRENT_MONTH) {
-    const body = state.month !== CURRENT_MONTH
-      ? emptyBox('この月の取引はありません', '別の月を選ぶと、それまでの記録を確認できます。', emptyAction('今月に戻る'))
-      : emptyBox('この月はまだ空です', 'サーバーに取引が登録されると、ここに並びます。');
-    return `<div class="page">${header}${month}${body}</div>`;
-  }
-
-  const days = Array.from(new Set(DATA.transactions.map(t => t.day))).sort((a, b) => b - a);
-  const groups = days.map(day => {
-    const items = DATA.transactions.filter(t => t.day === day).sort((a, b) => b.id - a.id);
-    return `<section class="tx-group">
-      <h3 class="tx-date-head">${dateLabel(day)}</h3>
-      <ul class="tx-list">${items.map(t => `<li>${txRow(t)}</li>`).join('')}</ul>
-    </section>`;
-  }).join('');
-
-  return `<div class="page">${header}${month}<div class="tx-groups">${groups}</div></div>`;
-}
-
-/* ============================================================
-   balances
-   ============================================================ */
-function renderBalances() {
-  const header = pageHeader('残高');
-
-  if (state.appState === 'loading') {
-    return `<div class="page">${header}
-      <div class="sk-summary"><div class="sk" style="width:180px;height:24px"></div><div class="sk-inline"><div><div class="sk" style="width:44px;height:12px"></div><div class="sk" style="width:96px;height:19px"></div></div><div><div class="sk" style="width:44px;height:12px"></div><div class="sk" style="width:96px;height:19px"></div></div><div><div class="sk" style="width:56px;height:12px"></div><div class="sk" style="width:96px;height:19px"></div></div></div></div>
-      ${skeletonGroups(4, 1)}
-    </div>`;
-  }
-  if (state.appState === 'error') {
-    return `<div class="page">${header}${errorBox('残高を読み込めませんでした', '通信状態を確認して、もう一度お試しください。')}</div>`;
-  }
-  if (state.appState === 'empty') {
-    return `<div class="page">${header}${emptyBox('表示する資産がありません', 'サーバーに資産が登録されると、ここに表示されます。')}</div>`;
-  }
-
-  const s = DATA.balances.summary;
-  const groups = DATA.balances.groups.map(g => {
-    const withMetrics = g.columns.length > 1;
-    const head = `<div class="balance-head ${withMetrics ? 'with-metrics' : ''}">
-      <h3>${esc(g.name)}</h3>
-      <div class="balance-cols ${withMetrics ? 'with-metrics' : ''}">${g.columns.map(c => `<span class="balance-col-label">${c}</span>`).join('')}</div>
-    </div>`;
-    const rows = g.accounts.map(a => `<li class="balance-row ${withMetrics ? 'with-metrics' : ''}">
-      <span class="balance-name">${esc(a.name)}</span>
-      <span class="balance-metrics ${withMetrics ? 'with-metrics' : ''}">${a.metrics.map(v => `<span class="balance-amount">${money(v)}</span>`).join('')}</span>
-    </li>`).join('');
-    return `<section class="balance-group">${head}<ul class="balance-list">${rows}</ul></section>`;
-  }).join('');
-
-  return `<div class="page">${header}
-    <section class="balance-summary" aria-label="残高の集計">
-      <div class="balance-summary-title"><h2>残高の集計</h2></div>
-      <dl class="balance-summary-list">
-        <div class="balance-summary-item"><dt class="balance-summary-label">資産</dt><dd class="balance-summary-value">${amountEl(s.assets, { tone: 'pos' })}</dd></div>
-        <div class="balance-summary-item"><dt class="balance-summary-label">負債</dt><dd class="balance-summary-value">${amountEl(s.liabilities, { tone: 'neg' })}</dd></div>
-        <div class="balance-summary-item net"><dt class="balance-summary-label">純資産</dt><dd class="balance-summary-value balance-summary-net">${amountEl(s.net)}</dd></div>
-      </dl>
-    </section>
-    <div class="balance-groups">${groups}</div>
-  </div>`;
-}
-
-/* ============================================================
-   settings
-   ============================================================ */
-function renderSettings() {
-  if (state.settingsView === 'theme') return renderThemePage();
-  const themeLabel = { system: 'システム', light: 'ライト', dark: 'ダーク' }[state.theme];
-  return `<div class="page settings">
-    ${pageHeader('設定')}
+<!-- 設定 -->
+<div class="app" id="screen-settings" data-screen="settings" hidden>
+  <main class="page">
+    <div class="page-head"><h1>設定</h1><button class="gear" aria-label="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.42.66.78.82H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button></div>
     <div class="settings-list">
-      <section class="settings-section" aria-label="接続">
+      <section class="settings-section">
         <h2>接続</h2>
         <div class="settings-rows">
-          <div class="settings-row"><span class="label">サーバー</span><span class="row-accessory"><span class="value">kobako.example.com</span><span class="row-arrow" aria-hidden="true"></span></span></div>
+          <button class="settings-row"><span class="label">サーバー</span><span class="value">kobako.example.com</span><span class="arrow">→</span></button>
         </div>
       </section>
-      <section class="settings-section" aria-label="表示">
+      <section class="settings-section">
         <h2>表示</h2>
         <div class="settings-rows">
-          <button type="button" class="settings-row" data-open-theme><span class="label">テーマ</span><span class="row-accessory"><span class="value">${themeLabel}</span><span class="row-arrow" aria-hidden="true">→</span></span></button>
+          <button class="settings-row"><span class="label">テーマ</span><span class="value">システム</span><span class="arrow">→</span></button>
+          <div class="settings-row"><span class="label">カード支払い通知</span><span class="switch on" role="switch" aria-checked="true" tabindex="0" aria-label="カード支払い通知"></span></div>
         </div>
       </section>
-      <section class="settings-section" aria-label="通知">
-        <h2>通知</h2>
-        <div class="settings-rows">
-          <div class="settings-row"><span class="label">カード支払い通知</span><span class="row-accessory"><button type="button" class="switch" role="switch" aria-checked="${state.notifications}" aria-label="カード支払い通知" data-toggle-notifications></button></span></div>
-        </div>
-      </section>
-      <section class="settings-section" aria-label="アプリ情報">
+      <section class="settings-section">
         <h2>アプリ情報</h2>
         <div class="settings-rows">
-          <div class="settings-row"><span class="label">バージョン</span><span class="row-accessory"><span class="value">0.1.0</span><span class="row-arrow" aria-hidden="true"></span></span></div>
-          <div class="settings-row"><span class="label">ライセンス</span><span class="row-accessory"><span class="value">AGPL-3.0-only</span><span class="row-arrow" aria-hidden="true"></span></span></div>
-          <a class="settings-row" href="https://github.com/takano536/kobako" target="_blank" rel="noreferrer"><span class="label">ソースコード</span><span class="row-accessory"><span class="row-arrow" aria-hidden="true">→</span></span></a>
+          <div class="settings-row"><span class="label">バージョン</span><span class="value">0.1.0</span></div>
+          <div class="settings-row"><span class="label">ライセンス</span><span class="value">AGPL-3.0-only</span></div>
+          <a class="settings-row" href="https://github.com/takano536/kobako" target="_blank" rel="noreferrer"><span class="label">ソースコード</span><span class="arrow">→</span></a>
         </div>
       </section>
     </div>
+  </main>
+</div>
+
+<!-- 接続（現状維持） -->
+<div class="connect" id="screen-connect" data-screen="connect" hidden>
+  <div class="mark">
+    <svg width="40" height="34" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M14 2l11 6-11 6L3 8l11-6z"/><path d="M3 8v8l11 6 11-6V8"/><path d="M14 14v8"/></svg>
+  </div>
+  <h1>kobako</h1>
+  <p class="tagline">家計ノート</p>
+  <label for="server">サーバー</label>
+  <input id="server" value="https://kobako.example.com" autocomplete="url">
+  <button class="primary">接続する</button>
+  <p class="hint">サーバーのURLを入力してください。</p>
+</div>
+
+<nav class="nav" aria-label="メインナビゲーション">
+  <a href="#" data-goto="overview" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>概要</span>
+  </a>
+  <a href="#" data-goto="transactions">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14M5 12h14M5 19h14"/><path d="M3 5h.01M3 12h.01M3 19h.01"/></svg><span>取引</span>
+  </a>
+  <a href="#" data-goto="fixed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg><span>固定費</span>
+  </a>
+  <a href="#" data-goto="balances">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4"/></svg><span>残高</span>
+  </a>
+</nav>
+
+<button class="fab" id="fab" aria-label="取引を登録">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<script>
+const CATEGORIES = [
+  { name: '住居', amount: 85000, share: 46, dot: '#91a99d' },
+  { name: '食費', amount: 42000, share: 22, dot: '#b49a96' },
+  { name: '日用品', amount: 16000, share: 9, dot: '#b8b7ab' },
+  { name: '娯楽', amount: 14500, share: 8, dot: '#b09eaf' },
+  { name: '水道・光熱', amount: 12000, share: 6, dot: '#98a6b0' },
+  { name: '交通', amount: 9500, share: 5, dot: '#a4b2a9' },
+  { name: '通信', amount: 7300, share: 4, dot: '#aaa383' }
+];
+const RECENT = [
+  { date: '11月27日（金）', cat: '住居', dot: '#91a99d', account: '生活費口座', memo: '家賃', amount: -85000 },
+  { date: '11月25日（水）', cat: '給与', dot: '#91a99d', account: '給与口座', memo: '給与', amount: 320000 },
+  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍・サブスクリプション', amount: -14500, api: true },
+  { date: '11月18日（水）', cat: '臨時収入', dot: '#91a99d', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
+  { date: '11月15日（日）', cat: '交通', dot: '#a4b2a9', account: '現金', memo: '定期券', amount: -9500 }
+];
+const TX = [
+  { date: '11月27日（金）', cat: '住居', dot: '#91a99d', account: '生活費口座', memo: '家賃', amount: -85000 },
+  { date: '11月26日（木）', cat: '振替', dot: '#b8b7ab', account: '給与口座 → 生活費口座', memo: '生活費へ振替', amount: 180000, transfer: true },
+  { date: '11月25日（水）', cat: '給与', dot: '#91a99d', account: '給与口座', memo: '給与', amount: 320000 },
+  { date: '11月21日（土）', cat: '娯楽', dot: '#b09eaf', account: 'クレジットカード', memo: '書籍・サブスクリプション', amount: -14500, api: true },
+  { date: '11月18日（水）', cat: '臨時収入', dot: '#91a99d', account: '給与口座', memo: 'メルカリ売上', amount: 8000, api: true },
+  { date: '11月15日（日）', cat: '交通', dot: '#a4b2a9', account: '現金', memo: '定期券', amount: -9500 },
+  { date: '11月12日（木）', cat: '日用品', dot: '#b8b7ab', account: '現金', memo: 'ドラッグストア', amount: -16000 },
+  { date: '11月10日（火）', cat: '振替', dot: '#b8b7ab', account: '生活費口座 → 現金', memo: 'ATMで引き出し', amount: 30000, transfer: true, api: true },
+  { date: '11月8日（日）', cat: '水道・光熱', dot: '#98a6b0', account: '生活費口座', memo: '電気・ガス', amount: -12000 },
+  { date: '11月5日（木）', cat: '通信', dot: '#aaa383', account: 'クレジットカード', memo: '携帯電話', amount: -7300 },
+  { date: '11月1日（土）', cat: '食費', dot: '#b49a96', account: '現金', memo: 'スーパー', amount: -42000 }
+];
+
+function money(n, signed = false) {
+  const abs = Math.abs(n).toLocaleString('ja-JP');
+  if (n < 0) return '−' + abs + '円';
+  if (signed && n > 0) return '＋' + abs + '円';
+  return abs + '円';
+}
+function catItem(c) {
+  return `<div class="cat-item">
+    <div class="cat-top"><span class="cat-dot" style="background:${c.dot}"></span><span class="cat-name">${c.name}</span><span class="cat-amount">${money(c.amount)}</span></div>
+    <div class="cat-track"><span class="cat-fill" style="width:${c.share}%"></span></div>
+    <div class="cat-meta">${c.share < 1 ? '&lt;1%' : c.share + '%'}</div>
   </div>`;
 }
+document.getElementById('catList').innerHTML = CATEGORIES.map(catItem).join('');
+document.getElementById('recentList').innerHTML = RECENT.map(t => `
+  <div class="recent-item">
+    <div class="recent-date">${t.date}</div>
+    <a class="recent-link" href="#">
+      <span class="cat-dot" style="background:${t.dot}"></span>
+      <span class="recent-cat">${t.cat}</span>
+      <span class="recent-main"><span class="recent-account">${t.account}</span><span class="recent-memo">${t.memo}${t.api ? ' <span class="api">API</span>' : ''}</span></span>
+      <span class="recent-amount ${t.amount < 0 ? 'neg' : t.amount > 0 ? 'pos' : ''}">${money(t.amount, true)}</span>
+    </a>
+  </div>`).join('');
+document.getElementById('txList').innerHTML = TX.map(t => `
+  <div class="tx-group">
+    <div class="tx-date">${t.date}</div>
+    <button class="tx-row">
+      <span class="cat-dot" style="background:${t.dot}"></span>
+      <span>${t.cat}</span>
+      <span class="tx-main"><span class="tx-account">${t.account}</span><span class="tx-memo"><span>${t.memo}</span>${t.api ? '<span class="api">API</span>' : ''}</span></span>
+      <span class="tx-amount ${t.amount < 0 ? 'neg' : (t.amount > 0 && !t.transfer) ? 'pos' : ''}">${money(t.amount, !t.transfer)}</span>
+    </button>
+  </div>`).join('');
 
-function renderThemePage() {
-  const options = [
-    { id: 'system', label: 'システム' },
-    { id: 'light', label: 'ライト' },
-    { id: 'dark', label: 'ダーク' },
-  ];
-  return `<div class="page settings">
-    ${pageHeader('テーマ', { back: true })}
-    <div class="settings-list">
-      <div class="settings-rows" role="radiogroup" aria-label="テーマ">
-        ${options.map(o => `<button type="button" class="settings-row" role="radio" aria-checked="${state.theme === o.id}" data-theme-option="${o.id}">
-          <span class="label">${o.label}</span><span class="check" aria-hidden="true">${state.theme === o.id ? '✓' : ''}</span>
-        </button>`).join('')}
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ============================================================
-   onboarding (approved: unchanged)
-   ============================================================ */
-function renderOnboarding() {
-  return `<div class="onboard">
-    <div class="brand-lockup"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m3 7 11-4 11 4v11l-11 4-11-4z"/><path d="m3 7 11 4 11-4M14 11v11"/><path d="m8 5 6 2 6-2"/></svg></span><span class="brand-name">kobako</span></div>
-    <p class="brand-tagline">家計を、静かに見渡す</p>
-    <h1>サーバーに接続</h1>
-    <p class="lead">kobako のサーバーURLとAPIトークンを入力してください。</p>
-    <form id="connectForm" novalidate>
-      <div class="field">
-        <label for="serverUrl">サーバーURL</label>
-        <div class="input-wrap"><input id="serverUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://kobako.example.com" value="https://kobako.example.com"></div>
-      </div>
-      <div class="field">
-        <label for="apiToken">APIトークン</label>
-        <div class="input-wrap">
-          <input id="apiToken" type="password" autocomplete="off" placeholder="トークンを入力">
-          <button type="button" class="iconbtn" data-toggle-token aria-label="トークンを表示">${icon('eye')}</button>
-        </div>
-        <div class="hint">サーバーの設定画面で発行したトークンを使います。</div>
-      </div>
-      <div id="connectError"></div>
-      <button type="submit" class="primary-btn" id="connectBtn">接続する</button>
-    </form>
-    <div class="divider-or">または</div>
-    <button type="button" class="secondary-btn" data-demo>デモを見る</button>
-    <div class="trust">${icon('lock')}<span>APIトークンは端末内に保存されます</span></div>
-  </div>`;
-}
-
-/* ============================================================
-   skeletons
-   ============================================================ */
-function skeletonRows(n) {
-  return `<div class="sk-stack">${Array.from({ length: n }).map(() => `<div class="sk-row"><div class="sk" style="width:64%;height:14px"></div><div class="sk" style="width:22%;height:14px;margin-left:auto"></div></div>`).join('')}</div>`;
-}
-function skeletonGroups(groups, rows) {
-  return `<div>${Array.from({ length: groups }).map(() => `<div class="sk-group"><div class="sk" style="width:28%;height:12px;margin-bottom:10px"></div>${Array.from({ length: rows }).map(() => `<div class="sk-row"><div class="sk" style="width:46%;height:14px"></div><div class="sk" style="width:24%;height:14px;margin-left:auto"></div></div>`).join('')}</div>`).join('')}</div>`;
-}
-
-/* ============================================================
-   screen switch
-   ============================================================ */
-function renderScreen() {
-  switch (state.screen) {
-    case 'overview': return renderOverview();
-    case 'transactions': return renderTransactions();
-    case 'balances': return renderBalances();
-    case 'settings': return renderSettings();
-    case 'onboarding': return renderOnboarding();
-    default: return renderOverview();
-  }
-}
-
-/* ============================================================
-   actions
-   ============================================================ */
-function goScreen(id) {
-  state.screen = id;
-  state.settingsView = 'main';
-  render();
-}
-
-function focusThemeRow() {
-  const row = $('[data-open-theme]');
-  if (row) row.focus();
-}
-
-function focusThemeOption() {
-  const row = $(`[data-theme-option="${state.theme}"]`);
-  if (row) row.focus();
-}
-
-$('#app').addEventListener('click', (e) => {
-  const target = e.target.closest('[data-screen], [data-settings], [data-settings-back], [data-end-demo], [data-demo], [data-month], [data-this-month], [data-retry], [data-open-theme], [data-theme-option], [data-toggle-demo], [data-toggle-notifications], [data-toggle-token]');
-  if (!target) return;
-
-  if (target.dataset.screen) { goScreen(target.dataset.screen); return; }
-  if (target.hasAttribute('data-settings')) {
-    state.screen = 'settings';
-    state.settingsView = 'main';
-    render();
-    return;
-  }
-  if (target.hasAttribute('data-settings-back')) {
-    state.settingsView = 'main';
-    render();
-    focusThemeRow();
-    return;
-  }
-  if (target.hasAttribute('data-open-theme')) {
-    state.settingsView = 'theme';
-    render();
-    focusThemeOption();
-    return;
-  }
-  if (target.dataset.themeOption) {
-    state.theme = target.dataset.themeOption;
-    applyTheme();
-    render();
-    focusThemeOption();
-    return;
-  }
-  if (target.hasAttribute('data-end-demo')) { state.demo = false; state.screen = 'onboarding'; render(); return; }
-  if (target.hasAttribute('data-demo')) { state.demo = true; state.screen = 'overview'; state.settingsView = 'main'; render(); return; }
-  if (target.dataset.month) { state.month = shiftMonth(state.month, Number(target.dataset.month)); render(); return; }
-  if (target.hasAttribute('data-this-month')) { state.month = CURRENT_MONTH; render(); return; }
-  if (target.hasAttribute('data-retry')) { state.appState = 'normal'; render(); return; }
-  if (target.hasAttribute('data-toggle-demo')) {
-    state.demo = !state.demo;
-    if (!state.demo) state.screen = 'onboarding';
-    render();
-    return;
-  }
-  if (target.hasAttribute('data-toggle-notifications')) { state.notifications = !state.notifications; render(); return; }
-  if (target.hasAttribute('data-toggle-token')) {
-    const input = $('#apiToken');
-    const show = input.type === 'password';
-    input.type = show ? 'text' : 'password';
-    target.innerHTML = icon(show ? 'eyeOff' : 'eye');
-    target.setAttribute('aria-label', show ? 'トークンを隠す' : 'トークンを表示');
-    return;
-  }
-});
-
-/* onboarding form */
-$('#app').addEventListener('submit', (e) => {
-  if (!e.target.matches('#connectForm')) return;
-  e.preventDefault();
-  const url = $('#serverUrl').value.trim();
-  const token = $('#apiToken').value.trim();
-  const error = $('#connectError');
-  const button = $('#connectBtn');
-  if (!url || !token) {
-    error.innerHTML = errorBox('入力が足りません', 'サーバーURLとAPIトークンを入力してください。', { retry: false });
-    return;
-  }
-  button.disabled = true;
-  button.innerHTML = `<span class="spinner" aria-hidden="true"></span>接続しています…`;
-  setTimeout(() => {
-    if (state.screen !== 'onboarding') return;
-    button.disabled = false;
-    button.textContent = '接続する';
-    error.innerHTML = errorBox('接続できませんでした', 'URLと通信状態を確認してください。トークンが正しいかもご確認ください。', { retry: false });
-  }, 800);
-});
-
-/* harness */
-document.addEventListener('click', (e) => {
-  const screen = e.target.closest('[data-hs-screen]');
-  if (screen) { goScreen(screen.dataset.hsScreen); return; }
-  const theme = e.target.closest('[data-hs-theme]');
-  if (theme) { state.theme = theme.dataset.hsTheme; applyTheme(); render(); return; }
-  const width = e.target.closest('[data-hs-width]');
-  if (width) { state.width = width.dataset.hsWidth; $('#device').dataset.width = state.width; renderHarness(); return; }
-});
-$('#stateSelect').addEventListener('change', (e) => {
-  state.appState = e.target.value;
-  if (state.screen === 'onboarding') state.screen = 'overview';
-  $('#contentHost').scrollTop = 0;
-  render();
-});
-$('#demoCheck').addEventListener('change', (e) => {
-  state.demo = e.target.checked;
-  if (!state.demo) {
-    state.screen = 'onboarding';
-  } else if (state.screen === 'onboarding') {
-    state.screen = 'overview';
-  }
-  render();
-});
-
-/* theme resolution */
-function applyTheme() {
-  document.documentElement.dataset.theme = resolvedTheme();
-}
-if (window.matchMedia) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (state.theme === 'system') { applyTheme(); renderHarness(); }
+const screens = ['overview','transactions','fixed','balances','settings','connect'];
+function show(name) {
+  screens.forEach(s => document.getElementById('screen-' + s).hidden = s !== name);
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.toggleAttribute('aria-current', a.dataset.goto === name);
+    if (a.dataset.goto === name) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
   });
+  document.querySelectorAll('.gear').forEach(g => {
+    if (name === 'settings') g.setAttribute('aria-current','page'); else g.removeAttribute('aria-current');
+  });
+  document.getElementById('fab').hidden = !['overview','transactions'].includes(name);
+  document.querySelector('.nav').hidden = name === 'connect';
+  window.scrollTo(0,0);
 }
-
-/* boot */
-applyTheme();
-$('#device').dataset.width = state.width;
-render();
+document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); show(el.dataset.goto); }));
+document.querySelectorAll('.gear').forEach(g => g.addEventListener('click', e => { e.preventDefault(); show('settings'); }));
+document.getElementById('fab').addEventListener('click', () => alert('取引を登録'));
+document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () => {
+  s.classList.toggle('on'); s.setAttribute('aria-checked', s.classList.contains('on') ? 'true' : 'false');
+}));
 </script>
 </body>
 </html>
