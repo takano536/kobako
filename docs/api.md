@@ -25,6 +25,7 @@ Authorization: Bearer <KOBAKO_API_TOKEN>
 | GET      | `/api/v1/summary`          | 月次の収入・支出・差額・カテゴリ別支出の概要       |
 | GET      | `/api/v1/balances`         | 資産残高と支払予定の一覧                           |
 | GET      | `/api/v1/categories`       | カテゴリ一覧（`id`、`name`、`type`）               |
+| GET      | `/api/v1/fixed-costs`      | 固定費の集計と一覧                                 |
 | GET      | `/api/v1/transactions`     | 取引・振替の一覧                                   |
 | POST     | `/api/v1/transactions`     | 取引・振替の一括登録                               |
 | PATCH    | `/api/v1/transactions/:id` | 取引の部分更新                                     |
@@ -127,10 +128,11 @@ Idempotency-Key: agent-run-2026-10-26
 {
   "name": "kobako",
   "apiVersion": 1,
-  "features": { "summary": true, "balances": true },
+  "features": { "summary": true, "balances": true, "fixedCosts": true },
   "resources": {
     "accounts": "/api/v1/accounts",
     "categories": "/api/v1/categories",
+    "fixed-costs": "/api/v1/fixed-costs",
     "transactions": "/api/v1/transactions",
     "transfers": "/api/v1/transfers"
   },
@@ -199,3 +201,27 @@ Idempotency-Key: agent-run-2026-10-26
 ```
 
 銀行の `scheduledAmount` は当月支払予定のカード請求額の合計です。カードの `scheduledAmount`、`scheduledDueOn`、`unbilledAmount` は導出した請求予定、`nextPayment` は次回請求（該当なしは `null`）です。カードの請求設定が未完了、またはカレンダーエラーがある場合は、`scheduledAmount`、`scheduledDueOn`、`unbilledAmount` が不明を表す `null` になります。カード以外の請求項目は `scheduledDueOn`、`unbilledAmount`、`nextPayment` が `null` になります。
+
+### `GET /api/v1/fixed-costs`
+
+固定費の月額・年額集計と、Web の一覧と同じ順序の固定費項目を返します。金額は桁区切りなしの10進文字列です。`startMonth` は `YYYY-MM-DD` 形式です。
+
+```json
+{
+  "monthly": "104300",
+  "annual": "1251600",
+  "items": [
+    {
+      "id": 1,
+      "name": "住居",
+      "categoryName": "住居",
+      "accountName": "生活費口座",
+      "amount": "85000",
+      "day": 27,
+      "intervalCount": 1,
+      "intervalUnit": "month",
+      "startMonth": "2026-01-01"
+    }
+  ]
+}
+```

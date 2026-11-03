@@ -11,12 +11,14 @@ export function GET(request: Request): Promise<Response> {
       features: {
         summary: true,
         balances: true,
+        fixedCosts: true,
       },
       resources: {
         accounts: '/api/v1/accounts',
         categories: '/api/v1/categories',
         transactions: '/api/v1/transactions',
         transfers: '/api/v1/transfers',
+        'fixed-costs': '/api/v1/fixed-costs',
       },
       notes: [
         'カテゴリと資産は名前で指定します。',
