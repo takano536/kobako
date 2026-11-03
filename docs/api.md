@@ -18,20 +18,21 @@ Authorization: Bearer <KOBAKO_API_TOKEN>
 
 ## エンドポイント
 
-| メソッド | パス                       | 内容                                         |
-| -------- | -------------------------- | -------------------------------------------- |
-| GET      | `/api/v1`                  | 利用可能なリソースと API の注意事項          |
-| GET      | `/api/v1/summary`          | 月次の収入・支出・差額・カテゴリ別支出の概要 |
-| GET      | `/api/v1/balances`         | 資産残高と支払予定の一覧                     |
-| GET      | `/api/v1/categories`       | カテゴリ一覧（`id`、`name`、`type`）         |
-| GET      | `/api/v1/transactions`     | 取引・振替の一覧                             |
-| POST     | `/api/v1/transactions`     | 取引・振替の一括登録                         |
-| PATCH    | `/api/v1/transactions/:id` | 取引の部分更新                               |
-| DELETE   | `/api/v1/transactions/:id` | 取引の削除（204）                            |
-| GET      | `/api/v1/transfers`        | 振替の一覧                                   |
-| POST     | `/api/v1/transfers`        | 振替の一括登録                               |
-| PATCH    | `/api/v1/transfers/:id`    | 振替の部分更新                               |
-| DELETE   | `/api/v1/transfers/:id`    | 振替の削除（204）                            |
+| メソッド | パス                       | 内容                                               |
+| -------- | -------------------------- | -------------------------------------------------- |
+| GET      | `/api/v1`                  | 利用可能なリソースと API の注意事項                |
+| GET      | `/api/v1/accounts`         | 削除されていない資産の一覧（`id`、`name`、`kind`） |
+| GET      | `/api/v1/summary`          | 月次の収入・支出・差額・カテゴリ別支出の概要       |
+| GET      | `/api/v1/balances`         | 資産残高と支払予定の一覧                           |
+| GET      | `/api/v1/categories`       | カテゴリ一覧（`id`、`name`、`type`）               |
+| GET      | `/api/v1/transactions`     | 取引・振替の一覧                                   |
+| POST     | `/api/v1/transactions`     | 取引・振替の一括登録                               |
+| PATCH    | `/api/v1/transactions/:id` | 取引の部分更新                                     |
+| DELETE   | `/api/v1/transactions/:id` | 取引の削除（204）                                  |
+| GET      | `/api/v1/transfers`        | 振替の一覧                                         |
+| POST     | `/api/v1/transfers`        | 振替の一括登録                                     |
+| PATCH    | `/api/v1/transfers/:id`    | 振替の部分更新                                     |
+| DELETE   | `/api/v1/transfers/:id`    | 振替の削除（204）                                  |
 
 一覧のレスポンスは `{ "items": [...], "count": ... }` です。取引の項目には `id`、`type`、`amount`、`occurredOn`、`categoryId`、`categoryName`、`accountId`、`accountName`、`memo`、`origin` が含まれます。振替の項目には `id`、`type`（`transfer`）、`amount`、`occurredOn`、`fromAccountId`、`fromAccountName`、`toAccountId`、`toAccountName`、`memo`、`origin` が含まれます。
 
