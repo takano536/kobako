@@ -22,6 +22,8 @@ Authorization: Bearer <KOBAKO_API_TOKEN>
 | -------- | -------------------------- | -------------------------------------------------- |
 | GET      | `/api/v1`                  | 利用可能なリソースと API の注意事項                |
 | GET      | `/api/v1/accounts`         | 削除されていない資産の一覧（`id`、`name`、`kind`） |
+| GET      | `/api/v1/summary`          | 月次の収入・支出・差額・カテゴリ別支出の概要       |
+| GET      | `/api/v1/balances`         | 資産残高と支払予定の一覧                           |
 | GET      | `/api/v1/categories`       | カテゴリ一覧（`id`、`name`、`type`）               |
 | GET      | `/api/v1/transactions`     | 取引・振替の一覧                                   |
 | POST     | `/api/v1/transactions`     | 取引・振替の一括登録                               |
@@ -196,4 +198,4 @@ Idempotency-Key: agent-run-2026-10-26
 }
 ```
 
-銀行の `scheduledAmount` は当月支払予定のカード請求額の合計です。カードの `scheduledAmount`、`scheduledDueOn`、`unbilledAmount` は導出した請求予定、`nextPayment` は次回請求（該当なしは `null`）です。カード以外の請求項目は `scheduledDueOn`、`unbilledAmount`、`nextPayment` が `null` になります。
+銀行の `scheduledAmount` は当月支払予定のカード請求額の合計です。カードの `scheduledAmount`、`scheduledDueOn`、`unbilledAmount` は導出した請求予定、`nextPayment` は次回請求（該当なしは `null`）です。カードの請求設定が未完了、またはカレンダーエラーがある場合は、`scheduledAmount`、`scheduledDueOn`、`unbilledAmount` が不明を表す `null` になります。カード以外の請求項目は `scheduledDueOn`、`unbilledAmount`、`nextPayment` が `null` になります。
