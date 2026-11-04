@@ -1,4 +1,11 @@
 # Changelog
+## [0.22.1](https://github.com/takano536/kobako/compare/v0.22.0...v0.22.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **api:** 未確定カード請求予定をnullで返す ([#68](https://github.com/takano536/kobako/issues/68)) ([97b3adc](https://github.com/takano536/kobako/commit/97b3adc30fa3f3e6af0f10ec8631fb7f8d87a74c))
+
 ## [0.22.0](https://github.com/takano536/kobako/compare/v0.21.5...v0.22.0) (2026-11-03)
 
 
