@@ -1,4 +1,11 @@
 # Changelog
+## [0.23.0](https://github.com/takano536/kobako/compare/v0.22.1...v0.23.0) (2026-11-04)
+
+
+### Features
+
+* **api:** add fixed costs read endpoint ([#69](https://github.com/takano536/kobako/issues/69)) ([a2e6c40](https://github.com/takano536/kobako/commit/a2e6c40ad01888d717b0a0d60401871d99188a1a))
+
 ## [0.22.1](https://github.com/takano536/kobako/compare/v0.22.0...v0.22.1) (2026-11-04)
 
 
