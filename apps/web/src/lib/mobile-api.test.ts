@@ -65,12 +65,13 @@ describe('GET /api/v1', () => {
     expect(await response.json()).toMatchObject({
       name: 'kobako',
       apiVersion: 1,
-      features: { summary: true, balances: true },
+      features: { summary: true, balances: true, fixedCosts: true },
       resources: {
         accounts: '/api/v1/accounts',
         categories: '/api/v1/categories',
         transactions: '/api/v1/transactions',
         transfers: '/api/v1/transfers',
+        'fixed-costs': '/api/v1/fixed-costs',
       },
     });
   });
