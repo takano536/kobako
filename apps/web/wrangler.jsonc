@@ -9,6 +9,14 @@
     "DEMO_MODE": "1",
     "DEMO_DB_DRIVER": "neon",
   },
+  // Preview は production の vars を継承しないため、デモ用の値を明示する。
+  "previews": {
+    "vars": {
+      "DEMO_MODE": "1",
+      "DEMO_DB_DRIVER": "neon",
+      "DEMO_HOUSEHOLD_LIMIT": "50",
+    },
+  },
   "observability": {
     "enabled": true,
   },

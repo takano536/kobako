@@ -7,7 +7,11 @@ import { PrefetchLink } from './_components/prefetch-link';
 
 import { KobakoMark } from '../src/lib/category';
 import { withSelectedMonth } from '../src/lib/month-navigation';
-import { siteNavigationSection, type SiteNavigationSection } from '../src/lib/site-navigation';
+import {
+  SITE_NAVIGATION_LINKS,
+  siteNavigationSection,
+  type SiteNavigationSection,
+} from '../src/lib/site-navigation';
 import { SettingsIcon } from './_components/ui';
 import navStyles from './site-nav.module.css';
 
@@ -37,23 +41,24 @@ function SiteNavIcon({ section }: { section: SiteNavigationSection }) {
       </svg>
     );
   }
+  if (section === 'fixed-costs') {
+    return (
+      <svg
+        className={navStyles['site-nav-icon']}
+        viewBox="0 0 24 24"
+        focusable="false"
+        aria-hidden="true"
+      >
+        <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
+      </svg>
+    );
+  }
   return (
     <svg className={navStyles['site-nav-icon']} focusable="false" aria-hidden="true">
       <path d="M4 20V5M4 20h16M8 16v-4M12 16V8M16 16V4" />
     </svg>
   );
 }
-
-const navigationLinks = [
-  { section: 'overview', label: '概要', href: '/' },
-  { section: 'transactions', label: '取引', href: '/transactions' },
-  { section: 'balances', label: '残高', href: '/balances' },
-] as const satisfies ReadonlyArray<{
-  section: Exclude<SiteNavigationSection, 'settings'>;
-  label: string;
-  href: string;
-}>;
-
 export function SiteBrand() {
   const searchParams = useSearchParams();
   return (
@@ -88,7 +93,7 @@ export function SiteNav() {
   const pendingTo = useNavigationShell()?.pending?.pathname ?? null;
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
-      {navigationLinks.map(({ section, label, href }) => (
+      {SITE_NAVIGATION_LINKS.map(({ section, label, href }) => (
         <PrefetchLink
           key={section}
           href={withSelectedMonth(href, month)}
@@ -107,7 +112,7 @@ export function SiteNav() {
 export function SiteNavFallback() {
   return (
     <nav data-slot="site-nav" className={navStyles['site-nav']} aria-label="メインナビゲーション">
-      {navigationLinks.map(({ section, label, href }) => (
+      {SITE_NAVIGATION_LINKS.map(({ section, label, href }) => (
         <PrefetchLink key={section} href={href}>
           <SiteNavIcon section={section} />
           <span>{label}</span>

@@ -23,11 +23,11 @@ describe('site navigation section mapping', () => {
     ).toBe('transactions');
     expect(siteNavigationSection('/accounts/12/edit', '/balances?month=2024-06')).toBe('balances');
     expect(siteNavigationSection('/accounts/12/edit', '/?month=2024-06')).toBe('overview');
+    expect(siteNavigationSection('/accounts/12/edit', '/settings')).toBe('settings');
   });
 
   it('falls back to transactions for missing or unsupported account returns', () => {
     expect(siteNavigationSection('/accounts/12/edit')).toBe('transactions');
-    expect(siteNavigationSection('/accounts/12/edit', '/settings')).toBe('transactions');
     expect(siteNavigationSection('/accounts/12/edit', 'https://example.test/balances')).toBe(
       'transactions',
     );

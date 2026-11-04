@@ -23,14 +23,14 @@
   display: block;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--category-dot);
 }
 
 .emptyMotif {
   width: 5.5rem;
   height: 4rem;
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-within);
   fill: none;
   stroke: var(--accent);
   stroke-linecap: round;

@@ -4,6 +4,7 @@ import { currentTokyoMonth } from '@kobako/db';
 
 import { pressCenter, pressHeaderBlank, pressHeadingText } from './card-header-helpers';
 import { waitForMotion } from './motion';
+import { selectFieldOption } from './select-field-helpers';
 
 test.describe('overlay cards', () => {
   const stableMainHtml = async (page: Page) =>
@@ -85,22 +86,6 @@ test.describe('overlay cards', () => {
     });
     const beforeHtml = await stableMainHtml(page);
     const entry = page.getByRole('link', { name: '取引を登録', exact: true }).first();
-    await expect(entry).toHaveAttribute('data-variant', 'primary');
-    const entryMetrics = await entry.evaluate((element) => {
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        width: rect.width,
-        height: rect.height,
-        fontSize: style.fontSize,
-        padding: `${style.paddingTop} ${style.paddingRight} ${style.paddingBottom} ${style.paddingLeft}`,
-      };
-    });
-    if ((page.viewportSize()?.width ?? 1280) <= 480) {
-      expect(entryMetrics.height).toBe(36);
-      expect(entryMetrics.fontSize).toBe('12px');
-      expect(entryMetrics.padding).toBe('8px 12.8px 8px 12.8px');
-    }
     await entry.focus();
     await entry.click();
     await expect(page).toHaveURL(new RegExp(`/transactions/new\\?month=${month}$`));
@@ -208,8 +193,8 @@ test.describe('overlay cards', () => {
     expect(cardStyles.minHeight).toBe('52px');
     expect(cardStyles.borderBottomWidth).toBe('1px');
     expect(cardStyles.labelFontSize).toBe('12px');
-    expect(cardStyles.saveWidth).toBeCloseTo(page.viewportSize()!.width <= 480 ? 75.59 : 86.78, 1);
-    expect(cardStyles.saveHeight).toBe(page.viewportSize()!.width <= 480 ? 36 : 44);
+    expect(cardStyles.saveWidth).toBeCloseTo(page.viewportSize()!.width <= 480 ? 74 : 90, 1);
+    expect(cardStyles.saveHeight).toBe(44);
     expect(cardStyles.saveFontSize).toBe(page.viewportSize()!.width <= 480 ? '12px' : '14px');
     const last = page.locator('#entry-dialog button:not([disabled]):visible').last();
     await last.focus();
@@ -375,18 +360,20 @@ test.describe('overlay cards', () => {
     const marker = `overlay-edit-${Date.now()}`;
     await page.goto('/accounts/new');
     await page.getByLabel('名前', { exact: true }).fill(`Overlay ${marker}`);
-    await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ index: 1 });
+    await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), { index: 1 });
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await page.goto('/accounts/new');
     await page.getByLabel('名前', { exact: true }).fill(`Overlay second ${marker}`);
-    await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ index: 1 });
+    await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), { index: 1 });
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
     await page.goto(`/transactions/new?month=${month}`);
     await page.getByLabel('金額').fill('1234');
     await page.locator('input[name="occurredOn"]').fill(`${month}-15`);
-    await page.locator('[data-slot="category-field-expense"] select').selectOption({ index: 1 });
-    await page.getByLabel('資産').selectOption({ index: 1 });
+    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), {
+      index: 1,
+    });
+    await selectFieldOption(page.getByLabel('資産'), { index: 1 });
     await page.getByLabel('メモ（任意）').fill(marker);
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
@@ -406,8 +393,8 @@ test.describe('overlay cards', () => {
     await page.goto(`/transactions/new?type=transfer&month=${month}`);
     await page.getByLabel('金額').fill('123');
     await page.locator('input[name="occurredOn"]').fill(`${month}-16`);
-    await page.getByLabel('振替元').selectOption({ index: 1 });
-    await page.getByLabel('振替先').selectOption({ index: 2 });
+    await selectFieldOption(page.getByLabel('振替元'), { index: 1 });
+    await selectFieldOption(page.getByLabel('振替先'), { index: 2 });
     await page.getByLabel('メモ（任意）').fill(`${marker}-transfer`);
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
@@ -428,17 +415,19 @@ test.describe('overlay cards', () => {
     await expect(page.locator('#entry-dialog')).toHaveCount(0);
 
     await page.goto('/transactions/new');
+    const accountTrigger = page.locator('#transaction-account');
+    await accountTrigger.click();
     const accountId = await page
-      .locator('#transaction-account option:not([value=""])')
-      .first()
-      .getAttribute('value');
-    if (!accountId) throw new Error('test account is missing');
+      .locator('[data-slot="select-field-menu"]:visible [role="menuitemradio"]')
+      .nth(1)
+      .getAttribute('data-value');
+    await page.keyboard.press('Escape');
     const initialLockStyles = await page.evaluate(() => ({
       htmlOverflow: document.documentElement.style.overflow,
       bodyPaddingRight: document.body.style.paddingRight,
     }));
-    await page.goto(`/transactions?account=${accountId}&month=all`);
-    const assetEdit = page.getByRole('link', { name: '資産を編集', exact: true });
+    await page.goto('/settings');
+    const assetEdit = page.locator(`a[href^="/accounts/${accountId}/edit?return="]`).first();
     await expect(assetEdit).toBeVisible();
     await assetEdit.click();
     await expect(page.locator('#entry-dialog[data-card-kind="asset"]')).toBeVisible();
@@ -478,7 +467,7 @@ test.describe('overlay cards', () => {
     const createAccount = async (name: string) => {
       await page.goto('/accounts/new');
       await page.getByLabel('名前', { exact: true }).fill(name);
-      await page.getByLabel('資産カテゴリ', { exact: true }).selectOption({ index: 1 });
+      await selectFieldOption(page.getByLabel('資産カテゴリ', { exact: true }), { index: 1 });
       await page.getByRole('button', { name: '登録する', exact: true }).click();
       await expect(page).toHaveURL(/\/transactions\?account=\d+&month=all$/);
       const accountId = new URL(page.url()).searchParams.get('account');
@@ -491,15 +480,17 @@ test.describe('overlay cards', () => {
     await page.goto(`/transactions/new?month=${entryMonth}`);
     await page.getByLabel('金額').fill('1234');
     await page.locator('input[name="occurredOn"]').fill(`${entryMonth}-15`);
-    await page.locator('[data-slot="category-field-expense"] select').selectOption({ index: 1 });
-    await page.getByLabel('資産').selectOption({ label: fromAccount });
+    await selectFieldOption(page.locator('[data-slot="category-field-expense"] button'), {
+      index: 1,
+    });
+    await selectFieldOption(page.getByLabel('資産'), { label: fromAccount });
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${entryMonth}$`));
     await page.goto(`/transactions/new?type=transfer&month=${entryMonth}`);
     await page.getByLabel('金額').fill('123');
     await page.locator('input[name="occurredOn"]').fill(`${entryMonth}-16`);
-    await page.getByLabel('振替元').selectOption({ label: fromAccount });
-    await page.getByLabel('振替先').selectOption({ label: `Focus second ${marker}` });
+    await selectFieldOption(page.getByLabel('振替元'), { label: fromAccount });
+    await selectFieldOption(page.getByLabel('振替先'), { label: `Focus second ${marker}` });
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${entryMonth}$`));
 
@@ -539,8 +530,8 @@ test.describe('overlay cards', () => {
       },
       {
         name: 'asset edit',
-        list: accountList,
-        opener: page.getByRole('link', { name: '資産を編集', exact: true }),
+        list: '/settings',
+        opener: page.locator(`a[href^="/accounts/${accountId}/edit?return="]`).first(),
         url: /\/accounts\/\d+\/edit(?:\?.*)?$/,
         field: '#account-name',
         title: '資産設定',

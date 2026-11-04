@@ -3,10 +3,11 @@ import layoutStyles from './layout.module.css';
 import monthStyles from './month-switcher.module.css';
 import uiStyles from './ui.module.css';
 import { Amount } from './amount';
-import { Button, LinkButton } from './button';
+import { LinkButton } from './button';
 import { MonthSelect } from './month-select';
 import { PageTransition } from './page-transition';
 import { PrefetchLink } from './prefetch-link';
+import { FilterChips } from './filter-chips';
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -14,8 +15,7 @@ function joinClasses(...values: Array<string | false | null | undefined>) {
 
 import { formatYen, moneyTone, type MoneyTone, monthLabel } from '../../src/lib/format';
 import { EmptyLedgerMotif } from '../../src/lib/category';
-import type { FilterCategory, TransactionListType } from '../../src/lib/transaction-query';
-import { MonthPickerField } from '../transactions/date-picker-field';
+import type { FilterCategory } from '../../src/lib/transaction-query';
 
 type ActionLinkVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
 
@@ -34,10 +34,23 @@ export function ActionLink({ href, children, variant = 'quiet', icon, scroll }: 
   );
 }
 
-export function SignedYen({ value, tone }: { value: string | number; tone?: MoneyTone }) {
+export function SignedYen({
+  value,
+  tone,
+  forceTone = false,
+}: {
+  value: string | number;
+  tone?: MoneyTone;
+  forceTone?: boolean;
+}) {
   const source =
     typeof value === 'number' ? Math.trunc(value).toString() : value.trim().replace(/^−/, '-');
-  const resolvedTone = tone === 'neutral' ? 'neutral' : moneyTone(value, tone);
+  const resolvedTone =
+    forceTone && tone && tone !== 'neutral'
+      ? tone
+      : tone === 'neutral'
+        ? 'neutral'
+        : moneyTone(value, tone);
   const negative = source.startsWith('-');
   const absoluteValue = negative ? source.slice(1) : source;
   const toneClass = {
@@ -141,12 +154,15 @@ export function MonthSwitcher({
   nextHref,
   selectPathname,
   selectQuery,
+  allowAll = false,
 }: {
   month: string;
   previousHref?: string;
   nextHref?: string;
   selectPathname: string;
   selectQuery?: Record<string, string | number | undefined>;
+  /** 月グリッドの先頭に「全期間」を出します（資産で絞り込んでいる取引一覧だけ）。 */
+  allowAll?: boolean;
 }) {
   return (
     <nav data-slot="month-switcher" className={monthStyles.switcher} aria-label="月を移動">
@@ -167,6 +183,7 @@ export function MonthSwitcher({
         label={monthLabel(month)}
         pathname={selectPathname}
         query={selectQuery}
+        allowAll={allowAll}
       />
       {nextHref ? (
         <PrefetchLink
@@ -223,125 +240,31 @@ type FilterAccount = {
   id: number;
   name: string;
   assetCategoryName: string;
-  status: 'active' | 'closed';
 };
 
+/**
+ * 取引一覧の絞り込み行。クライアントの {@link FilterChips} には、メニューに出す最小限の項目だけを渡します。
+ * 条件と反映は、一覧と共有する `FilterTransition` の中で扱います。
+ */
 export function FilterBar({
-  month,
-  type,
-  categoryId,
-  accountId,
   categories,
   accounts,
-  summary,
-  showClearAction = false,
 }: {
-  month: string;
-  type?: TransactionListType;
-  categoryId?: number;
-  accountId?: number;
   categories: readonly FilterCategory[];
-  accounts?: readonly FilterAccount[];
-  summary?: string;
-  showClearAction?: boolean;
+  accounts: readonly FilterAccount[];
 }) {
-  const filterCategories =
-    type && type !== 'transfer'
-      ? categories.filter((category) => category.type === type)
-      : type === 'transfer'
-        ? []
-        : categories;
-  const clearParams = new URLSearchParams({ month });
-  if (accountId !== undefined) clearParams.set('account', String(accountId));
-  const clearAdditionalFiltersHref = `/transactions?${clearParams.toString()}`;
-  const hasAdditionalFilter = Boolean(type || categoryId);
   return (
-    <section
-      className={uiStyles['filter-bar']}
-      aria-label="取引の絞り込み"
-      aria-labelledby={summary ? 'filter-title' : undefined}
-    >
-      <details data-slot="filter-details" className={uiStyles['filter-details']}>
-        <summary>
-          <span className={uiStyles['filter-summary-action']}>条件を変更する</span>
-          {summary ? (
-            <span
-              data-slot="filter-summary"
-              className={uiStyles['filter-summary']}
-              id="filter-title"
-            >
-              {summary}
-            </span>
-          ) : null}
-        </summary>
-        <form data-slot="filter-form" className={uiStyles['filter-form']} method="get">
-          <label id="filter-month-label" htmlFor="filter-month">
-            月
-            {accountId !== undefined ? (
-              <select id="filter-month" name="month" defaultValue={month}>
-                <option value="all">全期間</option>
-                {month !== 'all' ? <option value={month}>{monthLabel(month)}</option> : null}
-              </select>
-            ) : (
-              <MonthPickerField
-                id="filter-month"
-                name="month"
-                value={month}
-                labelId="filter-month-label"
-              />
-            )}
-          </label>
-          <label>
-            種別
-            <select name="type" defaultValue={type ?? ''}>
-              <option value="">すべて</option>
-              <option value="expense">支出</option>
-              <option value="income">収入</option>
-              <option value="transfer">振替</option>
-            </select>
-          </label>
-          <label>
-            カテゴリ
-            <select
-              name="category"
-              defaultValue={categoryId ? String(categoryId) : ''}
-              disabled={type === 'transfer'}
-              aria-describedby={type === 'transfer' ? 'transfer-category-note' : undefined}
-            >
-              <option value="">すべて</option>
-              {filterCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}（{category.type === 'income' ? '収入' : '支出'}）
-                </option>
-              ))}
-            </select>
-            {type === 'transfer' ? (
-              <span id="transfer-category-note" className="sr-only">
-                振替にはカテゴリがありません
-              </span>
-            ) : null}
-          </label>
-          {accounts ? (
-            <label>
-              資産
-              <select name="account" defaultValue={accountId ? String(accountId) : ''}>
-                <option value="">すべて</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}（{account.assetCategoryName}）
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <Button type="submit">適用</Button>
-        </form>
-      </details>
-      {showClearAction && hasAdditionalFilter ? (
-        <ActionLink href={clearAdditionalFiltersHref} variant="quiet">
-          条件をクリアする
-        </ActionLink>
-      ) : null}
-    </section>
+    <FilterChips
+      categories={categories.map(({ id, name, type: categoryType }) => ({
+        id,
+        name,
+        type: categoryType,
+      }))}
+      accounts={accounts.map(({ id, name, assetCategoryName }) => ({
+        id,
+        name,
+        categoryName: assetCategoryName,
+      }))}
+    />
   );
 }

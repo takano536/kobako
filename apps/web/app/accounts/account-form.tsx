@@ -1,10 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-
 import formsStyles from '../forms.module.css';
 import { Button } from '../_components/button';
-import { Field, Input, Select } from '../_components/field';
+import { FormActions } from '../_components/form-actions';
+import { Field, Input } from '../_components/field';
 import { Section } from '../_components/section';
 
 import { useActionState, useEffect, useState } from 'react';
@@ -64,12 +63,7 @@ const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button
-      className={formsStyles['save-button']}
-      type="submit"
-      disabled={pending}
-      aria-busy={pending}
-    >
+    <Button type="submit" disabled={pending} aria-busy={pending}>
       {pending ? '保存中…' : label}
     </Button>
   );
@@ -102,7 +96,6 @@ export function AccountForm({
   accountId,
   showCancel = false,
 }: AccountFormProps) {
-  const router = useRouter();
   const [state, formAction] = useActionState(action, {});
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -165,8 +158,7 @@ export function AccountForm({
         <Field className={formsStyles.field}>
           <label htmlFor="asset-category">資産カテゴリ</label>
           <div className={formsStyles['field-value']}>
-            <Select
-              className={formsStyles['field-select']}
+            <select
               id="asset-category"
               name="assetCategoryId"
               required
@@ -180,7 +172,7 @@ export function AccountForm({
                   {category.name}
                 </option>
               ))}
-            </Select>
+            </select>
             <FieldError id="asset-category-error" messages={assetCategoryError} />
           </div>
         </Field>
@@ -194,7 +186,6 @@ export function AccountForm({
               <label htmlFor="closing-day">締め日</label>
               <div className={formsStyles['field-value']}>
                 <select
-                  className={formsStyles['field-select']}
                   id="closing-day"
                   name="closingDay"
                   value={card.closingDay}
@@ -217,7 +208,6 @@ export function AccountForm({
               <label htmlFor="payment-day">支払日</label>
               <div className={formsStyles['field-value']}>
                 <select
-                  className={formsStyles['field-select']}
                   id="payment-day"
                   name="paymentDay"
                   value={card.paymentDay}
@@ -240,7 +230,6 @@ export function AccountForm({
               <label htmlFor="payment-month-offset">支払月</label>
               <div className={formsStyles['field-value']}>
                 <select
-                  className={formsStyles['field-select']}
                   id="payment-month-offset"
                   name="paymentMonthOffset"
                   value={card.paymentMonthOffset}
@@ -264,7 +253,6 @@ export function AccountForm({
               <label htmlFor="debit-account">引落口座</label>
               <div className={formsStyles['field-value']}>
                 <select
-                  className={formsStyles['field-select']}
                   id="debit-account"
                   name="debitAccountId"
                   value={card.debitAccountId}
@@ -282,8 +270,12 @@ export function AccountForm({
                         account.kind === 'bank',
                     )
                     .map((account) => (
-                      <option value={account.id} key={account.id}>
-                        {account.name}（{account.assetCategoryName}）
+                      <option
+                        value={account.id}
+                        key={account.id}
+                        data-meta={account.assetCategoryName}
+                      >
+                        {account.name}
                       </option>
                     ))}
                 </select>
@@ -300,26 +292,9 @@ export function AccountForm({
           {state.message}
         </p>
       ) : null}
-      <div
-        className={[
-          formsStyles['form-actions'],
-          showCancel && formsStyles['form-actions-with-cancel'],
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {showCancel ? (
-          <Button
-            variant="secondary"
-            className={formsStyles['save-button-cancel']}
-            type="button"
-            onClick={() => router.back()}
-          >
-            キャンセル
-          </Button>
-        ) : null}
+      <FormActions showCancel={showCancel}>
         <SubmitButton label={submitLabel} />
-      </div>
+      </FormActions>
     </form>
   );
 }

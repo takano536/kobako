@@ -13,7 +13,19 @@ chore: update CI action pin
 docs: clarify local setup
 ```
 
-Required status checks は `lint`、`unit`、`integration`、`build`、`e2e`、`docker` の6個です。各 job は run の `GITHUB_SHA` と同じ commit を checkout します。CI が実行されない状態、または失敗・skipped の状態で merge しません。
+### PR タイトル
+
+PR タイトルも Conventional Commits 形式にし、`<type>(<scope>): <日本語の subject>` とします。scope は省略できます。
+
+```text
+feat(import): 取引を一括登録する
+fix(web): 金額の丸めを直す
+docs: セットアップ手順を更新する
+```
+
+Squash merge のタイトルが `main` のコミットになり、Release Please の入力になります。`pr-title` チェックが形式と日本語 subject を検証し、マージ前に必須です。Release Please などの bot が作成した PR は、日本語 subject の検証を免除されます。
+
+Required status checks は `lint`、`unit`、`integration`、`build`、`e2e`、`docker`、`pr-title` の7個です。各 job は run の `GITHUB_SHA` と同じ commit を checkout します。CI が実行されない状態、または失敗・skipped の状態で merge しません。
 
 ## Release PR
 

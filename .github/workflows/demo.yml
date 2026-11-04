@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  deployments: write
 
 concurrency:
   group: kobako-demo-deploy
@@ -54,6 +55,7 @@ jobs:
           pnpm demo:purge
 
       - name: Deploy
+        id: deploy
         if: steps.config.outputs.ready == 'true'
         working-directory: apps/web
         run: |
@@ -68,4 +70,42 @@ jobs:
             --secrets-file "${GITHUB_WORKSPACE}/.tmp/demo.env" \
             --message "main ${GITHUB_SHA::7}"
           url=$(node scripts/workers-dev-url.mjs demo)
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
           echo "デモ: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Record the GitHub deployment
+        if: steps.config.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEMO_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEMO_URL}" ]; then
+            echo 'デモの URL を取得できなかったため deployment を記録しませんでした。' >&2
+            exit 1
+          fi
+          deployment_id=$(
+            jq -n \
+              --arg ref "main" \
+              --arg sha "${GITHUB_SHA}" \
+              '{
+                ref: $ref,
+                sha: $sha,
+                environment: "production",
+                description: "Cloudflare Workers demo",
+                production_environment: true,
+                auto_merge: false,
+                required_contexts: []
+              }' | gh api --method POST "repos/${GITHUB_REPOSITORY}/deployments" --input - --jq '.id'
+          )
+          jq -n \
+            --arg environment_url "${DEMO_URL}" \
+            --arg log_url "https://dash.cloudflare.com/${CLOUDFLARE_ACCOUNT_ID}/workers/services/view/demo/production" \
+            '{
+              state: "success",
+              environment_url: $environment_url,
+              log_url: $log_url,
+              description: "Cloudflare Workers demo",
+              auto_inactive: true
+            }' | gh api --method POST "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" --input - > /dev/null
+          echo "deployment ${deployment_id}: ${DEMO_URL}" >> "${GITHUB_STEP_SUMMARY}"

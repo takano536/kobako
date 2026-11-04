@@ -43,6 +43,12 @@ households (1) ──< accounts ──< transactions
 
 取引・振替・資産・カード設定・取り込み確定・自動決済 worker の書き込みも同じ家計行ロックを transaction の先頭で取得するため、初期化と競合して削除後にデータが復活したり、参照が dangling になったりしません。失敗時は transaction 全体を rollback します。
 
+## 固定費と自動記録
+
+固定費は `fixed_costs` に支払頻度（毎月・毎年・間隔）、開始月、日付、カテゴリ、資産を保存します。`apps/worker` の既存 tick（60秒間隔）が東京日付で発生日を判定し、該当する固定費だけを処理します。日付一致候補は SQL の日付条件で先に絞り、月末は 31 日など短い月の日付も候補に含めて暦末へ丸めます。
+
+実行記録は `fixed_cost_occurrences` に固定費と発生日ごとに保存します。`(fixed_cost_id, occurred_on)` の一意制約と transaction 内の `ON CONFLICT DO NOTHING` で並行実行・再実行を一度にし、取引には `fixed-cost:<id>:<date>` の決定的な `external_id` を付けます。origin は既存の手動取引と同じ `manual` を使います。これは固定費が API 由来ではなく、既存 UI の API バッジ／API フィルターに誤って表示しないためです。
+
 `migrate.ts` は Drizzle migrator に `drizzle` フォルダを渡し、migration を順番に適用します。
 
 ## データベース
@@ -58,7 +64,7 @@ DB URL の検証は `@kobako/db` の関数を呼び出した時にだけ行い�
 `/transactions` は `listLedgerEntries` で通常取引と振替を日付順に混ぜます。資産の絞り込みは通常取引の `account_id` と振替の from/to の両方を対象にし、月・種別・カテゴリと組み合わせても重複を出しません。条件に一致する行はすべて表示し、旧 URL の `page` パラメータは無視します。資産設定からの戻り先を検証して再構築する際も `page` を捨てます。
 
 - 登録・編集・削除は Server Actions だけで行います。Client Component の統合フォームは React 19 `useActionState`/`useFormStatus` で支出・収入・振替を切り替え、Zod schema を Server Action でも再検証します。新規操作の資産候補は削除されていない資産にし、既存取引を編集する場合は参照中の削除済み資産を保持します。新規振替も削除されていない資産を受け付けます。
-- 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧はなく、取引一覧で資産を絞り込んだときだけ削除されていない資産に設定歯車を表示します。資産設定フォームは名前・資産カテゴリ・カード現在条件をまとめて扱い、論理削除は `accounts.deleted_at` に日時を設定して参照行を保持します。
+- 資産登録は `/accounts/new`、設定は `/accounts/[id]/edit` の Server Action で行います。専用の資産一覧ページはなく、設定画面の「資産」セクションに削除されていない資産を並べ、各行から資産設定を開きます（`return=/settings`）。資産設定フォームは名前・資産カテゴリ・カード現在条件をまとめて扱い、論理削除は `accounts.deleted_at` に日時を設定して参照行を保持します。
 - 資産とカード現在条件の保存は同一トランザクションで確定し、カード資産の設定更新・資産カテゴリ変更・論理削除は請求処理と同じカード設定ロックを取得します。保存時点で論理削除済みの資産は変更せず拒否します。
 
 `getAccountBalances` は全期間の取引から資産ごとの計算上の残高を `income - expense - transfersOut + transfersIn` で計算します。残高画面は保存済み `kind` の資産カテゴリ順（現金、銀行、クレジットカード、デビットカード、電子マネー、その他）で表示します。現金・銀行・デビットカードは資産、クレジットカードは符号を反転して負債として表示します。

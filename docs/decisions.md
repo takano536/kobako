@@ -30,7 +30,7 @@ PostgreSQL の Compose image は `postgres:18.6-alpine3.24`、Node image は `no
 
 ## Mutation と再検証
 
-Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。Route Handler、optimistic update、追加キャッシュは使いません。
+Mutation 機構は Next.js Server Actions に統一します。登録・編集フォームは React 19 の `useActionState` でサーバーから返した入力値と日本語フィールドエラーを表示し、フォーム送信時はクライアント側でも同じ Zod schema を検証しますが（`event.preventDefault()` で不正な送信そのものを止めます）、Server Action は必ず同じ schema と DB 上のカテゴリ照合で再検証します。成功時は対象月の一覧へ redirect し、`revalidatePath` を呼びます。削除は `<details>` の確認開示を使い、`confirm=delete` を含む送信だけを受け付けます。確認値がない直接送信は削除せず、JavaScript 無効でも 2 回目の送信で確定できます。`deleteTransaction` は対象行を `SELECT FOR UPDATE` でカード請求ロックと同じ transaction に保持してから `DELETE ... RETURNING occurred_on` を実行し、行が返らなければ `notFound()` を呼びます。削除後は対象月一覧へ redirect して削除済み URL には戻りません。画面の mutation は Server Actions に統一し、Route Handler は `/api/v1` の外部 API だけに使います。optimistic update と追加キャッシュは使いません。
 
 ## 入力拒否とフォーカス可能な日付欄
 
@@ -39,6 +39,18 @@ Mutation 機構は Next.js Server Actions に統一します。登録・編集�
 ## タッチ端末でのカードの初期フォーカス
 
 `OverlayCard` は、デスクトップ（`pointer: fine`）では表示時に金額欄・名前欄へ自動フォーカスし、タッチ端末（`pointer: coarse`）では入力欄へフォーカスせずカード自体（`tabIndex=-1` の `role="dialog"`）へフォーカスします。タッチ端末で入力欄へフォーカスすると、カードを開いただけでソフトキーボードが開き、カードの内容を隠すためです。「戻る」ボタンではなくカードを選んだのは、スクリーンリーダーがダイアログ名から読み上げ、誤って戻る操作を起こさないためです。判定は追加依存なしの `matchMedia` で初回マウント時に1回だけ行います。
+
+## Android で選択ダイアログを閉じるタップ
+
+Android のブラウザは、`<select>` のネイティブ選択ダイアログを外側のタップで閉じたとき、そのタップをページ側の要素にも届けます。取引の絞り込みでは閉じるタップが月欄に落ちて月ピッカーが開き、適用ボタンに落ちると送信されるため、ルートレイアウトの `SelectDismissTapGuard` が Android のタッチ端末（UA の `Android` と `maxTouchPoints > 0`）でだけ、そのタップを捨てます。`<select>` への `pointerdown`／`focusin`／`click` のどれかを見たら待機状態にし、待機中の最初のタップの行き先がフィルタのフォーム・月スイッチャー・日付/月ピッカー（`date`／`month` の input を指すラベルを含む）なら、その `pointerdown`・`pointerup`・`touchend` を `preventDefault()` し、`click` を `preventDefault()` と `stopPropagation()` で止めます。`pointerdown` を伴わない `click` だけでも捨てます。ブラウザによって `focusin` が来ない、閉じるタップの時点でフォーカスが `<select>` にないといった違いがあるため、`document.activeElement` は判定に使いません。待機はどのタップでも解除するので続けて2回は捨てず、`<select>` の `change`、`pointercancel`、`keydown`、待機から 10 秒の経過でも解除します。判定は `apps/web/src/lib/select-dismiss-tap.ts` に分け、単体テストで確認します。iOS とデスクトップには取り付けません。
+
+Android Firefox の実機では、ヘッダーの月ラベルから月ピッカーを開いて閉じた後に、`<select>` のダイアログを外側のタップで閉じると月ピッカーが開く不具合が残りました。実機のイベント列が無い段階では、考えられる原因を同時に潰しました。(1) ラベルからの date/month input の起動が `click` より前の `pointerup`／`touchend` で行われる場合に備え、捨てるジェスチャーの `pointerup`・`touchend` も止めます。(2) ダイアログの開閉で起きる `scroll`・`visibilitychange` で待機が解除され、閉じるタップが素通りする場合に備え、これらでは解除せず、代わりに 10 秒で失効させます。(3) ピッカーを閉じた後も隠れた input にフォーカスが残り、フォーカス復元でピッカーが開き直る場合に備え、ページがフォーカスを取り戻したときにその input を `blur()` しました。
+
+その後、実機で `?tap-debug=1` のログを取りました。1件目では、`<select>` のダイアログを閉じる外側のタップがページに届いておらず、月ピッカーを閉じた後の `activeElement` も月ラベルのままでした。この時点では、`showPicker()` で開いたピッカーをブラウザが保持していると考え、ヘッダーの月と日付/月の表示部を `<label htmlFor>` からの既定の起動に変えました（日付の表示部はこの形のままです）。
+
+さらに2件のログで原因が確定しました。ヘッダーの月（ラベルからの既定の起動）でも、フィルタの月欄（同じく既定の起動）でも再発し、どちらも月ピッカーを閉じた後の `activeElement` は隠れた `input[type=month]` のままでした。ヘッダーの例では閉じるタップがフィルタのフォームに届き、ガードが `pointerdown` を止めていたのに月ピッカーが開きました。フィルタの例では閉じるタップはページに届いていません。つまりタップは原因ではなく、Android Firefox が一度開いて閉じたネイティブの date/month ピッカーを保持し、別のネイティブダイアログ（`<select>`）を閉じたときに再表示しています。`showPicker()` でもラベルの既定動作でも起き、ページからは観測も制御もできません。そのため、月の選択は OS のダイアログを使わず、アプリ内の月グリッド（`month-picker.tsx`、`month-picker.module.css`）にしました。表示部（`<button>`、`aria-haspopup="dialog"`・`aria-expanded`）のタップで、年の前後（`‹ 2026年 ›`）と 1〜12 月のグリッドを出し、月を選ぶと即座に確定して閉じます。表示部のもう一度のタップ、外側の `pointerdown`、Escape でも閉じ、スクロールでは閉じません。ポップオーバーは `role="dialog"`・`aria-label="月を選択"` で、`<body>` 直下に `position: fixed` で出します。フィルタの `<details>` の中でも切れず、ラベルの名前にも混ざりません。重なりは下部ナビゲーションより上、オーバーレイカードより下です。フィルタの月は GET フォームで送るため `<input type="hidden" name="month">` を置き、ラベルは中の表示ボタンを包んで関連づけます（`htmlFor` は外しました）。JavaScript が動く前と無効なときは、従来どおりネイティブの `input[type=month]` を出します。日付は変えず、ネイティブの日付ピッカーのままです。月グリッドのポップオーバーは `<body>` 直下にあり、フィルタや月スイッチャーの中に無いため、ガードの対象に `[data-slot="month-picker-popover"]` を明示して、`<select>` を閉じるタップで月が選ばれないようにしました。ガードはフォーム送信・適用ボタンの誤爆を防ぐため残します。
+
+原因を確定させるための一時的な診断として、URL に `?tap-debug=1` があるときだけ `TapDebugLog` が画面下部にタップ関連のイベント（`touchstart`／`pointerdown`／`pointerup`／`pointercancel`／`touchend`／`mouseup`／`click`／`focusin`／`change`／`visibilitychange`）を時刻・target・`defaultPrevented`・`activeElement` 付きで、JS からの `showPicker()` 呼び出しを `showPicker target=…` の行で、最大 60 行表示します。パラメータが無いときは DOM もリスナーも追加せず、`showPicker` も置き換えません。月グリッドへの置き換えで再発しないことを実機で確かめ、外す判断をするまで残します。
 
 ## server-only パッケージ
 
@@ -161,3 +173,7 @@ DB はデモ専用の PostgreSQL を一つ共有します。PR ごとに DB を�
 デモ配備では訪問者ごとに世帯を発行します。単一世帯を共有すると、レビュアーAの登録がBの画面に現れ、`/settings/delete` を押した人が全員のデータを消せてしまうためです。スキーマは元々すべてのテーブルを `household_id` で分けているので、`initializeDefaultLedger` に世帯を受け取らせ、`/demo/start` で uuid を発行するだけで足ります。
 
 上限（200世帯）と24時間の生存期間は、`/demo/start` を連打された場合の被害を固定するためのものです。Neon Free は1GB/プロジェクトで、超過すると書き込みが失敗し、CU-hours を使い切ると翌請求期間まで compute が停止します。上限を置けば、掃除が壊れてもストレージは約2MBで止まります。上限に達したときは最古の世帯を捨てるので、訪問者が「満員」で締め出されることはありません。
+
+## 外部エージェント向け API
+
+外部エージェント向け API は固定トークン 1 本（`KOBAKO_API_TOKEN`、未設定なら無効）で保護します。カテゴリと資産は ID ではなく名前で受け付けます。指紋と `Idempotency-Key` で重複登録を作らないようにします。Route Handler は `apps/web/app/api/v1/**` だけに置きます。

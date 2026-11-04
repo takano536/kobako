@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import buttonStyles from './button.module.css';
+import chipStyles from './filter-chips.module.css';
 import headerStyles from './page-header.module.css';
 import monthStyles from './month-switcher.module.css';
 import skeletonStyles from './skeleton.module.css';
@@ -20,7 +21,7 @@ export type PageSkeletonBlock = { before?: 'group' | 'section' } & (
       kind: 'summary';
       content: ReactNode;
     }
-  | { kind: 'filter' }
+  | { kind: 'filter'; content?: ReactNode }
   | {
       kind: 'list';
       title?: string;
@@ -28,6 +29,7 @@ export type PageSkeletonBlock = { before?: 'group' | 'section' } & (
       rows: number;
       row?: 'entry' | 'line';
       amount?: boolean;
+      content?: ReactNode;
       /** 取引一覧のように、この行数ごとに日付の見出しを置きます。 */
       datedEvery?: number;
     }
@@ -43,7 +45,6 @@ interface PageSkeletonProps {
   /** 見出しが戻りリンクを兼ねる子画面です。 */
   back?: boolean;
   count?: boolean;
-  action?: { label: string; icon?: string };
   monthSwitcher?: boolean;
   /** 月切替に表示する月です。遷移先の月が分かっているときは仮の値ではなくその月を出します。 */
   month?: string;
@@ -74,8 +75,7 @@ function SkeletonHeader({
   title,
   back,
   count,
-  action,
-}: Pick<PageSkeletonProps, 'title' | 'back' | 'count' | 'action'>) {
+}: Pick<PageSkeletonProps, 'title' | 'back' | 'count'>) {
   const heading = <span className={headerStyles['heading-title']}>{title}</span>;
   return (
     <header className={headerStyles['page-header']}>
@@ -100,18 +100,6 @@ function SkeletonHeader({
           </span>
         ) : null}
       </h1>
-      {action ? (
-        <div className={headerStyles['page-header-actions']}>
-          <span
-            className={`${buttonStyles.linkButton} ${skeletonStyles.ghost}`}
-            data-variant="primary"
-            aria-hidden="true"
-          >
-            {action.icon ? <span className={buttonStyles.linkIcon}>{action.icon}</span> : null}
-            <span>{action.label}</span>
-          </span>
-        </div>
-      ) : null}
     </header>
   );
 }
@@ -151,12 +139,28 @@ function SkeletonBlockView({ block }: { block: PageSkeletonBlock }) {
     case 'summary':
       return block.content;
     case 'filter':
+      if (block.content !== undefined) return block.content;
+      // 絞り込みのチップ行と同じ寸法で、条件なしの状態を出します。
       return (
-        <div className={styles.filter}>
-          <SkeletonText>条件を変更する</SkeletonText>
+        <div className={chipStyles.row}>
+          {['種別', 'カテゴリ', '資産'].map((label) => (
+            <span key={label} className={chipStyles.chip}>
+              <span className={chipStyles.label}>{label}</span>
+              <svg className={chipStyles.chevron} viewBox="0 0 12 12" aria-hidden="true">
+                <path d="m2 4.5 4 4 4-4" />
+              </svg>
+            </span>
+          ))}
+          <span className={`${chipStyles.chip} ${chipStyles.toggle}`}>
+            <svg className={chipStyles.check} viewBox="0 0 12 12" aria-hidden="true">
+              <path d="m2 6.5 2.5 2.5L10 3.5" />
+            </svg>
+            <span className={chipStyles.label}>APIのみ</span>
+          </span>
         </div>
       );
     case 'list':
+      if (block.content !== undefined) return block.content;
       return (
         <div>
           {block.title ? (
@@ -214,7 +218,6 @@ export function PageSkeleton({
   width = 'wide',
   back = false,
   count = false,
-  action,
   monthSwitcher = false,
   month,
   blocks,
@@ -224,7 +227,7 @@ export function PageSkeleton({
       <div data-slot="page-skeleton" role="status">
         <span className="sr-only">{label}</span>
         <div aria-hidden="true">
-          <SkeletonHeader title={title} back={back} count={count} action={action} />
+          <SkeletonHeader title={title} back={back} count={count} />
         </div>
         {/* The month switcher stays live so a burst of taps keeps moving the shown month while one
             request is in flight. */}
@@ -241,7 +244,12 @@ export function PageSkeleton({
           {blocks.map((block, index) => (
             <div
               className={styles.block}
-              data-before={block.before ?? (index === 0 ? undefined : 'section')}
+              data-before={
+                block.before ??
+                (index === 0 || ('content' in block && block.content !== undefined)
+                  ? undefined
+                  : 'section')
+              }
               key={index}
             >
               <SkeletonBlockView block={block} />

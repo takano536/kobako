@@ -16,8 +16,6 @@ import {
 } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { useRouter } from 'next/navigation';
-
 import {
   AMOUNT_FORMAT_MESSAGE,
   AMOUNT_TEXT_PATTERN_SOURCE,
@@ -41,6 +39,7 @@ import {
   type TransactionFormValues,
 } from '../../src/lib/transaction-form';
 import { Button } from '../_components/button';
+import { FormActions } from '../_components/form-actions';
 import { prefersTouchInput } from '../_components/overlay-card';
 import { DatePickerField } from './date-picker-field';
 import { deleteTransactionAction } from './actions';
@@ -141,13 +140,7 @@ function SubmitButton({ label, disabled = false }: { label: string; disabled?: b
   const { pending } = useFormStatus();
   return (
     <>
-      <Button
-        variant="primary"
-        className={formsStyles['save-button']}
-        type="submit"
-        disabled={pending || disabled}
-        aria-busy={pending}
-      >
+      <Button variant="primary" type="submit" disabled={pending || disabled} aria-busy={pending}>
         {pending ? '保存中…' : label}
       </Button>
       <span className="sr-only" aria-live="polite">
@@ -200,7 +193,6 @@ export function TransactionForm({
   submitLabel,
   showCancel = false,
 }: TransactionFormProps) {
-  const router = useRouter();
   const [state, formAction, pending] = useActionState(action, emptyTransactionFormState);
   const [values, setValues] = useState(initialValues);
   const [isDirty, setIsDirty] = useState(false);
@@ -547,14 +539,13 @@ export function TransactionForm({
                     .join(' ')}
                 >
                   <select
-                    className={formsStyles['field-select']}
                     id={`transaction-category-${categoryType}`}
                     name="categoryId"
                     value={formValues.categoryId}
                     onChange={(event) => updateValue('categoryId', event.currentTarget.value)}
+                    required
                     aria-invalid={categoryError ? true : undefined}
                     aria-describedby={categoryError ? categoryErrorId : undefined}
-                    required
                   >
                     <option value="">選択してください</option>
                     {categories
@@ -599,14 +590,13 @@ export function TransactionForm({
                 .join(' ')}
             >
               <select
-                className={formsStyles['field-select']}
                 id="transaction-from-account"
                 name="fromAccountId"
                 value={formValues.fromAccountId}
                 onChange={(event) => updateValue('fromAccountId', event.currentTarget.value)}
+                required
                 aria-invalid={fromAccountError ? true : undefined}
                 aria-describedby={fromAccountError ? 'transaction-from-account-error' : undefined}
-                required
               >
                 <option value="">選択してください</option>
                 {transferAccounts.map((account) => (
@@ -636,14 +626,13 @@ export function TransactionForm({
                 .join(' ')}
             >
               <select
-                className={formsStyles['field-select']}
                 id="transaction-to-account"
                 name="toAccountId"
                 value={formValues.toAccountId}
                 onChange={(event) => updateValue('toAccountId', event.currentTarget.value)}
+                required
                 aria-invalid={toAccountError ? true : undefined}
                 aria-describedby={toAccountError ? 'transaction-to-account-error' : undefined}
-                required
               >
                 <option value="">選択してください</option>
                 {transferAccounts.map((account) => (
@@ -681,7 +670,6 @@ export function TransactionForm({
                 .join(' ')}
             >
               <select
-                className={formsStyles['field-select']}
                 id="transaction-account"
                 name="accountId"
                 value={formValues.accountId}
@@ -725,7 +713,6 @@ export function TransactionForm({
               <DatePickerField
                 id="transaction-date"
                 name="occurredOn"
-                kind="date"
                 value={formValues.occurredOn}
                 labelId="transaction-date-label"
                 required
@@ -774,31 +761,14 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div
-          className={[
-            formsStyles['save-button-options'],
-            showCancel && formsStyles['save-button-options-with-cancel'],
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {showCancel ? (
-            <Button
-              variant="secondary"
-              className={formsStyles['save-button-cancel']}
-              type="button"
-              onClick={() => router.back()}
-            >
-              キャンセル
-            </Button>
-          ) : null}
+        <FormActions showCancel={showCancel}>
           <span className={formsStyles['save-button-ordinary']}>
             <SubmitButton label={submitLabel} />
           </span>
           <span className={formsStyles['save-button-transfer']}>
             <SubmitButton label={submitLabel} />
           </span>
-        </div>
+        </FormActions>
       </form>
     </>
   );

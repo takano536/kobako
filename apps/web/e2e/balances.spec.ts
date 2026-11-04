@@ -14,6 +14,7 @@ import {
 } from '@kobako/db';
 
 import { E2E_MARKER_PREFIX, assertCleanupMarker } from './e2e-safety';
+import { selectFieldOption } from './select-field-helpers';
 
 const runId = randomUUID();
 const markerPrefix = `${E2E_MARKER_PREFIX}${runId}:balances:`;
@@ -193,9 +194,7 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 
   const initialGeometry = await page.evaluate(() => {
     const header = document.querySelector<HTMLElement>('[data-slot="site-header"]');
-    const summary = document.querySelector<HTMLElement>(
-      '[aria-labelledby="balance-summary-title"]',
-    );
+    const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     if (!header || !summary) {
       throw new Error('balance summary geometry elements are missing');
     }
@@ -211,9 +210,7 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 
   await page.evaluate(() => {
     document.body.style.minHeight = '200vh';
-    const summary = document.querySelector<HTMLElement>(
-      '[aria-labelledby="balance-summary-title"]',
-    );
+    const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
     if (!summary) throw new Error('balance summary is missing');
     window.scrollTo(0, summary.getBoundingClientRect().top + window.scrollY);
   });
@@ -221,9 +218,8 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
     .poll(() =>
       page.evaluate(
         () =>
-          document
-            .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
-            ?.getBoundingClientRect().top,
+          document.querySelector<HTMLElement>('[data-slot="page-summary"]')?.getBoundingClientRect()
+            .top,
       ),
     )
     .toBeGreaterThanOrEqual(-1);
@@ -231,9 +227,8 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
     .poll(() =>
       page.evaluate(
         () =>
-          document
-            .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
-            ?.getBoundingClientRect().top,
+          document.querySelector<HTMLElement>('[data-slot="page-summary"]')?.getBoundingClientRect()
+            .top,
       ),
     )
     .toBeLessThanOrEqual(1);
@@ -244,14 +239,14 @@ async function expectStickyBalanceSummary(page: Page): Promise<void> {
 }
 async function expectSummaryValuesFit(page: Page): Promise<void> {
   const values = await page.evaluate(() =>
-    Array.from(
-      document.querySelectorAll<HTMLElement>('[aria-labelledby="balance-summary-title"] dd'),
-    ).map((value) => ({
-      clientWidth: value.clientWidth,
-      scrollWidth: value.scrollWidth,
-      height: value.getBoundingClientRect().height,
-      text: value.textContent ?? '',
-    })),
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot="page-summary"] dd')).map(
+      (value) => ({
+        clientWidth: value.clientWidth,
+        scrollWidth: value.scrollWidth,
+        height: value.getBoundingClientRect().height,
+        text: value.textContent ?? '',
+      }),
+    ),
   );
   expect(values).toHaveLength(3);
   for (const value of values) {
@@ -351,175 +346,144 @@ async function logRenderedPlatformFonts(page: Page): Promise<void> {
 
 async function expectMobileSummaryLayout(
   page: Page,
-  options: { requireSingleRow?: boolean } = {},
+  { allowStacked = false }: { allowStacked?: boolean } = {},
 ): Promise<void> {
   const layout = await page.evaluate(() => {
-    const list = document.querySelector<HTMLElement>(
-      '[aria-labelledby="balance-summary-title"] dl',
-    );
-    const items = list
-      ? Array.from(list.children).filter((item): item is HTMLElement => item instanceof HTMLElement)
+    const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
+    const list = summary?.querySelector<HTMLElement>('dl');
+    const metrics = list
+      ? Array.from(list.querySelectorAll<HTMLElement>('dt')).map((label) => {
+          const value = label.parentElement?.querySelector<HTMLElement>('dd');
+          if (!value) throw new Error('balance summary value is missing');
+          const labelStyle = getComputedStyle(label);
+          const valueStyle = getComputedStyle(value);
+          const box = value.getBoundingClientRect();
+          const metricBox = label.parentElement?.getBoundingClientRect();
+          if (!metricBox) throw new Error('balance summary metric box is missing');
+          return {
+            label: label.textContent,
+            labelColor: labelStyle.color,
+            valueFontSize: Number.parseFloat(valueStyle.fontSize),
+            valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
+            metricTop: metricBox.top,
+            metricBottom: metricBox.bottom,
+            valueTop: box.top,
+            valueBottom: box.bottom,
+            valueLeft: box.left,
+            valueRight: box.right,
+            valueScrollWidth: value.scrollWidth,
+            valueClientWidth: value.clientWidth,
+          };
+        })
       : [];
-    if (!list || items.length !== 3) {
+    if (!summary || !list || metrics.length !== 3) {
       throw new Error('balance summary layout elements are missing');
     }
     const listBox = list.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
-    const itemGeometry = items.map((item) => {
-      const label = item.querySelector<HTMLElement>('dt');
-      const value = item.querySelector<HTMLElement>('dd');
-      if (!label || !value) {
-        throw new Error('balance summary label/value is missing');
-      }
-      const itemBox = item.getBoundingClientRect();
-      const labelBox = label.getBoundingClientRect();
-      const valueBox = value.getBoundingClientRect();
-      const itemStyle = getComputedStyle(item);
-      const labelStyle = getComputedStyle(label);
-      const valueStyle = getComputedStyle(value);
-      const dividerStyle = getComputedStyle(item, '::before');
-      return {
-        label: label.textContent,
-        itemTop: itemBox.top,
-        itemBottom: itemBox.bottom,
-        itemLeft: itemBox.left,
-        itemRight: itemBox.right,
-        itemHeight: itemBox.height,
-        itemCenter: (itemBox.left + itemBox.right) / 2,
-        labelCenter: (labelBox.left + labelBox.right) / 2,
-        labelLeft: labelBox.left,
-        labelBottom: labelBox.bottom,
-        labelColor: labelStyle.color,
-        valueCenter: (valueBox.left + valueBox.right) / 2,
-        valueLeft: valueBox.left,
-        valueBottom: valueBox.bottom,
-        valueHeight: valueBox.height,
-        valueFontSize: Number.parseFloat(valueStyle.fontSize),
-        valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
-        valueTextAlign: valueStyle.textAlign,
-        valueWhiteSpace: valueStyle.whiteSpace,
-        valueScrollWidth: value.scrollWidth,
-        valueClientWidth: value.clientWidth,
-        itemFlex: itemStyle.flex,
-        itemMinWidth: itemStyle.minWidth,
-        borderInlineStart: itemStyle.borderInlineStartWidth,
-        borderBlockStart: itemStyle.borderBlockStartWidth,
-        dividerBorderBlockStart: dividerStyle.borderBlockStartWidth,
-      };
-    });
-    const rowTops: number[] = [];
-    for (const item of itemGeometry) {
-      if (!rowTops.some((rowTop) => Math.abs(rowTop - item.itemTop) <= 1)) {
-        rowTops.push(item.itemTop);
-      }
-    }
     return {
       display: listStyle.display,
       flexWrap: listStyle.flexWrap,
       columnGap: listStyle.columnGap,
       rowGap: listStyle.rowGap,
-      paddingInlineStart: listStyle.paddingInlineStart,
-      paddingInlineEnd: listStyle.paddingInlineEnd,
-      borderBlockStart: listStyle.borderBlockStartWidth,
-      borderBlockEnd: listStyle.borderBlockEndWidth,
+      borderBlockEnd: getComputedStyle(summary).borderBlockEndWidth,
       listLeft: listBox.left,
       listRight: listBox.right,
-      rowTops,
-      itemGeometry,
-      summaryHeight: document
-        .querySelector<HTMLElement>('[aria-labelledby="balance-summary-title"]')
-        ?.getBoundingClientRect().height,
+      metrics,
     };
   });
   expect(layout.display).toBe('flex');
   expect(layout.flexWrap).toBe('wrap');
-  expect(layout.columnGap).toBe('16px');
-  expect(layout.rowGap).toBe('16px');
-  expect(layout.paddingInlineStart).toBe('0px');
-  expect(layout.paddingInlineEnd).toBe('0px');
-  expect(layout.borderBlockStart).toBe('0px');
-  expect(layout.borderBlockEnd).toBe('0px');
-  expect(layout.itemGeometry.map((item) => item.label)).toEqual(['資産', '負債', '純資産']);
-  if (options.requireSingleRow) {
-    expect(layout.rowTops).toHaveLength(1);
+  expect(layout.columnGap).toBe('12px');
+  expect(layout.rowGap).toBe('12px');
+  expect(layout.borderBlockEnd).toBe('1px');
+  expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
+  const net = layout.metrics[0];
+  const assets = layout.metrics[1];
+  const liabilities = layout.metrics[2];
+  if (!net || !assets || !liabilities) throw new Error('balance summary metrics are missing');
+  const compact320 = await page.evaluate(() => window.innerWidth <= 320);
+  const primarySize = compact320 ? 23.36 : 26;
+  const secondarySize = compact320 ? 14.72 : 16;
+  expect(net.valueFontSize).toBeCloseTo(primarySize, 2);
+  expect(net.valueFontWeight).toBe(600);
+  for (const metric of [assets, liabilities]) {
+    expect(metric.valueFontSize).toBeCloseTo(secondarySize, 2);
   }
-  const firstItem = layout.itemGeometry[0];
-  if (!firstItem) throw new Error('first mobile summary item is missing');
-  const netItem = layout.itemGeometry[2];
-  if (!netItem) throw new Error('net mobile summary item is missing');
-  for (const rowTop of layout.rowTops) {
-    const rowItems = layout.itemGeometry.filter((item) => Math.abs(item.itemTop - rowTop) <= 1);
-    const firstRowItem = rowItems[0];
-    if (!firstRowItem) throw new Error('mobile summary row is missing');
-    expect(
-      Math.abs(Math.min(...rowItems.map((item) => item.itemLeft)) - layout.listLeft),
-    ).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(Math.max(...rowItems.map((item) => item.itemRight)) - layout.listRight),
-    ).toBeLessThanOrEqual(1);
-    for (const [index, item] of rowItems.entries()) {
-      expect(Math.abs(item.itemBottom - firstRowItem.itemBottom)).toBeLessThanOrEqual(1);
-      expect(Math.abs(item.itemHeight - firstRowItem.itemHeight)).toBeLessThanOrEqual(1);
-      if (index > 0) {
-        const previousItem = rowItems[index - 1];
-        if (!previousItem) throw new Error('previous mobile summary item is missing');
-        expect(item.itemLeft).toBeGreaterThanOrEqual(previousItem.itemRight);
-      }
-      expect(Math.abs(item.labelLeft - item.itemLeft)).toBeLessThanOrEqual(1);
-      expect(Math.abs(item.valueLeft - item.itemLeft)).toBeLessThanOrEqual(1);
-      expect(Math.abs(item.valueBottom - firstRowItem.valueBottom)).toBeLessThanOrEqual(1);
-      expect(item.valueTextAlign).toBe('left');
-      expect(item.valueScrollWidth).toBeLessThanOrEqual(item.valueClientWidth + 1);
-      expect(item.itemFlex).toBe('1 1 0px');
-      expect(item.itemMinWidth).toBe('max-content');
-      expect(item.borderInlineStart).toBe('0px');
-      expect(item.borderBlockStart).toBe('0px');
-      expect(item.dividerBorderBlockStart).toBe('0px');
-    }
+  // 主指標の見出しは ink、副指標の見出しは muted で金額と左端を揃えます。
+  expect(net.labelColor).not.toBe(assets.labelColor);
+  expect(assets.labelColor).toBe(liabilities.labelColor);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    expect(Math.abs(net.valueBottom - assets.valueBottom)).toBeLessThanOrEqual(1);
   }
-  expect(firstItem.valueFontSize).toBe(14);
-  expect(firstItem.valueFontWeight).toBe(400);
-  expect(layout.itemGeometry[1]?.valueFontSize).toBe(14);
-  expect(layout.itemGeometry[1]?.valueFontWeight).toBe(400);
-  expect(netItem.valueFontSize).toBe(15);
-  expect(netItem.valueFontWeight).toBe(500);
-  expect(netItem.labelColor).not.toBe(firstItem.labelColor);
-  expect(layout.summaryHeight).toBeGreaterThan(0);
+  for (const metric of layout.metrics) {
+    expect(metric.valueScrollWidth).toBeLessThanOrEqual(metric.valueClientWidth + 1);
+  }
 }
 
-async function expectDesktopSummaryLayout(page: Page): Promise<void> {
+async function expectDesktopSummaryLayout(
+  page: Page,
+  { allowStacked = false }: { allowStacked?: boolean } = {},
+): Promise<void> {
   const layout = await page.evaluate(() => {
-    const list = document.querySelector<HTMLElement>(
-      '[aria-labelledby="balance-summary-title"] dl',
-    );
-    const items = list
-      ? Array.from(list.children).filter((item): item is HTMLElement => item instanceof HTMLElement)
+    const summary = document.querySelector<HTMLElement>('[data-slot="page-summary"]');
+    const list = summary?.querySelector<HTMLElement>('dl');
+    const metrics = list
+      ? Array.from(list.querySelectorAll<HTMLElement>('dt')).map((label) => {
+          const value = label.parentElement?.querySelector<HTMLElement>('dd');
+          if (!value) throw new Error('desktop balance summary value is missing');
+          const valueStyle = getComputedStyle(value);
+          const box = value.getBoundingClientRect();
+          return {
+            label: label.textContent,
+            valueFontSize: Number.parseFloat(valueStyle.fontSize),
+            valueFontWeight: Number.parseInt(valueStyle.fontWeight, 10),
+            valueTop: box.top,
+            valueBottom: box.bottom,
+            valueLeft: box.left,
+            valueRight: box.right,
+          };
+        })
       : [];
-    if (!list || items.length !== 3) {
+    if (!summary || !list || metrics.length !== 3) {
       throw new Error('desktop balance summary layout elements are missing');
     }
+    const listBox = list.getBoundingClientRect();
+    const listStyle = getComputedStyle(list);
     return {
-      gridTemplateColumns: getComputedStyle(list).gridTemplateColumns,
-      items: items.map((item) => {
-        const box = item.getBoundingClientRect();
-        return {
-          x: box.x,
-          y: box.y,
-          width: box.width,
-          height: box.height,
-          borderInlineStart: getComputedStyle(item).borderInlineStartWidth,
-        };
-      }),
+      display: listStyle.display,
+      alignItems: listStyle.alignItems,
+      columnGap: listStyle.columnGap,
+      listLeft: listBox.left,
+      listRight: listBox.right,
+      metrics,
     };
   });
-  expect(layout.gridTemplateColumns.split(' ')).toHaveLength(3);
-  const firstItem = layout.items[0];
-  if (!firstItem) throw new Error('first desktop summary item is missing');
-  for (const [index, item] of layout.items.entries()) {
-    expect(Math.abs(item.y - firstItem.y)).toBeLessThanOrEqual(1);
-    expect(Math.abs(item.width - firstItem.width)).toBeLessThanOrEqual(1);
-    expect(item.height).toBeGreaterThan(0);
-    expect(item.borderInlineStart).toBe(index === 0 ? '0px' : '1px');
+  expect(layout.display).toBe('flex');
+  expect(layout.alignItems).toBe('flex-end');
+  expect(layout.columnGap).toBe('64px');
+  expect(layout.metrics.map((metric) => metric.label)).toEqual(['純資産', '資産', '負債']);
+  const net = layout.metrics[0];
+  const assets = layout.metrics[1];
+  const liabilities = layout.metrics[2];
+  if (!net || !assets || !liabilities)
+    throw new Error('desktop balance summary metrics are missing');
+  expect(net.valueFontSize).toBeCloseTo(36, 2);
+  expect(net.valueFontWeight).toBe(600);
+  for (const metric of [assets, liabilities]) {
+    expect(metric.valueFontSize).toBeCloseTo(18, 2);
+    expect(metric.valueFontWeight).toBe(500);
+  }
+  expect(Math.abs(net.valueLeft - layout.listLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(liabilities.valueRight - layout.listRight)).toBeLessThanOrEqual(1);
+  if (allowStacked && Math.abs(net.valueBottom - assets.valueBottom) > 1) {
+    expect(net.valueBottom).toBeLessThanOrEqual(assets.valueTop + 1);
+  } else {
+    for (const metric of layout.metrics) {
+      expect(Math.abs(metric.valueBottom - net.valueBottom)).toBeLessThanOrEqual(1);
+    }
   }
 }
 
@@ -1107,8 +1071,10 @@ test('updates balances after UI transaction and transfer mutations', async ({ pa
 
   await page.goto(`/transactions/new?month=${month}&type=transfer`);
   await page.locator('#transaction-amount').fill('300');
-  await page.locator('#transaction-from-account').selectOption({ label: longAccountName });
-  await page.locator('#transaction-to-account').selectOption({ label: destinationAccountName });
+  await selectFieldOption(page.locator('#transaction-from-account'), { label: longAccountName });
+  await selectFieldOption(page.locator('#transaction-to-account'), {
+    label: destinationAccountName,
+  });
   await page.locator('#transaction-memo').fill(`${markerPrefix}transfer-create`);
   await page.getByRole('button', { name: '登録する', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
@@ -1206,9 +1172,11 @@ test('opens the account-filtered transactions by clicking its name from balances
   await expect(row).toBeVisible();
   await row.getByText(accountName, { exact: true }).click();
   await expect(page).toHaveURL(`/transactions?account=${account.id}&month=all`);
-  await expect(page.getByRole('heading', { name: accountName, exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: '資産の絞り込みを解除', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '資産の絞り込みを解除', exact: true }).click();
+  await expect(page.locator('[data-slot="filter-chip"][data-filter="account"]')).toContainText(
+    accountName,
+  );
+  await expect(page.getByRole('button', { name: '資産の条件を外す', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '資産の条件を外す', exact: true }).click();
   await expect(page).toHaveURL(/\/transactions\?month=\d{4}-\d{2}$/);
   await database().sql`
     delete from transactions
@@ -1345,29 +1313,27 @@ test('makes every balance row surface navigate to its transactions', async ({ pa
       fullPage: true,
     });
 
-    const transactionPath = `/transactions?month=all&account=${accountIdFor(paymentFixtureNames.primaryCard)}`;
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(
-      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
+    await page.goto('/settings');
+    const assetEdit = page.locator(
+      `a[href="/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=%2Fsettings"]`,
     );
-    const pencilLink = page.getByRole('link', { name: '資産を編集', exact: true });
-    await expect(pencilLink).toHaveAttribute('title', '資産を編集');
-    await expect(pencilLink).toHaveAttribute(
-      'href',
-      `/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=${encodeURIComponent(transactionPath)}`,
-    );
+    await expect(assetEdit).toBeVisible();
+    await expect(assetEdit).toContainText(paymentFixtureNames.primaryCard);
     await page.screenshot({
-      path: `${screenshotDirectory}/transactions-asset-edit-desktop.png`,
+      path: `${screenshotDirectory}/settings-asset-edit-desktop.png`,
       fullPage: true,
     });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(
-      `/transactions?account=${accountIdFor(paymentFixtureNames.primaryCard)}&month=all`,
-    );
-    await expect(page.getByRole('link', { name: '資産を編集', exact: true })).toBeVisible();
+    await page.goto('/settings');
+    await expect(
+      page.locator(
+        `a[href="/accounts/${accountIdFor(paymentFixtureNames.primaryCard)}/edit?return=%2Fsettings"]`,
+      ),
+    ).toBeVisible();
     await page.screenshot({
-      path: `${screenshotDirectory}/transactions-asset-edit-mobile.png`,
+      path: `${screenshotDirectory}/settings-asset-edit-mobile.png`,
       fullPage: true,
     });
 
@@ -1774,7 +1740,7 @@ test('captures natural summary fixtures for mobile and desktop visuals', async (
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/balances');
       await expectBalanceSummary(page, values);
-      await expectMobileSummaryLayout(page, { requireSingleRow: true });
+      await expectMobileSummaryLayout(page);
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
@@ -1819,7 +1785,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
         liabilities: compactSummaryLiabilitiesDisplay,
         net: `−${compactSummaryNetDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectStickyBalanceSummary(page);
       await assertNoHorizontalOverflow(page);
@@ -1837,7 +1803,7 @@ test('keeps large mobile summary values in compact rows', async ({ page }) => {
       liabilities: compactSummaryLiabilitiesDisplay,
       net: `−${compactSummaryNetDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectStickyBalanceSummary(page);
     await assertNoHorizontalOverflow(page);
@@ -1875,7 +1841,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
         liabilities: summaryFixtureLiabilitiesDisplay,
         net: `−${summaryFixtureNetMagnitudeDisplay}`,
       });
-      await expectMobileSummaryLayout(page);
+      await expectMobileSummaryLayout(page, { allowStacked: true });
       await expectSummaryValuesFit(page);
       await expectAccountValuesFit(page);
       await expectStickyBalanceSummary(page);
@@ -1892,7 +1858,7 @@ test('keeps trillion-scale summary values fully visible on mobile and desktop', 
       liabilities: summaryFixtureLiabilitiesDisplay,
       net: `−${summaryFixtureNetMagnitudeDisplay}`,
     });
-    await expectDesktopSummaryLayout(page);
+    await expectDesktopSummaryLayout(page, { allowStacked: true });
     await expectSummaryValuesFit(page);
     await expectAccountValuesFit(page);
     await expectStickyBalanceSummary(page);

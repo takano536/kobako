@@ -12,9 +12,6 @@
   min-width: 0;
 }
 
-.month-picker-display {
-  min-width: 0;
-}
 .edit-form-layout {
   display: grid;
   gap: var(--space-section);
@@ -36,14 +33,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-item);
 }
 
 .delete-action {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-item);
 }
 
 .delete-confirm {
@@ -67,7 +64,7 @@
 .delete-modal-backdrop {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: var(--layer-dialog-backdrop);
   inset: 0;
   width: 100vw;
   height: 100vh;
@@ -84,21 +81,21 @@
 
 .delete-confirmation {
   display: grid;
-  gap: 12px;
+  gap: var(--space-related);
   min-width: min(27.5rem, calc(100vw - 2rem));
   width: min(27.5rem, calc(100vw - 2rem));
   max-width: calc(100vw - 2rem);
   max-height: calc(100dvh - 2rem);
   overflow: auto;
   position: fixed;
-  z-index: 1001;
+  z-index: var(--layer-dialog);
   top: 50%;
   left: 50%;
   margin: 0;
-  padding: 1.5rem;
+  padding: var(--space-block);
   transform: translate(-50%, -50%);
-  border: 1px solid var(--rule);
-  border-radius: 16px;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-lg);
   background: var(--paper);
   box-shadow: var(--shadow-raised);
   color: var(--muted);
@@ -107,16 +104,16 @@
 .dialog-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-within);
   margin: 0;
 }
 
 .dialog-head h2 {
   margin: 0;
   font-size: var(--text-heading);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .delete-description {
@@ -126,25 +123,27 @@
 .delete-confirm-form {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-related);
 }
 
 .delete-confirm-form button {
   font-size: var(--text-body);
 }
 .delete-confirmation .delete-cancel {
+  box-sizing: border-box;
+  height: 2.75rem;
   order: -1;
-  min-height: 2.75rem;
-  padding: 0.55rem 0.9rem;
-  border: 1px solid var(--rule);
-  border-radius: 0.3rem;
+  padding: var(--space-item) var(--space-group);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   text-decoration: none;
 }
 
 .delete-cancel {
+  box-sizing: border-box;
+  height: 2.75rem;
   display: inline-flex;
-  min-height: 38px;
   align-items: center;
   color: var(--muted);
   font-size: var(--text-small);
@@ -154,10 +153,15 @@
   margin: 0;
   font-size: var(--text-body);
 }
+
 .delete-action > .delete-confirm > summary {
-  border: 1px solid var(--button-danger);
-  border-radius: 0.3rem;
-  padding: 0.55rem 0.9rem;
+  box-sizing: border-box;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border: var(--stroke-hairline) solid var(--button-danger);
+  border-radius: var(--radius-sm);
+  padding: var(--space-item) var(--space-group);
   color: var(--button-danger);
 }
 
@@ -169,9 +173,9 @@
   width: min(calc(100% - 32px), 30rem);
   max-width: calc(100% - 32px);
   margin: auto;
-  padding: 20px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
+  padding: var(--space-block);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
   background: var(--paper);
   color: var(--ink);
 }
@@ -183,17 +187,17 @@
 .form-error-dialog h2 {
   margin: 0;
   font-size: var(--text-heading);
-  line-height: 1.35;
+  line-height: var(--leading-heading);
 }
 
 .form-error-dialog ul {
-  margin: 16px 0 0;
+  margin: var(--space-group) 0 0;
   padding-left: 1.25rem;
   list-style: disc;
 }
 
 .form-error-dialog li + li {
-  margin-top: 8px;
+  margin-top: var(--space-item);
 }
 
 .form-error-dialog form {
@@ -226,8 +230,8 @@
 
 .form-surface {
   padding: clamp(1.25rem, 3vw, 1.75rem);
-  border: 1px solid var(--rule);
-  border-radius: 0.4rem;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -242,7 +246,7 @@
 .ledger-form textarea {
   width: 100%;
   min-height: 2.75rem;
-  padding: 4px 0;
+  padding: var(--space-within) 0;
   padding-inline: 0;
   border: 0;
   border-radius: 0;
@@ -256,16 +260,10 @@
   box-shadow: none;
 }
 
-.filter-form input:focus-visible,
-.filter-form select:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
-
 .ledger-form .amount-field:focus-within,
 .ledger-form .entry-detail-grid .field:focus-within {
   border-bottom-color: var(--accent);
-  box-shadow: inset 0 -1px 0 var(--accent);
+  box-shadow: var(--shadow-underline-accent);
 }
 
 .ledger-form textarea {
@@ -300,7 +298,7 @@
   width: max-content;
   min-height: 44px;
   align-items: center;
-  padding: 2px 0 4px;
+  padding: 2px 0 var(--space-within);
   color: var(--muted);
   cursor: pointer;
   font-size: var(--text-body);
@@ -317,14 +315,14 @@
 }
 
 .type-choice.selected {
-  border-bottom: 2px solid var(--accent);
+  border-bottom: var(--stroke-emphasis) solid var(--accent);
   color: var(--ink);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .type-choice:has(input:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .field {
@@ -338,7 +336,7 @@
   column-gap: var(--space-group);
   align-items: center;
   min-height: 52px;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 .amount-field > label {
@@ -361,24 +359,24 @@
 .amount-line > span {
   color: var(--muted);
   font-size: var(--text-small);
-  line-height: 1;
+  line-height: var(--leading-none);
 }
 
 .amount-line input {
   min-height: 2.75rem;
-  padding: 4px 0;
+  padding: var(--space-within) 0;
   border: 0;
   font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
 }
 
 .amount-line input::placeholder {
   color: var(--muted);
-  opacity: 0.65;
+  opacity: var(--opacity-subtle);
   font-size: var(--text-body);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 
 .entry-detail-grid {
@@ -393,7 +391,7 @@
   column-gap: var(--space-group);
   align-items: center;
   min-height: 52px;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--stroke-hairline) solid var(--rule);
 }
 
 .ledger-form .category-field-income,
@@ -412,15 +410,6 @@
 .ledger-form:has(input[name='type'][value='income']:checked) .category-field-income,
 .ledger-form:has(input[name='type'][value='transfer']:checked) .transfer-account-detail-grid {
   display: grid;
-}
-
-.save-button-options {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.save-button-options-with-cancel {
-  justify-content: space-between;
 }
 
 .save-button-ordinary {
@@ -459,13 +448,16 @@
   min-height: 2.75rem;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
+  gap: var(--space-item);
+  padding: var(--space-within) 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--ink);
   text-align: left;
+  /* The display is a `<label>` or `<span>` (it used to be a button), so keep the button cues. */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .date-picker-display:focus-visible {
@@ -509,15 +501,15 @@
 
 .amount-input-error {
   position: absolute;
-  z-index: 1;
+  z-index: var(--layer-inline);
   top: calc(100% - 2px);
   left: 0;
   display: block;
   width: max-content;
   max-width: min(calc(100vw - 40px), 26rem);
-  padding: 4px 8px;
-  border: 1px solid var(--error-border);
-  border-radius: 4px;
+  padding: var(--space-within) var(--space-item);
+  border: var(--stroke-hairline) solid var(--error-border);
+  border-radius: var(--radius-xs);
   background: var(--paper);
   box-shadow: var(--shadow-popover);
   color: var(--money-negative);
@@ -539,21 +531,8 @@
   grid-row: 1;
 }
 
-.entry-detail-grid .field-value > .field-select {
-  appearance: none;
-  overflow: hidden;
-  padding: 4px 24px 4px 0;
-  font: inherit;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background-image: var(--select-chevron);
-  background-position: right center;
-  background-repeat: no-repeat;
-  background-size: 16px 16px;
-}
-
 .memo-field .field-value[data-memo-multiline='true'] {
-  padding-block: 8px;
+  padding-block: var(--space-item);
 }
 
 .memo-field .field-value > textarea {
@@ -580,22 +559,13 @@
 .ledger-form .amount-field.has-error,
 .ledger-form .entry-detail-grid .field.has-error {
   border-bottom-color: var(--money-negative);
-  box-shadow: inset 0 -1px 0 var(--money-negative);
+  box-shadow: var(--shadow-underline-negative);
 }
 
 .optional-label {
   color: var(--muted);
   font-size: var(--text-small);
-  font-weight: 400;
-}
-
-.save-button {
-  justify-self: end;
-  margin-top: var(--space-group);
-}
-
-.save-button-cancel {
-  margin-top: var(--space-group);
+  font-weight: var(--weight-regular);
 }
 
 .account-form {
@@ -610,31 +580,15 @@
 .account-form [data-slot='section-heading'] h2 {
   color: var(--muted);
   font-size: var(--text-small);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   line-height: var(--leading-meta);
 }
 
-.account-field .field-value > select {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.inline-form,
-.form-actions {
+.inline-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-item);
-}
-
-.account-form .form-actions {
-  justify-content: flex-end;
-}
-
-.account-form .form-actions-with-cancel {
-  justify-content: space-between;
 }
 
 .account-form input[type='checkbox'] {
@@ -669,20 +623,22 @@
 @media (max-width: 30rem) {
   .delete-confirm-form button,
   .delete-confirmation .delete-cancel {
-    min-height: 2.25rem;
-    padding: 0.5rem 0.8rem;
+    box-sizing: border-box;
+    height: 2.75rem;
+    padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
   }
 }
 
 @media (max-width: 30rem) {
   .delete-action > .delete-confirm > summary {
+    box-sizing: border-box;
+    height: 2.75rem;
     display: inline-flex;
-    min-height: 2.25rem;
     align-items: center;
-    padding: 0.5rem 0.8rem;
+    padding: var(--space-item) var(--space-related);
     font-size: var(--text-small);
-    line-height: 1.3;
+    line-height: var(--leading-heading);
   }
 }
 

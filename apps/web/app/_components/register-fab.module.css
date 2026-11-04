@@ -1,0 +1,50 @@
+.fab {
+  position: fixed;
+  z-index: var(--layer-popover);
+  right: calc(max(0px, (100% - var(--layout-wide)) / 2) + max(1rem, 2.5vw));
+  bottom: var(--space-section);
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--button-primary);
+  box-shadow: var(--shadow-popover);
+  color: var(--on-accent);
+  text-decoration: none;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.fab:hover {
+  background: var(--accent);
+}
+
+.fab:active {
+  transform: translateY(1px);
+}
+
+.fab svg {
+  width: var(--text-icon);
+  height: var(--text-icon);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+@media (max-width: 30rem) {
+  .fab {
+    right: 1rem;
+    bottom: calc(var(--site-nav-mobile-height) + 1rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab {
+    transition: none;
+  }
+}

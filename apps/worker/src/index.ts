@@ -3,6 +3,7 @@ import {
   createDatabaseClient,
   getDatabaseUrl,
   processDueCardPayments,
+  processDueFixedCosts,
   redactDatabaseUrl,
   type DatabaseClient,
 } from '@kobako/db';
@@ -26,14 +27,20 @@ async function runWorker(): Promise<void> {
     const tick = (): void => {
       if (tickRunning || !client) return;
       tickRunning = true;
-      tickPromise = processDueCardPayments(client.db)
-        .then((result) => {
-          if (result.completed + result.settled + result.blocked + result.errors > 0) {
-            console.log('[worker] card billing tick complete', result);
+      tickPromise = Promise.all([
+        processDueCardPayments(client.db),
+        processDueFixedCosts(client.db),
+      ])
+        .then(([billing, fixedCosts]) => {
+          if (
+            billing.completed + billing.settled + billing.blocked + billing.errors > 0 ||
+            fixedCosts.created > 0
+          ) {
+            console.log('[worker] scheduled tick complete', { billing, fixedCosts });
           }
         })
         .catch((error: unknown) => {
-          console.error('[worker] card billing tick failed', {
+          console.error('[worker] scheduled tick failed', {
             errorType: error instanceof Error ? error.name : 'UnknownError',
           });
         })

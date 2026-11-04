@@ -99,16 +99,66 @@
   --text-body: 0.875rem;
   --text-small: 0.75rem;
   --text-brand: 1.375rem;
+  --text-micro: 0.6875rem;
+  --text-lead: 1.125rem;
+  --text-icon: 1.5rem;
+  --text-hero: clamp(1.875rem, 2.6vw, 2.25rem);
+  --tracking-hero: -0.04em;
+  --tracking-title: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-code: 0.08em;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.7;
+  --opacity-muted: 0.8;
+  --opacity-inactive: 0.3;
   --space-within: 0.25rem;
   --space-item: 0.5rem;
   --space-dot-text: 0.5rem;
+  --space-related: 12px;
   --space-group: 1rem;
+  --space-block: 24px;
   --space-section: 2rem;
   --space-page: 2.5rem;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+  --shadow-ring-accent: 0 0 0 1px var(--accent);
+  --shadow-ring-accent-inset: inset 0 0 0 1px var(--accent);
+  --shadow-underline-accent: inset 0 -1px 0 var(--accent);
+  --shadow-underline-negative: inset 0 -1px 0 var(--money-negative);
+  --focus-ring: 3px solid var(--accent);
+  --focus-ring-danger: 3px solid var(--money-negative);
+  --focus-ring-tight: 2px solid var(--accent);
+  --focus-offset: 3px;
+  --focus-offset-tight: 1px;
+  --focus-offset-flush: 0;
+  --focus-offset-loose: 5px;
+  --stroke-hairline: 1px;
+  --stroke-medium: 1.5px;
+  --stroke-emphasis: 2px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --layer-inline: 1;
+  --layer-summary: 2;
+  --layer-menu: 10;
+  --layer-nav: 20;
+  --layer-popover: 30;
+  --layer-backdrop: 50;
+  --layer-debug: 1000;
+  --layer-dialog-backdrop: 1000;
+  --layer-dialog: 1001;
   --leading-tight: 1.15;
   --leading-heading: 1.3;
   --leading-body: 1.6;
   --leading-meta: 1.45;
+  --leading-none: 1;
   --layout-wide: 65rem;
   --layout-narrow: 42rem;
   --layout-import: 44rem;
@@ -116,7 +166,6 @@
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
   --motion-fast: 160ms;
   --motion-enter: 240ms;
-  --motion-filter: 220ms;
   --motion-bars: 420ms;
   font-family: var(--font-ui);
   background: var(--paper);
@@ -178,8 +227,8 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 h1,
@@ -208,25 +257,25 @@ ul {
 h1,
 h2,
 h3 {
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 h1 {
   font-size: var(--text-title);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-title);
 }
 
 h2 {
   font-size: var(--text-heading);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
 }
 
 h3 {
   font-size: var(--text-small);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-meta);
 }
 
@@ -279,9 +328,12 @@ html[data-overlay-open]::view-transition-new(page-content) {
   animation: none;
 }
 
-/* The navigation frame already replaced the body, so the committed page appears in place. */
+/* The navigation frame already replaced the body, so the committed page appears in place. A filter
+   change keeps the page on screen and only swaps the list, so it does not fade either. */
 html[data-nav-frame]::view-transition-old(page-content),
-html[data-nav-frame]::view-transition-new(page-content) {
+html[data-nav-frame]::view-transition-new(page-content),
+html[data-filter-transition]::view-transition-old(page-content),
+html[data-filter-transition]::view-transition-new(page-content) {
   animation: none;
 }
 

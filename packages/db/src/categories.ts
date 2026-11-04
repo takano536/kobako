@@ -9,6 +9,8 @@ import {
   accounts,
   cardAutoPaymentRuns,
   categories,
+  fixedCostOccurrences,
+  fixedCosts,
   households,
   transactionImports,
   transfers,
@@ -275,6 +277,10 @@ export async function ensureDefaultAccountGroups(
  * require. The household row itself is left in place.
  */
 async function purgeHouseholdRows(executor: LedgerExecutor, householdId: string): Promise<void> {
+  await executor
+    .delete(fixedCostOccurrences)
+    .where(eq(fixedCostOccurrences.householdId, householdId));
+  await executor.delete(fixedCosts).where(eq(fixedCosts.householdId, householdId));
   await executor
     .delete(cardAutoPaymentRuns)
     .where(eq(cardAutoPaymentRuns.householdId, householdId));

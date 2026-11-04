@@ -1,5 +1,6 @@
-import { CardSkeleton } from '../../../../../_components/card-skeleton';
+import { CardFormSkeleton, CARD_FORM_RECIPES } from '../../../../../_components/card-skeleton';
 
 export default function Loading() {
-  return <CardSkeleton label="取引を読み込み中" />;
+  const recipe = CARD_FORM_RECIPES.transferEdit;
+  return <CardFormSkeleton label="取引を読み込み中" {...recipe} />;
 }

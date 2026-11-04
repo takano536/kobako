@@ -23,6 +23,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
       DEMO_RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
+      PREVIEW_NAME: pr-${{ github.event.pull_request.number }}
+      PREVIEW_WORKER_NAME: demo
     steps:
       - name: Check preview configuration
         id: config
@@ -45,18 +47,12 @@ jobs:
       - if: steps.config.outputs.ready == 'true'
         uses: ./.github/actions/setup
 
-      - name: Write the preview config
-        if: steps.config.outputs.ready == 'true'
-        working-directory: apps/web
-        run: |
-          set -euo pipefail
-          sed "s/PR_NUMBER/${{ github.event.pull_request.number }}/g" wrangler.preview.jsonc \
-            > wrangler.generated.jsonc
-
       - name: Stop the pull request preview
         if: steps.config.outputs.ready == 'true' && github.event.action == 'closed'
         working-directory: apps/web
-        run: pnpm exec wrangler delete --config wrangler.generated.jsonc || true
+        run: |
+          set -euo pipefail
+          pnpm exec wrangler preview delete --name "${PREVIEW_NAME}" --skip-confirmation || true
 
       - name: Build the worker bundle
         if: steps.config.outputs.ready == 'true' && github.event.action != 'closed'
@@ -80,16 +76,25 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${GITHUB_WORKSPACE}/.tmp"
+          secrets_file="${GITHUB_WORKSPACE}/.tmp/preview.env"
+          output="${GITHUB_WORKSPACE}/.tmp/preview.json"
           {
             printf 'DATABASE_URL=%s\n' "${DATABASE_URL}"
             printf 'DEMO_RESET_TOKEN=%s\n' "${DEMO_RESET_TOKEN}"
-          } > "${GITHUB_WORKSPACE}/.tmp/preview.env"
-          pnpm exec wrangler deploy \
-            --config wrangler.generated.jsonc \
-            --secrets-file "${GITHUB_WORKSPACE}/.tmp/preview.env" \
-            --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}"
-          url=$(node scripts/workers-dev-url.mjs "pr-${{ github.event.pull_request.number }}")
-          echo "url=${url}" >> "${GITHUB_OUTPUT}"
+          } > "${secrets_file}"
+          pnpm exec wrangler preview \
+            --name "${PREVIEW_NAME}" \
+            --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}" \
+            --secrets-file "${secrets_file}" \
+            --json > "${output}"
+          url=$(node scripts/preview-output.mjs "${output}" preview-url)
+          deployment_url=$(node scripts/preview-output.mjs "${output}" deployment-url)
+          dashboard_url=$(node scripts/preview-output.mjs "${output}" dashboard-url)
+          {
+            echo "url=${url}"
+            echo "deployment_url=${deployment_url}"
+            echo "dashboard_url=${dashboard_url}"
+          } >> "${GITHUB_OUTPUT}"
           echo "プレビュー: ${url}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Comment the preview URL
@@ -97,6 +102,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
@@ -108,6 +115,10 @@ jobs:
               echo "https://${PREVIEW_URL#https://}"
               echo
               echo 'デモ用のデータだけが入った DB に接続しています。'
+              echo
+              echo "- 配備したコミット: [\`${HEAD_SHA:0:7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${HEAD_SHA}) $(git log -1 --format=%s)"
+              echo "- 配備時刻: $(TZ=Asia/Tokyo date '+%Y/%m/%d %H:%M JST')"
+              echo "- この配備だけの URL: ${DEPLOYMENT_URL}"
             else
               echo 'プレビュー URL を取得できませんでした。workflow のログと summary を確認してください。'
             fi

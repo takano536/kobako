@@ -1,4 +1,4 @@
-<!-- PR title must use a Conventional Commit prefix (feat:, fix:, docs:, test:, ci:, chore:, refactor:). The squash-merge title becomes the release commit. -->
+<!-- PR title must match Conventional Commits with a Japanese subject, e.g. "fix(web): 金額の丸めを直す". The pr-title check validates it; squash-merge titles become release commits. Bot PRs (Release Please) are exempt from the Japanese-subject rule. -->
 
 ## 関連 Issue
 

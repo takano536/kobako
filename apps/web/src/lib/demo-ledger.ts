@@ -2,18 +2,33 @@ import {
   DEFAULT_HOUSEHOLD_ID,
   deleteHousehold,
   getHousehold,
+  ingestApiBatch,
   initializeDefaultLedger,
+  type ApiTransactionRow,
+  type ApiTransferRow,
   type DatabaseClient,
 } from '@kobako/db';
 
 export type DemoSeedResult =
   | { status: 'skipped'; accounts: number }
-  | { status: 'seeded'; accounts: number; transactions: number; transfers: number };
+  | {
+      status: 'seeded';
+      accounts: number;
+      transactions: number;
+      transfers: number;
+      apiTransactions: number;
+      apiTransfers: number;
+    };
 
 type DemoRow = Record<string, string | number | null>;
 
 function tokyoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function nextMonthDate(year: number, month: number, day: number): string {
+  const next = new Date(Date.UTC(year, month, day));
+  return tokyoDate(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
 }
 
 function recentMonths(count: number): Array<{ year: number; month: number }> {
@@ -29,7 +44,9 @@ function recentMonths(count: number): Array<{ year: number; month: number }> {
 
 /**
  * Fill the demo ledger with a readable household: four accounts, three months of
- * transactions, and one transfer. `reset` truncates the ledger first so a preview always
+ * transactions, and seven transfers. The newest month mixes hand-entered rows with a card
+ * statement written through the real API ingest path, so the "API" badge and the API-only
+ * filter have something to show. `reset` truncates the ledger first so a preview always
  * starts from the same state, while the default run is a no-op once accounts exist.
  */
 export async function seedDemoLedger(
@@ -44,10 +61,11 @@ export async function seedDemoLedger(
 
   if (options.reset) {
     // Categories, asset categories, and groups stay; only ledger rows are rebuilt.
+    // api_batches goes too: the API rows it recorded are gone, so it would only be an orphan.
     // The cascade notices are expected, so keep them out of the deploy log.
     await sql`set client_min_messages = warning`;
     try {
-      await sql`truncate table transfers, transactions, accounts restart identity cascade`;
+      await sql`truncate table transfers, transactions, api_batches, accounts restart identity cascade`;
     } finally {
       await sql`set client_min_messages = notice`;
     }
@@ -148,10 +166,49 @@ export async function seedDemoLedger(
   const cashAccount = accountId('現金');
   const cardAccount = accountId('クレジットカード');
 
+  const fixedCostStartMonth = (() => {
+    const current = recentMonths(1)[0] ?? {
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+    };
+    return tokyoDate(current.year, current.month, 1);
+  })();
+  const fixedCostRows: DemoRow[] = (
+    [
+      ['家賃', 85000, '住居', livingAccount, 1, 'month', 27],
+      ['水道', 3240, '水道・光熱', livingAccount, 2, 'month', 25],
+      ['インターネット回線', 7800, '通信', cardAccount, 1, 'month', 5],
+      ['スマートフォン', 3278, '通信', cardAccount, 1, 'month', 10],
+      ['医療保険', 12000, '医療', livingAccount, 3, 'month', 10],
+      ['Netflix', 1490, '娯楽', cardAccount, 1, 'month', 8],
+      ['Spotify Premium', 1080, '娯楽', cardAccount, 1, 'month', 8],
+      ['ジム', 7700, '娯楽', livingAccount, 1, 'month', 15],
+      ['Amazon Prime', 5900, '娯楽', cardAccount, 1, 'year', 15],
+    ] as const
+  ).map(([name, amount, category, account, intervalCount, intervalUnit, day]) => ({
+    household_id: householdId,
+    name,
+    amount,
+    category_id: categoryId('expense', String(category)),
+    category_type: 'expense',
+    account_id: account,
+    interval_count: intervalCount,
+    interval_unit: intervalUnit,
+    start_month: fixedCostStartMonth,
+    day,
+  }));
+  await sql`insert into fixed_costs ${sql(fixedCostRows, 'household_id', 'name', 'amount', 'category_id', 'category_type', 'account_id', 'interval_count', 'interval_unit', 'start_month', 'day')}`;
+
+  const apiMemos: Record<string, true> = {
+    'スーパー・外食': true,
+    '書籍・サブスクリプション': true,
+    メルカリ売上: true,
+  };
+  const months = recentMonths(3);
   const transactions: DemoRow[] = [];
-  for (const { year, month } of recentMonths(3)) {
+  for (const [index, { year, month }] of months.entries()) {
     const day = (value: number): string => tokyoDate(year, month, value);
-    transactions.push(
+    const monthRows: DemoRow[] = [
       {
         household_id: householdId,
         type: 'income',
@@ -233,6 +290,9 @@ export async function seedDemoLedger(
         account_id: cardAccount,
         memo: '書籍・サブスクリプション',
       },
+    ];
+    transactions.push(
+      ...(index === 0 ? monthRows.filter((row) => !apiMemos[String(row.memo)]) : monthRows),
     );
   }
   await sql`
@@ -248,22 +308,35 @@ export async function seedDemoLedger(
     )}
   `;
 
-  const oldest = recentMonths(3).at(-1) ?? {
+  const oldest = months.at(-1) ?? {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
   };
+  const transferRows: DemoRow[] = months.flatMap(({ year, month }, index) => [
+    {
+      household_id: householdId,
+      from_account_id: salaryAccount,
+      to_account_id: livingAccount,
+      amount: 180000,
+      occurred_on: tokyoDate(year, month, 26),
+      memo: '生活費へ振替',
+    },
+    ...(index === 0
+      ? []
+      : [
+          {
+            household_id: householdId,
+            from_account_id: livingAccount,
+            to_account_id: cashAccount,
+            amount: 30000,
+            occurred_on: tokyoDate(year, month, 10),
+            memo: '現金へ振替',
+          },
+        ]),
+  ]);
   await sql`
     insert into transfers ${sql(
-      [
-        {
-          household_id: householdId,
-          from_account_id: salaryAccount,
-          to_account_id: livingAccount,
-          amount: 150000,
-          occurred_on: tokyoDate(oldest.year, oldest.month, 26),
-          memo: '生活費へ振替',
-        },
-      ],
+      transferRows,
       'household_id',
       'from_account_id',
       'to_account_id',
@@ -273,11 +346,141 @@ export async function seedDemoLedger(
     )}
   `;
 
+  // The same path as POST /api/v1/transactions: names are resolved by the server, rows carry
+  // origin 'api', an api_batches row is recorded, and the income row gets a server fingerprint.
+  const newest = months[0] ?? oldest;
+  const newestDay = (value: number): string => tokyoDate(newest.year, newest.month, value);
+  const oldestMonthStart = tokyoDate(oldest.year, oldest.month, 1);
+  const oldestMonthEnd = nextMonthDate(oldest.year, oldest.month, 1);
+  const cardPaymentDate = nextMonthDate(oldest.year, oldest.month, 27);
+  const [oldestCardSpend] = await sql<{ amount: string | number }[]>`
+    select coalesce(sum(amount), 0)::bigint as amount
+    from transactions
+    where household_id = ${householdId}
+      and account_id = ${cardAccount}
+      and type = 'expense'
+      and occurred_on >= ${oldestMonthStart}
+      and occurred_on < ${oldestMonthEnd}
+  `;
+  const cardPaymentAmount = Number(oldestCardSpend?.amount ?? 0);
+  await sql`
+    insert into account_card_settings (
+      household_id,
+      account_id,
+      closing_day,
+      payment_day,
+      payment_month_offset,
+      debit_account_id,
+      auto_payment_starts_on
+    )
+    values (
+      ${householdId},
+      ${cardAccount},
+      'last',
+      '27',
+      'next_month',
+      ${livingAccount},
+      ${oldestMonthStart}
+    )
+  `;
+  const apiTransactions: ApiTransactionRow[] = [
+    {
+      type: 'expense',
+      amount: 42000,
+      occurredOn: newestDay(4),
+      category: '食費',
+      account: 'クレジットカード',
+      memo: 'スーパー・外食',
+      externalId: 'demo-card-groceries',
+    },
+    {
+      type: 'expense',
+      amount: 14500,
+      occurredOn: newestDay(21),
+      category: '娯楽',
+      account: 'クレジットカード',
+      memo: '書籍・サブスクリプション',
+      externalId: 'demo-card-subscriptions',
+    },
+    {
+      type: 'income',
+      amount: 8000,
+      occurredOn: newestDay(18),
+      category: '臨時収入',
+      account: '給与口座',
+      memo: 'メルカリ売上',
+    },
+  ];
+  const apiTransfers: ApiTransferRow[] = [
+    {
+      amount: 30000,
+      occurredOn: newestDay(10),
+      from: '生活費口座',
+      to: '現金',
+      memo: 'ATMで引き出し',
+      externalId: 'demo-atm-withdrawal',
+    },
+  ];
+  const ingested = await ingestApiBatch(client.db, householdId, {
+    label: 'カード明細の取り込み（デモ）',
+    idempotencyKey: 'demo-seed-card-statement',
+    transactions: apiTransactions,
+    transfers: apiTransfers,
+  });
+  // 口座だけが消えて api_batches が残っている再シードでは、同じ取り込みが
+  // 'replayed' として返ります。作り直さずにそのまま進みます。
+  const replayed = ingested.status === 'replayed';
+  const ingestedAll =
+    ingested.status === 'ok' && ingested.created === apiTransactions.length + apiTransfers.length;
+  if (!replayed && !ingestedAll) {
+    throw new Error(`demo API ingest failed: ${JSON.stringify(ingested.rows)}`);
+  }
+  // Record the oldest statement's already-completed payment so the worker does not create it again.
+  const [autoPaymentTransfer] = await sql<{ id: number }[]>`
+    insert into transfers (
+      household_id,
+      from_account_id,
+      to_account_id,
+      amount,
+      occurred_on,
+      memo
+    )
+    values (
+      ${householdId},
+      ${livingAccount},
+      ${cardAccount},
+      ${cardPaymentAmount},
+      ${cardPaymentDate},
+      '自動引落'
+    )
+    returning id
+  `;
+  if (!autoPaymentTransfer) throw new Error('demo card payment transfer insert returned no row');
+  await sql`
+    insert into card_auto_payment_runs (
+      household_id,
+      card_account_id,
+      due_on,
+      status,
+      transfer_id
+    )
+    values (
+      ${householdId},
+      ${cardAccount},
+      ${cardPaymentDate},
+      'completed',
+      ${autoPaymentTransfer.id}
+    )
+  `;
+  const apiRowCount = replayed ? 0 : apiTransactions.length;
+
   return {
     status: 'seeded',
     accounts: accountRows.length,
-    transactions: transactions.length,
-    transfers: 1,
+    transactions: transactions.length + apiRowCount,
+    transfers: transferRows.length + apiTransfers.length + 1,
+    apiTransactions: apiRowCount,
+    apiTransfers: apiTransfers.length,
   };
 }
 

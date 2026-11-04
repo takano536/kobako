@@ -26,6 +26,8 @@ import {
   assertDeleteModalInteraction,
   type ModalViewport,
 } from './delete-modal-helpers';
+import { openMonthPicker, pickMonthInGrid } from './month-picker';
+import { selectFieldOption } from './select-field-helpers';
 
 const runId = randomUUID();
 const runMarkerPrefix = `${E2E_MARKER_PREFIX}${runId}:`;
@@ -107,7 +109,7 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('heading', { name: '取引を登録' })).toBeVisible();
   await page.getByLabel('金額').fill('1,200');
   await page.locator('input[name="occurredOn"]').fill(`${month}-10`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('expense'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -119,6 +121,22 @@ test('shows an empty month and reflects an added expense in the list and overvie
   await expect(page.getByRole('group', { name: '収支差額' }).locator('dd')).toHaveText(
     'マイナス−1,200円',
   );
+});
+
+test('blocks submit when an enhanced required select is empty', async ({ page }) => {
+  await page.goto(`/transactions/new?month=${month}`);
+  const category = page.locator('#transaction-category-expense');
+  await expect(category).toHaveAttribute('aria-haspopup', 'menu');
+  await category.click();
+  await page
+    .locator('[data-slot="select-field-menu"]:visible')
+    .getByRole('menuitemradio')
+    .first()
+    .click();
+  await page.getByLabel('金額').fill('1,200');
+  await page.getByRole('button', { name: '登録する' }).click();
+  await expect(page).toHaveURL(/\/transactions\/new\?/);
+  await expect(category).toHaveAttribute('aria-invalid', 'true');
 });
 
 test('keeps the selected month across global navigation and browser history', async ({ page }) => {
@@ -191,7 +209,7 @@ test('keeps the selected month across global navigation and browser history', as
     await expect(page).toHaveURL(new RegExp(`/transactions/new\\?month=${nextMonth}$`));
     await page.getByLabel('金額').fill('111');
     await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-22`);
-    await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+    await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
     await page.getByLabel('メモ（任意）').fill(createMarker);
     await page.getByRole('button', { name: '登録する', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${nextMonth}$`));
@@ -605,6 +623,9 @@ test('centers transaction detail blocks in the list and overview', async ({ page
     expectedTransferCount: number,
   ) => {
     await page.goto(path);
+    if (path.startsWith('/transactions')) {
+      await expect(page.locator('[data-slot="row-affordance"]')).toHaveCount(0);
+    }
     const rowSelector = [
       ...transactionIds.map(
         (id) => `[data-slot="transaction-link"][href^="/transactions/${id}/edit"]`,
@@ -627,6 +648,7 @@ test('centers transaction detail blocks in the list and overview', async ({ page
             ? {
                 center: bounds.y + bounds.height / 2,
                 height: bounds.height,
+                right: bounds.right,
               }
             : undefined;
         };
@@ -640,7 +662,6 @@ test('centers transaction detail blocks in the list and overview', async ({ page
           category: box('[data-slot="transaction-category"]'),
           dot: box('[data-slot="category-dot"]'),
           amount: box('[data-slot="record-amount"]'),
-          affordance: box('[data-slot="row-affordance"]'),
         };
       }),
     );
@@ -654,8 +675,12 @@ test('centers transaction detail blocks in the list and overview', async ({ page
       expect(Math.abs(geometry.main!.center - geometry.category!.center)).toBeLessThanOrEqual(1);
       expect(Math.abs(geometry.main!.center - geometry.dot!.center)).toBeLessThanOrEqual(1);
       expect(Math.abs(geometry.main!.center - geometry.amount!.center)).toBeLessThanOrEqual(1);
-      if (geometry.affordance) {
-        expect(Math.abs(geometry.main!.center - geometry.affordance.center)).toBeLessThanOrEqual(1);
+      if (path.startsWith('/transactions')) {
+        const listBounds = await page.locator('ul[aria-label="取引"]').boundingBox();
+        if (!listBounds) {
+          throw new Error('transaction list is not measurable');
+        }
+        expect(geometry.amount!.right).toBeCloseTo(listBounds.x + listBounds.width, 0);
       }
     }
     const dimensions = await page.evaluate(() => ({
@@ -795,16 +820,17 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       const overviewShell = await measure('[data-slot="page-shell"]');
       const overviewMonth = await measure('[data-slot="month-switcher"]');
       const overviewChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
-      const overviewSummary = page.locator('[role="group"][aria-labelledby="expense-label"]');
+      const overviewSummary = page.locator(
+        '[data-slot="page-summary"][role="group"][aria-label="この月の支出"]',
+      );
       await expect(overviewSummary).toHaveCount(1);
       await expect(overviewSummary.locator('[data-slot="lead-amount"]')).toHaveCount(1);
-      await expect(overviewSummary.locator('dl[aria-label] > div')).toHaveCount(2);
+      await expect(overviewSummary.locator('dl[aria-label] [role="group"]')).toHaveCount(2);
       await assertNoHorizontalOverflow();
 
       await page.goto(`/transactions?month=${month}`);
       await expect(page.getByRole('heading', { name: /取引/ })).toBeVisible();
       const transactionShell = await measure('[data-slot="page-shell"]');
-      const transactionsHeading = await measure('[data-slot="page-header"] h1');
       const transactionHeadingStyles = await page
         .locator('[data-slot="page-header"] h1')
         .evaluate((h1) => {
@@ -816,40 +842,32 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
             letterSpacing: style.letterSpacing,
           };
         });
-      const transactionActionMetrics = await page
-        .locator('[data-slot="page-header"] [data-variant]')
-        .evaluateAll((links) =>
-          links.map((link) => {
-            const style = getComputedStyle(link);
-            const rect = link.getBoundingClientRect();
-            return { width: rect.width, height: rect.height, fontSize: style.fontSize };
-          }),
-        );
+      const transactionFabMetrics = await page
+        .locator('a[aria-label="取引を登録"]')
+        .evaluate((link) => {
+          const rect = link.getBoundingClientRect();
+          return { right: rect.right, width: rect.width, height: rect.height };
+        });
       const narrow = width <= 480;
+      expect(transactionFabMetrics.width).toBeCloseTo(56, 0);
+      expect(transactionFabMetrics.height).toBeCloseTo(56, 0);
       expect(transactionHeadingStyles).toEqual({
         fontSize: narrow ? '21px' : '23px',
         fontWeight: '500',
         lineHeight: narrow ? '24.15px' : '26.45px',
         letterSpacing: narrow ? '-0.63px' : '-0.69px',
       });
-      expect(transactionActionMetrics).toHaveLength(1);
-      expect(transactionActionMetrics[0]?.fontSize).toBe(narrow ? '12px' : '14px');
-      expect(transactionActionMetrics[0]?.height).toBe(36);
-      expect(transactionActionMetrics[0]?.width).toBeCloseTo(narrow ? 103.59 : 114, 1);
-      const transactionsHeader = await measure('[data-slot="page-header"]');
-      const transactionsAction = await measure('[data-slot="page-header"] [data-variant]');
+      expect(transactionFabMetrics.right).toBeCloseTo(
+        narrow ? width - 16 : transactionShell.x + transactionShell.width,
+        0,
+      );
       const transactionsMonth = await measure('[data-slot="month-switcher"]');
       const transactionsChevron = await measure('[data-slot="month-switcher"] svg >> nth=0');
-      assertShellGeometry(overviewShell, width, 16, 61 * 16, 107);
-      assertShellGeometry(transactionShell, width, 16, 61 * 16, 107);
+      assertShellGeometry(overviewShell, width, 16, 61 * 16, 84);
+      assertShellGeometry(transactionShell, width, 16, 61 * 16, 84);
       expect(transactionShell.x).toBeCloseTo(overviewShell.x, 0);
       expect(transactionShell.y).toBeCloseTo(overviewShell.y, 0);
       expect(transactionShell.width).toBeCloseTo(overviewShell.width, 0);
-      expect(transactionsHeading.x).toBeCloseTo(transactionShell.x, 0);
-      expect(transactionsAction.y + transactionsAction.height / 2).toBeCloseTo(
-        transactionsHeader.y + transactionsHeader.height / 2,
-        0,
-      );
       // The 44px arrow targets pad the chevrons inwards, so the row is pulled out by
       // that inset: the chevron lines up with the shell edge, the box starts before it.
       expect(transactionsChevron.x).toBeCloseTo(transactionShell.x, 0);
@@ -933,7 +951,11 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
       }
 
       await page.goto(`/transactions?month=${month}&type=expense&category=${categoryId}`);
-      await expect(page.locator('[data-slot="filter-summary"]')).toContainText(categoryName);
+      await expect(
+        page
+          .locator('[data-slot="filter-chip"][data-filter="category"]')
+          .getByRole('button', { name: `カテゴリ ${categoryName}`, exact: true }),
+      ).toBeVisible();
       await assertNoHorizontalOverflow();
     }
     for (const width of [320, 360, 390, 414, 1280]) {
@@ -1068,6 +1090,7 @@ test('keeps shared chrome aligned across viewports and wraps long content', asyn
 
 test('opens the month picker from the month label and keeps the running filters', async ({
   page,
+  isMobile,
 }) => {
   await page.addInitScript(() => {
     const target = HTMLInputElement.prototype as HTMLInputElement & { showPicker?: () => void };
@@ -1083,27 +1106,28 @@ test('opens the month picker from the month label and keeps the running filters'
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/?month=${month}`);
-  await page.locator('[data-slot="month-switcher-label"]').click();
-  expect(
-    await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
-  ).toEqual(['month']);
-
-  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  const label = page.locator('[data-slot="month-switcher-label"]');
+  // 月はアプリ内の月グリッドで選び、ネイティブのピッカー（showPicker()）は使いません。
+  await openMonthPicker(page, label, isMobile);
+  await pickMonthInGrid(page, nextMonth, isMobile);
   await expect(page).toHaveURL(
     (url) => url.pathname === '/' && url.searchParams.get('month') === nextMonth,
   );
-  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
+  await expect(label).toHaveText(nextMonthLabel);
 
   await page.goto(`/transactions?month=${month}&type=expense`);
-  await page.locator('[data-slot="month-switcher-label"]').click();
-  await page.locator('[data-slot="month-switcher"] input[type="month"]').fill(nextMonth);
+  await openMonthPicker(page, label, isMobile);
+  await pickMonthInGrid(page, nextMonth, isMobile);
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === '/transactions' &&
       url.searchParams.get('month') === nextMonth &&
       url.searchParams.get('type') === 'expense',
   );
-  await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
+  await expect(label).toHaveText(nextMonthLabel);
+  expect(
+    await page.evaluate(() => (window as unknown as { pickerCalls: string[] }).pickerCalls),
+  ).toEqual([]);
 });
 
 test('supports keyboard entry and mobile layout for an ordinary transaction', async ({ page }) => {
@@ -1118,6 +1142,7 @@ test('supports keyboard entry and mobile layout for an ordinary transaction', as
   await expect(category).toBeFocused();
   await category.press('Home');
   await category.press('ArrowDown');
+  await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
@@ -1160,7 +1185,7 @@ test('adds income and updates the difference, then edits and deletes a transacti
   await page.getByText('収入', { exact: true }).click();
   await page.getByLabel('金額').fill('5,000');
   await page.locator('input[name="occurredOn"]').fill(`${month}-20`);
-  await page.locator('#transaction-category-income').selectOption({ label: '給与' });
+  await selectFieldOption(page.locator('#transaction-category-income'), { label: '給与' });
   await page.getByLabel('メモ（任意）').fill(markerFor('income'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -1309,8 +1334,7 @@ test('preselects an unknown category when editing its transaction', async ({ pag
   try {
     await page.goto(`/transactions/${transactionId}/edit`);
     const categorySelect = page.locator('#transaction-category-expense');
-    await expect(categorySelect).toHaveValue(String(categoryId));
-    await expect(categorySelect.locator('option:checked')).toHaveText('不明なカテゴリ');
+    await expect(categorySelect).toContainText('不明なカテゴリ');
     await expect(page.getByLabel('メモ（任意）')).toHaveValue(memo);
   } finally {
     await databaseClient.sql`delete from transactions where id = ${transactionId}`;
@@ -1325,7 +1349,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await page.goto(`/transactions/new?month=${nextMonth}`);
   await page.getByLabel('金額').fill('700');
   await page.locator('input[name="occurredOn"]').fill(`${nextMonth}-05`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '日用品' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '日用品' });
   await page.getByLabel('メモ（任意）').fill(markerFor('next-month'));
   await page.getByRole('button', { name: '登録する' }).click();
 
@@ -1353,9 +1377,7 @@ test('isolates months: a transaction in one month never appears in another', asy
   await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(nextMonthLabel);
 });
 
-test('filters transactions with a native GET form when JavaScript is disabled', async ({
-  browser,
-}) => {
+test('applies chip filters immediately and clears filtered empty states', async ({ page }) => {
   if (!databaseClient) {
     throw new Error('ledger filter database is not initialized');
   }
@@ -1385,43 +1407,56 @@ test('filters transactions with a native GET form when JavaScript is disabled', 
   if (!incomeRow) {
     throw new Error('ledger filter income fixture was not created');
   }
-  const context = await browser.newContext({
-    javaScriptEnabled: false,
-    locale: 'ja-JP',
-    timezoneId: 'Asia/Tokyo',
-  });
-  const page = await context.newPage();
   try {
     await page.goto(`/transactions?month=${month}`);
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveCount(0);
-    await page.getByText('条件を変更する', { exact: true }).click();
-    await page.getByRole('combobox', { name: '種別' }).selectOption('income');
-    await page.getByRole('button', { name: '適用' }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}.*type=income`));
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('収入');
-    await page.getByText('条件を変更する', { exact: true }).click();
-    await page.getByRole('combobox', { name: 'カテゴリ' }).selectOption(String(incomeCategory.id));
-    await page.getByRole('button', { name: '適用' }).click();
+    const typeChip = page.locator('[data-slot="filter-chip"][data-filter="type"]');
+    await typeChip.getByRole('button', { name: '種別', exact: true }).click();
+    await page
+      .getByRole('menu', { name: '種別' })
+      .getByRole('menuitemradio', { name: '収入', exact: true })
+      .click();
     await expect(page).toHaveURL(
-      new RegExp(`/transactions\\?month=${month}.*type=income.*category=`),
+      (url) => url.pathname === '/transactions' && url.searchParams.get('type') === 'income',
     );
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveText('収入・給与');
-    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
-    await page.getByRole('link', { name: '条件をクリアする' }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
-    await expect(page.locator('[data-slot="filter-summary"]')).toHaveCount(0);
+    await expect(typeChip.getByRole('button', { name: '種別 収入', exact: true })).toBeVisible();
     await expect(
       page
-        .locator('[data-slot="transaction-link"]')
+        .getByRole('list', { name: '取引', exact: true })
+        .getByRole('listitem')
         .filter({ hasText: markerFor('native-filter-income') }),
     ).toHaveCount(1);
+
+    const categoryChip = page.locator('[data-slot="filter-chip"][data-filter="category"]');
+    await categoryChip.getByRole('button', { name: 'カテゴリ', exact: true }).click();
+    const categoryMenu = page.getByRole('menu', { name: 'カテゴリ' });
+    await expect(categoryMenu.getByRole('group', { name: '収入' })).toBeVisible();
+    await expect(categoryMenu.getByRole('group', { name: '支出' })).toHaveCount(0);
+    await expect(
+      categoryMenu.getByRole('menuitemradio', { name: '給与', exact: true }),
+    ).toBeVisible();
+    await categoryMenu.getByRole('menuitemradio', { name: '給与', exact: true }).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/transactions' &&
+        url.searchParams.get('type') === 'income' &&
+        url.searchParams.get('category') === String(incomeCategory.id),
+    );
+    await expect(
+      categoryChip.getByRole('button', { name: 'カテゴリ 給与', exact: true }),
+    ).toBeVisible();
+
+    const clear = page.locator('[data-slot="filter-clear"]');
+    await expect(clear).toBeVisible();
+    await clear.click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
+
     await page.goto(`/transactions?month=${month}&type=income&category=${expenseCategory.id}`);
+    await expect(page.getByRole('heading', { name: '条件に合う記録がありません' })).toBeVisible();
     await expect(page.getByRole('list', { name: '取引', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: '条件をクリアする' })).toBeVisible();
-    await page.getByRole('link', { name: '条件をクリアする' }).click();
-    await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}$`));
+    await expect(page.locator('[data-slot="filter-clear"]')).toBeVisible();
+    await page.getByRole('link', { name: '条件をクリア', exact: true }).click();
+    await expect(page).toHaveURL(`/transactions?month=${month}`);
   } finally {
-    await context.close();
     await databaseClient.sql`delete from transactions where id = ${incomeRow.id}`;
   }
 });
@@ -1430,7 +1465,7 @@ test('saves and displays zero and negative amounts', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('0');
   await page.locator('input[name="occurredOn"]').fill(`${month}-26`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('zero'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -1439,7 +1474,7 @@ test('saves and displays zero and negative amounts', async ({ page }) => {
   await page.goto(`/transactions/new?month=${month}`);
   await page.getByLabel('金額').fill('-1200');
   await page.locator('input[name="occurredOn"]').fill(`${month}-27`);
-  await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+  await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
   await page.getByLabel('メモ（任意）').fill(markerFor('negative'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -1491,7 +1526,7 @@ test('rejects invalid amount input without stripping and shows an accessible for
     const valueBox = await page.locator(selector).boundingBox();
     const controlBox = await page
       .locator(
-        `${selector} > input, ${selector} > select, ${selector} > textarea, ${selector} [data-slot="date-picker-display"]`,
+        `${selector} > input, ${selector} > select, ${selector} > textarea, ${selector} > button, ${selector} [data-slot="date-picker-display"]`,
       )
       .first()
       .boundingBox();
@@ -1669,7 +1704,7 @@ test('keeps the date picker tab stop visible and saves after picking a date', as
   await dateInput.fill(pickedDate);
   await expect(dateDisplay).toContainText(pickedDate.replaceAll('-', '/'));
   await amount.fill('432');
-  await category.selectOption({ label: '食費' });
+  await selectFieldOption(category, { label: '食費' });
   await memo.fill(markerFor('date-tab-save'));
   await page.getByRole('button', { name: '登録する' }).click();
   await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
@@ -1685,7 +1720,7 @@ test('formats date and month controls independently of browser locale', async ({
   const day = `${month}-27`;
   const initialDate = `${month.replace('-', '/')}/01`;
   const expectedDate = `${month.replace('-', '/')}/27`;
-  const expectedMonth = month.replace('-', '/');
+  const expectedMonth = labelForMonth(month);
   try {
     await page.goto(`/transactions/new?month=${month}`);
     const dateInput = page.locator('input[type="date"][name="occurredOn"]');
@@ -1693,16 +1728,11 @@ test('formats date and month controls independently of browser locale', async ({
     await dateInput.fill(day);
     await expect(page.locator('[data-slot="date-picker-display"]')).toContainText(expectedDate);
     await page.getByLabel('金額').fill('321');
-    await page.locator('#transaction-category-expense').selectOption({ label: '食費' });
+    await selectFieldOption(page.locator('#transaction-category-expense'), { label: '食費' });
     await page.getByLabel('メモ（任意）').fill(markerFor('locale-date'));
     await page.getByRole('button', { name: '登録する' }).click();
     await expect(page).toHaveURL(new RegExp(`/transactions\\?month=${month}`));
-
-    await page.getByText('条件を変更する', { exact: true }).click();
-    await expect(page.locator('[data-slot="month-picker-display"]')).toHaveText(expectedMonth);
-    const monthInput = page.locator('input[type="month"][name="month"]');
-    await monthInput.fill(month);
-    await expect(monthInput).toHaveValue(month);
+    await expect(page.locator('[data-slot="month-switcher-label"]')).toHaveText(expectedMonth);
   } finally {
     await context.close();
   }

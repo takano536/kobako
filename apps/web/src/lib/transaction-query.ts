@@ -23,6 +23,8 @@ export interface TransactionListFilters {
   type?: TransactionListType;
   categoryId?: number;
   accountId?: number;
+  /** `api` shows only rows an external program wrote. */
+  origin?: 'api';
 }
 
 export function firstQueryValue(value: TransactionQueryValue): string | undefined {
@@ -43,6 +45,10 @@ export function parseTransactionCategoryId(value: TransactionQueryValue): number
   return firstValue ? parseInt4Id(firstValue) : undefined;
 }
 
+export function parseTransactionOrigin(value: TransactionQueryValue): 'api' | undefined {
+  return firstQueryValue(value) === 'api' ? 'api' : undefined;
+}
+
 export function parseTransactionAccountId(value: TransactionQueryValue): number | undefined {
   const firstValue = firstQueryValue(value);
   return firstValue ? parseInt4Id(firstValue) : undefined;
@@ -58,6 +64,7 @@ export function parseTransactionListFilters(
     type,
     categoryId: type === 'transfer' ? undefined : categoryId,
     accountId,
+    origin: parseTransactionOrigin(query.origin),
   };
 }
 
@@ -89,6 +96,14 @@ export function validatedTransactionReturn(
   if (type) params.set('type', type);
   if (category !== undefined && type !== 'transfer') params.set('category', String(category));
   return `/transactions?${params.toString()}`;
+}
+
+export function validatedAccountReturn(
+  value: string | undefined,
+  accountId: number,
+): string | undefined {
+  if (value === '/settings') return value;
+  return validatedTransactionReturn(value, accountId);
 }
 
 export function transactionReturnWithSaved(path: string): string {

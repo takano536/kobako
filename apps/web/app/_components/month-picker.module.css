@@ -1,0 +1,109 @@
+/* アプリ内の月選択のポップオーバー。`<body>` 直下に fixed で置き、下部ナビゲーション（`--layer-nav`）より上、
+   オーバーレイカード（`--layer-backdrop`）より下に重ねます。 */
+.popover {
+  position: fixed;
+  z-index: var(--layer-popover);
+  top: 0;
+  left: 0;
+  width: 15rem;
+  max-width: calc(100vw - 16px);
+  padding: var(--space-item);
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: var(--text-body);
+}
+
+.yearRow {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+}
+
+.year {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* ページ側のボタンの配置指定に負けないよう、クラスを2つ重ねます。 */
+.popover .yearStep,
+.popover .month {
+  justify-self: stretch;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.popover .yearStep {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+}
+
+.popover .yearStep:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: var(--opacity-disabled);
+}
+
+.chevron {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-within);
+}
+
+.popover .month {
+  min-height: 44px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.popover .yearStep:not(:disabled):hover,
+.popover .month:hover {
+  background: var(--surface-hover);
+}
+
+.popover .month[aria-pressed='true'] {
+  background: var(--button-primary);
+  color: var(--on-accent);
+}
+
+/* 全期間: 年の切り替えより上に、月のボタンと同じ見た目で1行に置きます。 */
+.popover .all {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-within);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover .yearStep,
+  .popover .month {
+    transition: none;
+  }
+}

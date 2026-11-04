@@ -1,4 +1,97 @@
 # Changelog
+## [0.22.0](https://github.com/takano536/kobako/compare/v0.21.5...v0.22.0) (2026-11-03)
+
+
+### Features
+
+* **api:** add mobile summary and balances endpoints ([#66](https://github.com/takano536/kobako/issues/66)) ([cfbf94b](https://github.com/takano536/kobako/commit/cfbf94b5f5b14c7f2e336c235838ac2ed6d0dd0f))
+
+## [0.21.5](https://github.com/takano536/kobako/compare/v0.21.4...v0.21.5) (2026-11-02)
+
+
+### Bug Fixes
+
+* **web:** restore card skeleton value surfaces ([#62](https://github.com/takano536/kobako/issues/62)) ([e68010e](https://github.com/takano536/kobako/commit/e68010ed77eb20aa0955f5c0830de22a6980edb3))
+* **web:** デモのクレジットカードを引落口座と請求サイクルに紐付ける ([#61](https://github.com/takano536/kobako/issues/61)) ([7cc3650](https://github.com/takano536/kobako/commit/7cc3650c9d6597f76745ce84830f8b507d677d93))
+
+## [0.21.4](https://github.com/takano536/kobako/compare/v0.21.3...v0.21.4) (2026-11-02)
+
+
+### Bug Fixes
+
+* **web:** カードフォームのスケルトンを実フォームに合わせる ([#59](https://github.com/takano536/kobako/issues/59)) ([21be832](https://github.com/takano536/kobako/commit/21be83200e9963a65886490cf103d8677573ea1f))
+
+## [0.21.3](https://github.com/takano536/kobako/compare/v0.21.2...v0.21.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** 固定費の頻度別を支払日と無関係にまとめる ([#57](https://github.com/takano536/kobako/issues/57)) ([ee5da95](https://github.com/takano536/kobako/commit/ee5da959c4c63e58a6f64fdd77585f1b2f5bfef5))
+
+## [0.21.2](https://github.com/takano536/kobako/compare/v0.21.1...v0.21.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** remove transaction row chevrons ([#54](https://github.com/takano536/kobako/issues/54)) ([92d306c](https://github.com/takano536/kobako/commit/92d306cf64d3ba8135cebc967bb5e21de613ef0c))
+* **web:** remove undefined secondary class from page summary ([#55](https://github.com/takano536/kobako/issues/55)) ([e365672](https://github.com/takano536/kobako/commit/e3656729083145d612a86c29e7de4453d1486bc9))
+
+## [0.21.1](https://github.com/takano536/kobako/compare/v0.21.0...v0.21.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **web:** 固定費の登録カードにキャンセルを置き、フォームの送信行を共通化 ([#51](https://github.com/takano536/kobako/issues/51)) ([30e8e1c](https://github.com/takano536/kobako/commit/30e8e1c7c8237b7e0c80f0a8994b72b66324c054))
+
+## [0.21.0](https://github.com/takano536/kobako/compare/v0.20.0...v0.21.0) (2026-10-31)
+
+
+### Features
+
+* **web:** 登録 FAB を共通化 ([#48](https://github.com/takano536/kobako/issues/48)) ([988bc98](https://github.com/takano536/kobako/commit/988bc98c65c4e3f7047ee3d4a4b5e3b8919dc68f))
+
+## [0.20.0](https://github.com/takano536/kobako/compare/v0.19.0...v0.20.0) (2026-10-31)
+
+
+### Features
+
+* **web:** 固定費と残高の集計を PageSummary に統一 ([#46](https://github.com/takano536/kobako/issues/46)) ([fce7ca2](https://github.com/takano536/kobako/commit/fce7ca2e72de2c8d6dfa1932e4cc10a6e46832a5))
+
+
+### Bug Fixes
+
+* **web:** remove stale fixed-cost select class ([#45](https://github.com/takano536/kobako/issues/45)) ([d43996d](https://github.com/takano536/kobako/commit/d43996dad59785047af17c8a4a5d577cbfdc1be3))
+
+## [0.19.0](https://github.com/takano536/kobako/compare/v0.18.0...v0.19.0) (2026-10-31)
+
+
+### Features
+
+* 固定費の登録と自動記録を追加 ([#38](https://github.com/takano536/kobako/issues/38)) ([be8002a](https://github.com/takano536/kobako/commit/be8002a13a4baf5d7dcb8247434033ec524c3d0a))
+
+## [0.18.0](https://github.com/takano536/kobako/compare/v0.17.0...v0.18.0) (2026-10-27)
+
+
+### Features
+
+* **web:** 取引のフィルタを常時表示のチップに統一し、設定に資産一覧を追加 ([#26](https://github.com/takano536/kobako/issues/26)) ([4258c91](https://github.com/takano536/kobako/commit/4258c9115399e3960400978229e07b45e1090e71))
+
+## [0.17.0](https://github.com/takano536/kobako/compare/v0.16.4...v0.17.0) (2026-10-26)
+
+
+### Features
+
+* **api:** 外部エージェント向けの取引 API v1 ([#23](https://github.com/takano536/kobako/issues/23)) ([74b2ecc](https://github.com/takano536/kobako/commit/74b2ecca85942907e9f59e646b885b32e4b6304c))
+* **web:** API から入った取引のバッジと、即時反映するフィルタ ([#20](https://github.com/takano536/kobako/issues/20)) ([11a8169](https://github.com/takano536/kobako/commit/11a81694b0994fee9559cfb450c46ab2e397e5cd))
+
+## [0.16.4](https://github.com/takano536/kobako/compare/v0.16.3...v0.16.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **web:** Android で選択ダイアログを閉じるタップがピッカーや適用に届かないようにする ([#19](https://github.com/takano536/kobako/issues/19)) ([d39fff4](https://github.com/takano536/kobako/commit/d39fff46e9f04edc22bf2f5cb6d2432c57ec6a3e))
+* **web:** フィルタの「適用」を項目と同じ行の右端に揃える ([#21](https://github.com/takano536/kobako/issues/21)) ([4ef262f](https://github.com/takano536/kobako/commit/4ef262fa245f2beaaee76c45200672ff595092a0))
+
 ## [0.16.3](https://github.com/takano536/kobako/compare/v0.16.2...v0.16.3) (2026-10-23)
 
 

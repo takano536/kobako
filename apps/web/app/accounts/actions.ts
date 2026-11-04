@@ -11,7 +11,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import {
   transactionReturnWithSaved,
-  validatedTransactionReturn,
+  validatedAccountReturn,
 } from '../../src/lib/transaction-query';
 import { getCurrentHouseholdId, getLedgerDatabase } from '../../src/lib/ledger-data';
 import { parseInt4Id } from '../../src/lib/ids';
@@ -60,6 +60,7 @@ interface CardInput {
 function revalidateAssets(accountId?: number): void {
   revalidatePath('/balances');
   revalidatePath('/transactions');
+  revalidatePath('/settings');
   revalidatePath('/');
   revalidatePath('/accounts/new');
   if (accountId !== undefined) revalidatePath(`/accounts/${accountId}/edit`);
@@ -79,7 +80,7 @@ function hasCardInput(input: CardInput): boolean {
 }
 
 function accountReturnPath(formData: FormData, accountId: number): string {
-  return validatedTransactionReturn(text(formData, 'return'), accountId) ?? '/balances';
+  return validatedAccountReturn(text(formData, 'return'), accountId) ?? '/balances';
 }
 
 export async function createAccountAction(
